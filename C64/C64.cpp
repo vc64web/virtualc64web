@@ -20,6 +20,17 @@
  */
 
 #include "C64.h"
+#include <emscripten.h>
+
+
+//#define USE_SDL_1_PIXEL 1
+//#define USE_SDL_2_PIXEL 1
+#define USE_SDL_2_TEXTURE 1
+#ifdef USE_SDL_1_PIXEL
+  #include <SDL/SDL.h>
+#else
+  #include <SDL2/SDL.h>
+#endif
 
 //
 // Emulator thread
@@ -37,6 +48,160 @@ threadCleanup(void* thisC64)
     c64->debug(2, "Execution thread terminated\n");
     c64->putMessage(MSG_HALT);
 }
+
+
+
+// The emscripten "main loop" replacement function.
+#ifdef USE_SDL_1_PIXEL
+SDL_Surface *sdl_screen;
+
+void draw_one_frame_into_SDL_Pixel(void *thisC64) {
+  C64 *c64 = (C64 *)thisC64;
+  c64->executeOneFrame();
+
+  void *texture = c64->vic.screenBuffer();
+
+  int width = NTSC_PIXELS;
+  int height = PAL_RASTERLINES;
+
+#ifdef TEST_SDL_LOCK_OPTS
+//  EM_ASM("SDL.defaults.copyOnLock = false; SDL.defaults.discardOnLock = true; SDL.defaults.opaqueFrontBuffer = false;");
+#endif
+
+  if (SDL_MUSTLOCK(sdl_screen)) SDL_LockSurface(sdl_screen);
+
+  for (int row = 0; row < height; row++) {
+    for (int col = 0; col < width; col++) {
+      Uint32 rgba = *(((Uint32*)texture) + row * width + col); 
+      int a= (rgba>>24) & 0xff;
+      int b= (rgba>>16) & 0xff;
+      int g= (rgba>>8) & 0xff;
+      int r= rgba & 0xff;
+      
+      *((Uint32*)sdl_screen->pixels + row * width + col) = SDL_MapRGBA(sdl_screen->format, r, g, b, a);
+    }
+  }
+  if (SDL_MUSTLOCK(sdl_screen)) SDL_UnlockSurface(sdl_screen);
+  //SDL_Flip(screen); 
+}
+#else
+
+/* SDL2 start*/
+SDL_Window * window;
+SDL_Surface * window_surface;
+unsigned int * pixels;
+
+SDL_Renderer * renderer;
+SDL_Texture * screen_texture;
+/* SDL2 end */
+
+void draw_one_frame_into_SDL2_Pixel(void *thisC64) {
+  C64 *c64 = (C64 *)thisC64;
+  c64->executeOneFrame();
+
+  void *texture = c64->vic.screenBuffer();
+
+  int twidth = NTSC_PIXELS;
+  int theight = PAL_RASTERLINES;
+
+    int width = window_surface->w;
+    int height = window_surface->h;
+
+    //window_surface = SDL_GetWindowSurface(window);
+    //pixels = (unsigned int *)window_surface->pixels;
+   
+
+  for (int row = 0; row < theight; row++) {
+    for (int col = 0; col < twidth; col++) {
+      Uint32 rgba = *(((Uint32*)texture) + row * twidth + col); 
+      int a= (rgba>>24) & 0xff;
+      int b= (rgba>>16) & 0xff;
+      int g= (rgba>>8) & 0xff;
+      int r= rgba & 0xff;
+      
+      *((Uint32*)pixels + row * twidth + col) = SDL_MapRGBA(window_surface->format, r, g, b, a);
+    }
+  }
+  SDL_UpdateWindowSurface(window);
+
+
+}
+
+
+// The emscripten "main loop" replacement function.
+void draw_one_frame_into_SDL2_Texture(void *thisC64) {
+  C64 *c64 = (C64 *)thisC64;
+  c64->executeOneFrame();
+
+  void *texture = c64->vic.screenBuffer();
+
+  int width = NTSC_PIXELS;
+  int height = PAL_RASTERLINES;
+
+  // It's a good idea to clear the screen every frame,
+    // as artifacts may occur if the window overlaps with
+    // other windows or transparent overlays.
+  SDL_RenderClear(renderer);
+  SDL_UpdateTexture(screen_texture, NULL, texture, width * 4);
+  SDL_RenderCopy(renderer, screen_texture, NULL, NULL);
+  SDL_RenderPresent(renderer);
+
+}
+#endif
+
+
+unsigned long frame_count=0;
+void draw_one_frame_into_SDL(void *thisC64) {
+    
+    #ifdef USE_SDL_1_PIXEL
+        draw_one_frame_into_SDL_Pixel(thisC64);
+    #endif
+    #ifdef USE_SDL_2_PIXEL
+        draw_one_frame_into_SDL2_Pixel(thisC64);
+    #endif
+    #ifdef USE_SDL_2_TEXTURE
+        draw_one_frame_into_SDL2_Texture(thisC64);
+    #endif
+
+    C64 *c64 = (C64 *)thisC64;
+    if(frame_count == 60*4)
+    {
+        c64->flash(AnyArchive::makeWithFile("roms/octopusinredwine.prg"),0);
+        //c64->VC1541.insertDisk(AnyArchive::makeWithFile("roms/fa.g64"),0);
+    }
+    if(frame_count == 60*5)
+    {
+        c64->keyboard.pressKey(2, 1); //r
+    }
+    if(frame_count == 60*6)
+    {
+        c64->keyboard.releaseKey(2, 1);
+        c64->keyboard.pressKey(3, 6);//u
+        
+    }
+    if(frame_count == 60*7)
+    {
+        c64->keyboard.releaseKey(3, 6);
+        c64->keyboard.pressKey(4, 7);//n   
+    }
+    if(frame_count == 60*8)
+    {
+        c64->keyboard.releaseKey(4, 7);
+        c64->keyboard.pressKey(0, 1);//Return   
+    }
+
+    if(frame_count == 60*9)
+    {
+        c64->keyboard.releaseKey(0, 1);
+    }
+    frame_count++;
+    
+
+    //77% Pixel SDL1    35%
+    //65% Pixel SDL2    29%
+    //70% Texture SDL2  19%
+}
+
 
 void 
 *runThread(void *thisC64) {
@@ -59,16 +224,64 @@ void
     c64->drive1.cpu.clearErrorState();
     c64->drive2.cpu.clearErrorState();
     c64->restartTimer();
-    
-    while (likely(success)) {
-        pthread_testcancel();
-        success = c64->executeOneFrame();
-    }
+ 
+    int width = NTSC_PIXELS;
+    int height = PAL_RASTERLINES;
+
+
+    SDL_Init(SDL_INIT_VIDEO);
+
+    #ifdef USE_SDL_1_PIXEL
+    sdl_screen = SDL_SetVideoMode(width, height, 32, SDL_SWSURFACE);
+    #endif
+
+   #ifndef USE_SDL_1_PIXEL
+   window = SDL_CreateWindow("",
+   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        width, height,
+        SDL_WINDOW_RESIZABLE);
+   #endif
+   #ifdef USE_SDL_2_PIXEL
+  //mit Pixel
+    window_surface = SDL_GetWindowSurface(window);
+
+    pixels = (unsigned int *)window_surface->pixels;
+   #endif
+ 
+  #ifdef USE_SDL_2_TEXTURE
+ 
+  //Texture
+  renderer = SDL_CreateRenderer(window,
+        -1, SDL_RENDERER_PRESENTVSYNC);
+  //renderer = SDL_CreateSoftwareRenderer(window_surface);
+  
+    // Since we are going to display a low resolution buffer,
+    // it is best to limit the window size so that it cannot
+    // be smaller than our internal buffer size.
+  SDL_SetWindowMinimumSize(window, width, height);
+
+  SDL_RenderSetLogicalSize(renderer, width, height); 
+  SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
+
+  screen_texture = SDL_CreateTexture(renderer,
+        SDL_PIXELFORMAT_ABGR8888
+        , SDL_TEXTUREACCESS_STREAMING,
+        width, height);
+
+ #endif
+/* SDL2 end */
+
+
+
+    emscripten_set_main_loop_arg(draw_one_frame_into_SDL, thisC64, 0, 1);
+    //while (likely(success)) {
+        //pthread_testcancel();
+   //     success = c64->executeOneFrame();
+    //}
     
     pthread_cleanup_pop(1);
     pthread_exit(NULL);    
 }
-
 
 //
 // Class methods
@@ -128,7 +341,7 @@ C64::C64()
     drive2.powerOff();
     
     // Initialize mach timer info
-    mach_timebase_info(&timebase);
+    //mach_timebase_info(&timebase);
 
     reset();
 }
@@ -390,7 +603,8 @@ C64::run()
         sid.run();
         
         // Start execution thread
-        pthread_create(&p, NULL, runThread, (void *)this);
+        //pthread_create(&p, NULL, runThread, (void *)this);
+        runThread((void *)this);
     }
 }
 
@@ -664,10 +878,10 @@ C64::setWarpLoad(bool b)
 void
 C64::restartTimer()
 {
-    uint64_t kernelNow = mach_absolute_time();
-    uint64_t nanoNow = abs_to_nanos(kernelNow);
+    //uint64_t kernelNow = mach_absolute_time();
+    //uint64_t nanoNow = abs_to_nanos(kernelNow);
     
-    nanoTargetTime = nanoNow + vic.getFrameDelay();
+    //nanoTargetTime = nanoNow + vic.getFrameDelay();
 }
 
 void
@@ -676,7 +890,7 @@ C64::synchronizeTiming()
     const uint64_t earlyWakeup = 1500000; /* 1.5 milliseconds */
     
     // Get current time in nano seconds
-    uint64_t nanoAbsTime = abs_to_nanos(mach_absolute_time());
+    uint64_t nanoAbsTime = 0; //abs_to_nanos(mach_absolute_time());
     
     // Check how long we're supposed to sleep
     int64_t timediff = (int64_t)nanoTargetTime - (int64_t)nanoAbsTime;

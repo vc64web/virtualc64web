@@ -194,7 +194,7 @@ class C64 : public VirtualComponent {
      *  @details  Used to put the emulation thread to sleep for the proper
      *            amount of time.
      */
-    mach_timebase_info_data_t timebase;
+    //mach_timebase_info_data_t timebase;
     
     /*! @brief    Wake-up time of the synchronization timer in nanoseconds
      *  @details  This value is recomputed each time the emulator thread is
@@ -424,10 +424,16 @@ class C64 : public VirtualComponent {
     private:
     
     //! @brief    Converts kernel time to nanoseconds.
-    uint64_t abs_to_nanos(uint64_t abs) { return abs * timebase.numer / timebase.denom; }
+    uint64_t abs_to_nanos(uint64_t abs) { 
+        return 0;
+        //return abs * timebase.numer / timebase.denom; 
+        }
     
     //! @brief    Converts nanoseconds to kernel time.
-    uint64_t nanos_to_abs(uint64_t nanos) { return nanos * timebase.denom / timebase.numer; }
+    uint64_t nanos_to_abs(uint64_t nanos) { 
+        return 0;
+        //return nanos * timebase.denom / timebase.numer; 
+        }
     
     public:
     

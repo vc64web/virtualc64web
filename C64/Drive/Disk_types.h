@@ -10,6 +10,8 @@
 
 #include <ctype.h>
 
+typedef unsigned long size_t;   //patch dagi
+
 /* Overview:
  *
  *                       -----------------------------------------------------------------

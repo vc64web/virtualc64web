@@ -24,8 +24,8 @@
 
 
 //#define USE_SDL_1_PIXEL 1
-//#define USE_SDL_2_PIXEL 1
-#define USE_SDL_2_TEXTURE 1
+#define USE_SDL_2_PIXEL 1
+//#define USE_SDL_2_TEXTURE 1
 #ifdef USE_SDL_1_PIXEL
   #include <SDL/SDL.h>
 #else
@@ -93,6 +93,7 @@ unsigned int * pixels;
 
 SDL_Renderer * renderer;
 SDL_Texture * screen_texture;
+
 /* SDL2 end */
 
 void draw_one_frame_into_SDL2_Pixel(void *thisC64) {
@@ -196,11 +197,23 @@ void draw_one_frame_into_SDL(void *thisC64) {
     }
     frame_count++;
     
-
-    //77% Pixel SDL1    35%
-    //65% Pixel SDL2    29%
-    //70% Texture SDL2  19%
 }
+
+void MyAudioCallback(void*  thisC64,
+                       Uint8* stream,
+                       int    len)
+{
+    C64 *c64 = (C64 *)thisC64;
+    c64->sid.readMonoSamples((float *)stream,len /  sizeof(float) );
+
+ /*   int success = SDL_QueueAudio(device_id, buf, len); //Uint8 *buf, Uint32 len
+    if(success <0)
+    {
+        printf("SDL_QueueAudio failed %s\n", SDL_GetError());
+    }
+ */
+}
+
 
 
 void 
@@ -228,9 +241,32 @@ void
     int width = NTSC_PIXELS;
     int height = PAL_RASTERLINES;
 
+    if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO)==-1)
+    {
+        printf("Could not initialize SDL:%s\n", SDL_GetError());
+    } 
 
-    SDL_Init(SDL_INIT_VIDEO);
+    SDL_AudioSpec want, have;
+    SDL_AudioDeviceID device_id;
 
+    SDL_memset(&want, 0, sizeof(want)); /* or SDL_zero(want) */
+    want.freq = 44100;
+    want.format = AUDIO_F32;
+    want.channels = 1;
+    want.samples = 256;
+    want.callback = MyAudioCallback;
+    want.userdata = thisC64;   //will be passed to the callback
+    device_id = SDL_OpenAudioDevice(NULL, 0, &want, &have, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+    if(device_id == 0)
+    {
+        printf("Failed to open audio: %s\n", SDL_GetError());
+    }
+
+    printf("set SID to freq= %d\n", have.freq);
+    c64->sid.setSampleRate(have.freq);
+
+    SDL_PauseAudioDevice(device_id, 0); //unpause the audio device
+  
     #ifdef USE_SDL_1_PIXEL
     sdl_screen = SDL_SetVideoMode(width, height, 32, SDL_SWSURFACE);
     #endif

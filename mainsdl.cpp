@@ -8,8 +8,6 @@
 #include "C64_types.h"
 #include "msg_codes.h"
 
-//#include <SDL/SDL.h>
-#include <SDL2/SDL.h>
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -48,10 +46,6 @@ class C64Wrapper {
     c64->loadRom("roms/characters.901225-01.bin");
     c64->loadRom("roms/1541-II.251968-03.bin");
     printf("wrapper calls run on c64->run() method\n");
-
-    //c64->flash(AnyArchive *file, unsigned item)
-    //c64->flash(AnyArchive.makeWithFile(), unsigned item)
-    c64->flash(AnyArchive::makeWithFile("roms/octopusinredwine.prg"),0);
 
     c64->run();
     printf("after run ...\n");

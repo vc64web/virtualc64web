@@ -276,7 +276,7 @@ void
     want.freq = 44100;
     want.format = AUDIO_F32;
     want.channels = 1;
-    want.samples = 256;
+    want.samples = 2048;
     want.callback = MyAudioCallback;
     want.userdata = thisC64;   //will be passed to the callback
     device_id = SDL_OpenAudioDevice(NULL, 0, &want, &have, SDL_AUDIO_ALLOW_FORMAT_CHANGE);

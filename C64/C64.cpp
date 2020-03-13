@@ -215,6 +215,29 @@ void MyAudioCallback(void*  thisC64,
 }
 
 
+int eventFilter(void* userdata, SDL_Event* event) {
+
+    switch(event->type){
+      case SDL_KEYDOWN:
+      case SDL_FINGERDOWN:
+      case SDL_MOUSEBUTTONDOWN:
+        /* on some browsers (chrome, safari) we have to resume Audio on users action 
+           https://developers.google.com/web/updates/2017/09/autoplay-policy-changes
+        */
+        EM_ASM({
+            if (typeof Module === 'undefined'
+                || typeof Module.SDL2 == 'undefined'
+                || typeof Module.SDL2.audioContext == 'undefined')
+                return;
+            if (Module.SDL2.audioContext.state == 'suspended') {
+                Module.SDL2.audioContext.resume();
+            }
+        });
+        break;
+    }
+    return 1;
+}
+
 
 void 
 *runThread(void *thisC64) {
@@ -266,6 +289,12 @@ void
     c64->sid.setSampleRate(have.freq);
 
     SDL_PauseAudioDevice(device_id, 0); //unpause the audio device
+    
+    //listen to mouse, finger and keys
+    SDL_SetEventFilter(eventFilter, NULL);
+
+
+
   
     #ifdef USE_SDL_1_PIXEL
     sdl_screen = SDL_SetVideoMode(width, height, 32, SDL_SWSURFACE);

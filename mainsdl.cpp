@@ -1,7 +1,8 @@
-// Copyright 2011 The Emscripten Authors.  All rights reserved.
-// Emscripten is available under two separate licenses, the MIT license and the
-// University of Illinois/NCSA Open Source License.  Both these licenses can be
-// found in the LICENSE file.
+/*!
+ * @file        mainsdl.cpp
+ * @author      mithrendal and Dirk W. Hoffmann, www.dirkwhoffmann.de
+ * @copyright   Dirk W. Hoffmann. All rights reserved.
+ */
 
 #include <stdio.h>
 #include "C64.h"
@@ -11,15 +12,8 @@
 #include <emscripten.h>
 #include <SDL2/SDL.h>
 
-//#define USE_SDL_1_PIXEL 1
 #define USE_SDL_2_PIXEL 1
 //#define USE_SDL_2_TEXTURE 1
-#ifdef USE_SDL_1_PIXEL
-  #include <SDL/SDL.h>
-#else
-  #include <SDL2/SDL.h>
-#endif
-
 
 int eventFilter(void* userdata, SDL_Event* event) {
 
@@ -45,39 +39,6 @@ int eventFilter(void* userdata, SDL_Event* event) {
 }
 
 // The emscripten "main loop" replacement function.
-#ifdef USE_SDL_1_PIXEL
-SDL_Surface *sdl_screen;
-
-void draw_one_frame_into_SDL_Pixel(void *thisC64) {
-  C64 *c64 = (C64 *)thisC64;
-  c64->executeOneFrame();
-
-  void *texture = c64->vic.screenBuffer();
-
-  int width = NTSC_PIXELS;
-  int height = PAL_RASTERLINES;
-
-#ifdef TEST_SDL_LOCK_OPTS
-//  EM_ASM("SDL.defaults.copyOnLock = false; SDL.defaults.discardOnLock = true; SDL.defaults.opaqueFrontBuffer = false;");
-#endif
-
-  if (SDL_MUSTLOCK(sdl_screen)) SDL_LockSurface(sdl_screen);
-
-  for (int row = 0; row < height; row++) {
-    for (int col = 0; col < width; col++) {
-      Uint32 rgba = *(((Uint32*)texture) + row * width + col); 
-      int a= (rgba>>24) & 0xff;
-      int b= (rgba>>16) & 0xff;
-      int g= (rgba>>8) & 0xff;
-      int r= rgba & 0xff;
-      
-      *((Uint32*)sdl_screen->pixels + row * width + col) = SDL_MapRGBA(sdl_screen->format, r, g, b, a);
-    }
-  }
-  if (SDL_MUSTLOCK(sdl_screen)) SDL_UnlockSurface(sdl_screen);
-  //SDL_Flip(screen); 
-}
-#else
 
 /* SDL2 start*/
 SDL_Window * window;
@@ -136,15 +97,11 @@ void draw_one_frame_into_SDL2_Texture(void *thisC64) {
   SDL_RenderPresent(renderer);
 
 }
-#endif
 
 
 unsigned long frame_count=0;
 void draw_one_frame_into_SDL(void *thisC64) {
     
-    #ifdef USE_SDL_1_PIXEL
-        draw_one_frame_into_SDL_Pixel(thisC64);
-    #endif
     #ifdef USE_SDL_2_PIXEL
         draw_one_frame_into_SDL2_Pixel(thisC64);
     #endif
@@ -233,18 +190,11 @@ void initSDL(void *thisC64)
     SDL_SetEventFilter(eventFilter, NULL);
 
 
-
-  
-    #ifdef USE_SDL_1_PIXEL
-    sdl_screen = SDL_SetVideoMode(width, height, 32, SDL_SWSURFACE);
-    #endif
-
-   #ifndef USE_SDL_1_PIXEL
    window = SDL_CreateWindow("",
    SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         width, height,
         SDL_WINDOW_RESIZABLE);
-   #endif
+
    #ifdef USE_SDL_2_PIXEL
   //mit Pixel
     window_surface = SDL_GetWindowSurface(window);
@@ -257,7 +207,6 @@ void initSDL(void *thisC64)
   //Texture
   renderer = SDL_CreateRenderer(window,
         -1, SDL_RENDERER_PRESENTVSYNC);
-  //renderer = SDL_CreateSoftwareRenderer(window_surface);
   
     // Since we are going to display a low resolution buffer,
     // it is best to limit the window size so that it cannot
@@ -273,7 +222,7 @@ void initSDL(void *thisC64)
         width, height);
 
  #endif
-/* SDL2 end */
+
 }
 
 void theListener(const void *, int type, long data){
@@ -316,9 +265,6 @@ class C64Wrapper {
   }
 
 };
-
-
-
 
 
 extern "C" int main(int argc, char** argv) {

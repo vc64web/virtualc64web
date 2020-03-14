@@ -1,6 +1,6 @@
 # VirtualC64 web edition
 
-![alt Logo](http://www.dirkwhoffmann.de/software/images/banner-vcweb.jpg)
+![alt Logo](http://www.dirkwhoffmann.de/software/images/banner-vcweb2.jpg)
 
 ## Info
 The base is a copy of virtualC64 without its usual mac GUI in v3.4b1 master branch March 3 2020 latest commit point fe1629c

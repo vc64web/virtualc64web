@@ -135,7 +135,10 @@ C64::C64()
     drive2.powerOff();
     
     // Initialize mach timer info
-    //mach_timebase_info(&timebase);
+#ifdef __EMSCRIPTEN__
+#else
+    mach_timebase_info(&timebase);
+#endif
 
     reset();
 }

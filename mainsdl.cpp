@@ -12,6 +12,10 @@
 #include <emscripten.h>
 #include <SDL2/SDL.h>
 
+/**
+ * USE_SDL_2_PIXEL more compatible
+ * USE_SDL_2_TEXTURE more efficient, draws via webgl into gpu
+ */
 #define USE_SDL_2_PIXEL 1
 //#define USE_SDL_2_TEXTURE 1
 
@@ -275,3 +279,12 @@ extern "C" int main(int argc, char** argv) {
   return 0;
 }
 
+/* emulation of macos mach_absolute_time() function. */
+long mach_absolute_time()
+{
+    auto xnow = std::chrono::system_clock::now();
+    auto now_ns = std::chrono::time_point_cast<std::chrono::nanoseconds>(xnow);
+    auto epoch = now_ns.time_since_epoch();
+    auto now_ns_long = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch).count();
+    return now_ns_long;
+}

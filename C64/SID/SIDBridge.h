@@ -25,6 +25,9 @@
 #include "FastSID.h"
 #include "ReSID.h"
 #include "SID_types.h"
+#ifdef __EMSCRIPTEN__
+#include "mainsdl.h"
+#endif
 
 class SIDBridge : public VirtualComponent {
 
@@ -253,7 +256,7 @@ public:
     void handleBufferOverflow();
     
     //! @brief   Signals to ignore the next underflow or overflow condition.
-    void ignoreNextUnderOrOverflow() { /*lastAlignment = mach_absolute_time();*/ }
+    void ignoreNextUnderOrOverflow() { lastAlignment = mach_absolute_time(); }
         
     //! @brief   Moves read pointer one position forward
     void advanceReadPtr() { readPtr = (readPtr + 1) % bufferSize; }

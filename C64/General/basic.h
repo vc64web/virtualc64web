@@ -33,9 +33,14 @@
 #include <sys/stat.h>
 #include <sys/param.h>
 #include <time.h>
-#include <chrono> //DAGI
-//#include <mach/mach.h>
-//#include <mach/mach_time.h>
+
+#ifdef __EMSCRIPTEN__
+#include <chrono>
+#else
+#include <mach/mach.h>
+#include <mach/mach_time.h>
+#endif
+
 #include <unistd.h>
 #include <pthread.h>
 #include <errno.h>

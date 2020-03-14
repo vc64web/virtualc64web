@@ -189,12 +189,14 @@ class C64 : public VirtualComponent {
     pthread_t p;
     
     private:
-    
+    #ifdef __EMSCRIPTEN__
+    #else
     /*! @brief    System timer information
      *  @details  Used to put the emulation thread to sleep for the proper
      *            amount of time.
      */
-    //mach_timebase_info_data_t timebase;
+    mach_timebase_info_data_t timebase;
+    #endif
     
     /*! @brief    Wake-up time of the synchronization timer in nanoseconds
      *  @details  This value is recomputed each time the emulator thread is

@@ -18,9 +18,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
+#ifdef __EMSCRIPTEN__
+#include "mainsdl.h"
+#endif
 #include "basic.h"
-//#include <emscripten.h>
 
 struct timeval t;
 // long tv_base = ((void)gettimeofday(&t,NULL), t.tv_sec);
@@ -329,20 +330,10 @@ sleepMicrosec(unsigned usec)
 }
 
 
-long xmachtime()
-{
-    auto xnow = std::chrono::system_clock::now();
-    auto now_ns = std::chrono::time_point_cast<std::chrono::nanoseconds>(xnow);
-    auto epoch = now_ns.time_since_epoch();
-    auto now_ns_long = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch).count();
-    return now_ns_long;
-}
-
-
 int64_t
 sleepUntil(uint64_t kernelTargetTime, uint64_t kernelEarlyWakeup)
 {
-    uint64_t now = xmachtime(); //mach_absolute_time();
+    uint64_t now = mach_absolute_time();
     int64_t jitter;
     
     if (now > kernelTargetTime)
@@ -350,14 +341,17 @@ sleepUntil(uint64_t kernelTargetTime, uint64_t kernelEarlyWakeup)
     
     // Sleep
     //printf("Sleeping for %d\n", kernelTargetTime - now);
-    //mach_wait_until(kernelTargetTime - kernelEarlyWakeup);
+ #ifdef __EMSCRIPTEN__
     //std::this_thread::sleep_until (kernelTargetTime - kernelEarlyWakeup);
     //emscripten_sleep(kernelTargetTime - kernelEarlyWakeup);
-
+ #else
+    mach_wait_until(kernelTargetTime - kernelEarlyWakeup);
+ #endif
+ 
     // Count some sheep to increase precision
     unsigned sheep = 0;
     do {
-        jitter = xmachtime() - kernelTargetTime;//mach_absolute_time() - kernelTargetTime;
+        jitter = mach_absolute_time() - kernelTargetTime;
         sheep++;
     } while (jitter < 0);
     

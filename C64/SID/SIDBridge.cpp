@@ -427,8 +427,6 @@ SIDBridge::writeData(short *data, size_t count)
 }
 
 
-extern long xmachtime();
-
 void
 SIDBridge::handleBufferUnderflow()
 {
@@ -440,7 +438,8 @@ SIDBridge::handleBufferUnderflow()
     debug(2, "SID RINGBUFFER UNDERFLOW (r: %ld w: %ld)\n", readPtr, writePtr);
 
     // Determine the elapsed seconds since the last pointer adjustment.
-    uint64_t now = xmachtime(); //mach_absolute_time();
+    uint64_t now = mach_absolute_time();
+
     double elapsedTime = (double)(now - lastAlignment) / 1000000000.0;
     lastAlignment = now;
 
@@ -469,7 +468,8 @@ SIDBridge::handleBufferOverflow()
     debug(2, "SID RINGBUFFER OVERFLOW (r: %ld w: %ld)\n", readPtr, writePtr);
     
     // Determine the elapsed seconds since the last pointer adjustment.
-    uint64_t now = xmachtime(); //mach_absolute_time();
+    uint64_t now = mach_absolute_time();
+
     double elapsedTime = (double)(now - lastAlignment) / 1000000000.0;
     lastAlignment = now;
     

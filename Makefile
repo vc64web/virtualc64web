@@ -1,5 +1,5 @@
 OBJDIR := obj
-SRC	  = $(wildcard C64/*/*.cpp C64/*/*/*.cpp)
+SRC	  = $(wildcard C64/C64.cpp C64/*/*.cpp C64/*/*/*.cpp)
 SRC_CC	  = $(wildcard C64/SID/resid/*.cc)
 OBJECTS	  = $(patsubst %.cpp,%.o,$(SRC))
 OBJECTS_CC = $(patsubst %.cc,%.o,$(SRC_CC))
@@ -23,7 +23,7 @@ clean:
 	rm -f vC64.data
 
 main:
-	$(CC)  -c $(CFLAGS) mainsdl.cpp C64/C64.cpp 
+	$(CC)  -c $(CFLAGS) mainsdl.cpp 
 	mv *.o obj
 	$(CC)  $(CFLAGS) -o vC64.html --shell-file shell.html  -s TOTAL_MEMORY=64MB -s ALLOW_MEMORY_GROWTH=1 $(OBJDIR)/*.o --preload-file roms
 

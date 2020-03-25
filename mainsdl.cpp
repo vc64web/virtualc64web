@@ -19,12 +19,188 @@
 #define USE_SDL_2_PIXEL 1
 //#define USE_SDL_2_TEXTURE 1
 
-int eventFilter(void* userdata, SDL_Event* event) {
 
+/* SDL2 start*/
+SDL_Window * window;
+SDL_Surface * window_surface;
+unsigned int * pixels;
+
+SDL_Renderer * renderer;
+SDL_Texture * screen_texture;
+
+/* SDL2 end */
+
+
+
+void PrintEvent(const SDL_Event * event)
+{
+    if (event->type == SDL_WINDOWEVENT) {
+        switch (event->window.event) {
+        case SDL_WINDOWEVENT_SHOWN:
+            printf("Window %d shown", event->window.windowID);
+            break;
+        case SDL_WINDOWEVENT_HIDDEN:
+            printf("Window %d hidden", event->window.windowID);
+            break;
+        case SDL_WINDOWEVENT_EXPOSED:
+            printf("Window %d exposed", event->window.windowID);
+            break;
+        case SDL_WINDOWEVENT_MOVED:
+            printf("Window %d moved to %d,%d",
+                    event->window.windowID, event->window.data1,
+                    event->window.data2);
+            break;
+        case SDL_WINDOWEVENT_RESIZED:
+            printf("Window %d resized to %dx%d",
+                    event->window.windowID, event->window.data1,
+                    event->window.data2);
+            break;
+        case SDL_WINDOWEVENT_SIZE_CHANGED:
+            printf("Window %d size changed to %dx%d",
+                    event->window.windowID, event->window.data1,
+                    event->window.data2);
+            break;
+        case SDL_WINDOWEVENT_MINIMIZED:
+            printf("Window %d minimized", event->window.windowID);
+            break;
+        case SDL_WINDOWEVENT_MAXIMIZED:
+            printf("Window %d maximized", event->window.windowID);
+            break;
+        case SDL_WINDOWEVENT_RESTORED:
+            printf("Window %d restored", event->window.windowID);
+            break;
+        case SDL_WINDOWEVENT_ENTER:
+            printf("Mouse entered window %d",
+                    event->window.windowID);
+            break;
+        case SDL_WINDOWEVENT_LEAVE:
+            printf("Mouse left window %d", event->window.windowID);
+            break;
+        case SDL_WINDOWEVENT_FOCUS_GAINED:
+            printf("Window %d gained keyboard focus",
+                    event->window.windowID);
+            break;
+        case SDL_WINDOWEVENT_FOCUS_LOST:
+            printf("Window %d lost keyboard focus",
+                    event->window.windowID);
+            break;
+        case SDL_WINDOWEVENT_CLOSE:
+            printf("Window %d closed", event->window.windowID);
+            break;
+#if SDL_VERSION_ATLEAST(2, 0, 5)
+        case SDL_WINDOWEVENT_TAKE_FOCUS:
+            printf("Window %d is offered a focus", event->window.windowID);
+            break;
+        case SDL_WINDOWEVENT_HIT_TEST:
+            printf("Window %d has a special hit test", event->window.windowID);
+            break;
+#endif
+        default:
+            printf("Window %d got unknown event %d",
+                    event->window.windowID, event->window.event);
+            break;
+        }
+        printf("\n");
+    }
+}
+
+int emu_width  = NTSC_PIXELS;
+int emu_height = PAL_RASTERLINES;
+int bFullscreen = false;
+int xOff = 0;
+int yOff = 0;
+int hOff = 0; //emu_height;
+int wOff = 0; //emu_width;
+
+int eventFilter(void* userdata, SDL_Event* event) {
     switch(event->type){
+      case SDL_WINDOWEVENT:
+        PrintEvent(event);
+        if (event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+        {//zuerst
+            window_surface = SDL_GetWindowSurface(window);
+            pixels = (unsigned int *)window_surface->pixels;
+            int width = window_surface->w;
+            int height = window_surface->h;
+            printf("Size changed: %d, %d\n", width, height);  
+        }
+        else if(event->window.event==SDL_WINDOWEVENT_RESIZED)
+        {//this event comes after SDL_WINDOWEVENT_SIZE_CHANGED
+              //SDL_SetWindowSize(window, emu_width, emu_height);   
+              //SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+              //window_surface = SDL_GetWindowSurface(window);
+        }
+        break;
       case SDL_KEYDOWN:
+        if ( event->key.keysym.sym == SDLK_RETURN &&
+             event->key.keysym.mod & KMOD_ALT )
+        {
+           if(!bFullscreen)
+           {
+              bFullscreen=true;
+              #ifdef USE_SDL_2_PIXEL
+              SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+              #endif
+              #ifdef USE_SDL_2_TEXTURE
+              SDL_RestoreWindow(window);
+              //only following combination works 
+              SDL_SetWindowSize(window, emu_width+1, emu_height+1);
+
+              //following not...
+              //SDL_SetWindowSize(window, emu_width+5, emu_height+5);
+              //SDL_SetWindowSize(window, emu_width+20, emu_height+20);
+              //SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+
+
+              SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+           
+              #endif
+           }
+           else
+           {
+              bFullscreen=false;
+             
+              SDL_SetWindowFullscreen(window, 0);
+              SDL_RestoreWindow(window);
+              SDL_SetWindowSize(window, emu_width, emu_height);
+              SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+           }
+        }
+        switch(event->key.keysym.sym)
+        {
+            case SDLK_1:
+              SDL_RestoreWindow(window);
+              SDL_SetWindowSize(window, 1440, 900);
+              SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+              break;
+
+            case SDLK_DOWN:
+              yOff += 1;
+              break;
+            case SDLK_UP:
+              yOff -= 1;
+              break;
+            case SDLK_RIGHT:
+              xOff += 1;
+              break;
+            case SDLK_LEFT:
+              xOff -= 1;
+              break;
+
+        }
+        if ( event->key.keysym.sym == SDLK_w)
+        {
+             wOff += (event->key.keysym.mod & KMOD_LSHIFT)? -2: 2;
+        }
+        if ( event->key.keysym.sym == SDLK_h)
+        {
+             hOff += (event->key.keysym.mod & KMOD_LSHIFT)? -2: 2;
+        }
+        break;
       case SDL_FINGERDOWN:
       case SDL_MOUSEBUTTONDOWN:
+        printf("pos: ");
+        printf("x=%d, y=%d, w=%d, h=%d\n", xOff, yOff, wOff, hOff);
         /* on some browsers (chrome, safari) we have to resume Audio on users action 
            https://developers.google.com/web/updates/2017/09/autoplay-policy-changes
         */
@@ -38,21 +214,14 @@ int eventFilter(void* userdata, SDL_Event* event) {
             }
         });
         break;
+        default:
+          //printf("unhandeld event %d",event->type);
+          break;
     }
     return 1;
 }
 
 // The emscripten "main loop" replacement function.
-
-/* SDL2 start*/
-SDL_Window * window;
-SDL_Surface * window_surface;
-unsigned int * pixels;
-
-SDL_Renderer * renderer;
-SDL_Texture * screen_texture;
-
-/* SDL2 end */
 
 void draw_one_frame_into_SDL2_Pixel(void *thisC64) {
   C64 *c64 = (C64 *)thisC64;
@@ -60,22 +229,18 @@ void draw_one_frame_into_SDL2_Pixel(void *thisC64) {
 
   void *texture = c64->vic.screenBuffer();
 
-  int twidth = NTSC_PIXELS;
-  int theight = PAL_RASTERLINES;
-
-  int width = window_surface->w;
-  int height = window_surface->h;
-
+  int surface_width = window_surface->w;
+  int surface_height = window_surface->h;
   
-  for (int row = 0; row < theight; row++) {
-    for (int col = 0; col < twidth; col++) {
-      Uint32 rgba = *(((Uint32*)texture) + row * twidth + col); 
+  for (int row = 0; row < emu_height; row++) {
+    for (int col = 0; col < emu_width; col++) {
+      Uint32 rgba = *(((Uint32*)texture) + row * emu_width + col); 
       int a= (rgba>>24) & 0xff;
       int b= (rgba>>16) & 0xff;
       int g= (rgba>>8) & 0xff;
       int r= rgba & 0xff;
       
-      *((Uint32*)pixels + row * twidth + col) = SDL_MapRGBA(window_surface->format, r, g, b, a);
+      *((Uint32*)pixels + row * surface_width + col) = SDL_MapRGBA(window_surface->format, r, g, b, a);
     }
   }
   SDL_UpdateWindowSurface(window);
@@ -89,15 +254,37 @@ void draw_one_frame_into_SDL2_Texture(void *thisC64) {
 
   void *texture = c64->vic.screenBuffer();
 
-  int width = NTSC_PIXELS;
-  int height = PAL_RASTERLINES;
-
-  // It's a good idea to clear the screen every frame,
-    // as artifacts may occur if the window overlaps with
-    // other windows or transparent overlays.
+  int surface_width = window_surface->w;
+  int surface_height = window_surface->h;
+ 
   SDL_RenderClear(renderer);
-  SDL_UpdateTexture(screen_texture, NULL, texture, width * 4);
-  SDL_RenderCopy(renderer, screen_texture, NULL, NULL);
+  SDL_UpdateTexture(screen_texture, NULL, texture, emu_width * 4);
+
+  SDL_Rect SrcR;
+  SDL_Rect DestR;
+
+  SrcR.x = 0;
+  SrcR.y = 0;
+  SrcR.w = emu_width;
+  SrcR.h = emu_height;
+
+//pos: x=-17, y=198, w=158, h=96
+  #ifdef USE_SDL_2_PIXEL
+  DestR.x = xOff ;
+  DestR.y = yOff ;
+  #endif
+  #ifdef USE_SDL_2_TEXTURE
+  //just a try... 
+  DestR.x = xOff + (emu_width - surface_width);  
+  DestR.y = yOff + (surface_height - emu_height);
+  #endif
+  DestR.w = surface_width + wOff;
+  DestR.h = surface_height + hOff;
+
+
+  //SDL_RenderSetViewport(renderer, &DestR);
+  SDL_RenderCopy(renderer, screen_texture, &SrcR, &DestR);
+  //SDL_RenderCopy(renderer, screen_texture, NULL, NULL);
   SDL_RenderPresent(renderer);
 
 }
@@ -161,8 +348,6 @@ void MyAudioCallback(void*  thisC64,
 void initSDL(void *thisC64)
 {
     C64 *c64 = (C64 *)thisC64;
-    int width = NTSC_PIXELS;
-    int height = PAL_RASTERLINES;
 
     if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO)==-1)
     {
@@ -196,7 +381,7 @@ void initSDL(void *thisC64)
 
    window = SDL_CreateWindow("",
    SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        width, height,
+        emu_width, emu_height,
         SDL_WINDOW_RESIZABLE);
 
    #ifdef USE_SDL_2_PIXEL
@@ -215,22 +400,21 @@ void initSDL(void *thisC64)
     // Since we are going to display a low resolution buffer,
     // it is best to limit the window size so that it cannot
     // be smaller than our internal buffer size.
-  SDL_SetWindowMinimumSize(window, width, height);
-
-  SDL_RenderSetLogicalSize(renderer, width, height); 
+  SDL_SetWindowMinimumSize(window, emu_width, emu_height);
+  SDL_RenderSetLogicalSize(renderer, emu_width, emu_height); 
   SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
 
   screen_texture = SDL_CreateTexture(renderer,
         SDL_PIXELFORMAT_ABGR8888
         , SDL_TEXTUREACCESS_STREAMING,
-        width, height);
+        emu_width, emu_height);
 
  #endif
 
 }
 
 void theListener(const void *, int type, long data){
-    printf("incoming message=%s, data=%ld\n", msg_code[type].c_str(), data); 
+    printf("vC64 message=%s, data=%ld\n", msg_code[type].c_str(), data); 
 }
 
 class C64Wrapper {

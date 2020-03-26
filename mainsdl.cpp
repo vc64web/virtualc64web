@@ -280,9 +280,9 @@ void draw_one_frame_into_SDL2_Texture(void *thisC64) {
   DestR.w = surface_width + wOff;
   DestR.h = surface_height + hOff;
 
-  //SDL_RenderSetViewport(renderer, &DestR);
-  //SDL_RenderCopy(renderer, screen_texture, &SrcR, &DestR);
-  SDL_RenderCopy(renderer, screen_texture, NULL, NULL);
+  SDL_RenderSetViewport(renderer, &SrcR);
+  SDL_RenderCopy(renderer, screen_texture, &SrcR, &SrcR);
+  //SDL_RenderCopy(renderer, screen_texture, NULL, NULL);
   SDL_RenderPresent(renderer);
 
 }

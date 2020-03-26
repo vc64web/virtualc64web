@@ -11,13 +11,14 @@
 
 #include <emscripten.h>
 #include <SDL2/SDL.h>
+#include <emscripten/html5.h>
 
 /**
  * USE_SDL_2_PIXEL more compatible
  * USE_SDL_2_TEXTURE more efficient, draws via webgl into gpu
  */
-#define USE_SDL_2_PIXEL 1
-//#define USE_SDL_2_TEXTURE 1
+//#define USE_SDL_2_PIXEL 1
+#define USE_SDL_2_TEXTURE 1
 
 
 /* SDL2 start*/
@@ -138,42 +139,48 @@ int eventFilter(void* userdata, SDL_Event* event) {
            if(!bFullscreen)
            {
               bFullscreen=true;
-              #ifdef USE_SDL_2_PIXEL
-              SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-              #endif
-              #ifdef USE_SDL_2_TEXTURE
-              SDL_RestoreWindow(window);
+              //#ifdef USE_SDL_2_PIXEL
+              //SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+              //#endif
+              //#ifdef USE_SDL_2_TEXTURE
+              //SDL_RestoreWindow(window);
               //only following combination works 
-              SDL_SetWindowSize(window, emu_width+1, emu_height+1);
+              //SDL_SetWindowSize(window, emu_width+1, emu_height+1);
 
               //following not...
               //SDL_SetWindowSize(window, emu_width+5, emu_height+5);
               //SDL_SetWindowSize(window, emu_width+20, emu_height+20);
               //SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
 
+              EmscriptenFullscreenStrategy strategy;
+              strategy.scaleMode = EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF;
+              strategy.filteringMode = EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT;
+              //strategy.canvasResizedCallback = emscripten_window_resized_callback;
+              //strategy.canvasResizedCallbackUserData = this;   // pointer to user data
+              //emscripten_enter_soft_fullscreen("canvas", &strategy);    
+              emscripten_request_fullscreen_strategy("canvas", false, &strategy);
 
-              SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+          //    SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
            
-              #endif
+              //#endif
            }
            else
            {
               bFullscreen=false;
              
+
+              //emscripten_exit_soft_fullscreen();    
+              emscripten_exit_fullscreen();
+/*
               SDL_SetWindowFullscreen(window, 0);
               SDL_RestoreWindow(window);
               SDL_SetWindowSize(window, emu_width, emu_height);
               SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+*/
            }
         }
         switch(event->key.keysym.sym)
         {
-            case SDLK_1:
-              SDL_RestoreWindow(window);
-              SDL_SetWindowSize(window, 1440, 900);
-              SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-              break;
-
             case SDLK_DOWN:
               yOff += 1;
               break;
@@ -268,23 +275,14 @@ void draw_one_frame_into_SDL2_Texture(void *thisC64) {
   SrcR.w = emu_width;
   SrcR.h = emu_height;
 
-//pos: x=-17, y=198, w=158, h=96
-  #ifdef USE_SDL_2_PIXEL
   DestR.x = xOff ;
   DestR.y = yOff ;
-  #endif
-  #ifdef USE_SDL_2_TEXTURE
-  //just a try... 
-  DestR.x = xOff + (emu_width - surface_width);  
-  DestR.y = yOff + (surface_height - emu_height);
-  #endif
   DestR.w = surface_width + wOff;
   DestR.h = surface_height + hOff;
 
-
   //SDL_RenderSetViewport(renderer, &DestR);
-  SDL_RenderCopy(renderer, screen_texture, &SrcR, &DestR);
-  //SDL_RenderCopy(renderer, screen_texture, NULL, NULL);
+  //SDL_RenderCopy(renderer, screen_texture, &SrcR, &DestR);
+  SDL_RenderCopy(renderer, screen_texture, NULL, NULL);
   SDL_RenderPresent(renderer);
 
 }

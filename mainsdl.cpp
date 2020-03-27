@@ -113,6 +113,25 @@ int yOff = 0;
 int hOff = 0; //emu_height;
 int wOff = 0; //emu_width;
 
+
+EM_BOOL emscripten_window_resized_callback(int eventType, const void *reserved, void *userData){
+/*
+	double width, height;
+	emscripten_get_element_css_size("canvas", &width, &height);
+	int w = (int)width, h = (int)height;
+*/
+  // resize SDL window
+    SDL_SetWindowSize(window, emu_width, emu_height);
+    SDL_Rect SrcR;
+    SrcR.x = 0;
+    SrcR.y = 0;
+    SrcR.w = emu_width;
+    SrcR.h = emu_height;
+    SDL_RenderSetViewport(renderer, &SrcR);
+	return true;
+}
+
+
 int eventFilter(void* userdata, SDL_Event* event) {
     switch(event->type){
       case SDL_WINDOWEVENT:
@@ -155,10 +174,11 @@ int eventFilter(void* userdata, SDL_Event* event) {
               EmscriptenFullscreenStrategy strategy;
               strategy.scaleMode = EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF;
               strategy.filteringMode = EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT;
-              //strategy.canvasResizedCallback = emscripten_window_resized_callback;
+              strategy.canvasResizedCallback = emscripten_window_resized_callback;
               //strategy.canvasResizedCallbackUserData = this;   // pointer to user data
               //emscripten_enter_soft_fullscreen("canvas", &strategy);    
               emscripten_request_fullscreen_strategy("canvas", false, &strategy);
+
 
           //    SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
            
@@ -267,24 +287,27 @@ void draw_one_frame_into_SDL2_Texture(void *thisC64) {
   SDL_RenderClear(renderer);
   SDL_UpdateTexture(screen_texture, NULL, texture, emu_width * 4);
 
-  SDL_Rect SrcR;
-  SDL_Rect DestR;
 
+  SDL_Rect SrcR;
   SrcR.x = 0;
   SrcR.y = 0;
   SrcR.w = emu_width;
   SrcR.h = emu_height;
 
-  DestR.x = xOff ;
-  DestR.y = yOff ;
-  DestR.w = surface_width + wOff;
-  DestR.h = surface_height + hOff;
+  SDL_Rect DestR;
 
-  SDL_RenderSetViewport(renderer, &SrcR);
-  SDL_RenderCopy(renderer, screen_texture, &SrcR, &SrcR);
-  //SDL_RenderCopy(renderer, screen_texture, NULL, NULL);
+  DestR.x = 0;
+  DestR.y = 0;
+  DestR.w = surface_width;
+  DestR.h = surface_height;
+
+//  SDL_RenderSetViewport(renderer, &SrcR); done now in resize_callback
+
+//  SDL_RenderCopy(renderer, screen_texture, &SrcR, &SrcR);
+  SDL_RenderCopy(renderer, screen_texture, NULL, NULL);
+//  SDL_RenderCopy(renderer, screen_texture, &SrcR, &DestR);
+
   SDL_RenderPresent(renderer);
-
 }
 
 
@@ -409,6 +432,7 @@ void initSDL(void *thisC64)
 
  #endif
 
+  
 }
 
 void theListener(const void *, int type, long data){

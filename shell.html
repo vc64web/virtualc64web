@@ -64,8 +64,7 @@
       <input type="checkbox" id="resize">Resize canvas
       <input type="checkbox" id="pointerLock" checked>Lock/hide mouse pointer
       &nbsp;&nbsp;&nbsp;
-      <input type="button" value="Fullscreen" onclick="Module.requestFullscreen(document.getElementById('pointerLock').checked, 
-                                                                                document.getElementById('resize').checked)">
+      <input type="button" value="Fullscreen" id="button_fullscreen">
     </div>
     
     <hr/>
@@ -78,7 +77,7 @@
 
       var Module = {
         preRun: [],
-        postRun: [],
+        postRun: [InitWrappers],
         print: (function() {
           var element = document.getElementById('output');
           if (element) element.value = ''; // clear browser cache
@@ -146,6 +145,15 @@
           if (text) Module.printErr('[post-exception status] ' + text);
         };
       };
+
+      function InitWrappers() {
+        var toggleFullscreen = Module.cwrap('toggleFullscreen', 'undefined');
+        document.getElementById('button_fullscreen').onclick = function() {
+            if (toggleFullscreen != null) {
+                toggleFullscreen();
+            }
+        }
+      }
     </script>
     {{{ SCRIPT }}}
   </body>

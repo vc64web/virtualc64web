@@ -134,6 +134,25 @@ EM_BOOL emscripten_window_resized_callback(int eventType, const void *reserved, 
 }
 
 
+extern "C" void toggleFullscreen()
+{
+    if(!bFullscreen)
+    {
+      bFullscreen=true;
+
+      EmscriptenFullscreenStrategy strategy;
+      strategy.scaleMode = EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF;
+      strategy.filteringMode = EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT;
+      strategy.canvasResizedCallback = emscripten_window_resized_callback;
+      emscripten_enter_soft_fullscreen("canvas", &strategy);    
+    }
+    else
+    {
+      bFullscreen=false;
+      emscripten_exit_soft_fullscreen(); 
+    }
+}
+
 int eventFilter(void* userdata, SDL_Event* event) {
     switch(event->type){
       case SDL_WINDOWEVENT:
@@ -157,50 +176,7 @@ int eventFilter(void* userdata, SDL_Event* event) {
         if ( event->key.keysym.sym == SDLK_RETURN &&
              event->key.keysym.mod & KMOD_ALT )
         {
-           if(!bFullscreen)
-           {
-              bFullscreen=true;
-              //#ifdef USE_SDL_2_PIXEL
-              //SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-              //#endif
-              //#ifdef USE_SDL_2_TEXTURE
-              //SDL_RestoreWindow(window);
-              //only following combination works 
-              //SDL_SetWindowSize(window, emu_width+1, emu_height+1);
-
-              //following not...
-              //SDL_SetWindowSize(window, emu_width+5, emu_height+5);
-              //SDL_SetWindowSize(window, emu_width+20, emu_height+20);
-              //SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-
-              EmscriptenFullscreenStrategy strategy;
-              strategy.scaleMode = EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_STDDEF;
-              strategy.filteringMode = EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT;
-              strategy.canvasResizedCallback = emscripten_window_resized_callback;
-              //strategy.canvasResizedCallbackUserData = this;   // pointer to user data
-              emscripten_enter_soft_fullscreen("canvas", &strategy);    
-              //emscripten_request_fullscreen_strategy("canvas", false, &strategy);
-
-
-          //    SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-           
-              //#endif
-           }
-           else
-           {
-              bFullscreen=false;
-             
-
-              emscripten_exit_soft_fullscreen();    
-              //emscripten_exit_fullscreen();
-
-/*
-              SDL_SetWindowFullscreen(window, 0);
-              SDL_RestoreWindow(window);
-              SDL_SetWindowSize(window, emu_width, emu_height);
-              SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-*/
-           }
+            toggleFullscreen();
         }
         switch(event->key.keysym.sym)
         {

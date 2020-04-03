@@ -133,6 +133,7 @@ EM_BOOL emscripten_window_resized_callback(int eventType, const void *reserved, 
 	return true;
 }
 
+char *filename = NULL;
 
 extern "C" void toggleFullscreen()
 {
@@ -301,12 +302,12 @@ void draw_one_frame_into_SDL(void *thisC64) {
     #endif
 
     C64 *c64 = (C64 *)thisC64;
-    if(frame_count == 60*4)
+    if(frame_count == 60*3)
     {
-        c64->flash(AnyArchive::makeWithFile("roms/octopusinredwine.prg"),0);
+//        c64->flash(AnyArchive::makeWithFile("roms/octopusinredwine.prg"),0);
         //c64->VC1541.insertDisk(AnyArchive::makeWithFile("roms/fa.g64"),0);
     }
-    if(frame_count == 60*5)
+    if(frame_count == 60*4)
     {
         c64->keyboard.pressKey(2, 1); //r
     }
@@ -331,8 +332,11 @@ void draw_one_frame_into_SDL(void *thisC64) {
     {
         c64->keyboard.releaseKey(0, 1);
     }
-    frame_count++;
-    
+
+    if(filename!= NULL)
+    {
+      frame_count++;
+    }
 }
 
 void MyAudioCallback(void*  thisC64,
@@ -455,9 +459,9 @@ class C64Wrapper {
 
 };
 
-
+C64Wrapper *wrapper = NULL;
 extern "C" int main(int argc, char** argv) {
-  C64Wrapper *wrapper= new C64Wrapper();
+  wrapper= new C64Wrapper();
  
   initSDL(wrapper->c64);
   wrapper->run();
@@ -472,4 +476,33 @@ long mach_absolute_time()
     auto epoch = now_ns.time_since_epoch();
     auto now_ns_long = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch).count();
     return now_ns_long;
+}
+
+extern "C" void loadFile(char* name, Uint8 *blob, long len)
+{
+  printf("load file=%s len=%ld\n", name, len);
+  filename=name;
+  if(wrapper == NULL)
+  {
+    return;
+  }
+  if (checkFileSuffix(name, ".D64") || checkFileSuffix(name, ".d64")) {
+    printf("isD64\n");
+    //wrapper->c64->flash(D64File::makeWithBuffer(blob, len),0);
+    wrapper->c64->drive1.insertDisk(D64File::makeWithBuffer(blob, len));
+  }
+  else if (checkFileSuffix(name, ".G64") || checkFileSuffix(name, ".g64")) {
+    printf("isG64\n");
+    wrapper->c64->drive1.insertDisk(G64File::makeWithBuffer(blob, len));
+  }
+  else if (checkFileSuffix(name, ".PRG") || checkFileSuffix(name, ".prg")) {
+    printf("isPRG\n");
+    wrapper->c64->flash(PRGFile::makeWithBuffer(blob, len),0);
+  }
+  else if (checkFileSuffix(name, ".CRT")|| checkFileSuffix(name, ".crt")) {
+    printf("isCRT\n");
+    wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(wrapper->c64,(CRTFile::makeWithBuffer(blob, len))));
+  }
+
+  frame_count=0;
 }

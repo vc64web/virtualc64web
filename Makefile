@@ -8,7 +8,7 @@ INCLUDE   = -I. -IC64 -IC64/Cartridges -IC64/Cartridges/CustomCartridges -IC64/C
 WARNINGS  = -Wall -Wno-unused-variable
 STD       = -std=c++17
 OPTIMIZE  = -O3
-WASM_EXPORTS= -s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS="['_main', '_toggleFullscreen']"
+WASM_EXPORTS= -s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS="['_main', '_toggleFullscreen', '_loadFile']"
 CFLAGS    = $(INCLUDE) $(WARNINGS) $(STD) $(OPTIMIZE) -s USE_SDL=2 $(WASM_EXPORTS)
 #-s ASSERTIONS=1
 

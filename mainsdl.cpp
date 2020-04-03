@@ -502,6 +502,7 @@ extern "C" void loadFile(char* name, Uint8 *blob, long len)
   else if (checkFileSuffix(name, ".CRT")|| checkFileSuffix(name, ".crt")) {
     printf("isCRT\n");
     wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(wrapper->c64,(CRTFile::makeWithBuffer(blob, len))));
+    wrapper->c64->reset();
   }
 
   frame_count=0;

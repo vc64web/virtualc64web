@@ -174,49 +174,11 @@ int eventFilter(void* thisC64, SDL_Event* event) {
               //window_surface = SDL_GetWindowSurface(window);
         }
         break;
-       case SDL_KEYUP:
-        switch(event->key.keysym.sym)
-        {
-            case SDLK_r:
-               printf("release r\n");
-
-               c64->keyboard.releaseKey(2, 1); //r;
-              break;
-        }
-        break;
       case SDL_KEYDOWN:
         if ( event->key.keysym.sym == SDLK_RETURN &&
              event->key.keysym.mod & KMOD_ALT )
         {
             wasm_toggleFullscreen();
-        }
-        switch(event->key.keysym.sym)
-        {
-            case SDLK_DOWN:
-              yOff += 1;
-              break;
-            case SDLK_UP:
-              yOff -= 1;
-              break;
-            case SDLK_RIGHT:
-              xOff += 1;
-              break;
-            case SDLK_LEFT:
-              xOff -= 1;
-              break;
-            case SDLK_r:
-               printf("press r\n");
-               c64->keyboard.pressKey(2, 1); //r;
-              break;
-
-        }
-        if ( event->key.keysym.sym == SDLK_w)
-        {
-             wOff += (event->key.keysym.mod & KMOD_LSHIFT)? -2: 2;
-        }
-        if ( event->key.keysym.sym == SDLK_h)
-        {
-             hOff += (event->key.keysym.mod & KMOD_LSHIFT)? -2: 2;
         }
         break;
       case SDL_FINGERDOWN:
@@ -517,10 +479,6 @@ extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
     printf("isD64\n");
     //wrapper->c64->flash(D64File::makeWithBuffer(blob, len),0);
     wrapper->c64->drive1.insertDisk(D64File::makeWithBuffer(blob, len));
-  }
-  else if (checkFileSuffix(name, ".G64") || checkFileSuffix(name, ".g64")) {
-    printf("isG64\n");
-    wrapper->c64->drive1.insertDisk(G64File::makeWithBuffer(blob, len));
   }
   else if (checkFileSuffix(name, ".PRG") || checkFileSuffix(name, ".prg")) {
     printf("isPRG\n");

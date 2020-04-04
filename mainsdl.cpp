@@ -133,8 +133,9 @@ EM_BOOL emscripten_window_resized_callback(int eventType, const void *reserved, 
 	return true;
 }
 
+char *filename = NULL;
 
-extern "C" void toggleFullscreen()
+extern "C" void wasm_toggleFullscreen()
 {
     if(!bFullscreen)
     {
@@ -153,7 +154,8 @@ extern "C" void toggleFullscreen()
     }
 }
 
-int eventFilter(void* userdata, SDL_Event* event) {
+int eventFilter(void* thisC64, SDL_Event* event) {
+    C64 *c64 = (C64 *)thisC64;
     switch(event->type){
       case SDL_WINDOWEVENT:
         PrintEvent(event);
@@ -176,31 +178,7 @@ int eventFilter(void* userdata, SDL_Event* event) {
         if ( event->key.keysym.sym == SDLK_RETURN &&
              event->key.keysym.mod & KMOD_ALT )
         {
-            toggleFullscreen();
-        }
-        switch(event->key.keysym.sym)
-        {
-            case SDLK_DOWN:
-              yOff += 1;
-              break;
-            case SDLK_UP:
-              yOff -= 1;
-              break;
-            case SDLK_RIGHT:
-              xOff += 1;
-              break;
-            case SDLK_LEFT:
-              xOff -= 1;
-              break;
-
-        }
-        if ( event->key.keysym.sym == SDLK_w)
-        {
-             wOff += (event->key.keysym.mod & KMOD_LSHIFT)? -2: 2;
-        }
-        if ( event->key.keysym.sym == SDLK_h)
-        {
-             hOff += (event->key.keysym.mod & KMOD_LSHIFT)? -2: 2;
+            wasm_toggleFullscreen();
         }
         break;
       case SDL_FINGERDOWN:
@@ -301,12 +279,12 @@ void draw_one_frame_into_SDL(void *thisC64) {
     #endif
 
     C64 *c64 = (C64 *)thisC64;
-    if(frame_count == 60*4)
+    if(frame_count == 60*3)
     {
-        c64->flash(AnyArchive::makeWithFile("roms/octopusinredwine.prg"),0);
+//        c64->flash(AnyArchive::makeWithFile("roms/octopusinredwine.prg"),0);
         //c64->VC1541.insertDisk(AnyArchive::makeWithFile("roms/fa.g64"),0);
     }
-    if(frame_count == 60*5)
+    if(frame_count == 60*4)
     {
         c64->keyboard.pressKey(2, 1); //r
     }
@@ -331,8 +309,11 @@ void draw_one_frame_into_SDL(void *thisC64) {
     {
         c64->keyboard.releaseKey(0, 1);
     }
-    frame_count++;
-    
+
+    if(filename!= NULL)
+    {
+      frame_count++;
+    }
 }
 
 void MyAudioCallback(void*  thisC64,
@@ -376,7 +357,7 @@ void initSDL(void *thisC64)
     SDL_PauseAudioDevice(device_id, 0); //unpause the audio device
     
     //listen to mouse, finger and keys
-    SDL_SetEventFilter(eventFilter, NULL);
+    SDL_SetEventFilter(eventFilter, thisC64);
 
 
    window = SDL_CreateWindow("",
@@ -447,17 +428,15 @@ class C64Wrapper {
     c64->loadRom("roms/1541-II.251968-03.bin");
     printf("wrapper calls run on c64->run() method\n");
 
-
-
+    c64->setTakeAutoSnapshots(false);
     c64->run();
     printf("after run ...\n");
   }
-
 };
 
-
+C64Wrapper *wrapper = NULL;
 extern "C" int main(int argc, char** argv) {
-  C64Wrapper *wrapper= new C64Wrapper();
+  wrapper= new C64Wrapper();
  
   initSDL(wrapper->c64);
   wrapper->run();
@@ -472,4 +451,44 @@ long mach_absolute_time()
     auto epoch = now_ns.time_since_epoch();
     auto now_ns_long = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch).count();
     return now_ns_long;
+}
+
+extern "C" void wasm_key(int code1, int code2, int pressed)
+{
+  printf("wasm_key ( %d, %d, %d ) \n", code1, code2, pressed);
+  
+  if(pressed==1)
+  {
+    wrapper->c64->keyboard.pressKey(code1, code2);
+  }
+  else
+  {
+    wrapper->c64->keyboard.releaseKey(code1, code2);
+  }
+}
+
+extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
+{
+  printf("load file=%s len=%ld\n", name, len);
+  filename=name;
+  if(wrapper == NULL)
+  {
+    return;
+  }
+  if (checkFileSuffix(name, ".D64") || checkFileSuffix(name, ".d64")) {
+    printf("isD64\n");
+    //wrapper->c64->flash(D64File::makeWithBuffer(blob, len),0);
+    wrapper->c64->drive1.insertDisk(D64File::makeWithBuffer(blob, len));
+  }
+  else if (checkFileSuffix(name, ".PRG") || checkFileSuffix(name, ".prg")) {
+    printf("isPRG\n");
+    wrapper->c64->flash(PRGFile::makeWithBuffer(blob, len),0);
+  }
+  else if (checkFileSuffix(name, ".CRT")|| checkFileSuffix(name, ".crt")) {
+    printf("isCRT\n");
+    wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(wrapper->c64,(CRTFile::makeWithBuffer(blob, len))));
+    wrapper->c64->reset();
+  }
+
+  frame_count=0;
 }

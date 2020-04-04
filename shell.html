@@ -47,7 +47,18 @@
         to {transform: rotate(360deg);}
       }
 
+      #drop_zone {
+        cursor: pointer;
+        background-color: #dddddd;
+        padding: 10px;
+        border: 3px dashed #a0a0ff;
+        width:  300px;
+        height: 48px;
+      }
+
     </style>
+    <script src="vC64helper.js"></script>
+    <script src="vC64keymap.js"></script>
   </head>
   <body>
     <hr/>
@@ -59,6 +70,19 @@
     <div class="emscripten_border">
       <canvas class="emscripten" id="canvas" width="428" height="284" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
     </div>
+    <hr/>
+
+    <!-- Filesupport start  -->
+    <h2>VC1541 or cartridge slot</h2>
+    <div>
+      <form id="theFileInput">
+        place some nice D64, PRG, here ...
+        <div id="drop_zone">
+        </div>
+        <input id="filedialog" name="theFileDialog" type="file" accept=".g64, .d64, .crt, .prg" style="display:none" >
+      </form> 
+    </div>
+    <!-- Filesupport end  -->
     <hr/>
     <div class="emscripten">
       <input type="checkbox" id="resize">Resize canvas
@@ -146,14 +170,6 @@
         };
       };
 
-      function InitWrappers() {
-        var toggleFullscreen = Module.cwrap('toggleFullscreen', 'undefined');
-        document.getElementById('button_fullscreen').onclick = function() {
-            if (toggleFullscreen != null) {
-                toggleFullscreen();
-            }
-        }
-      }
     </script>
     {{{ SCRIPT }}}
   </body>

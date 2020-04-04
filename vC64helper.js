@@ -42,20 +42,31 @@ function pushFile(file, startup) {
     var fileReader  = new FileReader();
     fileReader.onload  = function() {
         var byteArray = new Uint8Array(this.result);
-        loadfile(file.name, byteArray, byteArray.byteLength);
+        wasm_loadfile(file.name, byteArray, byteArray.byteLength);
     }
     fileReader.readAsArrayBuffer(file);
 }
 
+function keydown(e) {
+    //var shift = e.getModifierState('Shift');
+    var c64code = translateKey(e.code);
+    wasm_key(c64code[0], c64code[1], 1);
+}
+function keyup(e) {
+    //var shift = e.getModifierState('Shift');
+    var c64code = translateKey(e.code);
+    wasm_key(c64code[0], c64code[1], 0);
+}
 
 
 function InitWrappers() {
-    loadfile = Module.cwrap('loadFile', 'undefined', ['string', 'array', 'number']);
+    wasm_loadfile = Module.cwrap('wasm_loadFile', 'undefined', ['string', 'array', 'number']);
+    wasm_key = Module.cwrap('wasm_key', 'undefined', ['number', 'number', 'number']);
+    wasm_toggleFullscreen = Module.cwrap('wasm_toggleFullscreen', 'undefined');
 
-    var toggleFullscreen = Module.cwrap('toggleFullscreen', 'undefined');
     document.getElementById('button_fullscreen').onclick = function() {
-        if (toggleFullscreen != null) {
-            toggleFullscreen();
+        if (wasm_toggleFullscreen != null) {
+            wasm_toggleFullscreen();
         }
     }
 
@@ -78,5 +89,8 @@ function InitWrappers() {
     document.getElementById('filedialog').addEventListener("change", function(e) {
           handleFileInput();
         }, false);
+    document.addEventListener('keyup', keyup);
+    document.addEventListener('keydown', keydown);
+
 
   }

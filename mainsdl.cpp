@@ -135,7 +135,7 @@ EM_BOOL emscripten_window_resized_callback(int eventType, const void *reserved, 
 
 char *filename = NULL;
 
-extern "C" void toggleFullscreen()
+extern "C" void wasm_toggleFullscreen()
 {
     if(!bFullscreen)
     {
@@ -154,7 +154,8 @@ extern "C" void toggleFullscreen()
     }
 }
 
-int eventFilter(void* userdata, SDL_Event* event) {
+int eventFilter(void* thisC64, SDL_Event* event) {
+    C64 *c64 = (C64 *)thisC64;
     switch(event->type){
       case SDL_WINDOWEVENT:
         PrintEvent(event);
@@ -173,11 +174,21 @@ int eventFilter(void* userdata, SDL_Event* event) {
               //window_surface = SDL_GetWindowSurface(window);
         }
         break;
+       case SDL_KEYUP:
+        switch(event->key.keysym.sym)
+        {
+            case SDLK_r:
+               printf("release r\n");
+
+               c64->keyboard.releaseKey(2, 1); //r;
+              break;
+        }
+        break;
       case SDL_KEYDOWN:
         if ( event->key.keysym.sym == SDLK_RETURN &&
              event->key.keysym.mod & KMOD_ALT )
         {
-            toggleFullscreen();
+            wasm_toggleFullscreen();
         }
         switch(event->key.keysym.sym)
         {
@@ -192,6 +203,10 @@ int eventFilter(void* userdata, SDL_Event* event) {
               break;
             case SDLK_LEFT:
               xOff -= 1;
+              break;
+            case SDLK_r:
+               printf("press r\n");
+               c64->keyboard.pressKey(2, 1); //r;
               break;
 
         }
@@ -380,7 +395,7 @@ void initSDL(void *thisC64)
     SDL_PauseAudioDevice(device_id, 0); //unpause the audio device
     
     //listen to mouse, finger and keys
-    SDL_SetEventFilter(eventFilter, NULL);
+    SDL_SetEventFilter(eventFilter, thisC64);
 
 
    window = SDL_CreateWindow("",
@@ -451,12 +466,10 @@ class C64Wrapper {
     c64->loadRom("roms/1541-II.251968-03.bin");
     printf("wrapper calls run on c64->run() method\n");
 
-
-
+    c64->setTakeAutoSnapshots(false);
     c64->run();
     printf("after run ...\n");
   }
-
 };
 
 C64Wrapper *wrapper = NULL;
@@ -478,7 +491,21 @@ long mach_absolute_time()
     return now_ns_long;
 }
 
-extern "C" void loadFile(char* name, Uint8 *blob, long len)
+extern "C" void wasm_key(int code1, int code2, int pressed)
+{
+  printf("wasm_key ( %d, %d, %d ) \n", code1, code2, pressed);
+  
+  if(pressed==1)
+  {
+    wrapper->c64->keyboard.pressKey(code1, code2);
+  }
+  else
+  {
+    wrapper->c64->keyboard.releaseKey(code1, code2);
+  }
+}
+
+extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
 {
   printf("load file=%s len=%ld\n", name, len);
   filename=name;

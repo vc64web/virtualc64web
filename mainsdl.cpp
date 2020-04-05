@@ -277,7 +277,7 @@ void draw_one_frame_into_SDL(void *thisC64) {
     #ifdef USE_SDL_2_TEXTURE
         draw_one_frame_into_SDL2_Texture(thisC64);
     #endif
-
+/*
     C64 *c64 = (C64 *)thisC64;
     if(frame_count == 60*3)
     {
@@ -314,6 +314,7 @@ void draw_one_frame_into_SDL(void *thisC64) {
     {
       frame_count++;
     }
+*/
 }
 
 void MyAudioCallback(void*  thisC64,
@@ -477,8 +478,16 @@ extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
   }
   if (checkFileSuffix(name, ".D64") || checkFileSuffix(name, ".d64")) {
     printf("isD64\n");
-    //wrapper->c64->flash(D64File::makeWithBuffer(blob, len),0);
+    wrapper->c64->drive1.prepareToInsert();
+    usleep(300000);
     wrapper->c64->drive1.insertDisk(D64File::makeWithBuffer(blob, len));
+  }
+  else if (checkFileSuffix(name, ".G64") || checkFileSuffix(name, ".g64")) {
+    printf("isG64\n");
+    wrapper->c64->drive1.prepareToInsert();
+    usleep(300000);
+    wrapper->c64->drive1.insertDisk(G64File::makeWithBuffer(blob, len));
+    printf("wasm_loadFile: disk inserted\n");
   }
   else if (checkFileSuffix(name, ".PRG") || checkFileSuffix(name, ".prg")) {
     printf("isPRG\n");

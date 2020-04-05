@@ -508,6 +508,8 @@ VC1541::insertDisk(AnyArchive *a)
     
     insertionStatus = FULLY_INSERTED;
     
+    debug("insertDisk: checksum = %llx\n", disk.fnv64());
+
     c64->putMessage(MSG_VC1541_DISK, deviceNr);
     c64->putMessage(MSG_DISK_SAVED, deviceNr);
     if (sendSoundMessages)

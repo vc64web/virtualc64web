@@ -141,6 +141,7 @@ C64::C64()
 #endif
 
     reset();
+    iec.startTracing(1000); // Generates 1000 lines of trace output
 }
 
 C64::~C64()

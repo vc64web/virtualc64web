@@ -52,24 +52,6 @@ AnyC64File::dealloc()
     eof = -1;
 }
 
-/*
-bool
-AnyC64File::checkBufferHeader(const uint8_t *buffer, size_t length, const uint8_t *header)
-{
-    assert(buffer != NULL);
-    assert(header != NULL);
-    
-    unsigned i;
-    
-    for (i = 0; i < length && header[i] != 0; i++) {
-        if (header[i] != buffer[i])
-            return false;
-    }
- 
-    return header[i] == 0;
-}
-*/
-
 void
 AnyC64File::setPath(const char *str)
 {
@@ -165,6 +147,11 @@ AnyC64File::readFromBuffer(const uint8_t *buffer, size_t length)
     size = length;
     eof = length;
     fp = 0;
+
+    // Compute a debug checksum
+    uint64_t checksum = fnv_1a_64(buffer, length);
+    debug("readFromBuffer: checksum = %llx\n", checksum);
+
     return true;
 }
 

@@ -430,6 +430,8 @@ class C64Wrapper {
     printf("wrapper calls run on c64->run() method\n");
 
     c64->setTakeAutoSnapshots(false);
+ //   c64->dump();
+ //   c64->drive1.dump();
     c64->run();
     printf("after run ...\n");
   }

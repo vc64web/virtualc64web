@@ -372,7 +372,7 @@ inline uint32_t fnv_1a_it32(uint32_t prev, uint32_t value) { return (prev ^ valu
 inline uint64_t fnv_1a_it64(uint64_t prev, uint64_t value) { return (prev ^ value) * 0x100000001b3; }
 
 //! @brief    Computes a FNV-1a for a given buffer
-uint32_t fnv_1a_32(uint8_t *addr, size_t size);
-uint64_t fnv_1a_64(uint8_t *addr, size_t size);
+uint32_t fnv_1a_32(const uint8_t *addr, size_t size);
+uint64_t fnv_1a_64(const uint8_t *addr, size_t size);
 
 #endif

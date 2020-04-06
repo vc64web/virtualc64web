@@ -24,7 +24,9 @@ _note_: start.sh starts an webserver with URL base path pointing to the folder w
 * builds without errors in emsdk  (output vC64.html, vC64.js, vC64.wasm, vC64.data)
 * runs Octopus in redwine demo in a browser
 * sound output
+* replace the standard emsdk html page and build a specific html5 file which allows to insert disks ... 
+* keyboard works for many keys 
 
 ## next goals  
-* implementing a Javascript API to be able to feed the vC64-WASM Core with disks, crts, keyboard and joystick controller input from  HTML5 side
-* replace the standard emsdk html page and build a specific html5 file which allows to insert disks ... 
+* further completing and extending the Javascript API for keyboard and joystick controller input from  HTML5 side
+* snapshot support

@@ -462,7 +462,7 @@ VC1541::setModifiedDisk(bool value)
 void
 VC1541::prepareToInsert()
 {
-    c64->resume();
+    suspend();
     
     debug("prepareToInsert\n");
     assert(insertionStatus == NOT_INSERTED);
@@ -470,7 +470,7 @@ VC1541::prepareToInsert()
     // Block the light barrier by taking the disk half out
     insertionStatus = PARTIALLY_INSERTED;
     
-    c64->resume();
+    resume();
 }
 
 void
@@ -508,6 +508,8 @@ VC1541::insertDisk(AnyArchive *a)
     
     insertionStatus = FULLY_INSERTED;
     
+    debug("insertDisk: checksum = %llx\n", disk.fnv64());
+
     c64->putMessage(MSG_VC1541_DISK, deviceNr);
     c64->putMessage(MSG_DISK_SAVED, deviceNr);
     if (sendSoundMessages)

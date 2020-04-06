@@ -359,7 +359,7 @@ sleepUntil(uint64_t kernelTargetTime, uint64_t kernelEarlyWakeup)
 }
 
 uint32_t
-fnv_1a_32(uint8_t *addr, size_t size)
+fnv_1a_32(const uint8_t *addr, size_t size)
 {
     if (addr == NULL || size == 0) return 0;
 
@@ -373,7 +373,7 @@ fnv_1a_32(uint8_t *addr, size_t size)
 }
 
 uint64_t
-fnv_1a_64(uint8_t *addr, size_t size)
+fnv_1a_64(const uint8_t *addr, size_t size)
 {
     if (addr == NULL || size == 0) return 0;
 

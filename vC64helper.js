@@ -49,13 +49,15 @@ function pushFile(file, startup) {
 
 function keydown(e) {
     //var shift = e.getModifierState('Shift');
-    var c64code = translateKey(e.code);
-    wasm_key(c64code[0], c64code[1], 1);
+    var c64code = translateKey(e.code, e.key);
+    if(c64code !== undefined)
+        wasm_key(c64code[0], c64code[1], 1);
 }
 function keyup(e) {
     //var shift = e.getModifierState('Shift');
-    var c64code = translateKey(e.code);
-    wasm_key(c64code[0], c64code[1], 0);
+    var c64code = translateKey(e.code, e.key);
+    if(c64code !== undefined)
+        wasm_key(c64code[0], c64code[1], 0);
 }
 
 

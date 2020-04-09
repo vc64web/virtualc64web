@@ -1,7 +1,7 @@
-
-function translateKey(html5code)
+function translateKey(keycode, key)
 {
-    mapindex=key_translation_map[html5code];
+    console.log('keycode='+keycode + ', key='+key);
+    mapindex=key_translation_map[ keycode ];
     c64code=c64keymap[mapindex];
     return c64code;
 }
@@ -55,8 +55,8 @@ key_translation_map =
     KeyZ:51,
     KeyS:36,
     KeyE:20,
-    ShiftLeft:50,
     ShiftRight:50,
+    ShiftLeft:50,
     
     // Third row
     Digit5:5,
@@ -89,24 +89,24 @@ key_translation_map =
     KeyN     :56,
     
     // Sixth row
-    BracketRight:11, //plus
+    Minus:11,  //plus
     KeyP     :27,
     KeyL     :43,
-    //minus :12,
-    period:59,
-    colon :44,
-    at    :28,
+    Equal :12, //minus
+    Period:59, 
+    Semicolon :44, //colon
+    BracketLeft :28, //@
     Comma :58,
     
     // Seventh row
     pound :13,
-    asterisk:29,
-    semicolon:45,
+    BracketRight:29, //asterisk
+    Quote:45,  //semicolon
     home  :14,
     rightShift:61,
-    equal :46,
-    upArrow   :30,
-    slash :60,
+    Backslash :46, //equal
+    upArrow :30,
+    Slash :60,
 
     // Eights row
     Digit1:1,
@@ -114,7 +114,8 @@ key_translation_map =
     ControlLeft   :17,
     Digit2:2,
     Space :65,
-    commodore :49,
+    OSLeft :49,  //commodore
+    OSRight :49,  //commodore
     KeyQ     :18,
     runStop   :33,
     

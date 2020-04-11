@@ -13,14 +13,6 @@
 #include <SDL2/SDL.h>
 #include <emscripten/html5.h>
 
-/**
- * USE_SDL_2_PIXEL more compatible
- * USE_SDL_2_TEXTURE more efficient, draws via webgl into gpu
- */
-//#define USE_SDL_2_PIXEL 1
-#define USE_SDL_2_TEXTURE 1
-
-
 /* SDL2 start*/
 SDL_Window * window;
 SDL_Surface * window_surface;
@@ -30,8 +22,6 @@ SDL_Renderer * renderer;
 SDL_Texture * screen_texture;
 
 /* SDL2 end */
-
-
 
 void PrintEvent(const SDL_Event * event)
 {
@@ -107,11 +97,12 @@ void PrintEvent(const SDL_Event * event)
 
 int emu_width  = NTSC_PIXELS;
 int emu_height = PAL_RASTERLINES;
+int xOff = 12;
+int yOff = 12;
+int clipped_width  = NTSC_PIXELS -12 -24;
+int clipped_height = PAL_RASTERLINES -12 -24;
+
 int bFullscreen = false;
-int xOff = 0;
-int yOff = 0;
-int hOff = 0; //emu_height;
-int wOff = 0; //emu_width;
 
 
 EM_BOOL emscripten_window_resized_callback(int eventType, const void *reserved, void *userData){
@@ -121,7 +112,7 @@ EM_BOOL emscripten_window_resized_callback(int eventType, const void *reserved, 
 	int w = (int)width, h = (int)height;
 */
   // resize SDL window
-    SDL_SetWindowSize(window, emu_width, emu_height);
+    SDL_SetWindowSize(window, clipped_width, clipped_height);
     /*
     SDL_Rect SrcR;
     SrcR.x = 0;
@@ -183,8 +174,6 @@ int eventFilter(void* thisC64, SDL_Event* event) {
         break;
       case SDL_FINGERDOWN:
       case SDL_MOUSEBUTTONDOWN:
-        printf("pos: ");
-        printf("x=%d, y=%d, w=%d, h=%d\n", xOff, yOff, wOff, hOff);
         /* on some browsers (chrome, safari) we have to resume Audio on users action 
            https://developers.google.com/web/updates/2017/09/autoplay-policy-changes
         */
@@ -205,116 +194,48 @@ int eventFilter(void* thisC64, SDL_Event* event) {
     return 1;
 }
 
-// The emscripten "main loop" replacement function.
 
-void draw_one_frame_into_SDL2_Pixel(void *thisC64) {
+
+unsigned long frame_count=0;
+// The emscripten "main loop" replacement function.
+void draw_one_frame_into_SDL(void *thisC64) 
+{
+  //this method is triggered by
+  //emscripten_set_main_loop_arg(em_arg_callback_func func, void *arg, int fps, int simulate_infinite_loop) 
+  //which is called inside te c64.cpp
+  //fps Setting int <=0 (recommended) uses the browser’s requestAnimationFrame mechanism to call the function.
+
+  //The number of callbacks is usually 60 times per second, but will 
+  //generally match the display refresh rate in most web browsers as 
+  //per W3C recommendation. requestAnimationFrame() 
+
   C64 *c64 = (C64 *)thisC64;
   c64->executeOneFrame();
 
-  void *texture = c64->vic.screenBuffer();
-
-  int surface_width = window_surface->w;
-  int surface_height = window_surface->h;
-  
-  for (int row = 0; row < emu_height; row++) {
-    for (int col = 0; col < emu_width; col++) {
-      Uint32 rgba = *(((Uint32*)texture) + row * emu_width + col); 
-      int a= (rgba>>24) & 0xff;
-      int b= (rgba>>16) & 0xff;
-      int g= (rgba>>8) & 0xff;
-      int r= rgba & 0xff;
-      
-      *((Uint32*)pixels + row * surface_width + col) = SDL_MapRGBA(window_surface->format, r, g, b, a);
-    }
+  frame_count++;
+  //we save some energy by skipping every second, to get a nice 30fps stream
+  if(frame_count %2 == 0)
+  {
+  //  return;
   }
-  SDL_UpdateWindowSurface(window);
-}
 
-
-// The emscripten "main loop" replacement function.
-void draw_one_frame_into_SDL2_Texture(void *thisC64) {
-  C64 *c64 = (C64 *)thisC64;
-  c64->executeOneFrame();
-
-  void *texture = c64->vic.screenBuffer();
+  Uint8 *texture = (Uint8 *)c64->vic.screenBuffer();
 
   int surface_width = window_surface->w;
   int surface_height = window_surface->h;
  
-  SDL_RenderClear(renderer);
-  SDL_UpdateTexture(screen_texture, NULL, texture, emu_width * 4);
-
-/*
+//  SDL_RenderClear(renderer);
   SDL_Rect SrcR;
-  SrcR.x = 0;
-  SrcR.y = 0;
-  SrcR.w = emu_width;
-  SrcR.h = emu_height;
+  SrcR.x = xOff;
+  SrcR.y = yOff;
+  SrcR.w = clipped_width;
+  SrcR.h = clipped_height;
+  SDL_UpdateTexture(screen_texture, &SrcR, texture+ (4*emu_width*SrcR.y) + SrcR.x*4, 4*emu_width);
 
-  SDL_Rect DestR;
-
-  DestR.x = 0;
-  DestR.y = 0;
-  DestR.w = surface_width;
-  DestR.h = surface_height;
-*/
-//  SDL_RenderSetViewport(renderer, &SrcR); done now in resize_callback
-
-//  SDL_RenderCopy(renderer, screen_texture, &SrcR, &SrcR);
-  SDL_RenderCopy(renderer, screen_texture, NULL, NULL);
-//  SDL_RenderCopy(renderer, screen_texture, &SrcR, &DestR);
+  SDL_RenderCopy(renderer, screen_texture, &SrcR, NULL);
 
   SDL_RenderPresent(renderer);
-}
 
-
-unsigned long frame_count=0;
-void draw_one_frame_into_SDL(void *thisC64) {
-    
-    #ifdef USE_SDL_2_PIXEL
-        draw_one_frame_into_SDL2_Pixel(thisC64);
-    #endif
-    #ifdef USE_SDL_2_TEXTURE
-        draw_one_frame_into_SDL2_Texture(thisC64);
-    #endif
-/*
-    C64 *c64 = (C64 *)thisC64;
-    if(frame_count == 60*3)
-    {
-//        c64->flash(AnyArchive::makeWithFile("roms/octopusinredwine.prg"),0);
-        //c64->VC1541.insertDisk(AnyArchive::makeWithFile("roms/fa.g64"),0);
-    }
-    if(frame_count == 60*4)
-    {
-        c64->keyboard.pressKey(2, 1); //r
-    }
-    if(frame_count == 60*6)
-    {
-        c64->keyboard.releaseKey(2, 1);
-        c64->keyboard.pressKey(3, 6);//u
-        
-    }
-    if(frame_count == 60*7)
-    {
-        c64->keyboard.releaseKey(3, 6);
-        c64->keyboard.pressKey(4, 7);//n   
-    }
-    if(frame_count == 60*8)
-    {
-        c64->keyboard.releaseKey(4, 7);
-        c64->keyboard.pressKey(0, 1);//Return   
-    }
-
-    if(frame_count == 60*9)
-    {
-        c64->keyboard.releaseKey(0, 1);
-    }
-
-    if(filename!= NULL)
-    {
-      frame_count++;
-    }
-*/
 }
 
 void MyAudioCallback(void*  thisC64,
@@ -343,7 +264,7 @@ void initSDL(void *thisC64)
     want.freq = 44100;
     want.format = AUDIO_F32;
     want.channels = 1;
-    want.samples = 2048;
+    want.samples = 1024*2;//2048;
     want.callback = MyAudioCallback;
     want.userdata = thisC64;   //will be passed to the callback
     device_id = SDL_OpenAudioDevice(NULL, 0, &want, &have, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
@@ -363,36 +284,37 @@ void initSDL(void *thisC64)
 
    window = SDL_CreateWindow("",
    SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        emu_width, emu_height,
+        clipped_width, clipped_height,
         SDL_WINDOW_RESIZABLE);
-
-   #ifdef USE_SDL_2_PIXEL
-  //mit Pixel
-    window_surface = SDL_GetWindowSurface(window);
-
-    pixels = (unsigned int *)window_surface->pixels;
-   #endif
- 
-  #ifdef USE_SDL_2_TEXTURE
  
   //Texture
   renderer = SDL_CreateRenderer(window,
-        -1, SDL_RENDERER_PRESENTVSYNC);
-  
+        -1, 
+        SDL_RENDERER_PRESENTVSYNC|SDL_RENDERER_ACCELERATED);
+  if(renderer == NULL)
+  {
+    printf("can not get hardware accelerated renderer going with software renderer instead...\n");
+    renderer = SDL_CreateRenderer(window,
+        -1, 
+        SDL_RENDERER_SOFTWARE
+        );
+  }
+  else
+  {
+    printf("got hardware accelerated renderer ...\n");
+  }
+
     // Since we are going to display a low resolution buffer,
     // it is best to limit the window size so that it cannot
     // be smaller than our internal buffer size.
-  SDL_SetWindowMinimumSize(window, emu_width, emu_height);
-  SDL_RenderSetLogicalSize(renderer, emu_width, emu_height); 
+  SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);
+  SDL_RenderSetLogicalSize(renderer, clipped_width, clipped_height); 
   SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
 
   screen_texture = SDL_CreateTexture(renderer,
         SDL_PIXELFORMAT_ABGR8888
         , SDL_TEXTUREACCESS_STREAMING,
         emu_width, emu_height);
-
- #endif
-
   
 }
 
@@ -430,6 +352,7 @@ class C64Wrapper {
     printf("wrapper calls run on c64->run() method\n");
 
     c64->setTakeAutoSnapshots(false);
+    c64->vic.emulateGrayDotBug=false;
  //   c64->dump();
  //   c64->drive1.dump();
     c64->run();

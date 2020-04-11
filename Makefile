@@ -26,7 +26,7 @@ clean:
 main:
 	$(CC)  -c $(CFLAGS) mainsdl.cpp 
 	mv *.o obj
-	$(CC)  $(CFLAGS) -o vC64.html --shell-file shell.html  -s TOTAL_MEMORY=64MB -s ALLOW_MEMORY_GROWTH=1 $(OBJDIR)/*.o --preload-file roms
+	$(CC)  $(CFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=32MB -s ALLOW_MEMORY_GROWTH=1 $(OBJDIR)/*.o --preload-file roms
 
 $(OBJECTS): %.o: %.cpp
 	$(CC) -c $(CFLAGS) $< -o $(OBJDIR)/$(@F)

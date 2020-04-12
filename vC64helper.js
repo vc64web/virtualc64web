@@ -46,30 +46,63 @@ function pushFile(file, startup) {
     }
     fileReader.readAsArrayBuffer(file);
 }
+var useKeyPad = false;
+joystick_keydown_map = {
+    'ArrowUp':'PULL_UP',
+    'ArrowDown':'PULL_DOWN',
+    'ArrowLeft':'PULL_LEFT',
+    'ArrowRight':'PULL_RIGHT',
+    'Space':'PRESS_FIRE'
+}
+joystick_keyup_map = {
+    'ArrowUp':'RELEASE_Y',
+    'ArrowDown':'RELEASE_Y',
+    'ArrowLeft':'RELEASE_X',
+    'ArrowRight':'RELEASE_X',
+    'Space':'RELEASE_FIRE'
+}
 
 function keydown(e) {
-    //var shift = e.getModifierState('Shift');
-    var c64code = translateKey(e.code, e.key);
-    if(c64code !== undefined)
-        wasm_key(c64code[0], c64code[1], 1);
+    if(useKeyPad)
+    {
+//        console.log(e.key);
+        wasm_joystick('2'+joystick_keydown_map[e.code]);
+    }
+    else
+    {
+        var c64code = translateKey(e.code, e.key);
+        if(c64code !== undefined)
+          wasm_key(c64code[0], c64code[1], 1);
+    }
 }
 function keyup(e) {
-    //var shift = e.getModifierState('Shift');
-    var c64code = translateKey(e.code, e.key);
-    if(c64code !== undefined)
-        wasm_key(c64code[0], c64code[1], 0);
+    if(useKeyPad)
+    {
+        wasm_joystick('2'+joystick_keyup_map[e.code]);
+    }
+    else
+    {
+        var c64code = translateKey(e.code, e.key);
+        if(c64code !== undefined)
+            wasm_key(c64code[0], c64code[1], 0);
+    }
 }
-
 
 function InitWrappers() {
     wasm_loadfile = Module.cwrap('wasm_loadFile', 'undefined', ['string', 'array', 'number']);
     wasm_key = Module.cwrap('wasm_key', 'undefined', ['number', 'number', 'number']);
     wasm_toggleFullscreen = Module.cwrap('wasm_toggleFullscreen', 'undefined');
+    wasm_joystick = Module.cwrap('wasm_joystick', 'undefined', ['string']);
+
 
     document.getElementById('button_fullscreen').onclick = function() {
         if (wasm_toggleFullscreen != null) {
             wasm_toggleFullscreen();
         }
+    }
+
+    document.getElementById('keypad').onclick = function() {
+        useKeyPad = document.getElementById('keypad').checked;
     }
 
     document.getElementById('theFileInput').addEventListener("submit", function(e) {

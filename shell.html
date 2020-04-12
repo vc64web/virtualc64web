@@ -14,7 +14,10 @@
       { border: 0px none; background-color: black; 
         /*transform: scale(1.5,1.5);*/
       }
-
+      body {
+        background-color: #333333;
+        color: #aaaaaa;
+      }
       .spinner {
         height: 50px;
         width: 50px;
@@ -49,7 +52,7 @@
 
       #drop_zone {
         cursor: pointer;
-        background-color: #dddddd;
+        background-color: #888888;
         padding: 10px;
         border: 3px dashed #a0a0ff;
         width:  300px;
@@ -85,8 +88,7 @@
     <!-- Filesupport end  -->
     <hr/>
     <div class="emscripten">
-      <input type="checkbox" id="resize">Resize canvas
-      <input type="checkbox" id="pointerLock" checked>Lock/hide mouse pointer
+      <input type="checkbox" id="keypad">use cursor keys as joystick
       &nbsp;&nbsp;&nbsp;
       <input type="button" value="Fullscreen" id="button_fullscreen">
     </div>

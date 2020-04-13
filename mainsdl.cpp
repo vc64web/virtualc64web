@@ -213,7 +213,7 @@ void draw_one_frame_into_SDL(void *thisC64)
   //we save some energy by skipping every second, to get a nice 30fps stream
   if(frame_count %4 == 0)
   {
-    return;
+ //   return;
   }
 
   C64 *c64 = (C64 *)thisC64;

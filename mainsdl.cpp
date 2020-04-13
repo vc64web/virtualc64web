@@ -213,8 +213,14 @@ void draw_one_frame_into_SDL(void *thisC64)
   //we save some energy by skipping every second, to get a nice 30fps stream
   if(frame_count %4 == 0)
   {
- //   return;
+  //  return;
   }
+
+  EM_ASM({
+      if (typeof draw_one_frame === 'undefined')
+          return;
+      draw_one_frame();
+  });
 
   C64 *c64 = (C64 *)thisC64;
   c64->executeOneFrame();
@@ -428,6 +434,10 @@ extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
   frame_count=0;
 }
 
+extern "C" void wasm_reset()
+{
+  wrapper->c64->reset();
+}
 
 extern "C" void wasm_joystick(char* port_plus_event)
 {
@@ -471,6 +481,10 @@ RELEASE_FIRE
   else if( strcmp(event,"PRESS_FIRE") == 0)
   {
     code = PRESS_FIRE;
+  }
+  else if( strcmp(event,"RELEASE_XY") == 0)
+  {
+    code = RELEASE_XY;
   }
   else if( strcmp(event,"RELEASE_X") == 0)
   {

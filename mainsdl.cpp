@@ -209,15 +209,16 @@ void draw_one_frame_into_SDL(void *thisC64)
   //generally match the display refresh rate in most web browsers as 
   //per W3C recommendation. requestAnimationFrame() 
 
+  frame_count++;
+  //we save some energy by skipping every second, to get a nice 30fps stream
+  if(frame_count %4 == 0)
+  {
+    return;
+  }
+
   C64 *c64 = (C64 *)thisC64;
   c64->executeOneFrame();
 
-  frame_count++;
-  //we save some energy by skipping every second, to get a nice 30fps stream
-  if(frame_count %2 == 0)
-  {
-  //  return;
-  }
 
   Uint8 *texture = (Uint8 *)c64->vic.screenBuffer();
 

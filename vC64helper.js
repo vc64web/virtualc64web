@@ -46,7 +46,8 @@ function pushFile(file, startup) {
     }
     fileReader.readAsArrayBuffer(file);
 }
-var useKeyPad = false;
+var port1 = 'none';
+var port2 = 'none';
 joystick_keydown_map = {
     'ArrowUp':'PULL_UP',
     'ArrowDown':'PULL_DOWN',
@@ -63,29 +64,33 @@ joystick_keyup_map = {
 }
 
 function keydown(e) {
-    if(useKeyPad)
+    if(port1=='keys'||port2=='keys')
     {
-//        console.log(e.key);
-        wasm_joystick('2'+joystick_keydown_map[e.code]);
+        var joystick_cmd = joystick_keydown_map[e.code];
+        if(joystick_cmd !== undefined)
+        {
+            wasm_joystick((port1=='keys'?'1':'2')+joystick_cmd);
+            return;
+        }
     }
-    else
-    {
-        var c64code = translateKey(e.code, e.key);
-        if(c64code !== undefined)
-          wasm_key(c64code[0], c64code[1], 1);
-    }
+    var c64code = translateKey(e.code, e.key);
+    if(c64code !== undefined)
+        wasm_key(c64code[0], c64code[1], 1);
 }
 function keyup(e) {
-    if(useKeyPad)
+    if(port1=='keys'||port2=='keys')
     {
-        wasm_joystick('2'+joystick_keyup_map[e.code]);
+        var joystick_cmd = joystick_keyup_map[e.code];
+        if(joystick_cmd !== undefined)
+        {
+            wasm_joystick((port1=='keys'?'1':'2')+joystick_cmd);
+            return;
+        }
     }
-    else
-    {
-        var c64code = translateKey(e.code, e.key);
-        if(c64code !== undefined)
-            wasm_key(c64code[0], c64code[1], 0);
-    }
+
+    var c64code = translateKey(e.code, e.key);
+    if(c64code !== undefined)
+        wasm_key(c64code[0], c64code[1], 0);
 }
 
 function InitWrappers() {
@@ -99,11 +104,27 @@ function InitWrappers() {
         if (wasm_toggleFullscreen != null) {
             wasm_toggleFullscreen();
         }
+        document.getElementById('canvas').focus();
+    }
+    document.getElementById('port1').onchange = function() {
+        port1 = document.getElementById('port1').value;
+        if(port1 == port2)
+        {
+            port2 = 'none';
+            document.getElementById('port2').value = 'none';
+        }
+        document.getElementById('canvas').focus();
+    }
+    document.getElementById('port2').onchange = function() {
+        port2 = document.getElementById('port2').value;
+       if(port1 == port2)
+        {
+            port1 = 'none';
+            document.getElementById('port1').value = 'none';
+        }
+        document.getElementById('canvas').focus();
     }
 
-    document.getElementById('keypad').onclick = function() {
-        useKeyPad = document.getElementById('keypad').checked;
-    }
 
     document.getElementById('theFileInput').addEventListener("submit", function(e) {
         e.preventDefault();

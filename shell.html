@@ -11,9 +11,7 @@
       div.emscripten_border { border: 1px solid black; }
       /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
       canvas.emscripten 
-      { border: 0px none; background-color: black; 
-        /*transform: scale(1.5,1.5);*/
-      }
+      { border: 0px none; background-color: black; }
       body {
         background-color: #333333;
         color: #aaaaaa;
@@ -74,25 +72,38 @@
       <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
     </div>
     <hr/>
-
-    <!-- Filesupport start  -->
-    <h2>VC1541 or cartridge slot</h2>
     <div>
+    <!-- Filesupport start  -->
+    <div style="float:left">
       <form id="theFileInput">
-        place some nice D64, PRG, here ...
+        VC1541 or cartridge slot
         <div id="drop_zone">
         </div>
         <input id="filedialog" name="theFileDialog" type="file" accept=".g64, .d64, .crt, .prg" style="display:none" >
       </form> 
+
+
     </div>
     <!-- Filesupport end  -->
-    <hr/>
-    <div class="emscripten">
-      <input type="checkbox" id="keypad">use cursor keys as joystick
-      &nbsp;&nbsp;&nbsp;
-      <input type="button" value="Fullscreen" id="button_fullscreen">
+    <div style="float:left;margin-left:25px">
+      game port1<br>
+      <select id="port1">
+        <option value="none">none</option>
+        <option value="keys">cursor keys, space to fire</option>        
+      </select>
+      <br/><br/>
+      game port2<br>
+      <select id="port2">
+        <option value="none">none</option>
+        <option value="keys">cursor keys, space to fire</option>        
+      </select>
     </div>
-    
+    <div style="float:left;margin-left:25px">
+      fullscreen (ALT + ENTER)<br>
+      <input type="button" value="enter" id="button_fullscreen">
+    </div>
+    <div style="clear:both" />
+    </div>
     <hr/>
     <textarea class="emscripten" id="output" rows="8"></textarea>
     <hr>

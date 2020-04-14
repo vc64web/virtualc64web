@@ -326,7 +326,10 @@ void initSDL(void *thisC64)
 }
 
 void theListener(const void *, int type, long data){
-    printf("vC64 message=%s, data=%ld\n", msg_code[type].c_str(), data); 
+  if(0!=strcmp("MSG_CHARSET", msg_code[type].c_str()))
+  {
+    printf("vC64 message=%s, data=%ld\n", msg_code[type].c_str(), data);
+  }   
 }
 
 class C64Wrapper {
@@ -436,6 +439,7 @@ extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
 
 extern "C" void wasm_reset()
 {
+  wrapper->c64->expansionport.detachCartridge();
   wrapper->c64->reset();
 }
 

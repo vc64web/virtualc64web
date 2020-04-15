@@ -26,7 +26,8 @@ _note_: start.sh starts an webserver with URL base path pointing to the folder w
 * sound output
 * replace the standard emsdk html page and build a specific html5 file which allows to insert disks ... 
 * keyboard works for many keys 
+* completing and extending the Javascript API for keyboard and joystick controller input from  HTML5 side
 
-## next goals  
-* further completing and extending the Javascript API for keyboard and joystick controller input from  HTML5 side
+## next goals
 * snapshot support
+* javascript interface for settings of the emulation like (greydotbugemulation, soundbuffer size, and so on...) 

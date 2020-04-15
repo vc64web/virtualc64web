@@ -209,15 +209,22 @@ void draw_one_frame_into_SDL(void *thisC64)
   //generally match the display refresh rate in most web browsers as 
   //per W3C recommendation. requestAnimationFrame() 
 
-  C64 *c64 = (C64 *)thisC64;
-  c64->executeOneFrame();
-
   frame_count++;
   //we save some energy by skipping every second, to get a nice 30fps stream
-  if(frame_count %2 == 0)
+  if(frame_count %4 == 0)
   {
   //  return;
   }
+
+  EM_ASM({
+      if (typeof draw_one_frame === 'undefined')
+          return;
+      draw_one_frame();
+  });
+
+  C64 *c64 = (C64 *)thisC64;
+  c64->executeOneFrame();
+
 
   Uint8 *texture = (Uint8 *)c64->vic.screenBuffer();
 
@@ -319,7 +326,10 @@ void initSDL(void *thisC64)
 }
 
 void theListener(const void *, int type, long data){
-    printf("vC64 message=%s, data=%ld\n", msg_code[type].c_str(), data); 
+  if(0!=strcmp("MSG_CHARSET", msg_code[type].c_str()))
+  {
+    printf("vC64 message=%s, data=%ld\n", msg_code[type].c_str(), data);
+  }   
 }
 
 class C64Wrapper {
@@ -425,4 +435,87 @@ extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
   }
 
   frame_count=0;
+}
+
+extern "C" void wasm_reset()
+{
+  wrapper->c64->expansionport.detachCartridge();
+  wrapper->c64->reset();
+}
+
+extern "C" void wasm_joystick(char* port_plus_event)
+{
+    printf("wasm_joystick event=%s\n", port_plus_event);
+  /*
+  from javascript
+    // port, o == oben, r == rechts, ..., f == feuer
+    //states = '1', '1o', '1or', '1r', '1ur', '1u', '1ul', '1l', '1ol' 
+    //states mit feuer = '1f', '1of', '1orf', '1rf', '1urf', ...
+  */
+/*
+outgoing
+PULL_UP
+PRESS_FIRE
+
+RELEASE_X
+RELEASE_Y
+RELEASE_XY
+RELEASE_FIRE
+*/
+  char joyport = port_plus_event[0];
+  char* event  = port_plus_event+1;
+
+  JoystickEvent code;
+  if( strcmp(event,"PULL_UP") == 0)
+  {
+    code = PULL_UP;
+  }
+  else if( strcmp(event,"PULL_LEFT") == 0)
+  {
+    code = PULL_LEFT;
+  }
+  else if( strcmp(event,"PULL_DOWN") == 0)
+  {
+    code = PULL_DOWN;
+  }
+  else if( strcmp(event,"PULL_RIGHT") == 0)
+  {
+    code = PULL_RIGHT;
+  }
+  else if( strcmp(event,"PRESS_FIRE") == 0)
+  {
+    code = PRESS_FIRE;
+  }
+  else if( strcmp(event,"RELEASE_XY") == 0)
+  {
+    code = RELEASE_XY;
+  }
+  else if( strcmp(event,"RELEASE_X") == 0)
+  {
+    code = RELEASE_X;
+  }
+  else if( strcmp(event,"RELEASE_Y") == 0)
+  {
+    code = RELEASE_Y;
+  }
+  else if( strcmp(event,"RELEASE_FIRE") == 0)
+  {
+    code = RELEASE_FIRE;
+  }
+
+
+  else
+  {
+    return;    
+  }
+
+  if(joyport == '1')
+  {
+    wrapper->c64->port1.trigger(code);
+  }
+  else if(joyport == '2')
+  {
+    wrapper->c64->port2.trigger(code);
+  }
+
 }

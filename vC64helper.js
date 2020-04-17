@@ -42,7 +42,9 @@ function pushFile(file, startup) {
     var fileReader  = new FileReader();
     fileReader.onload  = function() {
         var byteArray = new Uint8Array(this.result);
+        try{
         wasm_loadfile(file.name, byteArray, byteArray.byteLength);
+        } catch(e) {}
     }
     fileReader.readAsArrayBuffer(file);
 }
@@ -182,17 +184,14 @@ function handleGamePad(portnr, gamepad)
     wasm_joystick(portnr + (bFirePressed?"PRESS_FIRE":"RELEASE_FIRE"));
 }
 
-
-
-
-
 function InitWrappers() {
     wasm_loadfile = Module.cwrap('wasm_loadFile', 'undefined', ['string', 'array', 'number']);
     wasm_key = Module.cwrap('wasm_key', 'undefined', ['number', 'number', 'number']);
     wasm_toggleFullscreen = Module.cwrap('wasm_toggleFullscreen', 'undefined');
     wasm_joystick = Module.cwrap('wasm_joystick', 'undefined', ['string']);
     wasm_reset = Module.cwrap('wasm_reset', 'undefined');
-
+    wasm_halt = Module.cwrap('wasm_halt', 'undefined');
+    wasm_run = Module.cwrap('wasm_run', 'undefined');
 
     document.getElementById('button_fullscreen').onclick = function() {
         if (wasm_toggleFullscreen != null) {
@@ -202,6 +201,17 @@ function InitWrappers() {
     }
     document.getElementById('button_reset').onclick = function() {
         wasm_reset();
+        document.getElementById('canvas').focus();
+    }
+    document.getElementById('button_halt').onclick = function() {
+        wasm_halt();
+        document.getElementById('canvas').focus();
+    }
+    document.getElementById('button_run').onclick = function() {
+        //have to catch an intentional "unwind" exception here, which is thrown
+        //by emscripten_set_main_loop() after emscripten_cancel_main_loop();
+        //to simulate infinity gamelloop see emscripten API for more info ... 
+        try{wasm_run();} catch(e) {}
         document.getElementById('canvas').focus();
     }
 

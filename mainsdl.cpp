@@ -443,6 +443,17 @@ extern "C" void wasm_reset()
   wrapper->c64->reset();
 }
 
+extern "C" void wasm_halt()
+{
+  printf("wasm_halt\n");
+  wrapper->c64->halt();
+}
+extern "C" void wasm_run()
+{
+  printf("wasm_run\n");
+  wrapper->c64->run();
+}
+
 extern "C" void wasm_joystick(char* port_plus_event)
 {
     printf("wasm_joystick event=%s\n", port_plus_event);

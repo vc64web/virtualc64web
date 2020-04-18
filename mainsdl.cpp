@@ -380,13 +380,29 @@ extern "C" int main(int argc, char** argv) {
 }
 
 /* emulation of macos mach_absolute_time() function. */
+#define STD_LIB_NOW  1
+//#define EMSDK_NOW  1
+//#define FAKE_NOW  1
+
+#ifdef FAKE_NOW
+long faked_now=0;
+#endif
+
 long mach_absolute_time()
 {
+#ifdef FAKE_NOW
+    return faked_now++;
+#elif EMSDK_NOW
+    return (long)emscripten_get_now();
+#elif STD_LIB_NOW
     auto xnow = std::chrono::system_clock::now();
     auto now_ns = std::chrono::time_point_cast<std::chrono::nanoseconds>(xnow);
     auto epoch = now_ns.time_since_epoch();
     auto now_ns_long = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch).count();
+
+//    printf("stdlib_now: %lld, emsdk_now: %ld, fake_now: %ld\n", now_ns_long, (long)emscripten_get_now(), faked_now++);
     return now_ns_long;
+#endif
 }
 
 extern "C" void wasm_key(int code1, int code2, int pressed)

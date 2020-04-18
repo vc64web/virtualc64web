@@ -40,9 +40,3 @@ $(OBJECTS_CC): | $(OBJDIR)
 
 $(OBJDIR):
 	mkdir $(OBJDIR)
-
-
-#reminder
-#alle Vorkommen von
-#mach, timebase
-#richtig behandeln

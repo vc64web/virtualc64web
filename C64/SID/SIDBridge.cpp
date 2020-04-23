@@ -443,6 +443,8 @@ SIDBridge::handleBufferUnderflow()
     double elapsedTime = (double)(now - lastAlignment) / 1000000000.0;
     lastAlignment = now;
 
+    debug(2, "elapsed %lf \n", elapsedTime);
+
     // Adjust the sample rate, if condition (1) holds.
     if (elapsedTime > 10.0) {
         
@@ -472,6 +474,8 @@ SIDBridge::handleBufferOverflow()
 
     double elapsedTime = (double)(now - lastAlignment) / 1000000000.0;
     lastAlignment = now;
+    
+    debug(2, "elapsed %lf \n", elapsedTime);
     
     // Adjust the sample rate, if condition (1) holds.
     if (elapsedTime > 10.0) {

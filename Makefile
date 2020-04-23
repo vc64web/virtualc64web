@@ -8,8 +8,8 @@ INCLUDE   = -I. -IC64 -IC64/Cartridges -IC64/Cartridges/CustomCartridges -IC64/C
 WARNINGS  = -Wall -Wno-unused-variable
 STD       = -std=c++17
 OPTIMIZE  = -O2
-WASM_EXPORTS= -s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS="['_main', '_wasm_toggleFullscreen', '_wasm_loadFile', '_wasm_key', '_wasm_joystick', '_wasm_reset']"
-CFLAGS    = $(INCLUDE) $(WARNINGS) $(STD) $(OPTIMIZE) -s USE_SDL=2 $(WASM_EXPORTS)
+WASM_EXPORTS= -s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS="['_main', '_wasm_toggleFullscreen', '_wasm_loadFile', '_wasm_key', '_wasm_joystick', '_wasm_reset', '_wasm_halt', '_wasm_run']"
+CFLAGS    = $(INCLUDE) $(WARNINGS) $(STD) $(OPTIMIZE) -s USE_SDL=2 $(WASM_EXPORTS) 
 #-s ASSERTIONS=1
 
 .PHONY: all clean
@@ -26,7 +26,7 @@ clean:
 main:
 	$(CC)  -c $(CFLAGS) mainsdl.cpp 
 	mv *.o obj
-	$(CC)  $(CFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=32MB -s ALLOW_MEMORY_GROWTH=1 $(OBJDIR)/*.o --preload-file roms
+	$(CC)  $(CFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB -s ALLOW_MEMORY_GROWTH=1 $(OBJDIR)/*.o --preload-file roms
 
 $(OBJECTS): %.o: %.cpp
 	$(CC) -c $(CFLAGS) $< -o $(OBJDIR)/$(@F)
@@ -40,9 +40,3 @@ $(OBJECTS_CC): | $(OBJDIR)
 
 $(OBJDIR):
 	mkdir $(OBJDIR)
-
-
-#reminder
-#alle Vorkommen von
-#mach, timebase
-#richtig behandeln

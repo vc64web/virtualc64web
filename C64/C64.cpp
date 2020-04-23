@@ -23,9 +23,14 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
+
 //
 // Emulator thread
 //
+
+#ifdef __EMSCRIPTEN__
+bool paused_the_emscripten_main_loop=false;
+#endif
 
 void 
 threadCleanup(void* thisC64)
@@ -52,29 +57,39 @@ void
     
     c64->debug(2, "Execution thread started\n");
     c64->putMessage(MSG_RUN);
-    
+
+#ifdef __EMSCRIPTEN__
+#else
     // Configure thread properties...
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
     pthread_cleanup_push(threadCleanup, thisC64);
-    
+#endif
+
     // Prepare to run...
     c64->cpu.clearErrorState();
     c64->drive1.cpu.clearErrorState();
     c64->drive2.cpu.clearErrorState();
     c64->restartTimer();
  
-    #ifdef __EMSCRIPTEN__
-    emscripten_set_main_loop_arg(draw_one_frame_into_SDL, thisC64, 0, 1);
-    #else
+#ifdef __EMSCRIPTEN__
+    if(paused_the_emscripten_main_loop)
+    {
+        emscripten_resume_main_loop();
+    }
+    else
+    {
+        emscripten_set_main_loop_arg(draw_one_frame_into_SDL, thisC64, 0, 1);
+    }
+    return NULL;
+#else
     while (likely(success)) {
         pthread_testcancel();
         success = c64->executeOneFrame();
     }
-    #endif
-    
     pthread_cleanup_pop(1);
     pthread_exit(NULL);    
+#endif
 }
 
 //
@@ -193,6 +208,9 @@ C64::setClockFrequency(uint32_t value)
 void
 C64::suspend()
 {
+#ifdef __EMSCRIPTEN__
+    //no need to suspend /resume, because there is only one single execution thread in WASM 
+#else 
     debug(2, "Suspending...(%d)\n", suspendCounter);
     
     if (suspendCounter == 0 && isHalted())
@@ -200,11 +218,15 @@ C64::suspend()
     
     halt();
     suspendCounter++;
+#endif
 }
 
 void
 C64::resume()
 {
+#ifdef __EMSCRIPTEN__
+    //no need to suspend /resume, because there is only one single execution thread in WASM 
+#else
     debug(2, "Resuming (%d)...\n", suspendCounter);
     
     if (suspendCounter == 0)
@@ -212,6 +234,7 @@ C64::resume()
     
     if (--suspendCounter == 0)
     run();
+#endif
 }
 
 void 
@@ -401,9 +424,10 @@ C64::run()
         
         // Start execution thread
         #ifdef __EMSCRIPTEN__
+            p=1; //<--------- use p here only as a flag
             runThread((void *)this);
         #else
-          pthread_create(&p, NULL, runThread, (void *)this);
+            pthread_create(&p, NULL, runThread, (void *)this);
         #endif
     }
 }
@@ -412,11 +436,19 @@ void
 C64::halt()
 {
     if (isRunning()) {
-        
+    #ifdef __EMSCRIPTEN__
+        //emscripten_cancel_main_loop();
+        emscripten_pause_main_loop(); 
+
+        ::threadCleanup(this);    
+        paused_the_emscripten_main_loop=true;
+    #else
         // Cancel execution thread
         pthread_cancel(p);
         // Wait until thread terminates
         pthread_join(p, NULL);
+    #endif
+
         // Finish the current command (to reach a clean state)
         step();
     }
@@ -623,10 +655,14 @@ C64::endFrame()
         }
     }
     
+#ifdef __EMSCRIPTEN__
+    //no need to synchronize as we are called by the 60hz SDL render thread ...
+#else
     // Count some sheep (zzzzzz) ...
     if (!getWarp()) {
             synchronizeTiming();
     }
+#endif
 }
 
 bool
@@ -684,14 +720,14 @@ C64::restartTimer()
     //nanoTargetTime = nanoNow + vic.getFrameDelay();
 }
 
+#ifndef __EMSCRIPTEN__
 void
 C64::synchronizeTiming()
 {
     const uint64_t earlyWakeup = 1500000; /* 1.5 milliseconds */
-    
     // Get current time in nano seconds
-    uint64_t nanoAbsTime = 0; //abs_to_nanos(mach_absolute_time());
-    
+    uint64_t nanoAbsTime = abs_to_nanos(mach_absolute_time());
+
     // Check how long we're supposed to sleep
     int64_t timediff = (int64_t)nanoTargetTime - (int64_t)nanoAbsTime;
     if (timediff > 200000000 || timediff < -200000000 /* 0.2 sec */) {
@@ -721,7 +757,7 @@ C64::synchronizeTiming()
         restartTimer();
     }
 }
-
+#endif
 void C64::loadFromSnapshotUnsafe(Snapshot *snapshot)
 {    
     uint8_t *ptr;

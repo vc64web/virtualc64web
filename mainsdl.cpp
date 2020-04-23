@@ -194,9 +194,13 @@ int eventFilter(void* thisC64, SDL_Event* event) {
     return 1;
 }
 
-
-
-unsigned long frame_count=0;
+ 
+int sum_samples=0;
+double last_time = 0.0 ;
+unsigned int executed_frame_count=0;
+uint64_t total_executed_frame_count=0;
+double start_time=emscripten_get_now();
+unsigned int rendered_frame_count=0;
 // The emscripten "main loop" replacement function.
 void draw_one_frame_into_SDL(void *thisC64) 
 {
@@ -208,29 +212,56 @@ void draw_one_frame_into_SDL(void *thisC64)
   //The number of callbacks is usually 60 times per second, but will 
   //generally match the display refresh rate in most web browsers as 
   //per W3C recommendation. requestAnimationFrame() 
-
-  frame_count++;
-  //we save some energy by skipping every second, to get a nice 30fps stream
-  if(frame_count %4 == 0)
+  
+  double now = emscripten_get_now();  
+ 
+  double elapsedTimeInSeconds = (now - start_time)/1000.0;
+  uint64_t targetFrameCount = (uint64_t)(elapsedTimeInSeconds * 50.125);
+ 
+  unsigned int max_gap = 8;
+  //lost the sync
+  if(targetFrameCount-total_executed_frame_count > max_gap)
   {
-  //  return;
+//      printf("lost sync target=%llu, total_executed=%llu\n", targetFrameCount, total_executed_frame_count);
+      //reset timer
+      //because we are out of sync, we do now skip max_gap-1 emulation frames 
+      start_time=now;
+      total_executed_frame_count=0;
+      targetFrameCount=1;  //we are hoplessly behind but do at least one in this round  
   }
+
+  if(now-last_time>= 1000.0)
+  { 
+    double passed_time= now - last_time;
+    last_time = now;
+ //   printf("time[ms]=%lf, audio samples=%d, frames [executed=%u, rendered=%u]\n", passed_time, sum_samples, executed_frame_count, rendered_frame_count);
+    sum_samples=0;
+    rendered_frame_count=0;
+    executed_frame_count=0;
+  }
+
+  C64 *c64 = (C64 *)thisC64;
+
+  while(total_executed_frame_count < targetFrameCount) {
+    executed_frame_count++;
+    total_executed_frame_count++;
+
+    c64->executeOneFrame();
+  }
+
+  rendered_frame_count++;  
 
   EM_ASM({
       if (typeof draw_one_frame === 'undefined')
           return;
-      draw_one_frame();
+      draw_one_frame(); // to gather joystick information for example 
   });
-
-  C64 *c64 = (C64 *)thisC64;
-  c64->executeOneFrame();
-
-
+ 
   Uint8 *texture = (Uint8 *)c64->vic.screenBuffer();
 
   int surface_width = window_surface->w;
   int surface_height = window_surface->h;
- 
+
 //  SDL_RenderClear(renderer);
   SDL_Rect SrcR;
   SrcR.x = xOff;
@@ -242,15 +273,19 @@ void draw_one_frame_into_SDL(void *thisC64)
   SDL_RenderCopy(renderer, screen_texture, &SrcR, NULL);
 
   SDL_RenderPresent(renderer);
-
 }
+
+
 
 void MyAudioCallback(void*  thisC64,
                        Uint8* stream,
                        int    len)
 {
     C64 *c64 = (C64 *)thisC64;
-    c64->sid.readMonoSamples((float *)stream,len /  sizeof(float) );
+    
+    int n = len /  sizeof(float);
+    c64->sid.readMonoSamples((float *)stream, n);
+    sum_samples += n;
 }
 
 
@@ -268,10 +303,11 @@ void initSDL(void *thisC64)
     SDL_AudioDeviceID device_id;
 
     SDL_memset(&want, 0, sizeof(want)); /* or SDL_zero(want) */
-    want.freq = 44100;
+    want.freq = 44100;  //44100; // 22050;
     want.format = AUDIO_F32;
     want.channels = 1;
-    want.samples = 1024*2;//2048;
+    //sample buffer 512 in original vc64, vc64web=512 under macOs ok, but iOS needs 2048;
+    want.samples = 2048;
     want.callback = MyAudioCallback;
     want.userdata = thisC64;   //will be passed to the callback
     device_id = SDL_OpenAudioDevice(NULL, 0, &want, &have, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
@@ -365,6 +401,7 @@ class C64Wrapper {
     c64->vic.emulateGrayDotBug=false;
  //   c64->dump();
  //   c64->drive1.dump();
+ //   c64->sid.setDebugLevel(2);
     c64->run();
     printf("after run ...\n");
   }
@@ -380,29 +417,11 @@ extern "C" int main(int argc, char** argv) {
 }
 
 /* emulation of macos mach_absolute_time() function. */
-#define STD_LIB_NOW  1
-//#define EMSDK_NOW  1
-//#define FAKE_NOW  1
-
-#ifdef FAKE_NOW
-long faked_now=0;
-#endif
-
-long mach_absolute_time()
+uint64_t mach_absolute_time()
 {
-#ifdef FAKE_NOW
-    return faked_now++;
-#elif EMSDK_NOW
-    return (long)emscripten_get_now();
-#elif STD_LIB_NOW
-    auto xnow = std::chrono::system_clock::now();
-    auto now_ns = std::chrono::time_point_cast<std::chrono::nanoseconds>(xnow);
-    auto epoch = now_ns.time_since_epoch();
-    auto now_ns_long = std::chrono::duration_cast<std::chrono::nanoseconds>(epoch).count();
-
-//    printf("stdlib_now: %lld, emsdk_now: %ld, fake_now: %ld\n", now_ns_long, (long)emscripten_get_now(), faked_now++);
-    return now_ns_long;
-#endif
+    uint64_t nano_now = (uint64_t)(emscripten_get_now()*1000000.0);
+    //printf("emsdk_now: %lld\n", nano_now);
+    return nano_now; 
 }
 
 extern "C" void wasm_key(int code1, int code2, int pressed)
@@ -450,7 +469,6 @@ extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
     wrapper->c64->reset();
   }
 
-  frame_count=0;
 }
 
 extern "C" void wasm_reset()

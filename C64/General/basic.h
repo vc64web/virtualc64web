@@ -349,6 +349,7 @@ uint8_t localTimeHour();
 //! @brief    Put the current thread to sleep for a certain amount of time.
 void sleepMicrosec(unsigned usec);
 
+#ifndef __EMSCRIPTEN__
 /*! @brief    Sleeps until kernel timer reaches kernelTargetTime
  *  @param    kernelEarlyWakeup: To increase timing precision, the function
  *            wakes up the thread earlier by this amount and waits actively in
@@ -357,7 +358,7 @@ void sleepMicrosec(unsigned usec);
  *            are better, 0 is best.
  */
 int64_t sleepUntil(uint64_t kernelTargetTime, uint64_t kernelEarlyWakeup);
-
+#endif
 
 //
 //! @functiongroup Computing checksums

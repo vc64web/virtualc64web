@@ -329,7 +329,7 @@ sleepMicrosec(unsigned usec)
 	}
 }
 
-
+#ifndef __EMSCRIPTEN__
 int64_t
 sleepUntil(uint64_t kernelTargetTime, uint64_t kernelEarlyWakeup)
 {
@@ -340,13 +340,8 @@ sleepUntil(uint64_t kernelTargetTime, uint64_t kernelEarlyWakeup)
         return 0;
     
     // Sleep
-    //printf("Sleeping for %d\n", kernelTargetTime - now);
- #ifdef __EMSCRIPTEN__
-    //std::this_thread::sleep_until (kernelTargetTime - kernelEarlyWakeup);
-    //emscripten_sleep(kernelTargetTime - kernelEarlyWakeup);
- #else
+    //printf("Sleeping for %lld\n", kernelTargetTime - now);
     mach_wait_until(kernelTargetTime - kernelEarlyWakeup);
- #endif
  
     // Count some sheep to increase precision
     unsigned sheep = 0;
@@ -357,7 +352,8 @@ sleepUntil(uint64_t kernelTargetTime, uint64_t kernelEarlyWakeup)
     
     return jitter;
 }
-
+#endif
+ 
 uint32_t
 fnv_1a_32(const uint8_t *addr, size_t size)
 {

@@ -446,10 +446,22 @@ extern "C" void wasm_key(int code1, int code2, int pressed)
 
 VC1541 *selected_drive = NULL;
 AnyArchive *selected_archive = NULL;
-void insertDisk(void *thisC64) 
+void insertDisk(void *c64) 
 {
-  printf("time[ms]=%lf insert disk\n",emscripten_get_now());
+//  printf("time[ms]=%lf insert disk\n",emscripten_get_now());
   selected_drive->insertDisk(selected_archive);
+}
+void prepareToInsert(void *c64) 
+{
+//  printf("time[ms]=%lf prepare to insert\n",emscripten_get_now());
+  selected_drive->prepareToInsert();
+  emscripten_async_call(insertDisk, c64, 300);
+}
+void ejectDisk(void *c64) 
+{
+//  printf("time[ms]=%lf eject disk\n",emscripten_get_now());
+  selected_drive->ejectDisk();
+  emscripten_async_call(prepareToInsert, c64, 300);
 }
 
 void changeDisk(AnyArchive *a, int iDriveNumber)
@@ -464,27 +476,21 @@ void changeDisk(AnyArchive *a, int iDriveNumber)
   {
     drive = &(wrapper->c64->drive2);
   }
-
-  if( drive->hasDisk() ) {
-    printf("time[ms]=%lf prepared to eject\n",emscripten_get_now());
-    drive->prepareToEject();
-  //usleep(300000); //<----this one blocks the emulation thread 
-    printf("time[ms]=%lf eject disk\n",emscripten_get_now());
-    drive->ejectDisk();
-  }
-
-  printf("time[ms]=%lf prepare to insert\n",emscripten_get_now());
-  drive->prepareToInsert();
-  //usleep(300000); //<----this one blocks the emulation thread 
-
-  printf("time[ms]=%lf finished prepare to insert\n",emscripten_get_now());
   selected_drive = drive;
   selected_archive = a;
-  emscripten_async_call(insertDisk, wrapper->c64, 300);
-  
+ 
+  if( drive->hasDisk() ) {
+//    printf("time[ms]=%lf prepared to eject\n",emscripten_get_now());
+    drive->prepareToEject();
+    emscripten_async_call(ejectDisk, wrapper->c64, 300);
+  }
+  else
+  {
+//    printf("time[ms]=%lf prepare to insert\n",emscripten_get_now());
+    drive->prepareToInsert();
+    emscripten_async_call(insertDisk, wrapper->c64, 300);
+  }
 }
-
-
 
 
 extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)

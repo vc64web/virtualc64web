@@ -402,6 +402,7 @@ class C64Wrapper {
  //   c64->dump();
  //   c64->drive1.dump();
  //   c64->sid.setDebugLevel(2);
+ //   c64->drive1.setDebugLevel(3);
     c64->run();
     printf("after run ...\n");
   }
@@ -438,6 +439,60 @@ extern "C" void wasm_key(int code1, int code2, int pressed)
   }
 }
 
+
+
+
+
+
+VC1541 *selected_drive = NULL;
+AnyArchive *selected_archive = NULL;
+void insertDisk(void *c64) 
+{
+//  printf("time[ms]=%lf insert disk\n",emscripten_get_now());
+  selected_drive->insertDisk(selected_archive);
+}
+void prepareToInsert(void *c64) 
+{
+//  printf("time[ms]=%lf prepare to insert\n",emscripten_get_now());
+  selected_drive->prepareToInsert();
+  emscripten_async_call(insertDisk, c64, 300);
+}
+void ejectDisk(void *c64) 
+{
+//  printf("time[ms]=%lf eject disk\n",emscripten_get_now());
+  selected_drive->ejectDisk();
+  emscripten_async_call(prepareToInsert, c64, 300);
+}
+
+void changeDisk(AnyArchive *a, int iDriveNumber)
+{
+  VC1541 *drive = NULL;
+  
+  if(iDriveNumber == 8)
+  {
+    drive = &(wrapper->c64->drive1);
+  }
+  else if(iDriveNumber == 9)
+  {
+    drive = &(wrapper->c64->drive2);
+  }
+  selected_drive = drive;
+  selected_archive = a;
+ 
+  if( drive->hasDisk() ) {
+//    printf("time[ms]=%lf prepared to eject\n",emscripten_get_now());
+    drive->prepareToEject();
+    emscripten_async_call(ejectDisk, wrapper->c64, 300);
+  }
+  else
+  {
+//    printf("time[ms]=%lf prepare to insert\n",emscripten_get_now());
+    drive->prepareToInsert();
+    emscripten_async_call(insertDisk, wrapper->c64, 300);
+  }
+}
+
+
 extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
 {
   printf("load file=%s len=%ld\n", name, len);
@@ -448,16 +503,11 @@ extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
   }
   if (checkFileSuffix(name, ".D64") || checkFileSuffix(name, ".d64")) {
     printf("isD64\n");
-    wrapper->c64->drive1.prepareToInsert();
-    usleep(300000);
-    wrapper->c64->drive1.insertDisk(D64File::makeWithBuffer(blob, len));
+    changeDisk(D64File::makeWithBuffer(blob, len),8);
   }
   else if (checkFileSuffix(name, ".G64") || checkFileSuffix(name, ".g64")) {
     printf("isG64\n");
-    wrapper->c64->drive1.prepareToInsert();
-    usleep(300000);
-    wrapper->c64->drive1.insertDisk(G64File::makeWithBuffer(blob, len));
-    printf("wasm_loadFile: disk inserted\n");
+    changeDisk(G64File::makeWithBuffer(blob, len),8);
   }
   else if (checkFileSuffix(name, ".PRG") || checkFileSuffix(name, ".prg")) {
     printf("isPRG\n");
@@ -468,7 +518,6 @@ extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
     wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(wrapper->c64,(CRTFile::makeWithBuffer(blob, len))));
     wrapper->c64->reset();
   }
-
 }
 
 extern "C" void wasm_reset()

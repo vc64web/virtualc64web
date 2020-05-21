@@ -80,6 +80,7 @@ function keydown(e) {
         wasm_key(c64code[0], c64code[1], 1);
 }
 function keyup(e) {
+
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keyup_map[e.code];
@@ -205,6 +206,9 @@ function InitWrappers() {
     }
     document.getElementById('button_halt').onclick = function() {
         wasm_halt();
+        $('#button_halt').prop('disabled', 'true');
+        $('#button_run').removeAttr('disabled');
+        
         document.getElementById('canvas').focus();
     }
     document.getElementById('button_run').onclick = function() {
@@ -212,6 +216,9 @@ function InitWrappers() {
         //by emscripten_set_main_loop() after emscripten_cancel_main_loop();
         //to simulate infinity gamelloop see emscripten API for more info ... 
         try{wasm_run();} catch(e) {}
+        $('#button_run').prop('disabled', 'true');
+        $('#button_halt').removeAttr('disabled');
+
         document.getElementById('canvas').focus();
     }
 
@@ -297,4 +304,6 @@ function InitWrappers() {
             }
         }
     });
+    $("#canvas").css("width", "80%");
+
   }

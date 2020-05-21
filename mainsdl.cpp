@@ -149,7 +149,7 @@ int eventFilter(void* thisC64, SDL_Event* event) {
     C64 *c64 = (C64 *)thisC64;
     switch(event->type){
       case SDL_WINDOWEVENT:
-        PrintEvent(event);
+        //PrintEvent(event);
         if (event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
         {//zuerst
             window_surface = SDL_GetWindowSurface(window);
@@ -216,7 +216,7 @@ void draw_one_frame_into_SDL(void *thisC64)
   double now = emscripten_get_now();  
  
   double elapsedTimeInSeconds = (now - start_time)/1000.0;
-  uint64_t targetFrameCount = (uint64_t)(elapsedTimeInSeconds * 50.125);
+  uint64_t targetFrameCount = (uint64_t)(elapsedTimeInSeconds * 35.125);
  
   unsigned int max_gap = 8;
   //lost the sync

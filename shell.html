@@ -3,18 +3,29 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Emscripten-Generated Code</title>
+    <title>vc64web</title>
+  
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="css/skeleton.css">
+-->
+  <link rel="stylesheet" href="css/bootstrap.min.css">
+  <script src="js/jquery-3.5.0.min.js"></script>
+  <script src="js/bootstrap.bundle.min.js"></script>
+
+
     <style>
       .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
       textarea.emscripten { font-family: monospace; width: 80%; }
       div.emscripten { text-align: center; }
-      div.emscripten_border { border: 1px solid black; }
+      div.emscripten_border { border: 0px solid black; }
       /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
       canvas.emscripten 
       { border: 0px none; background-color: black; }
       body {
         background-color: #333333;
-        color: #aaaaaa;
+        color: #fce0e0;
       }
       .spinner {
         height: 50px;
@@ -51,10 +62,12 @@
       #drop_zone {
         cursor: pointer;
         background-color: #888888;
-        padding: 10px;
         border: 3px dashed #a0a0ff;
-        width:  150px;
         height: 48px;
+      }
+      #output {
+        height: 250px;
+        width:100%;
       }
 
     </style>
@@ -62,58 +75,60 @@
     <script src="vC64keymap.js"></script>
   </head>
   <body>
-    <hr/>
     <figure style="overflow:visible;" id="spinner"><div class="spinner"></div><center style="margin-top:0.5em"><strong>emscripten</strong></center></figure>
     <div class="emscripten" id="status">Downloading...</div>
     <div class="emscripten">
       <progress value="0" max="100" id="progress" hidden=1></progress>  
     </div>
+
     <div class="emscripten_border">
       <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
     </div>
-    <hr/>
-    <div>
-    <!-- Filesupport start  -->
-    <div style="float:left">
+    <br>
+    <div class="container-fluid" >
+    <div class="row">
+    <div class="col">
       <form id="theFileInput">
-        VC1541 or cartridge slot
-        <div id="drop_zone">
+        <label for="drop_zone">VC1541 or cartridge slot</label>
+        <div id="drop_zone" class="u-full-width" data-toggle="tooltip" data-placement="bottom" title="drop .G64 .d64 .crt or .prg files into here, or just click into the drop zone">
         </div>
         <input id="filedialog" name="theFileDialog" type="file" accept=".g64, .d64, .crt, .prg" style="display:none" >
       </form> 
-
-
     </div>
-    <!-- Filesupport end  -->
-    <div style="float:left;margin-left:25px">
-      game port1<br>
-      <select id="port1">
-        <option value="none">none</option>
-        <option value="keys">cursor keys, space to fire</option>        
-      </select>
-      <br/><br/>
-      game port2<br>
-      <select id="port2">
+    <div class="col">
+      <label for="port1">game port1</label>
+      <select id="port1" class="custom-select u-full-width">
         <option value="none">none</option>
         <option value="keys">cursor keys, space to fire</option>        
       </select>
     </div>
-    <div style="float:left;margin-left:25px">
-      fullscreen (ALT + ENTER)<br>
-      <input type="button" value="enter" id="button_fullscreen">
-      <br><br>
-      system reset<br>
-      <input type="button" value="reset" id="button_reset">
-      <br><br>
-      <input type="button" value="halt" id="button_halt">
-      <input type="button" value="run" id="button_run">
+    </div>
+    <div class="row">
+      <div class="col mt-4">
 
+        <button type="button" id="button_fullscreen" class="btn btn-primary mr-2" data-toggle="tooltip" data-placement="top" title="ALT+ENTER to enter or leave fullscreen">enter fullscreen</button>
+        <div class="btn-group mr-2 my-2" role="group">
+          <button type="button" id="button_halt" class="btn btn-primary">halt</button>
+          <button type="button" id="button_run" class="btn btn-primary" disabled>run</button>      
+        </div>  
+        <button type="button" id="button_reset" class="btn btn-primary">reset</button>
+  
+      </div>
+      <div class="col">
+        <label for="port2">game port2</label>
+        <select id="port2" class="custom-select u-full-width">
+          <option value="none">none</option>
+          <option value="keys">cursor keys, space to fire</option>        
+        </select>
+      </div>
     </div>
-    <div style="clear:both" />
+  
+    <div class="row mt-5">
+    <div class="col-12">
+      <textarea rows="20" id="output" xclass="u-full-width"></textarea>
     </div>
-    <hr/>
-    <textarea class="emscripten" id="output" rows="8"></textarea>
-    <hr>
+    </div>
+    </div>
     <script type='text/javascript'>
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');
@@ -189,6 +204,11 @@
           if (text) Module.printErr('[post-exception status] ' + text);
         };
       };
+
+      $(function () {
+        $('[data-toggle="popover"]').popover()
+        $('[data-toggle="tooltip"]').tooltip()
+      })
 
     </script>
     {{{ SCRIPT }}}

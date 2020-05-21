@@ -307,6 +307,15 @@ function InitWrappers() {
             }
         }
     });
-    $("#canvas").css("width", "95%");
+
+
+    if(window.matchMedia("(max-width: 767px)").matches){
+        // The viewport is less than 768 pixels wide
+        $("#canvas").css("width", "95%");
+    } else{
+        // The viewport is at least 768 pixels wide
+        $("#canvas").css("width", "70%");
+
+    }
 
   }

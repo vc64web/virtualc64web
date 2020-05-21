@@ -216,7 +216,7 @@ void draw_one_frame_into_SDL(void *thisC64)
   double now = emscripten_get_now();  
  
   double elapsedTimeInSeconds = (now - start_time)/1000.0;
-  uint64_t targetFrameCount = (uint64_t)(elapsedTimeInSeconds * 35.125);
+  uint64_t targetFrameCount = (uint64_t)(elapsedTimeInSeconds * 50.125);
  
   unsigned int max_gap = 8;
   //lost the sync

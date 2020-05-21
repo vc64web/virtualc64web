@@ -66,6 +66,7 @@ joystick_keyup_map = {
 }
 
 function keydown(e) {
+    e.preventDefault();
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keydown_map[e.code];
@@ -79,7 +80,9 @@ function keydown(e) {
     if(c64code !== undefined)
         wasm_key(c64code[0], c64code[1], 1);
 }
+
 function keyup(e) {
+    e.preventDefault();
 
     if(port1=='keys'||port2=='keys')
     {
@@ -261,8 +264,8 @@ function InitWrappers() {
     document.getElementById('filedialog').addEventListener("change", function(e) {
           handleFileInput();
         }, false);
-    document.addEventListener('keyup', keyup);
-    document.addEventListener('keydown', keydown);
+    document.addEventListener('keyup', keyup, false);
+    document.addEventListener('keydown', keydown, false);
 
     window.addEventListener("gamepadconnected", function(e) {
         var gp = navigator.getGamepads()[e.gamepad.index];
@@ -304,6 +307,6 @@ function InitWrappers() {
             }
         }
     });
-    $("#canvas").css("width", "80%");
+    $("#canvas").css("width", "95%");
 
   }

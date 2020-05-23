@@ -149,7 +149,7 @@ int eventFilter(void* thisC64, SDL_Event* event) {
     C64 *c64 = (C64 *)thisC64;
     switch(event->type){
       case SDL_WINDOWEVENT:
-        PrintEvent(event);
+        //PrintEvent(event);
         if (event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
         {//zuerst
             window_surface = SDL_GetWindowSurface(window);

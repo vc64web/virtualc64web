@@ -66,6 +66,7 @@ joystick_keyup_map = {
 }
 
 function keydown(e) {
+    e.preventDefault();
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keydown_map[e.code];
@@ -79,7 +80,10 @@ function keydown(e) {
     if(c64code !== undefined)
         wasm_key(c64code[0], c64code[1], 1);
 }
+
 function keyup(e) {
+    e.preventDefault();
+
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keyup_map[e.code];
@@ -205,6 +209,9 @@ function InitWrappers() {
     }
     document.getElementById('button_halt').onclick = function() {
         wasm_halt();
+        $('#button_halt').prop('disabled', 'true');
+        $('#button_run').removeAttr('disabled');
+        
         document.getElementById('canvas').focus();
     }
     document.getElementById('button_run').onclick = function() {
@@ -212,6 +219,9 @@ function InitWrappers() {
         //by emscripten_set_main_loop() after emscripten_cancel_main_loop();
         //to simulate infinity gamelloop see emscripten API for more info ... 
         try{wasm_run();} catch(e) {}
+        $('#button_run').prop('disabled', 'true');
+        $('#button_halt').removeAttr('disabled');
+
         document.getElementById('canvas').focus();
     }
 
@@ -254,8 +264,8 @@ function InitWrappers() {
     document.getElementById('filedialog').addEventListener("change", function(e) {
           handleFileInput();
         }, false);
-    document.addEventListener('keyup', keyup);
-    document.addEventListener('keydown', keydown);
+    document.addEventListener('keyup', keyup, false);
+    document.addEventListener('keydown', keydown, false);
 
     window.addEventListener("gamepadconnected", function(e) {
         var gp = navigator.getGamepads()[e.gamepad.index];
@@ -297,4 +307,15 @@ function InitWrappers() {
             }
         }
     });
+
+
+    if(window.matchMedia("(max-width: 767px)").matches){
+        // The viewport is less than 768 pixels wide
+        $("#canvas").css("width", "95%");
+    } else{
+        // The viewport is at least 768 pixels wide
+        $("#canvas").css("width", "70%");
+
+    }
+
   }

@@ -493,6 +493,37 @@ void changeDisk(AnyArchive *a, int iDriveNumber)
 }
 
 
+extern "C" Uint8 *wasm_pull_user_snapshot(unsigned nr)
+{
+  printf("wasm_pull_user_snapshot nr=%u\n", nr);
+  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
+  return snapshot->getImageData();
+}
+
+extern "C" unsigned wasm_user_snapshot_width(unsigned nr)
+{
+  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
+  return snapshot->getImageWidth();
+}
+extern "C" unsigned wasm_user_snapshot_height(unsigned nr)
+{
+  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
+  return snapshot->getImageHeight();
+}
+
+extern "C" size_t wasm_user_snapshots_count()
+{
+  return wrapper->c64->numUserSnapshots();
+}
+
+
+
+extern "C" void wasm_take_user_snapshot()
+{
+  printf("wasm_take_user_snapshot\n");
+  wrapper->c64->takeUserSnapshot();
+}
+
 extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
 {
   printf("load file=%s len=%ld\n", name, len);

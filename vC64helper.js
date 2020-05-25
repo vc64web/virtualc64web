@@ -196,6 +196,12 @@ function InitWrappers() {
     wasm_reset = Module.cwrap('wasm_reset', 'undefined');
     wasm_halt = Module.cwrap('wasm_halt', 'undefined');
     wasm_run = Module.cwrap('wasm_run', 'undefined');
+    wasm_take_user_snapshot = Module.cwrap('wasm_take_user_snapshot', 'undefined');
+    wasm_pull_user_snapshot = Module.cwrap('wasm_pull_user_snapshot', 'number', ['number']);
+    wasm_user_snapshot_width = Module.cwrap('wasm_user_snapshot_width', 'number', ['number']);
+    wasm_user_snapshot_height = Module.cwrap('wasm_user_snapshot_height', 'number', ['number']);
+    wasm_user_snapshots_count = Module.cwrap('wasm_user_snapshots_count', 'number');
+
 
     document.getElementById('button_fullscreen').onclick = function() {
         if (wasm_toggleFullscreen != null) {
@@ -224,6 +230,67 @@ function InitWrappers() {
 
         document.getElementById('canvas').focus();
     }
+
+    document.getElementById('button_snapshots').onclick = function() 
+    {
+        wasm_take_user_snapshot();
+
+        var count = wasm_user_snapshots_count();
+
+        var the_grid=
+        '<div class="row">'; 
+        for(var z=0; z<count; z++)
+        {
+            the_grid +=
+            '<div class="col-xs-4">'
+            +'<div class="card" style="width: 15rem;">'
+                +'<canvas id="canvas_snap_'+z+'" class="card-img-top" alt="Card image cap"></canvas>'
+                +'<div class="card-body">'
+                +'<p class="card-text">nr'+z+'</p>'
+                +'</div>'
+            +'</div>'
+            +'</div>';
+        }
+        the_grid+='</div>';
+        $('#container_snapshots').html(the_grid);
+     
+        for(var z=0; z<count; z++)
+        {
+            var c = document.getElementById("canvas_snap_"+z);
+            var ctx = c.getContext("2d");
+
+            
+            snapshot_ptr = wasm_pull_user_snapshot(z);
+
+        //    imgData=ctx.createImageData(428,284);
+            var width=wasm_user_snapshot_width(z);
+            var height=wasm_user_snapshot_height(z);
+            
+            c.width = width;
+            c.height = height;
+            
+
+            //imgData=ctx.createImageData(428,284);
+            imgData=ctx.createImageData(width,height);
+        
+            var data = imgData.data;
+
+            snapshot_data = new Uint8Array(Module.HEAPU8.buffer, snapshot_ptr, data.length);
+
+            for (var i = 0; i < data.length; i += 4) {
+                data[i]     = snapshot_data[i+0];     // red
+                data[i + 1] = snapshot_data[i+1]; // green
+                data[i + 2] = snapshot_data[i+2]; // blue
+                data[i + 3] = snapshot_data[i+3];
+
+            }
+        
+            ctx.putImageData(imgData,0,0); 
+        }
+    }
+
+
+
 
     document.getElementById('port1').onchange = function() {
         port1 = document.getElementById('port1').value;
@@ -314,7 +381,7 @@ function InitWrappers() {
         $("#canvas").css("width", "95%");
     } else{
         // The viewport is at least 768 pixels wide
-        $("#canvas").css("width", "70%");
+        $("#canvas").css("width", "75%");
 
     }
 

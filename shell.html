@@ -6,14 +6,10 @@
     <title>vc64web</title>
   
     <meta name="viewport" content="width=device-width, initial-scale=1">
-<!--
-    <link rel="stylesheet" href="css/normalize.css">
-    <link rel="stylesheet" href="css/skeleton.css">
--->
+
   <link rel="stylesheet" href="css/bootstrap.min.css">
   <script src="js/jquery-3.5.0.min.js"></script>
   <script src="js/bootstrap.bundle.min.js"></script>
-
 
     <style>
       .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
@@ -69,6 +65,18 @@
         height: 250px;
         width:100%;
       }
+      #snapshotModal {
+        color:#333333;
+      }
+
+      .scrollx-group > .row {
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+      }
+      .scrollx-group > .row > .col-xs-4 {
+        flex: 0 0 auto;
+      }
 
     </style>
     <script src="vC64helper.js"></script>
@@ -88,12 +96,15 @@
     <div class="container-fluid" >
     <div class="row">
     <div class="col">
-      <form id="theFileInput">
-        <label for="drop_zone">VC1541 or cartridge slot</label>
-        <div id="drop_zone" class="u-full-width" data-toggle="tooltip" data-placement="bottom" title="drop .G64 .d64 .crt or .prg files into here, or just click into the drop zone">
-        </div>
-        <input id="filedialog" name="theFileDialog" type="file" accept=".g64, .d64, .crt, .prg" style="display:none" >
-      </form> 
+      <button type="button" id="button_fullscreen" class="btn btn-primary mr-2" data-toggle="tooltip" data-placement="top" title="ALT+ENTER to enter or leave fullscreen">enter fullscreen</button>
+      <div class="btn-group mr-2 my-2" role="group">
+        <button type="button" id="button_halt" class="btn btn-primary">halt</button>
+        <button type="button" id="button_run" class="btn btn-primary" disabled>run</button>      
+      </div>  
+      <button type="button" id="button_reset" class="btn btn-primary mr-2">reset</button>
+      <button type="button" id="button_snapshots" class="btn btn-primary" data-toggle="modal" data-target="#snapshotModal">
+        snapshots
+      </button>
     </div>
     <div class="col">
       <label for="port1">game port1</label>
@@ -104,15 +115,13 @@
     </div>
     </div>
     <div class="row">
-      <div class="col mt-4">
-
-        <button type="button" id="button_fullscreen" class="btn btn-primary mr-2" data-toggle="tooltip" data-placement="top" title="ALT+ENTER to enter or leave fullscreen">enter fullscreen</button>
-        <div class="btn-group mr-2 my-2" role="group">
-          <button type="button" id="button_halt" class="btn btn-primary">halt</button>
-          <button type="button" id="button_run" class="btn btn-primary" disabled>run</button>      
-        </div>  
-        <button type="button" id="button_reset" class="btn btn-primary">reset</button>
-  
+      <div class="col">
+        <form id="theFileInput">
+          <label for="drop_zone">VC1541 or cartridge slot</label>
+          <div id="drop_zone" class="u-full-width" data-toggle="tooltip" data-placement="bottom" title="drop .G64 .d64 .crt or .prg files into here, or just click into the drop zone">
+          </div>
+          <input id="filedialog" name="theFileDialog" type="file" accept=".g64, .d64, .crt, .prg" style="display:none" >
+        </form> 
       </div>
       <div class="col">
         <label for="port2">game port2</label>
@@ -128,7 +137,31 @@
       <textarea rows="20" id="output" xclass="u-full-width"></textarea>
     </div>
     </div>
+    </div> <!-- end of fluid container -->
+
+    <!-- Modal snapshot-->
+    <div class="modal fade" id="snapshotModal" tabindex="-1" role="dialog" aria-labelledby="snapshotModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="snapshotModalLabel">snapshots</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            scroll downwards for different games or horizontal for snapshots of a game ...
+          <div id="container_snapshots" class="container scrollx-group">
+          </div><!-- container end-->
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
     </div>
+    <!-- end of Modal snapshot-->
+
     <script type='text/javascript'>
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');

@@ -8,6 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <link rel="stylesheet" href="css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/vc64.css">
   <script src="js/jquery-3.5.0.min.js"></script>
   <script src="js/bootstrap.bundle.min.js"></script>
 
@@ -19,10 +20,6 @@
       /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
       canvas.emscripten 
       { border: 0px none; background-color: black; }
-      body {
-        background-color: #333333;
-        color: #fce0e0;
-      }
       .spinner {
         height: 50px;
         width: 50px;
@@ -55,38 +52,30 @@
         to {transform: rotate(360deg);}
       }
 
-      #drop_zone {
-        cursor: pointer;
-        background-color: #888888;
-        border: 3px dashed #a0a0ff;
-        height: 48px;
-      }
-      #output {
-        height: 250px;
-        width:100%;
-      }
-      #snapshotModal {
-        color:#333333;
-      }
-
-      .scrollx-group > .row {
-        display: flex;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-      }
-      .scrollx-group > .row > .col-xs-4 {
-        flex: 0 0 auto;
-      }
 
     </style>
     <script src="vC64helper.js"></script>
     <script src="vC64keymap.js"></script>
   </head>
-  <body>
+  <body data-theme="dark">
     <figure style="overflow:visible;" id="spinner"><div class="spinner"></div><center style="margin-top:0.5em"><strong>emscripten</strong></center></figure>
     <div class="emscripten" id="status">Downloading...</div>
     <div class="emscripten">
       <progress value="0" max="100" id="progress" hidden=1></progress>  
+    </div>
+
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-6">
+        </div>
+        <div class="col-6">
+          <div class="custom-control custom-switch" style="float:right">
+          <input type="checkbox" class="custom-control-input " id="dark_switch" />
+          <label class="custom-control-label" for="dark_switch">dark mode</label>
+          </div>
+      </div>
+    </div>
+
     </div>
 
     <div class="emscripten_border">

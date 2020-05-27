@@ -203,6 +203,14 @@ function InitWrappers() {
     wasm_user_snapshots_count = Module.cwrap('wasm_user_snapshots_count', 'number');
 
 
+    dark_switch = document.getElementById('dark_switch');
+
+    loadTheme();
+    dark_switch.addEventListener('change', () => {
+        setTheme();
+    });
+
+
     document.getElementById('button_fullscreen').onclick = function() {
         if (wasm_toggleFullscreen != null) {
             wasm_toggleFullscreen();
@@ -386,3 +394,23 @@ function InitWrappers() {
     }
 
   }
+
+
+function loadTheme() {
+  const dark_theme_selected =
+    localStorage.getItem('dark_switch') !== null &&
+    localStorage.getItem('dark_switch') === 'dark';
+  dark_switch.checked = dark_theme_selected;
+  dark_theme_selected ? document.body.setAttribute('data-theme', 'dark') :
+    document.body.removeAttribute('data-theme');
+}
+
+function setTheme() {
+  if (dark_switch.checked) {
+    document.body.setAttribute('data-theme', 'dark');
+    localStorage.setItem('dark_switch', 'dark');
+  } else {
+    document.body.removeAttribute('data-theme');
+    localStorage.removeItem('dark_switch');
+  }
+}

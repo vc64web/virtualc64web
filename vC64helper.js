@@ -201,7 +201,12 @@ function InitWrappers() {
     wasm_user_snapshot_width = Module.cwrap('wasm_user_snapshot_width', 'number', ['number']);
     wasm_user_snapshot_height = Module.cwrap('wasm_user_snapshot_height', 'number', ['number']);
     wasm_user_snapshots_count = Module.cwrap('wasm_user_snapshots_count', 'number');
-
+    wasm_pull_auto_snapshot = Module.cwrap('wasm_pull_auto_snapshot', 'number', ['number']);
+    wasm_auto_snapshot_width = Module.cwrap('wasm_auto_snapshot_width', 'number', ['number']);
+    wasm_auto_snapshot_height = Module.cwrap('wasm_auto_snapshot_height', 'number', ['number']);
+    wasm_auto_snapshots_count = Module.cwrap('wasm_auto_snapshots_count', 'number');
+    wasm_restore_user_snapshot = Module.cwrap('wasm_restore_user_snapshot', 'undefined', ['number']);
+    wasm_restore_auto_snapshot = Module.cwrap('wasm_restore_auto_snapshot', 'undefined', ['number']);
 
     dark_switch = document.getElementById('dark_switch');
 
@@ -239,46 +244,54 @@ function InitWrappers() {
         document.getElementById('canvas').focus();
     }
 
-    document.getElementById('button_snapshots').onclick = function() 
+
+    document.getElementById('button_take_snapshot').onclick = function() 
     {
         wasm_take_user_snapshot();
+    }
 
-        var count = wasm_user_snapshots_count();
 
-        var the_grid=
-        '<div class="row">'; 
-        for(var z=0; z<count; z++)
-        {
-            the_grid +=
+    
+
+    document.getElementById('button_snapshots').onclick = function() 
+    {
+        var renderSnapshot=function(the_id){
+            var the_html=
             '<div class="col-xs-4">'
             +'<div class="card" style="width: 15rem;">'
-                +'<canvas id="canvas_snap_'+z+'" class="card-img-top" alt="Card image cap"></canvas>'
-                +'<div class="card-body">'
-                +'<p class="card-text">nr'+z+'</p>'
+                +'<canvas id="canvas_snap_'+the_id+'" class="card-img-top" alt="Card image cap"></canvas>'
+/*                +'<div class="card-body">'
+                +'<p class="card-text">nr'+the_id+'</p>'
                 +'</div>'
-            +'</div>'
+*/          +'</div>'
             +'</div>';
+            return the_html;
+        }
+        var acount = wasm_auto_snapshots_count();
+        var the_grid=
+        '<div class="row" data-toggle="tooltip" data-placement="left" title="auto snapshots">'; 
+        for(var z=0; z<acount; z++)
+        {
+            the_grid += renderSnapshot('a'+z);
         }
         the_grid+='</div>';
-        $('#container_snapshots').html(the_grid);
-     
-        for(var z=0; z<count; z++)
+
+        var ucount = wasm_user_snapshots_count();
+        the_grid+='<div class="row" data-toggle="tooltip" data-placement="left" title="user snapshots">';
+        for(var z=0; z<ucount; z++)
         {
-            var c = document.getElementById("canvas_snap_"+z);
-            var ctx = c.getContext("2d");
+            the_grid += renderSnapshot('u'+z);
+        }
+        the_grid+='</div>';
 
-            
-            snapshot_ptr = wasm_pull_user_snapshot(z);
+        $('#container_snapshots').html(the_grid);
 
-        //    imgData=ctx.createImageData(428,284);
-            var width=wasm_user_snapshot_width(z);
-            var height=wasm_user_snapshot_height(z);
-            
-            c.width = width;
-            c.height = height;
-            
 
-            //imgData=ctx.createImageData(428,284);
+        var copy_snapshot_to_canvas= function(snapshot_ptr, canvas, width, height){ 
+            var ctx = canvas.getContext("2d");
+            canvas.width = width;
+            canvas.height = height;
+
             imgData=ctx.createImageData(width,height);
         
             var data = imgData.data;
@@ -286,15 +299,53 @@ function InitWrappers() {
             snapshot_data = new Uint8Array(Module.HEAPU8.buffer, snapshot_ptr, data.length);
 
             for (var i = 0; i < data.length; i += 4) {
-                data[i]     = snapshot_data[i+0];     // red
+                data[i]     = snapshot_data[i+0]; // red
                 data[i + 1] = snapshot_data[i+1]; // green
                 data[i + 2] = snapshot_data[i+2]; // blue
                 data[i + 3] = snapshot_data[i+3];
 
             }
-        
             ctx.putImageData(imgData,0,0); 
         }
+
+
+        for(var z=0; z<acount; z++)
+        {
+            var c = document.getElementById("canvas_snap_a"+z);
+
+            c.onclick = function() {
+                let nr = this.id.match(/[a-z_]*(.*)/)[1];;
+            //    alert('restore auto nr'+nr);
+                wasm_restore_auto_snapshot(nr);
+            }
+        
+            snapshot_ptr = wasm_pull_auto_snapshot(z);
+
+            var width=wasm_auto_snapshot_width(z);
+            var height=wasm_auto_snapshot_height(z);
+            
+            copy_snapshot_to_canvas(snapshot_ptr, c, width, height);
+        }
+
+        for(var z=0; z<ucount; z++)
+        {
+            var c = document.getElementById("canvas_snap_u"+z);
+            
+            c.onclick = function() {
+                let nr = this.id.match(/[a-z_]*(.*)/)[1];;
+            //    alert('restore user nr'+nr);
+                wasm_restore_user_snapshot(nr);
+            }
+
+            snapshot_ptr = wasm_pull_user_snapshot(z);
+            
+            var width=wasm_user_snapshot_width(z);
+            var height=wasm_user_snapshot_height(z);
+
+            copy_snapshot_to_canvas(snapshot_ptr, c, width, height);            
+        }
+
+
     }
 
 

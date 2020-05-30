@@ -555,7 +555,15 @@ extern "C" size_t wasm_auto_snapshots_count()
   return wrapper->c64->numAutoSnapshots();
 }
 
+extern "C" void wasm_suspend_auto_snapshots()
+{
+  return wrapper->c64->suspendAutoSnapshots();
+}
 
+extern "C" void wasm_resume_auto_snapshots()
+{
+  return wrapper->c64->resumeAutoSnapshots();
+}
 
 extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
 {

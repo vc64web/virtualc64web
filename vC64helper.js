@@ -207,6 +207,9 @@ function InitWrappers() {
     wasm_auto_snapshots_count = Module.cwrap('wasm_auto_snapshots_count', 'number');
     wasm_restore_user_snapshot = Module.cwrap('wasm_restore_user_snapshot', 'undefined', ['number']);
     wasm_restore_auto_snapshot = Module.cwrap('wasm_restore_auto_snapshot', 'undefined', ['number']);
+    wasm_suspend_auto_snapshots = Module.cwrap('wasm_suspend_auto_snapshots', 'undefined');
+    wasm_resume_auto_snapshots = Module.cwrap('wasm_resume_auto_snapshots', 'undefined');
+
 
     dark_switch = document.getElementById('dark_switch');
 
@@ -250,20 +253,19 @@ function InitWrappers() {
         wasm_take_user_snapshot();
     }
 
-
-    
-
+    $('#snapshotModal').on('hidden.bs.modal', function () {
+        wasm_resume_auto_snapshots();
+    })
     document.getElementById('button_snapshots').onclick = function() 
     {
+        wasm_suspend_auto_snapshots();
+
         var renderSnapshot=function(the_id){
             var the_html=
             '<div class="col-xs-4">'
             +'<div class="card" style="width: 15rem;">'
                 +'<canvas id="canvas_snap_'+the_id+'" class="card-img-top" alt="Card image cap"></canvas>'
-/*                +'<div class="card-body">'
-                +'<p class="card-text">nr'+the_id+'</p>'
-                +'</div>'
-*/          +'</div>'
+            +'</div>'
             +'</div>';
             return the_html;
         }

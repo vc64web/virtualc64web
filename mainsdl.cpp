@@ -397,7 +397,7 @@ class C64Wrapper {
     c64->loadRom("roms/1541-II.251968-03.bin");
     printf("wrapper calls run on c64->run() method\n");
 
-    c64->setTakeAutoSnapshots(false);
+    c64->setTakeAutoSnapshots(true);
     c64->vic.emulateGrayDotBug=false;
  //   c64->dump();
  //   c64->drive1.dump();
@@ -492,6 +492,78 @@ void changeDisk(AnyArchive *a, int iDriveNumber)
   }
 }
 
+
+extern "C" Uint8 *wasm_pull_user_snapshot(unsigned nr)
+{
+  printf("wasm_pull_user_snapshot nr=%u\n", nr);
+  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
+  return snapshot->getImageData();
+}
+
+extern "C" unsigned wasm_user_snapshot_width(unsigned nr)
+{
+  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
+  return snapshot->getImageWidth();
+}
+extern "C" unsigned wasm_user_snapshot_height(unsigned nr)
+{
+  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
+  return snapshot->getImageHeight();
+}
+
+extern "C" size_t wasm_user_snapshots_count()
+{
+  return wrapper->c64->numUserSnapshots();
+}
+
+extern "C" void wasm_take_user_snapshot()
+{
+  wrapper->c64->takeUserSnapshot();
+}
+
+extern "C" void wasm_restore_user_snapshot(unsigned nr)
+{
+  wrapper->c64->restoreUserSnapshot(nr);
+}
+
+extern "C" void wasm_restore_auto_snapshot(unsigned nr)
+{
+  wrapper->c64->restoreAutoSnapshot(nr);
+}
+
+
+extern "C" Uint8 *wasm_pull_auto_snapshot(unsigned nr)
+{
+  printf("wasm_pull_user_snapshot nr=%u\n", nr);
+  Snapshot *snapshot = wrapper->c64->autoSnapshot(nr);
+  return snapshot->getImageData();
+}
+
+extern "C" unsigned wasm_auto_snapshot_width(unsigned nr)
+{
+  Snapshot *snapshot = wrapper->c64->autoSnapshot(nr);
+  return snapshot->getImageWidth();
+}
+extern "C" unsigned wasm_auto_snapshot_height(unsigned nr)
+{
+  Snapshot *snapshot = wrapper->c64->autoSnapshot(nr);
+  return snapshot->getImageHeight();
+}
+
+extern "C" size_t wasm_auto_snapshots_count()
+{
+  return wrapper->c64->numAutoSnapshots();
+}
+
+extern "C" void wasm_suspend_auto_snapshots()
+{
+  return wrapper->c64->suspendAutoSnapshots();
+}
+
+extern "C" void wasm_resume_auto_snapshots()
+{
+  return wrapper->c64->resumeAutoSnapshots();
+}
 
 extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
 {

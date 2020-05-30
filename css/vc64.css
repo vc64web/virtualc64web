@@ -1,0 +1,80 @@
+#drop_zone {
+    cursor: pointer;
+    background-color: var(--light);
+    border: 3px dashed var(--blue);
+    height: 48px;
+}
+
+[data-theme="dark"] #drop_zone {
+    background-color: var(--secondary);
+    border: 3px dashed var(--blue);
+    height: 48px;
+}
+
+
+#output {
+height: 250px;
+width:100%;
+}
+
+.scrollx-group > .row {
+display: flex;
+flex-wrap: nowrap;
+overflow-x: auto;
+}
+.scrollx-group > .row > .col-xs-4 {
+flex: 0 0 auto;
+}
+
+
+[data-theme="dark"] {
+background-color:var(--dark) !important;
+color: var(--light) !important;
+}
+
+[data-theme="dark"] .btn-primary {
+background-color: var(--secondary) !important;
+color: var(--light) !important;
+border-color: var(--gray-dark);
+}
+
+[data-theme="dark"] .btn-primary:hover {
+background-color: var(--secondary) !important;
+color: var(--light) !important;
+opacity: .65;
+}
+
+/* the filled circle in the switch was to high */
+.custom-switch .custom-control-label::before{
+    top: .23rem;
+}
+
+[data-theme="dark"] .custom-control-input:checked ~ .custom-control-label::before {
+border-color: var(--secondary) !important;
+background-color: var(--secondary) !important;
+}
+
+[data-theme="dark"] .custom-select {
+background-color: var(--secondary) !important;
+color: var(--light) !important;
+border-color: var(--gray);
+}
+
+[data-theme="dark"] #output {
+background-color: var(--gray) !important;
+color: var(--light) !important;
+}
+
+[data-theme="dark"] .modal-content {
+background-color: #333 !important;
+}
+
+[data-theme="dark"] .close {
+color: var(--light) !important;
+}
+
+[data-theme="dark"] .card {
+background-color: #555 !important;
+}
+
+

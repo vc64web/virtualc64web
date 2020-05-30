@@ -196,6 +196,28 @@ function InitWrappers() {
     wasm_reset = Module.cwrap('wasm_reset', 'undefined');
     wasm_halt = Module.cwrap('wasm_halt', 'undefined');
     wasm_run = Module.cwrap('wasm_run', 'undefined');
+    wasm_take_user_snapshot = Module.cwrap('wasm_take_user_snapshot', 'undefined');
+    wasm_pull_user_snapshot = Module.cwrap('wasm_pull_user_snapshot', 'number', ['number']);
+    wasm_user_snapshot_width = Module.cwrap('wasm_user_snapshot_width', 'number', ['number']);
+    wasm_user_snapshot_height = Module.cwrap('wasm_user_snapshot_height', 'number', ['number']);
+    wasm_user_snapshots_count = Module.cwrap('wasm_user_snapshots_count', 'number');
+    wasm_pull_auto_snapshot = Module.cwrap('wasm_pull_auto_snapshot', 'number', ['number']);
+    wasm_auto_snapshot_width = Module.cwrap('wasm_auto_snapshot_width', 'number', ['number']);
+    wasm_auto_snapshot_height = Module.cwrap('wasm_auto_snapshot_height', 'number', ['number']);
+    wasm_auto_snapshots_count = Module.cwrap('wasm_auto_snapshots_count', 'number');
+    wasm_restore_user_snapshot = Module.cwrap('wasm_restore_user_snapshot', 'undefined', ['number']);
+    wasm_restore_auto_snapshot = Module.cwrap('wasm_restore_auto_snapshot', 'undefined', ['number']);
+    wasm_suspend_auto_snapshots = Module.cwrap('wasm_suspend_auto_snapshots', 'undefined');
+    wasm_resume_auto_snapshots = Module.cwrap('wasm_resume_auto_snapshots', 'undefined');
+
+
+    dark_switch = document.getElementById('dark_switch');
+
+    loadTheme();
+    dark_switch.addEventListener('change', () => {
+        setTheme();
+    });
+
 
     document.getElementById('button_fullscreen').onclick = function() {
         if (wasm_toggleFullscreen != null) {
@@ -224,6 +246,112 @@ function InitWrappers() {
 
         document.getElementById('canvas').focus();
     }
+
+
+    document.getElementById('button_take_snapshot').onclick = function() 
+    {
+        wasm_take_user_snapshot();
+    }
+
+    $('#snapshotModal').on('hidden.bs.modal', function () {
+        wasm_resume_auto_snapshots();
+    })
+    document.getElementById('button_snapshots').onclick = function() 
+    {
+        wasm_suspend_auto_snapshots();
+
+        var renderSnapshot=function(the_id){
+            var the_html=
+            '<div class="col-xs-4">'
+            +'<div class="card" style="width: 15rem;">'
+                +'<canvas id="canvas_snap_'+the_id+'" class="card-img-top" alt="Card image cap"></canvas>'
+            +'</div>'
+            +'</div>';
+            return the_html;
+        }
+        var acount = wasm_auto_snapshots_count();
+        var the_grid=
+        '<div class="row" data-toggle="tooltip" data-placement="left" title="auto snapshots">'; 
+        for(var z=0; z<acount; z++)
+        {
+            the_grid += renderSnapshot('a'+z);
+        }
+        the_grid+='</div>';
+
+        var ucount = wasm_user_snapshots_count();
+        the_grid+='<div class="row" data-toggle="tooltip" data-placement="left" title="user snapshots">';
+        for(var z=0; z<ucount; z++)
+        {
+            the_grid += renderSnapshot('u'+z);
+        }
+        the_grid+='</div>';
+
+        $('#container_snapshots').html(the_grid);
+
+
+        var copy_snapshot_to_canvas= function(snapshot_ptr, canvas, width, height){ 
+            var ctx = canvas.getContext("2d");
+            canvas.width = width;
+            canvas.height = height;
+
+            imgData=ctx.createImageData(width,height);
+        
+            var data = imgData.data;
+
+            snapshot_data = new Uint8Array(Module.HEAPU8.buffer, snapshot_ptr, data.length);
+
+            for (var i = 0; i < data.length; i += 4) {
+                data[i]     = snapshot_data[i+0]; // red
+                data[i + 1] = snapshot_data[i+1]; // green
+                data[i + 2] = snapshot_data[i+2]; // blue
+                data[i + 3] = snapshot_data[i+3];
+
+            }
+            ctx.putImageData(imgData,0,0); 
+        }
+
+
+        for(var z=0; z<acount; z++)
+        {
+            var c = document.getElementById("canvas_snap_a"+z);
+
+            c.onclick = function() {
+                let nr = this.id.match(/[a-z_]*(.*)/)[1];;
+            //    alert('restore auto nr'+nr);
+                wasm_restore_auto_snapshot(nr);
+            }
+        
+            snapshot_ptr = wasm_pull_auto_snapshot(z);
+
+            var width=wasm_auto_snapshot_width(z);
+            var height=wasm_auto_snapshot_height(z);
+            
+            copy_snapshot_to_canvas(snapshot_ptr, c, width, height);
+        }
+
+        for(var z=0; z<ucount; z++)
+        {
+            var c = document.getElementById("canvas_snap_u"+z);
+            
+            c.onclick = function() {
+                let nr = this.id.match(/[a-z_]*(.*)/)[1];;
+            //    alert('restore user nr'+nr);
+                wasm_restore_user_snapshot(nr);
+            }
+
+            snapshot_ptr = wasm_pull_user_snapshot(z);
+            
+            var width=wasm_user_snapshot_width(z);
+            var height=wasm_user_snapshot_height(z);
+
+            copy_snapshot_to_canvas(snapshot_ptr, c, width, height);            
+        }
+
+
+    }
+
+
+
 
     document.getElementById('port1').onchange = function() {
         port1 = document.getElementById('port1').value;
@@ -314,8 +442,28 @@ function InitWrappers() {
         $("#canvas").css("width", "95%");
     } else{
         // The viewport is at least 768 pixels wide
-        $("#canvas").css("width", "70%");
+        $("#canvas").css("width", "75%");
 
     }
 
   }
+
+
+function loadTheme() {
+  const dark_theme_selected =
+    localStorage.getItem('dark_switch') !== null &&
+    localStorage.getItem('dark_switch') === 'dark';
+  dark_switch.checked = dark_theme_selected;
+  dark_theme_selected ? document.body.setAttribute('data-theme', 'dark') :
+    document.body.removeAttribute('data-theme');
+}
+
+function setTheme() {
+  if (dark_switch.checked) {
+    document.body.setAttribute('data-theme', 'dark');
+    localStorage.setItem('dark_switch', 'dark');
+  } else {
+    document.body.removeAttribute('data-theme');
+    localStorage.removeItem('dark_switch');
+  }
+}

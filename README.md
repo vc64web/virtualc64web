@@ -27,7 +27,8 @@ _note_: start.sh starts an webserver with URL base path pointing to the folder w
 * replace the standard emsdk html page and build a specific html5 file which allows to insert disks ... 
 * keyboard works for many keys 
 * completing and extending the Javascript API for keyboard and joystick controller input from  HTML5 side
+* snapshot support
 
 ## next goals
-* snapshot support
+* additional modal dialog to load roms via file dialog and save them to the browsers local storage, in case they are not already embedded in folder roms ...   
 * javascript interface for settings of the emulation like (greydotbugemulation, soundbuffer size, and so on...) 

@@ -370,8 +370,7 @@ void theListener(const void *, int type, long data){
     EM_ASM({
         if (typeof message_handler === 'undefined')
             return;
-        message_handler( $0 );
-    }, msg_code[type];    
+        message_handler( $0 );}, msg_code[type].c_str() );    
 
   }
 }

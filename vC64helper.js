@@ -1,3 +1,38 @@
+function message_handler(cores_msg)
+{
+    var msg = UTF8ToString(cores_msg);
+    if(msg == "MSG_READY_TO_RUN")
+    {
+        //start it async
+        setTimeout(function() { try{wasm_run();}catch(e){}},10);
+    }
+    else if(msg == "MSG_ROM_MISSING")
+    {        
+        //try to load roms from local storage
+        setTimeout(function() {
+            FromBase64 = function (str) {
+                return atob(str).split('').map(function (c) { return c.charCodeAt(0); });
+            }
+            try{
+            var restoredbytearray = Uint8Array.from(FromBase64(localStorage.getItem('basic_rom')));
+            wasm_loadfile("basic_rom.bin", restoredbytearray, restoredbytearray.byteLength);
+   
+            restoredbytearray = Uint8Array.from(FromBase64(localStorage.getItem('kernal_rom')));
+            wasm_loadfile("kernal_rom.bin", restoredbytearray, restoredbytearray.byteLength);
+   
+            restoredbytearray = Uint8Array.from(FromBase64(localStorage.getItem('char_rom')));
+            wasm_loadfile("char_rom.bin", restoredbytearray, restoredbytearray.byteLength);
+   
+            restoredbytearray = Uint8Array.from(FromBase64(localStorage.getItem('vc1541_rom')));
+            wasm_loadfile("vc1541_rom.bin", restoredbytearray, restoredbytearray.byteLength);
+            } catch(e){}
+        
+        },0);
+    }
+
+
+}
+
 function dragover_handler(ev) {
     ev.preventDefault();
     ev.stopPropagation();
@@ -43,7 +78,21 @@ function pushFile(file, startup) {
     fileReader.onload  = function() {
         var byteArray = new Uint8Array(this.result);
         try{
-        wasm_loadfile(file.name, byteArray, byteArray.byteLength);
+    /*
+            //localStorage.getItem('stored_bin_files')
+            //localStorage.setItem('stored_bin_files', file.name );
+
+            
+            */
+            var romtype = wasm_loadfile(file.name, byteArray, byteArray.byteLength);
+            if(romtype != "")
+            {
+                ToBase64 = function (u8) {
+                    return btoa(String.fromCharCode.apply(null, u8));
+                }
+                localStorage.setItem(romtype, ToBase64(byteArray));
+            }
+
         } catch(e) {}
     }
     fileReader.readAsArrayBuffer(file);
@@ -189,7 +238,7 @@ function handleGamePad(portnr, gamepad)
 }
 
 function InitWrappers() {
-    wasm_loadfile = Module.cwrap('wasm_loadFile', 'undefined', ['string', 'array', 'number']);
+    wasm_loadfile = Module.cwrap('wasm_loadFile', 'string', ['string', 'array', 'number']);
     wasm_key = Module.cwrap('wasm_key', 'undefined', ['number', 'number', 'number']);
     wasm_toggleFullscreen = Module.cwrap('wasm_toggleFullscreen', 'undefined');
     wasm_joystick = Module.cwrap('wasm_joystick', 'undefined', ['string']);

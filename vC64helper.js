@@ -13,18 +13,19 @@ function message_handler(cores_msg)
             FromBase64 = function (str) {
                 return atob(str).split('').map(function (c) { return c.charCodeAt(0); });
             }
+            var loadStoredItem= function (item_name){
+                var stored_item = localStorage.getItem(item_name); 
+                if(stored_item != null)
+                {
+                    var restoredbytearray = Uint8Array.from(FromBase64(stored_item));
+                    wasm_loadfile(item_name, restoredbytearray, restoredbytearray.byteLength);
+                }    
+            }
             try{
-            var restoredbytearray = Uint8Array.from(FromBase64(localStorage.getItem('basic_rom')));
-            wasm_loadfile("basic_rom.bin", restoredbytearray, restoredbytearray.byteLength);
-   
-            restoredbytearray = Uint8Array.from(FromBase64(localStorage.getItem('kernal_rom')));
-            wasm_loadfile("kernal_rom.bin", restoredbytearray, restoredbytearray.byteLength);
-   
-            restoredbytearray = Uint8Array.from(FromBase64(localStorage.getItem('char_rom')));
-            wasm_loadfile("char_rom.bin", restoredbytearray, restoredbytearray.byteLength);
-   
-            restoredbytearray = Uint8Array.from(FromBase64(localStorage.getItem('vc1541_rom')));
-            wasm_loadfile("vc1541_rom.bin", restoredbytearray, restoredbytearray.byteLength);
+                loadStoredItem('basic_rom.bin');
+                loadStoredItem('kernal_rom.bin');
+                loadStoredItem('char_rom.bin');
+                loadStoredItem('vc1541_rom.bin');
             } catch(e){}
         
         },0);
@@ -78,19 +79,13 @@ function pushFile(file, startup) {
     fileReader.onload  = function() {
         var byteArray = new Uint8Array(this.result);
         try{
-    /*
-            //localStorage.getItem('stored_bin_files')
-            //localStorage.setItem('stored_bin_files', file.name );
-
-            
-            */
             var romtype = wasm_loadfile(file.name, byteArray, byteArray.byteLength);
             if(romtype != "")
             {
                 ToBase64 = function (u8) {
                     return btoa(String.fromCharCode.apply(null, u8));
                 }
-                localStorage.setItem(romtype, ToBase64(byteArray));
+                localStorage.setItem(romtype+".bin", ToBase64(byteArray));
             }
 
         } catch(e) {}

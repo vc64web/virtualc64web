@@ -107,9 +107,10 @@
       <div class="col">
         <form id="theFileInput">
           <label for="drop_zone">VC1541 or cartridge slot</label>
-          <div id="drop_zone" class="u-full-width" data-toggle="tooltip" data-placement="bottom" title="drop .G64 .d64 .crt or .prg files into here, or just click into the drop zone">
+          <div id="drop_zone" class="u-full-width" data-toggle="tooltip" data-placement="bottom" title="drop .g64 .d64 .crt, .prg or .bin files into here, or just click into the drop zone">
           </div>
-          <input id="filedialog" name="theFileDialog" type="file" accept=".g64, .d64, .crt, .prg, .bin" style="display:none" >
+          <!-- iOS won't work with accept=".g64,.d64,.crt,.prg,.bin" on d64 files -->
+          <input id="filedialog" name="theFileDialog" type="file"   style="display:none" >
         </form> 
       </div>
       <div class="col">

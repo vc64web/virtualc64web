@@ -51,8 +51,6 @@
         from {transform: rotate(0deg);}
         to {transform: rotate(360deg);}
       }
-
-
     </style>
     <script src="vC64helper.js"></script>
     <script src="vC64keymap.js"></script>
@@ -151,6 +149,42 @@
       </div>
     </div>
     <!-- end of Modal snapshot-->
+
+    <!-- modal roms-->
+    <div class="modal fade" id="modal_roms" tabindex="-1" role="dialog" aria-labelledby="snapshotModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="snapshotModalLabel">ROMS</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            The emulator needs four rom files.<br>
+            If you see a black screen then these rom files have not been loaded
+            to VirtualC64web yet. 
+            <br><br>
+            Close this message and drag <br>
+            <ul>
+            <li>kernal_rom.bin</li>
+            <li>charset_rom.bin</li>
+            <li>basic_rom.bin</li>
+            <li>vc1541_rom.bin</li>
+            </ul>
+
+            into the blue bordered disk file box. VirtualC64web will try to store these files to your browsers local storage. Then on subsequent starts it will take the rom files from your browsers local storage instead of asking you again for them.
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- end of modal roms-->
+
+
+
 
     <script type='text/javascript'>
       var statusElement = document.getElementById('status');

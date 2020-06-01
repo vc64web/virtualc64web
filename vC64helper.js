@@ -19,16 +19,31 @@ function message_handler(cores_msg)
                 {
                     var restoredbytearray = Uint8Array.from(FromBase64(stored_item));
                     wasm_loadfile(item_name, restoredbytearray, restoredbytearray.byteLength);
-                }    
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
             }
             try{
-                loadStoredItem('basic_rom.bin');
-                loadStoredItem('kernal_rom.bin');
-                loadStoredItem('char_rom.bin');
-                loadStoredItem('vc1541_rom.bin');
+                var all_fine = true;
+                if (!loadStoredItem('basic_rom.bin'))
+                    all_fine=false;
+                if (!loadStoredItem('kernal_rom.bin'))
+                    all_fine=false;
+                if (!loadStoredItem('char_rom.bin'))
+                    all_fine=false;
+                if (!loadStoredItem('vc1541_rom.bin'))
+                    all_fine=false;
+ 
+                if(all_fine == false)
+                    $('#modal_roms').modal();
+       
             } catch(e){}
         
         },0);
+ 
     }
 
 

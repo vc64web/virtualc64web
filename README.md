@@ -5,7 +5,7 @@
 ## info
 The base is a copy of virtualC64 without its usual mac GUI in v3.4b1 master branch March 3 2020 latest commit point fe1629c
 
-## try it and feel it here 
+## try and feel it here 
 https://dirkwhoffmann.github.io/virtualc64web/
 
 ## what happened so far ...

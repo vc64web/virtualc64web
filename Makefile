@@ -28,6 +28,18 @@ main:
 	mv *.o obj
 	$(CC)  $(CFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB -s ALLOW_MEMORY_GROWTH=1 $(OBJDIR)/*.o --preload-file roms
 
+publish:
+	rm -rf ../gh-pages/css
+	rm -rf ../gh-pages/js
+	rm -f ../gh-pages/vC64.*
+	rm -f ../gh-pages/vC64*.js
+	cp vC64.* ../gh-pages
+	cp vC64*.js ../gh-pages
+	cp -r js ../gh-pages
+	cp -r css ../gh-pages
+	mv ../gh-pages/vC64.html ../gh-pages/index.html 
+
+
 $(OBJECTS): %.o: %.cpp
 	$(CC) -c $(CFLAGS) $< -o $(OBJDIR)/$(@F)
 

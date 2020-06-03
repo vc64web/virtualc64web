@@ -361,11 +361,18 @@ void initSDL(void *thisC64)
   
 }
 
+
 void theListener(const void *, int type, long data){
   if(0!=strcmp("MSG_CHARSET", msg_code[type].c_str()))
   {
     printf("vC64 message=%s, data=%ld\n", msg_code[type].c_str(), data);
-  }   
+
+    EM_ASM({
+        if (typeof message_handler === 'undefined')
+            return;
+        message_handler( $0 );}, msg_code[type].c_str() );    
+
+  }
 }
 
 class C64Wrapper {
@@ -565,13 +572,13 @@ extern "C" void wasm_resume_auto_snapshots()
   return wrapper->c64->resumeAutoSnapshots();
 }
 
-extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
+extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 {
   printf("load file=%s len=%ld\n", name, len);
   filename=name;
   if(wrapper == NULL)
   {
-    return;
+    return "";
   }
   if (checkFileSuffix(name, ".D64") || checkFileSuffix(name, ".d64")) {
     printf("isD64\n");
@@ -590,6 +597,58 @@ extern "C" void wasm_loadFile(char* name, Uint8 *blob, long len)
     wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(wrapper->c64,(CRTFile::makeWithBuffer(blob, len))));
     wrapper->c64->reset();
   }
+  else if (checkFileSuffix(name, ".BIN")|| checkFileSuffix(name, ".bin")) {
+    printf("isBIN\n");
+    //wrapper->c64->flash(ROMFile::makeWithBuffer(blob, len),0);
+
+    bool result;
+    bool wasRunnable = wrapper->c64->isRunnable();
+    //ROMFile *rom = ROMFile::makeWithFile(name);
+    ROMFile *rom = ROMFile::makeWithBuffer(blob, len);
+
+    if (!rom) {
+        printf("Failed to read ROM image file %s\n", name);
+        return "";
+    }
+    
+    wrapper->c64->suspend();
+    result = wrapper->c64->flash(rom);
+    wrapper->c64->resume();
+    
+    if (result) {
+        printf("Loaded ROM image %s.\n", name);
+    } else {
+        printf("Failed to flash ROM image %s.\n", name);
+    }
+    
+    if (!wasRunnable && wrapper->c64->isRunnable())
+    {
+        wrapper->c64->putMessage(MSG_READY_TO_RUN);
+    }
+    
+    const char *rom_type="";
+    if(rom->isKernalRomBuffer(blob, len))
+    {
+      rom_type = "kernal_rom";
+    }
+    else if(rom->isVC1541RomBuffer(blob, len))
+    {
+      rom_type = "vc1541_rom";
+    }
+    else if(rom->isCharRomBuffer(blob, len))
+    {
+      rom_type = "char_rom";
+    }
+    else if(rom->isBasicRomBuffer(blob, len))
+    {
+      rom_type = "basic_rom";
+    }
+    printf("detected rom_type=%s.\n", rom_type);
+
+    delete rom;
+    return rom_type;    
+  }
+  return "";
 }
 
 extern "C" void wasm_reset()

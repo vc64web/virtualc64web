@@ -82,7 +82,7 @@
     <!-- 
       we pin the keyboard collapsable at the bottom and give it the full width 
     -->
-    <div class="collapse" id="collapseExample" style="position:fixed;bottom:0;z-index:999;width:100%;background-color:var(--gray-dark)">
+    <div class="collapse" id="virtual_keyboard">
       <div class="justify-content-center"
         style="display: flex;flex-wrap: nowrap;overflow-x: auto;">
         <div style="flex: 0 0 content;padding-right: 15px;padding-left: 15px;position: relative;width: 100%;min-width: 0;max-width: 100%;">
@@ -90,7 +90,7 @@
             the following absolute width defines the scrollable area
             if it is to short then some keys on the outer egdes are clipped
           -->
-          <div style="width:700px;" id="divKeyboardRows"></div>      
+          <div style="width:750px;" id="divKeyboardRows"></div>      
         </div>
       </div>
     </div>
@@ -109,7 +109,7 @@
         snapshots
       </button>
       <button type="button" id="button_take_snapshot" class="btn btn-primary">take snapshot</button>
-      <button id="button_keyboard" class="btn btn-primary" type="button" data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
+      <button id="button_keyboard" class="btn btn-primary" type="button" data-toggle="collapse" data-target="#virtual_keyboard" aria-expanded="false" aria-controls="virtual_keyboard">
         keyboard
       </button>
     </div>

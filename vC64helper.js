@@ -533,37 +533,53 @@ function setTheme() {
 
 function installKeyboard() {
     keymap= [ 
-    [{k:'F1',c:'F1'}, {k:'F2',c:'F2'},{k:'F3',c:'F3'},{k:'F4',c:'F4'},{k:'F5',c:'F5'},{k:'F6',c:'F6'},{k:'F7',c:'F7'},{k:'F8',c:'F8'}, {k:'hide keyboard', c:'hide_keyboard'}],
-    [{k:'<-',c:'Delete'}, {k:'1',c:'Digit1'},{k:'2',c:'Digit2'},{k:'3',c:'Digit3'},{k:'4',c:'Digit4'},{k:'5',c:'Digit5'},{k:'6',c:'Digit6'},{k:'7',c:'Digit7'},{k:'8',c:'Digit8'},{k:'9',c:'Digit9'},{k:'0',c:'Digit0'},{k:'+', c:'Minus'},{k:'-', c:'Equal'},{k:'€'},{k:'CLR/Home', c:'home'},{k:'Inst/DEL',c:'Backspace'} ], 
-    [{k:'CTRL',c:'ControlLeft'}, {k:'Q'},{k:'W'},{k:'E'},{k:'R'},{k:'T'},{k:'Y'},{k:'U'},{k:'I'},{k:'O'},{k:'P'},{k:'@',c:'BracketLeft'},{k:'*', c:'BracketRight'},{k:'up'},{k:'RESTORE'}], 
+    [{k:'hide keyboard', c:'hide_keyboard'},{style:'width:120px'},{k:'F1',c:'F1'}, {k:'F2',c:'F2'},{k:'F3',c:'F3'},{k:'F4',c:'F4'},{k:'F5',c:'F5'},{k:'F6',c:'F6'},{k:'F7',c:'F7'},{k:'F8',c:'F8'}],
+    [{k:'<-',c:'Delete'}, {k:'1',c:'Digit1'},{k:'2',c:'Digit2'},{k:'3',c:'Digit3'},{k:'4',c:'Digit4'},{k:'5',c:'Digit5'},{k:'6',c:'Digit6'},{k:'7',c:'Digit7'},{k:'8',c:'Digit8'},{k:'9',c:'Digit9'},{k:'0',c:'Digit0'},{k:'+', c:'Minus'},{k:'-', c:'Equal'},{k:'€', c:'pound'},{k:'CLR/Home', c:'home'},{k:'Inst/DEL',c:'Backspace'} ], 
+    [{k:'CTRL',c:'ControlLeft'}, {k:'Q'},{k:'W'},{k:'E'},{k:'R'},{k:'T'},{k:'Y'},{k:'U'},{k:'I'},{k:'O'},{k:'P'},{k:'@',c:'BracketLeft'},{k:'*', c:'BracketRight'},{k:'up',c:'upArrow'},{k:'RESTORE', c:'restore'}], 
     [{k:'RunStop',c:'runStop'},{k:'ShftLock', c:'shiftlock'},{k:'A'},{k:'S'},{k:'D'},{k:'F'},{k:'G'},{k:'H'},{k:'J'},{k:'K'},{k:'L'},{k:':', c:'Semicolon'},{k:';', c:'Quote'},{k:'=', c:'Backslash'},{k:'RETURN',c:'Enter'}], 
-    [{k:'C=', c:'OSleft'},{k:'SHIFT',c:'ShiftLeft'},{k:'Z'},{k:'X'},{k:'C'},{k:'V'},{k:'B'},{k:'N'},{k:'M'},{k:',',c:'Comma'},{k:'.',c:'Period'},{k:'/', c:'Slash'},{k:'SHIFT',c:'ShiftRight'},{k:'RIGHT'},{k:'DOWN'} ],
-    [{k:'SPACE', c:'Space'} ]
-];
+    [{k:'C=', c:'OSleft'},{k:'SHIFT',c:'ShiftLeft'},{k:'Z'},{k:'X'},{k:'C'},{k:'V'},{k:'B'},{k:'N'},{k:'M'},{k:',',c:'Comma'},{k:'.',c:'Period'},{k:'/', c:'Slash'},{k:'SHIFT',c:'ShiftRight'},{k:'RIGHT', c:'ArrowRight'},{k:'DOWN', c:'ArrowDown'} ],
+    [{k:'SPACE', c:'Space', style:'width:450px'}]
+    ];
 
     var the_keyBoard='';
-   // the_keyBoard += '<div class="row justify-content-center" style="flex-wrap: nowrap;">';
-   // the_keyBoard += '<div class="col-12">';
     keymap.forEach(row => {
         the_keyBoard+='<div class="justify-content-center" style="display:flex">';
-//        the_keyBoard+='<div class="row justify-content-center" style="flex-wrap: nowrap;">'; 
         row.forEach(keydef => {
-            if(keydef.c === undefined)
-            keydef.c = 'Key'+keydef.k;
-
-//            the_keyBoard +='<div class="col">';
-            the_keyBoard +='<button type="button" id="button_'+keydef.c+'" class="btn btn-primary">'+keydef.k+'</button>'
-//            the_keyBoard +='</div>';
+            if(keydef.k === undefined)
+            {
+                var style = "";
+                if(keydef.s !== undefined)
+                    css = keydef.s; 
+                if(keydef.style !== undefined)
+                    style = keydef.style; 
+                
+                the_keyBoard +='<div class="'+css+'" style="'+style+'"></div>';
+            }
+            else
+            {
+                if(keydef.c === undefined)
+                    keydef.c = 'Key'+keydef.k;
+                var css = "btn btn-secondary ml-1 mt-1";
+                var style = null; 
+                if(keydef.css !== undefined)
+                    css = keydef.css; 
+                if(keydef.style !== undefined)
+                    style = keydef.style; 
+                
+                the_keyBoard +='<button type="button" id="button_'+keydef.c+'" class="'+css+'"';
+                if(style !=null)
+                    the_keyBoard += ' style="'+style+'"';
+                the_keyBoard += '>'+keydef.k+'</button>'
+            }
         });
-//        the_keyBoard+='</div>';
         the_keyBoard+='</div>';
     });
- //   the_keyBoard+='<div>';
- //   the_keyBoard+='<div>';
     $('#divKeyboardRows').html(the_keyBoard);
 
     keymap.forEach(row => {
         row.forEach(keydef => {
+            if(keydef.k === undefined)
+                return;
             if(keydef.c === undefined)
               keydef.c = 'Key'+keydef.k;
 
@@ -571,7 +587,7 @@ function installKeyboard() {
             {
                if(keydef.c == 'hide_keyboard')
                {
-                $('#collapseExample').collapse('hide');
+                $('#virtual_keyboard').collapse('hide');
                }
                else if(keydef.c == 'shiftlock')
                {
@@ -580,7 +596,7 @@ function installKeyboard() {
                    {
                      wasm_key(c64code[0], c64code[1], 1);                   
                      keydef.locked = 1;
-                     $("#button_"+keydef.c).attr("style", "background-color: green !important");
+                     $("#button_"+keydef.c).attr("style", "background-color: var(--green) !important");
                    }
                    else
                    {
@@ -595,9 +611,23 @@ function installKeyboard() {
                 var c64code = translateKey(keydef.c, keydef.k);
                 if(c64code !== undefined){
                     wasm_key(c64code[0], c64code[1], 1);
-                    setTimeout(() => {
-                        wasm_key(c64code[0], c64code[1], 0);
-                    }, 60);
+                    
+                    if(keydef.c == 'ShiftLeft' ||keydef.c == 'ShiftRight')
+                    {
+                        $("#button_"+keydef.c).attr("style", "background-color: var(--green) !important");
+                    
+                        setTimeout(() => {
+                            wasm_key(c64code[0], c64code[1], 0);
+                            $("#button_"+keydef.c).attr("style", "");
+                        }, 1000*3);
+                    
+                    }
+                    else
+                    {  
+                        setTimeout(() => {
+                            wasm_key(c64code[0], c64code[1], 0);
+                        }, 60);
+                    }
                 }
                }
             });

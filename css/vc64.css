@@ -80,3 +80,15 @@ background-color: #555 !important;
 }
 
 
+#virtual_keyboard {
+    position:fixed;
+    bottom:0;
+    z-index:999;
+    width:100%;
+    background-color: #aaa;
+}
+
+[data-theme="dark"] #virtual_keyboard {
+    background-color:var(--gray-dark);
+}
+    

@@ -25,7 +25,9 @@ overflow-x: auto;
 .scrollx-group > .row > .col-xs-4 {
 flex: 0 0 auto;
 }
-
+.scrollx-group > .row > .col {
+flex: 0 0 auto;
+}
 
 [data-theme="dark"] {
 background-color:var(--dark) !important;

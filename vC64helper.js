@@ -276,7 +276,8 @@ function InitWrappers() {
     dark_switch.addEventListener('change', () => {
         setTheme();
     });
-
+    
+    installKeyboard();
 
     document.getElementById('button_fullscreen').onclick = function() {
         if (wasm_toggleFullscreen != null) {
@@ -287,6 +288,9 @@ function InitWrappers() {
     document.getElementById('button_reset').onclick = function() {
         wasm_reset();
         document.getElementById('canvas').focus();
+    
+        installKeyboard();
+
     }
     document.getElementById('button_halt').onclick = function() {
         wasm_halt();
@@ -406,11 +410,7 @@ function InitWrappers() {
             copy_snapshot_to_canvas(snapshot_ptr, c, width, height);            
         }
 
-
     }
-
-
-
 
     document.getElementById('port1').onchange = function() {
         port1 = document.getElementById('port1').value;
@@ -504,8 +504,7 @@ function InitWrappers() {
         $("#canvas").css("width", "75%");
 
     }
-
-  }
+}
 
 
 function loadTheme() {
@@ -525,4 +524,68 @@ function setTheme() {
     document.body.removeAttribute('data-theme');
     localStorage.removeItem('dark_switch');
   }
+}
+
+
+
+
+
+
+function installKeyboard() {
+    keymap= [ 
+    [{k:'F1'}, {k:'F2'},{k:'F3'},{k:'F4'},{k:'F5'},{k:'F6'},{k:'F7'},{k:'F8'}, {k:'hide keyboard', c:'hide_keyboard'}],
+    [{k:'<-',c:'Delete'}, {k:'1'},{k:'2'},{k:'3'},{k:'4'},{k:'5'},{k:'6'},{k:'7'},{k:'8'},{k:'9'},{k:'0'},{k:'+', c:'Minus'},{k:'-', c:'Equal'},{k:'€'},{k:'CLR/Home', c:'home'},{k:'Inst/DEL',c:'Delete'} ], 
+    [{k:'CTRL',c:'ControlLeft'}, {k:'Q'},{k:'W'},{k:'E'},{k:'R'},{k:'T'},{k:'Y'},{k:'U'},{k:'I'},{k:'O'},{k:'P'},{k:'@',c:'BracketLeft'},{k:'*', c:'BracketRight'},{k:'up'},{k:'RESTORE'}], 
+    [{k:'RunStop'},{k:'ShftLock'},{k:'A'},{k:'S'},{k:'D'},{k:'F'},{k:'G'},{k:'H'},{k:'J'},{k:'K'},{k:'L'},{k:':', c:'Semicolon'},{k:';', c:'Quote'},{k:'=', c:'Backslash'},{k:'RETURN'}], 
+    [{k:'C=', c:'OSleft'},{k:'SHIFT'},{k:'Z'},{k:'X'},{k:'C'},{k:'V'},{k:'B'},{k:'N'},{k:'M'},{k:',',c:'Comma'},{k:'.',c:'Period'},{k:'/', c:'Slash'},{k:'SHIFT'},{k:'RIGHT'},{k:'DOWN'} ],
+    [{k:'SPACE'} ]
+];
+
+    var the_keyBoard='';
+   // the_keyBoard += '<div class="row justify-content-center" style="flex-wrap: nowrap;">';
+   // the_keyBoard += '<div class="col-12">';
+    keymap.forEach(row => {
+        the_keyBoard+='<div class="justify-content-center" style="display:flex">';
+//        the_keyBoard+='<div class="row justify-content-center" style="flex-wrap: nowrap;">'; 
+        row.forEach(keydef => {
+            if(keydef.c === undefined)
+            keydef.c = 'Key'+keydef.k;
+
+//            the_keyBoard +='<div class="col">';
+            the_keyBoard +='<button type="button" id="button_'+keydef.c+'" class="btn btn-primary">'+keydef.k+'</button>'
+//            the_keyBoard +='</div>';
+        });
+//        the_keyBoard+='</div>';
+        the_keyBoard+='</div>';
+    });
+ //   the_keyBoard+='<div>';
+ //   the_keyBoard+='<div>';
+    $('#divKeyboardRows').html(the_keyBoard);
+
+    keymap.forEach(row => {
+        row.forEach(keydef => {
+            if(keydef.c === undefined)
+              keydef.c = 'Key'+keydef.k;
+
+            $("#button_"+keydef.c).click(function() 
+            {
+               if(keydef.c == 'hide_keyboard')
+               {
+                $('#collapseExample').collapse('hide');
+               }
+               else
+               {
+                var c64code = translateKey(keydef.c, keydef.k);
+                if(c64code !== undefined){
+                    wasm_key(c64code[0], c64code[1], 1);
+                    setTimeout(() => {
+                        wasm_key(c64code[0], c64code[1], 0);
+                    }, 60);
+                }
+               }
+            });
+        });
+    });
+
+
 }

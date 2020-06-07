@@ -11,7 +11,6 @@
   <link rel="stylesheet" href="css/vc64.css">
   <script src="js/jquery-3.5.0.min.js"></script>
   <script src="js/bootstrap.bundle.min.js"></script>
-
     <style>
       .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
       textarea.emscripten { font-family: monospace; width: 80%; }
@@ -79,6 +78,25 @@
     <div class="emscripten_border">
       <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
     </div>
+    <!-- virtual keyboard-->
+    <!-- 
+      we pin the keyboard collapsable at the bottom and give it the full width 
+    -->
+    <div class="collapse" id="collapseExample" style="position:fixed;bottom:0;z-index:999;width:100%;background-color:var(--gray-dark)">
+      <div class="justify-content-center"
+        style="display: flex;flex-wrap: nowrap;overflow-x: auto;"
+      >
+        <div  style="flex: 0 0 content;padding-right: 15px;padding-left: 15px;position: relative;width: 100%;min-width: 0;max-width: 100%;">
+          
+          <!-- 
+            the following absolute width defines the scrollable area
+            if it is to short then some keys on th outer egdes are clipped
+          -->
+          <div style="width:700px;" id="divKeyboardRows"></div>      
+        </div>
+      </div>
+    </div>
+
     <br>
     <div class="container-fluid" >
     <div class="row">
@@ -93,7 +111,9 @@
         snapshots
       </button>
       <button type="button" id="button_take_snapshot" class="btn btn-primary">take snapshot</button>
-
+      <button id="button_keyboard" class="btn btn-primary" type="button" data-toggle="collapse" data-target="#collapseExample" aria-expanded="false" aria-controls="collapseExample">
+        keyboard
+      </button>
     </div>
     <div class="col">
       <label for="port1">game port1</label>
@@ -110,7 +130,7 @@
           <div id="drop_zone" class="u-full-width" data-toggle="tooltip" data-placement="bottom" title="drop .g64 .d64 .crt, .prg or .bin files into here, or just click into the drop zone">
           </div>
           <!-- iOS won't work with accept=".g64,.d64,.crt,.prg,.bin" on d64 files -->
-          <input id="filedialog" name="theFileDialog" type="file"   style="display:none" >
+          <input id="filedialog" name="theFileDialog" type="file" style="display:none" >
         </form> 
       </div>
       <div class="col">
@@ -123,11 +143,12 @@
     </div>
   
     <div class="row mt-5">
-    <div class="col-12">
+    <div class="col-12"><input type="text" id="jkjkjk"/>
       <textarea rows="20" id="output" xclass="u-full-width"></textarea>
     </div>
     </div>
     </div> <!-- end of fluid container -->
+
 
     <!-- Modal snapshot-->
     <div class="modal fade" id="snapshotModal" tabindex="-1" role="dialog" aria-labelledby="snapshotModalLabel" aria-hidden="true">

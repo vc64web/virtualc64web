@@ -533,12 +533,12 @@ function setTheme() {
 
 function installKeyboard() {
     keymap= [ 
-    [{k:'F1'}, {k:'F2'},{k:'F3'},{k:'F4'},{k:'F5'},{k:'F6'},{k:'F7'},{k:'F8'}, {k:'hide keyboard', c:'hide_keyboard'}],
-    [{k:'<-',c:'Delete'}, {k:'1'},{k:'2'},{k:'3'},{k:'4'},{k:'5'},{k:'6'},{k:'7'},{k:'8'},{k:'9'},{k:'0'},{k:'+', c:'Minus'},{k:'-', c:'Equal'},{k:'€'},{k:'CLR/Home', c:'home'},{k:'Inst/DEL',c:'Delete'} ], 
+    [{k:'F1',c:'F1'}, {k:'F2',c:'F2'},{k:'F3',c:'F3'},{k:'F4',c:'F4'},{k:'F5',c:'F5'},{k:'F6',c:'F6'},{k:'F7',c:'F7'},{k:'F8',c:'F8'}, {k:'hide keyboard', c:'hide_keyboard'}],
+    [{k:'<-',c:'Delete'}, {k:'1',c:'Digit1'},{k:'2',c:'Digit2'},{k:'3',c:'Digit3'},{k:'4',c:'Digit4'},{k:'5',c:'Digit5'},{k:'6',c:'Digit6'},{k:'7',c:'Digit7'},{k:'8',c:'Digit8'},{k:'9',c:'Digit9'},{k:'0',c:'Digit0'},{k:'+', c:'Minus'},{k:'-', c:'Equal'},{k:'€'},{k:'CLR/Home', c:'home'},{k:'Inst/DEL',c:'Backspace'} ], 
     [{k:'CTRL',c:'ControlLeft'}, {k:'Q'},{k:'W'},{k:'E'},{k:'R'},{k:'T'},{k:'Y'},{k:'U'},{k:'I'},{k:'O'},{k:'P'},{k:'@',c:'BracketLeft'},{k:'*', c:'BracketRight'},{k:'up'},{k:'RESTORE'}], 
-    [{k:'RunStop'},{k:'ShftLock'},{k:'A'},{k:'S'},{k:'D'},{k:'F'},{k:'G'},{k:'H'},{k:'J'},{k:'K'},{k:'L'},{k:':', c:'Semicolon'},{k:';', c:'Quote'},{k:'=', c:'Backslash'},{k:'RETURN'}], 
-    [{k:'C=', c:'OSleft'},{k:'SHIFT'},{k:'Z'},{k:'X'},{k:'C'},{k:'V'},{k:'B'},{k:'N'},{k:'M'},{k:',',c:'Comma'},{k:'.',c:'Period'},{k:'/', c:'Slash'},{k:'SHIFT'},{k:'RIGHT'},{k:'DOWN'} ],
-    [{k:'SPACE'} ]
+    [{k:'RunStop',c:'runStop'},{k:'ShftLock', c:'shiftlock'},{k:'A'},{k:'S'},{k:'D'},{k:'F'},{k:'G'},{k:'H'},{k:'J'},{k:'K'},{k:'L'},{k:':', c:'Semicolon'},{k:';', c:'Quote'},{k:'=', c:'Backslash'},{k:'RETURN',c:'Enter'}], 
+    [{k:'C=', c:'OSleft'},{k:'SHIFT',c:'ShiftLeft'},{k:'Z'},{k:'X'},{k:'C'},{k:'V'},{k:'B'},{k:'N'},{k:'M'},{k:',',c:'Comma'},{k:'.',c:'Period'},{k:'/', c:'Slash'},{k:'SHIFT',c:'ShiftRight'},{k:'RIGHT'},{k:'DOWN'} ],
+    [{k:'SPACE', c:'Space'} ]
 ];
 
     var the_keyBoard='';
@@ -572,6 +572,23 @@ function installKeyboard() {
                if(keydef.c == 'hide_keyboard')
                {
                 $('#collapseExample').collapse('hide');
+               }
+               else if(keydef.c == 'shiftlock')
+               {
+                   var c64code = translateKey('ShiftLeft', 'ShiftLeft');
+                   if(keydef.locked === undefined || keydef.locked == 0)
+                   {
+                     wasm_key(c64code[0], c64code[1], 1);                   
+                     keydef.locked = 1;
+                     $("#button_"+keydef.c).attr("style", "background-color: green !important");
+                   }
+                   else
+                   {
+                     wasm_key(c64code[0], c64code[1], 0);                   
+                     keydef.locked = 0;
+                     $("#button_"+keydef.c).attr("style", "");
+                   
+                   }
                }
                else
                {

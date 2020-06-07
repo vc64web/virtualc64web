@@ -34,5 +34,6 @@ _note_: start.sh starts an webserver with URL base path pointing to the folder w
 * additional modal dialog to load roms via file dialog and save them to the browsers local storage, in case they are not already embedded in folder roms ...   
 
 ## next goals
+* a virtual keyboard
 * storing selected snapshots into local storage ... effectively making those choosen snapshots persistent 
 * javascript interface for settings of the emulation like (greydotbugemulation, soundbuffer size, and so on...) 

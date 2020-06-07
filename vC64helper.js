@@ -626,7 +626,7 @@ function installKeyboard() {
                     {  
                         setTimeout(() => {
                             wasm_key(c64code[0], c64code[1], 0);
-                        }, 60);
+                        }, 20);
                     }
                 }
                }

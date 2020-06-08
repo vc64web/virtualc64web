@@ -114,8 +114,8 @@ key_translation_map =
     ControlLeft   :17,
     Digit2:2,
     Space :65,
-    OSLeft :49,  //commodore
-    OSRight :49,  //commodore
+    commodore :49,  //commodore
+    commodore :49,  //commodore
     KeyQ     :18,
     runStop   :33,
     

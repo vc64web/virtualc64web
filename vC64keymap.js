@@ -1,9 +1,23 @@
 function translateKey(keycode, key)
 {
     console.log('keycode='+keycode + ', key='+key);
-    mapindex=key_translation_map[ keycode ];
+    var mapindex;
+    var sym_key = symbolic_map[key];
+    if(sym_key!== undefined)
+    {//if there is a symbolic mapping ... use it instead of the positional mapping
+        mapindex=key_translation_map[ sym_key ];
+    } 
+    else
+    {//when there is no symbolic mapping fall back to positional mapping
+        mapindex=key_translation_map[ keycode ];
+    }
     c64code=c64keymap[mapindex];
     return c64code;
+}
+
+symbolic_map = {
+    z: 'KeyZ',
+    y: 'KeyY'
 }
 
 c64keymap = [

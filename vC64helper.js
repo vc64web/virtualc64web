@@ -327,7 +327,7 @@ function InitWrappers() {
             var the_html=
             '<div class="col-xs-4">'
             +'<div class="card" style="width: 15rem;">'
-                +'<canvas id="canvas_snap_'+the_id+'" class="card-img-top" alt="Card image cap"></canvas>'
+                +'<canvas id="canvas_snap_'+the_id+'" class="card-img-top rounded" alt="Card image cap"></canvas>'
             +'</div>'
             +'</div>';
             return the_html;

@@ -92,3 +92,9 @@ background-color: #555 !important;
     background-color:var(--gray-dark);
 }
     
+
+.icon {
+    fill: var(--light);
+}
+
+

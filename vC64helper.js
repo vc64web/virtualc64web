@@ -279,6 +279,31 @@ function InitWrappers() {
     
     installKeyboard();
 
+    live_debug_output=load_setting('live_debug_output', false);
+    $("#cb_debug_output").prop('checked', live_debug_output);
+    if(live_debug_output)
+    {
+        $("#output").show(); 
+    }
+    else
+    {
+        $("#output").hide(); 
+    }
+
+    $("#cb_debug_output").change( function() {
+        live_debug_output=this.checked;
+        save_setting('live_debug_output', this.checked);
+        if( this.checked)
+        {
+           $("#output").show();
+        }
+        else
+        {
+            $("#output").hide();
+        }
+    });
+    
+
     document.getElementById('button_fullscreen').onclick = function() {
         if (wasm_toggleFullscreen != null) {
             wasm_toggleFullscreen();
@@ -526,8 +551,31 @@ function setTheme() {
   }
 }
 
+function load_setting(name, default_value) {
+    var value = localStorage.getItem(name);
+    if(value === null)
+    {
+        return default_value;
+    } 
+    else
+    {
+        if(value=='true')
+          return true;
+        else if(value=='false')
+          return false;
+        else
+          return value;
+    }
+}
 
-
+function save_setting(name, value) {
+    if (value!= null) {
+      localStorage.setItem(name, value);
+    } else {
+      localStorage.removeItem(name);
+    }
+  }
+  
 
 
 

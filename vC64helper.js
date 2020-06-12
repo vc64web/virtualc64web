@@ -276,7 +276,33 @@ function InitWrappers() {
     dark_switch.addEventListener('change', () => {
         setTheme();
     });
+    
+    installKeyboard();
 
+    live_debug_output=load_setting('live_debug_output', false);
+    $("#cb_debug_output").prop('checked', live_debug_output);
+    if(live_debug_output)
+    {
+        $("#output").show(); 
+    }
+    else
+    {
+        $("#output").hide(); 
+    }
+
+    $("#cb_debug_output").change( function() {
+        live_debug_output=this.checked;
+        save_setting('live_debug_output', this.checked);
+        if( this.checked)
+        {
+           $("#output").show();
+        }
+        else
+        {
+            $("#output").hide();
+        }
+    });
+    
 
     document.getElementById('button_fullscreen').onclick = function() {
         if (wasm_toggleFullscreen != null) {
@@ -287,6 +313,9 @@ function InitWrappers() {
     document.getElementById('button_reset').onclick = function() {
         wasm_reset();
         document.getElementById('canvas').focus();
+    
+        installKeyboard();
+
     }
     document.getElementById('button_halt').onclick = function() {
         wasm_halt();
@@ -323,7 +352,7 @@ function InitWrappers() {
             var the_html=
             '<div class="col-xs-4">'
             +'<div class="card" style="width: 15rem;">'
-                +'<canvas id="canvas_snap_'+the_id+'" class="card-img-top" alt="Card image cap"></canvas>'
+                +'<canvas id="canvas_snap_'+the_id+'" class="card-img-top rounded" alt="Card image cap"></canvas>'
             +'</div>'
             +'</div>';
             return the_html;
@@ -406,11 +435,7 @@ function InitWrappers() {
             copy_snapshot_to_canvas(snapshot_ptr, c, width, height);            
         }
 
-
     }
-
-
-
 
     document.getElementById('port1').onchange = function() {
         port1 = document.getElementById('port1').value;
@@ -504,8 +529,7 @@ function InitWrappers() {
         $("#canvas").css("width", "75%");
 
     }
-
-  }
+}
 
 
 function loadTheme() {
@@ -525,4 +549,138 @@ function setTheme() {
     document.body.removeAttribute('data-theme');
     localStorage.removeItem('dark_switch');
   }
+}
+
+function load_setting(name, default_value) {
+    var value = localStorage.getItem(name);
+    if(value === null)
+    {
+        return default_value;
+    } 
+    else
+    {
+        if(value=='true')
+          return true;
+        else if(value=='false')
+          return false;
+        else
+          return value;
+    }
+}
+
+function save_setting(name, value) {
+    if (value!= null) {
+      localStorage.setItem(name, value);
+    } else {
+      localStorage.removeItem(name);
+    }
+  }
+  
+
+
+
+function installKeyboard() {
+    keymap= [ 
+    [{k:'hide keyboard', c:'hide_keyboard'},{style:'width:120px'},{k:'F1',c:'F1'}, {k:'F2',c:'F2'},{k:'F3',c:'F3'},{k:'F4',c:'F4'},{k:'F5',c:'F5'},{k:'F6',c:'F6'},{k:'F7',c:'F7'},{k:'F8',c:'F8'}],
+    [{k:'<-',c:'Delete'}, {k:'1',c:'Digit1'},{k:'2',c:'Digit2'},{k:'3',c:'Digit3'},{k:'4',c:'Digit4'},{k:'5',c:'Digit5'},{k:'6',c:'Digit6'},{k:'7',c:'Digit7'},{k:'8',c:'Digit8'},{k:'9',c:'Digit9'},{k:'0',c:'Digit0'},{k:'+', c:'Minus'},{k:'-', c:'Equal'},{k:'€', c:'pound'},{k:'CLR/Home', c:'home'},{k:'Inst/DEL',c:'Backspace'} ], 
+    [{k:'CTRL',c:'ControlLeft'}, {k:'Q'},{k:'W'},{k:'E'},{k:'R'},{k:'T'},{k:'Y'},{k:'U'},{k:'I'},{k:'O'},{k:'P'},{k:'@',c:'BracketLeft'},{k:'*', c:'BracketRight'},{k:'up',c:'upArrow'},{k:'RESTORE', c:'restore'}], 
+    [{k:'RunStop',c:'runStop'},{k:'ShftLock', c:'shiftlock'},{k:'A'},{k:'S'},{k:'D'},{k:'F'},{k:'G'},{k:'H'},{k:'J'},{k:'K'},{k:'L'},{k:':', c:'Semicolon'},{k:';', c:'Quote'},{k:'=', c:'Backslash'},{k:'RETURN',c:'Enter'}], 
+    [{k:'C=', c:'commodore'},{k:'SHIFT',c:'ShiftLeft'},{k:'Z'},{k:'X'},{k:'C'},{k:'V'},{k:'B'},{k:'N'},{k:'M'},{k:',',c:'Comma'},{k:'.',c:'Period'},{k:'/', c:'Slash'},{k:'SHIFT',c:'rightShift'},{k:'DOWN', c:'ArrowDown'},{k:'RIGHT', c:'ArrowRight'} ],
+    [{k:'SPACE', c:'Space', style:'width:450px'}]
+    ];
+
+    var the_keyBoard='';
+    keymap.forEach(row => {
+        the_keyBoard+='<div class="justify-content-center" style="display:flex">';
+        row.forEach(keydef => {
+            if(keydef.k === undefined)
+            {
+                var style = "";
+                if(keydef.s !== undefined)
+                    css = keydef.s; 
+                if(keydef.style !== undefined)
+                    style = keydef.style; 
+                
+                the_keyBoard +='<div class="'+css+'" style="'+style+'"></div>';
+            }
+            else
+            {
+                if(keydef.c === undefined)
+                    keydef.c = 'Key'+keydef.k;
+                var css = "btn btn-secondary ml-1 mt-1";
+                var style = null; 
+                if(keydef.css !== undefined)
+                    css = keydef.css; 
+                if(keydef.style !== undefined)
+                    style = keydef.style; 
+                
+                the_keyBoard +='<button type="button" id="button_'+keydef.c+'" class="'+css+'"';
+                if(style !=null)
+                    the_keyBoard += ' style="'+style+'"';
+                the_keyBoard += '>'+keydef.k+'</button>'
+            }
+        });
+        the_keyBoard+='</div>';
+    });
+    $('#divKeyboardRows').html(the_keyBoard);
+
+    keymap.forEach(row => {
+        row.forEach(keydef => {
+            if(keydef.k === undefined)
+                return;
+            if(keydef.c === undefined)
+              keydef.c = 'Key'+keydef.k;
+
+            $("#button_"+keydef.c).click(function() 
+            {
+               if(keydef.c == 'hide_keyboard')
+               {
+                $('#virtual_keyboard').collapse('hide');
+               }
+               else if(keydef.c == 'shiftlock')
+               {
+                   var c64code = translateKey('ShiftLeft', 'ShiftLeft');
+                   if(keydef.locked === undefined || keydef.locked == 0)
+                   {
+                     wasm_key(c64code[0], c64code[1], 1);                   
+                     keydef.locked = 1;
+                     $("#button_"+keydef.c).attr("style", "background-color: var(--green) !important");
+                   }
+                   else
+                   {
+                     wasm_key(c64code[0], c64code[1], 0);                   
+                     keydef.locked = 0;
+                     $("#button_"+keydef.c).attr("style", "");
+                   
+                   }
+               }
+               else
+               {
+                var c64code = translateKey(keydef.c, keydef.k);
+                if(c64code !== undefined){
+                    wasm_key(c64code[0], c64code[1], 1);
+                    
+                    if(keydef.c == 'ShiftLeft' ||keydef.c == 'ShiftRight')
+                    {
+                        $("#button_"+keydef.c).attr("style", "background-color: var(--green) !important");
+                    
+                        setTimeout(() => {
+                            wasm_key(c64code[0], c64code[1], 0);
+                            $("#button_"+keydef.c).attr("style", "");
+                        }, 1000*3);
+                    
+                    }
+                    else
+                    {  
+                        setTimeout(() => {
+                            wasm_key(c64code[0], c64code[1], 0);
+                        }, 20);
+                    }
+                }
+               }
+            });
+        });
+    });
+
+
 }

@@ -25,7 +25,9 @@ overflow-x: auto;
 .scrollx-group > .row > .col-xs-4 {
 flex: 0 0 auto;
 }
-
+.scrollx-group > .row > .col {
+flex: 0 0 auto;
+}
 
 [data-theme="dark"] {
 background-color:var(--dark) !important;
@@ -75,6 +77,24 @@ color: var(--light) !important;
 
 [data-theme="dark"] .card {
 background-color: #555 !important;
+}
+
+
+#virtual_keyboard {
+    position:fixed;
+    bottom:0;
+    z-index:999;
+    width:100%;
+    background-color: #aaa;
+}
+
+[data-theme="dark"] #virtual_keyboard {
+    background-color:var(--gray-dark);
+}
+    
+
+.icon {
+    fill: var(--light);
 }
 
 

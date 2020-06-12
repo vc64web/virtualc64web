@@ -435,8 +435,19 @@ uint64_t mach_absolute_time()
 extern "C" void wasm_key(int code1, int code2, int pressed)
 {
   printf("wasm_key ( %d, %d, %d ) \n", code1, code2, pressed);
-  
-  if(pressed==1)
+
+  if(code1 == 9 && code2 == 9)
+  {
+    if(pressed == 1)
+    {
+      wrapper->c64->keyboard.pressRestoreKey();
+    }
+    else
+    {
+      wrapper->c64->keyboard.releaseRestoreKey();
+    }
+  }
+  else if(pressed==1)
   {
     wrapper->c64->keyboard.pressKey(code1, code2);
   }

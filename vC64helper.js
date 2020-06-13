@@ -279,6 +279,16 @@ function InitWrappers() {
     
     installKeyboard();
 
+
+    window.addEventListener( "touchstart",function(e) {
+         e.preventDefault();
+         setTimeout(function(){
+             window.scrollTo(0, 0);
+         }, 0);
+     });
+
+
+
     live_debug_output=load_setting('live_debug_output', false);
     $("#cb_debug_output").prop('checked', live_debug_output);
     if(live_debug_output)
@@ -304,12 +314,13 @@ function InitWrappers() {
     });
     
 
-    document.getElementById('button_fullscreen').onclick = function() {
+    /*document.getElementById('button_fullscreen').onclick = function() {
         if (wasm_toggleFullscreen != null) {
             wasm_toggleFullscreen();
         }
         document.getElementById('canvas').focus();
     }
+    */
     document.getElementById('button_reset').onclick = function() {
         wasm_reset();
         document.getElementById('canvas').focus();
@@ -521,6 +532,10 @@ function InitWrappers() {
     });
 
 
+ $("#canvas").css("width", "100%");
+$("#canvas").css("height", "100%");
+   
+    return;
     if(window.matchMedia("(max-width: 767px)").matches){
         // The viewport is less than 768 pixels wide
         $("#canvas").css("width", "95%");

@@ -1,3 +1,10 @@
+#canvas {
+    position:fixed;
+    left:0;
+    right:0;
+}
+
+
 #drop_zone {
     cursor: pointer;
     background-color: var(--light);
@@ -91,6 +98,15 @@ background-color: #555 !important;
 [data-theme="dark"] #virtual_keyboard {
     background-color:var(--gray-dark);
 }
+
+#navbar {
+    background-color: #aaa;
+}
+
+[data-theme="dark"] #navbar {
+    background-color:var(--gray-dark);
+}
+    
     
 
 .icon {

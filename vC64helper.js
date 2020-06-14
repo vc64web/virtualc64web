@@ -288,8 +288,31 @@ function InitWrappers() {
       setTimeout( scaleVMCanvas, 500);
     });
     
-    //window.onresize = scaleVMCanvas;
-    
+
+    menu_button_fade_out = function () {
+        setTimeout(function() {
+            if($("#navbar").is(":hidden"))
+            {
+                $("#button_show_menu").fadeOut( "slow" );
+            }
+            else
+            { //maybe try recursivele again?
+            }
+        },5000);    
+    };
+
+    //make the menubutton not visible until a click or a touch
+    menu_button_fade_out();
+    window.addEventListener("click", function() {
+        $("#button_show_menu").fadeIn( "slow" );
+        menu_button_fade_out();
+    });
+    $("#canvas").on({ 'touchstart' : function() {
+        $("#button_show_menu").fadeIn( "slow" );
+        menu_button_fade_out();
+    }});
+
+
     live_debug_output=load_setting('live_debug_output', false);
     $("#cb_debug_output").prop('checked', live_debug_output);
     if(live_debug_output)

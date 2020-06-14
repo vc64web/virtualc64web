@@ -278,17 +278,18 @@ function InitWrappers() {
     });
     
     installKeyboard();
+    $("#button_keyboard").click(function(){setTimeout( scaleVMCanvas, 500);});
 
+    window.addEventListener("orientationchange", function() {
+      setTimeout( scaleVMCanvas, 500);
+    });
 
-    window.addEventListener( "touchstart",function(e) {
-         e.preventDefault();
-         setTimeout(function(){
-             window.scrollTo(0, 0);
-         }, 0);
-     });
-
-
-
+    window.addEventListener("resize", function() {
+      setTimeout( scaleVMCanvas, 500);
+    });
+    
+    //window.onresize = scaleVMCanvas;
+    
     live_debug_output=load_setting('live_debug_output', false);
     $("#cb_debug_output").prop('checked', live_debug_output);
     if(live_debug_output)
@@ -324,9 +325,6 @@ function InitWrappers() {
     document.getElementById('button_reset').onclick = function() {
         wasm_reset();
         document.getElementById('canvas').focus();
-    
-        installKeyboard();
-
     }
     document.getElementById('button_halt').onclick = function() {
         wasm_halt();
@@ -531,12 +529,10 @@ function InitWrappers() {
         }
     });
 
-
- $("#canvas").css("width", "100%");
-$("#canvas").css("height", "100%");
+    scaleVMCanvas();
    
     return;
-    if(window.matchMedia("(max-width: 767px)").matches){
+  /*  if(window.matchMedia("(max-width: 767px)").matches){
         // The viewport is less than 768 pixels wide
         $("#canvas").css("width", "95%");
     } else{
@@ -544,6 +540,7 @@ $("#canvas").css("height", "100%");
         $("#canvas").css("width", "75%");
 
     }
+    */
 }
 
 
@@ -650,7 +647,8 @@ function installKeyboard() {
             {
                if(keydef.c == 'hide_keyboard')
                {
-                $('#virtual_keyboard').collapse('hide');
+                    $('#virtual_keyboard').collapse('hide');
+                    setTimeout( scaleVMCanvas, 500);
                }
                else if(keydef.c == 'shiftlock')
                {
@@ -699,3 +697,37 @@ function installKeyboard() {
 
 
 }
+
+
+
+function scaleVMCanvas() {
+        var ratio = 320/200; //1.6  kehrwert=0.625
+        var wratio = window.innerWidth / window.innerHeight;
+
+        var topPos=0;
+        if(wratio < 1.6)
+        {
+            var reducedHeight=(window.innerWidth*0.625);
+            //alles was kleiner 1.6
+            $("#canvas").css("width", "100%");
+            $("#canvas").css("height",  reducedHeight+'px');
+            
+            if($("#virtual_keyboard").is(":hidden"))
+            {//center vertical, but only if virtual keyboard not present
+                topPos=((window.innerHeight-reducedHeight)/2);
+            }
+        }
+        else
+        {
+            //alles was größer als 1.6
+            $("#canvas").css("width", (window.innerHeight*1.6) +'px');
+            $("#canvas").css("height", "100%"); 
+        }
+
+        $("#canvas").css("top", topPos + 'px');   
+
+        //durchsichtiges div über alles legen zum scrollen
+
+
+    };
+

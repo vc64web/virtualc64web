@@ -317,11 +317,11 @@ function InitWrappers() {
     $("#cb_debug_output").prop('checked', live_debug_output);
     if(live_debug_output)
     {
-        $("#output").show(); 
+        $("#output_row").show(); 
     }
     else
     {
-        $("#output").hide(); 
+        $("#output_row").hide(); 
     }
 
     $("#cb_debug_output").change( function() {

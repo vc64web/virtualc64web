@@ -13,13 +13,13 @@
     cursor: pointer;
     background-color: var(--light);
     border: 3px dashed var(--blue);
-    height: 48px;
+    height: 32px;
 }
 
 [data-theme="dark"] #drop_zone {
     background-color: var(--secondary);
     border: 3px dashed var(--blue);
-    height: 48px;
+    height: 32px;
 }
 
 
@@ -65,6 +65,13 @@ opacity: .65;
 [data-theme="dark"] .custom-control-input:checked ~ .custom-control-label::before {
 border-color: var(--secondary) !important;
 background-color: var(--secondary) !important;
+}
+
+#port1, #port2{
+    height:32px;
+    min-width:100px;
+    width: 49%;
+    padding-top: .265rem; 
 }
 
 [data-theme="dark"] .custom-select {

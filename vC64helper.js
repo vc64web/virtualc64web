@@ -327,13 +327,13 @@ function InitWrappers() {
     $("#cb_debug_output").change( function() {
         live_debug_output=this.checked;
         save_setting('live_debug_output', this.checked);
-        if( this.checked)
+        if(this.checked)
         {
-           $("#output").show();
+           $("#output_row").show();
         }
         else
         {
-            $("#output").hide();
+            $("#output_row").hide();
         }
     });
     
@@ -349,23 +349,21 @@ function InitWrappers() {
         wasm_reset();
         document.getElementById('canvas').focus();
     }
-    document.getElementById('button_halt').onclick = function() {
+    $("#button_halt").click(function() {
         wasm_halt();
         $('#button_halt').prop('disabled', 'true');
         $('#button_run').removeAttr('disabled');
-        
         document.getElementById('canvas').focus();
-    }
-    document.getElementById('button_run').onclick = function() {
+    });
+    $("#button_run").click(function() {
         //have to catch an intentional "unwind" exception here, which is thrown
         //by emscripten_set_main_loop() after emscripten_cancel_main_loop();
         //to simulate infinity gamelloop see emscripten API for more info ... 
         try{wasm_run();} catch(e) {}
         $('#button_run').prop('disabled', 'true');
         $('#button_halt').removeAttr('disabled');
-
         document.getElementById('canvas').focus();
-    }
+    });
 
 
     document.getElementById('button_take_snapshot').onclick = function() 

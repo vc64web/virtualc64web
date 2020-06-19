@@ -288,6 +288,16 @@ function InitWrappers() {
       setTimeout( scaleVMCanvas, 500);
     });
     
+    $("#app_logo").hide();
+    $('#navbar').on('hide.bs.collapse', function () {
+        $("#app_logo").hide();
+    });
+
+    $('#navbar').on('shown.bs.collapse', function () {
+        $("#app_logo").fadeIn( "slow" );
+    });
+
+
 
     menu_button_fade_out = function () {
         setTimeout(function() {

@@ -85,7 +85,7 @@
 
     <button id="button_show_menu" 
     style="position: fixed; top:0; left:0;z-index:200;" 
-    type="button" class="btn btn-sm icon mt-2"
+    type="button" class="btn btn-sm icon mt-3"
     data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"
     >
       <svg class="bi bi-list" width="1.6em" height="auto" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -93,27 +93,28 @@
       </svg>
     </button>
   
+    <div id="app_logo">virtual c64 web</div>
+
     <div class="container-fluid collapse" 
       style="position: fixed; top:0; left:0; opacity: 0.95;backdrop-filter: blur(6px);"
       id="navbar">
-    <div class="row mt-2 mb-1">
+    <div class="row mt-3 mb-1">
     <div class="col-8" style="padding-left:0">
-      <span style="width: 40px;display: inline-block;"></span>
-
+        <span style="width: 40px;display: inline-block;"></span>
         <button type="button" id="button_reset" class="btn btn-sm icon" data-toggle="tooltip" data-placement="top" title="reset">
           <svg class="bi bi-skip-start-fill" width="1.6em" height="auto" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
             <path fill-rule="evenodd" d="M4.5 3.5A.5.5 0 0 0 4 4v8a.5.5 0 0 0 1 0V4a.5.5 0 0 0-.5-.5z"/>
             <path d="M4.903 8.697l6.364 3.692c.54.313 1.232-.066 1.232-.697V4.308c0-.63-.692-1.01-1.232-.696L4.903 7.304a.802.802 0 0 0 0 1.393z"/>
           </svg>
         </button>
-        <span data-toggle="tooltip" data-placement="top" title="pause">
+        <span class="d-inline-block" data-toggle="tooltip" data-placement="top" title="pause">
         <button type="button" id="button_halt" class="btn btn-sm icon">
           <svg class="bi bi-pause-fill" width="1.6em" height="auto" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
             <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
           </svg>
         </button>
         </span> 
-        <span data-toggle="tooltip" data-placement="top" title="run">
+        <span class="d-inline-block" data-toggle="tooltip" data-placement="top" title="run">
         <button type="button" id="button_run" class="btn btn-sm icon" disabled>
           <svg class="bi bi-play-fill" width="1.6em" height="auto" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
             <path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
@@ -152,7 +153,8 @@
         </div>
         <!-- iOS won't work with accept=".g64,.d64,.crt,.prg,.bin" on d64 files -->
         <input id="filedialog" name="theFileDialog" type="file" style="display:none" >
-      </form> 
+      </form>
+       
     </div>
     <div class="col-4">
       <select id="port1" class="custom-select mr-1" data-toggle="tooltip" data-placement="left" title="game port 1">
@@ -234,7 +236,7 @@
       <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="settingsModalLabel">settings</h5>
+            <h5 class="modal-title" id="settingsModalLabel"><img src="vc64web.png" style="height: 50px;" /> settings</h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
@@ -250,7 +252,23 @@
               <input type="checkbox" class="custom-control-input" id="dark_switch" />
               <label class="custom-control-label" for="dark_switch">dark mode</label>
             </div>
-    
+            <hr>
+            <div class="mt-3" style="font-size: small;">
+            <p>
+              VirtualC64web emulates a cycle-acurate Commodore 64 on the web. 
+              <br><br>
+              for more information see here
+              <br>
+              <a href="https://github.com/dirkwhoffmann/virtualc64">
+                https://github.com/dirkwhoffmann/virtualc64</a>
+              <br><br>
+              and on the web port specfic site of this project
+              <br>
+              <a href="https://github.com/dirkwhoffmann/virtualc64web">
+              https://github.com/dirkwhoffmann/virtualc64web</a>
+            </p>
+          </div>
+
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>

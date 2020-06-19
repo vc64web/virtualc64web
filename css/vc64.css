@@ -140,3 +140,17 @@ background-color: #555 !important;
 }
 
 
+#app_logo {
+    position: fixed;
+    top: 0;
+    justify-content: center;
+    z-index: 200;
+    display: flex;
+    width: 100%;
+    font-size: small;
+    color: var(--dark);
+}
+
+[data-theme="dark"] #app_logo {
+    color: var(--light);
+}

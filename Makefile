@@ -33,6 +33,8 @@ publish:
 	rm -rf ../gh-pages/js
 	rm -f ../gh-pages/vC64.*
 	rm -f ../gh-pages/vC64*.js
+	rm -f ../gh-pages/vc64web.png
+	cp vc64web.png ../gh-pages
 	cp vC64.* ../gh-pages
 	cp vC64*.js ../gh-pages
 	cp -r js ../gh-pages

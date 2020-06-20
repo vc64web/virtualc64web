@@ -288,15 +288,15 @@ function InitWrappers() {
       setTimeout( scaleVMCanvas, 500);
     });
     
-    $("#app_logo").hide();
     $('#navbar').on('hide.bs.collapse', function () {
-        $("#app_logo").hide();
+        //close all open tooltips on hiding navbar
+        $('[data-toggle="tooltip"]').tooltip('hide');
+  //      $("#canvas").css("image-rendering", "auto");
     });
 
-    $('#navbar').on('shown.bs.collapse', function () {
-        $("#app_logo").fadeIn( "slow" );
+    $('#navbar').on('shown.bs.collapse', function () { 
+  //      $("#canvas").css("image-rendering", "crisp-edges");
     });
-
 
 
     menu_button_fade_out = function () {
@@ -321,6 +321,29 @@ function InitWrappers() {
         $("#button_show_menu").fadeIn( "slow" );
         menu_button_fade_out();
     }});
+
+
+
+
+    pixel_art_switch = $('#pixel_art_switch');
+    set_pixel_art = function(value){
+        if(value)
+        {
+           $("#canvas").addClass("pixel_art");
+        }
+        else
+        {
+            $("#canvas").removeClass("pixel_art");
+        }
+        $('#pixel_art_switch').prop('checked', value);
+    }    
+    set_pixel_art(load_setting('pixel_art', false));
+
+    pixel_art_switch.change( function() {
+        pixel_art=this.checked;
+        save_setting('pixel_art', this.checked);
+        set_pixel_art(this.checked);
+    });
 
 
     live_debug_output=load_setting('live_debug_output', false);
@@ -730,28 +753,30 @@ function installKeyboard() {
 }
 
 
-
 function scaleVMCanvas() {
-        var ratio = 320/200; //1.6  kehrwert=0.625
+        var src_width=428;
+        var src_height=284;
+        var src_ratio = src_width/src_height; //1.6  kehrwert=0.625
+        var inv_src_ratio = src_height/src_width;
         var wratio = window.innerWidth / window.innerHeight;
 
         var topPos=0;
-        if(wratio < 1.6)
+        if(wratio < src_ratio)
         {
-            var reducedHeight=(window.innerWidth*0.625);
+            var reducedHeight=window.innerWidth*inv_src_ratio;
             //alles was kleiner 1.6
             $("#canvas").css("width", "100%");
-            $("#canvas").css("height",  reducedHeight+'px');
+            $("#canvas").css("height", Math.round(reducedHeight)+'px');
             
             if($("#virtual_keyboard").is(":hidden"))
             {//center vertical, but only if virtual keyboard not present
-                topPos=((window.innerHeight-reducedHeight)/2);
+                topPos=Math.round(((window.innerHeight-reducedHeight)/2));
             }
         }
         else
         {
             //alles was größer als 1.6
-            $("#canvas").css("width", (window.innerHeight*1.6) +'px');
+            $("#canvas").css("width", Math.round((window.innerHeight*src_ratio)) +'px');
             $("#canvas").css("height", "100%"); 
         }
 

@@ -95,12 +95,12 @@ void PrintEvent(const SDL_Event * event)
     }
 }
 
-int emu_width  = NTSC_PIXELS;
-int emu_height = PAL_RASTERLINES;
+int emu_width  = NTSC_PIXELS; //428
+int emu_height = PAL_RASTERLINES; //284
 int xOff = 12;
 int yOff = 12;
-int clipped_width  = NTSC_PIXELS -12 -24;
-int clipped_height = PAL_RASTERLINES -12 -24;
+int clipped_width  = NTSC_PIXELS -12 -24; //392
+int clipped_height = PAL_RASTERLINES -12 -24; //248
 
 int bFullscreen = false;
 
@@ -328,7 +328,7 @@ void initSDL(void *thisC64)
    window = SDL_CreateWindow("",
    SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         clipped_width, clipped_height,
-        SDL_WINDOW_RESIZABLE);
+        /*SDL_WINDOW_RESIZABLE*/ 0);
  
   //Texture
   renderer = SDL_CreateRenderer(window,

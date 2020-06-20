@@ -2,12 +2,16 @@
     position:fixed;
     left:0;
     right:0;
-    image-rendering: -webkit-optimize-contrast;
+ } 
+/*    image-rendering: -webkit-optimize-contrast;*/
     /*image-rendering: crisp-edges;
     image-rendering: pixelated;
     */
-}
 
+.pixel_art{
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
 
 #drop_zone {
     cursor: pointer;
@@ -137,20 +141,4 @@ background-color: #555 !important;
 [data-theme="dark"] .icon {
     fill: var(--light);
     color: var(--light) !important;
-}
-
-
-#app_logo {
-    position: fixed;
-    top: 0;
-    justify-content: center;
-    z-index: 200;
-    display: flex;
-    width: 100%;
-    font-size: small;
-    color: var(--dark);
-}
-
-[data-theme="dark"] #app_logo {
-    color: var(--light);
 }

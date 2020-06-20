@@ -5,7 +5,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>vc64web</title>
   
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 
   <link rel="stylesheet" href="css/bootstrap.min.css">
   <link rel="stylesheet" href="css/vc64.css">
@@ -62,7 +62,7 @@
     </div>
 
     <div class="emscripten_border">
-      <canvas class="emscripten" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+      <canvas class="emscripten" width="428" height="284" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
     </div>
     <!-- virtual keyboard-->
     <!-- 
@@ -85,7 +85,7 @@
 
     <button id="button_show_menu" 
     style="position: fixed; top:0; left:0;z-index:200;" 
-    type="button" class="btn btn-sm icon mt-3"
+    type="button" class="btn btn-sm icon mt-2"
     data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"
     >
       <svg class="bi bi-list" width="1.6em" height="auto" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -93,12 +93,10 @@
       </svg>
     </button>
   
-    <div id="app_logo">virtual c64 web</div>
-
     <div class="container-fluid collapse" 
       style="position: fixed; top:0; left:0; opacity: 0.95;backdrop-filter: blur(6px);"
       id="navbar">
-    <div class="row mt-3 mb-1">
+    <div class="row mt-2 mb-1">
     <div class="col-8" style="padding-left:0">
         <span style="width: 40px;display: inline-block;"></span>
         <button type="button" id="button_reset" class="btn btn-sm icon" data-toggle="tooltip" data-placement="top" title="reset">
@@ -251,6 +249,10 @@
             <div class="custom-control custom-switch mt-1">
               <input type="checkbox" class="custom-control-input" id="dark_switch" />
               <label class="custom-control-label" for="dark_switch">dark mode</label>
+            </div>
+            <div class="custom-control custom-switch mt-1">
+              <input type="checkbox" class="custom-control-input" id="pixel_art_switch" />
+              <label class="custom-control-label" for="pixel_art_switch">pixel art</label>
             </div>
             <hr>
             <div class="mt-3" style="font-size: small;">

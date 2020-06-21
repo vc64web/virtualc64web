@@ -61,7 +61,7 @@
       <progress value="0" max="100" id="progress" hidden=1></progress>  
     </div>
 
-    <div class="emscripten_border">
+    <div id="div_canvas" class="emscripten_border">
       <canvas class="emscripten" width="428" height="284" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
     </div>
     <!-- virtual keyboard-->
@@ -250,9 +250,13 @@
               <input type="checkbox" class="custom-control-input" id="dark_switch" />
               <label class="custom-control-label" for="dark_switch">dark mode</label>
             </div>
+            <div class="custom-control custom-switch mt-1" >
+              <input type="checkbox" class="custom-control-input" id="pixel_art_switch"/>
+              <label class="custom-control-label" for="pixel_art_switch"  data-toggle="tooltip" data-placement="right" title="on safari webgl must be deactivated for pixel art">pixel art</label>
+            </div>
             <div class="custom-control custom-switch mt-1">
-              <input type="checkbox" class="custom-control-input" id="pixel_art_switch" />
-              <label class="custom-control-label" for="pixel_art_switch">pixel art</label>
+              <input type="checkbox" class="custom-control-input" id="webgl_switch" />
+              <label class="custom-control-label" for="webgl_switch">on next start use accelerated WebGL</label>
             </div>
             <hr>
             <div class="mt-3" style="font-size: small;">

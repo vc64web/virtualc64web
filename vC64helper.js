@@ -268,7 +268,7 @@ function InitWrappers() {
     wasm_restore_auto_snapshot = Module.cwrap('wasm_restore_auto_snapshot', 'undefined', ['number']);
     wasm_suspend_auto_snapshots = Module.cwrap('wasm_suspend_auto_snapshots', 'undefined');
     wasm_resume_auto_snapshots = Module.cwrap('wasm_resume_auto_snapshots', 'undefined');
-
+    wasm_create_renderer =  Module.cwrap('wasm_create_renderer', 'undefined', ['string']);
 
     dark_switch = document.getElementById('dark_switch');
 
@@ -322,14 +322,30 @@ function InitWrappers() {
         menu_button_fade_out();
     }});
 
+//----
+    webgl_switch = $('#webgl_switch');
+    var use_webgl=load_setting('use_webgl', true);
+    webgl_switch.prop('checked', use_webgl);
+    if(use_webgl)
+    {
+            wasm_create_renderer("webgl");
+    }
+    else
+    {
+            wasm_create_renderer("2d");
+    }
+    webgl_switch.change( function() {
+        save_setting('use_webgl', this.checked);
+    });
 
 
+//----------
 
     pixel_art_switch = $('#pixel_art_switch');
     set_pixel_art = function(value){
         if(value)
         {
-           $("#canvas").addClass("pixel_art");
+            $("#canvas").addClass("pixel_art");
         }
         else
         {
@@ -338,7 +354,6 @@ function InitWrappers() {
         $('#pixel_art_switch').prop('checked', value);
     }    
     set_pixel_art(load_setting('pixel_art', false));
-
     pixel_art_switch.change( function() {
         pixel_art=this.checked;
         save_setting('pixel_art', this.checked);

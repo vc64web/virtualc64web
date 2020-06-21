@@ -14,12 +14,12 @@
 #include <emscripten/html5.h>
 
 /* SDL2 start*/
-SDL_Window * window;
-SDL_Surface * window_surface;
+SDL_Window * window = NULL;
+SDL_Surface * window_surface = NULL;
 unsigned int * pixels;
 
-SDL_Renderer * renderer;
-SDL_Texture * screen_texture;
+SDL_Renderer * renderer = NULL;
+SDL_Texture * screen_texture = NULL;
 
 /* SDL2 end */
 
@@ -289,6 +289,60 @@ void MyAudioCallback(void*  thisC64,
 }
 
 
+extern "C" void wasm_create_renderer(char* name)
+{ 
+  printf("try to create %s renderer\n", name);
+  window = SDL_CreateWindow("",
+   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        clipped_width, clipped_height,
+        /*SDL_WINDOW_RESIZABLE*/ 0);
+
+  if(0==strcmp("webgl", name))
+  {
+    renderer = SDL_CreateRenderer(window,
+          -1, 
+          SDL_RENDERER_PRESENTVSYNC|SDL_RENDERER_ACCELERATED);
+    if(renderer == NULL)
+    {
+      printf("can not get hardware accelerated renderer going with software renderer instead...\n");
+    }
+    else
+    {
+      printf("got hardware accelerated renderer ...\n");
+    }
+  }
+  if(renderer == NULL)
+  {
+      renderer = SDL_CreateRenderer(window,
+          -1, 
+          SDL_RENDERER_SOFTWARE
+          );
+
+    if(renderer == NULL)
+    {
+      printf("can not get software renderer ...\n");
+      return;
+    }
+    else
+    {
+      printf("got software renderer ...\n");
+    }
+  }
+
+    // Since we are going to display a low resolution buffer,
+    // it is best to limit the window size so that it cannot
+    // be smaller than our internal buffer size.
+  SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);
+  SDL_RenderSetLogicalSize(renderer, clipped_width, clipped_height); 
+  SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
+
+  screen_texture = SDL_CreateTexture(renderer,
+        SDL_PIXELFORMAT_ABGR8888
+        , SDL_TEXTUREACCESS_STREAMING,
+        emu_width, emu_height);
+
+  window_surface = SDL_GetWindowSurface(window);
+}
 
 void initSDL(void *thisC64)
 {
@@ -324,42 +378,10 @@ void initSDL(void *thisC64)
     //listen to mouse, finger and keys
     SDL_SetEventFilter(eventFilter, thisC64);
 
-
-   window = SDL_CreateWindow("",
-   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        clipped_width, clipped_height,
-        /*SDL_WINDOW_RESIZABLE*/ 0);
- 
-  //Texture
-  renderer = SDL_CreateRenderer(window,
-        -1, 
-        SDL_RENDERER_PRESENTVSYNC|SDL_RENDERER_ACCELERATED);
-  if(renderer == NULL)
-  {
-    printf("can not get hardware accelerated renderer going with software renderer instead...\n");
-    renderer = SDL_CreateRenderer(window,
-        -1, 
-        SDL_RENDERER_SOFTWARE
-        );
-  }
-  else
-  {
-    printf("got hardware accelerated renderer ...\n");
-  }
-
-    // Since we are going to display a low resolution buffer,
-    // it is best to limit the window size so that it cannot
-    // be smaller than our internal buffer size.
-  SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);
-  SDL_RenderSetLogicalSize(renderer, clipped_width, clipped_height); 
-  SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
-
-  screen_texture = SDL_CreateTexture(renderer,
-        SDL_PIXELFORMAT_ABGR8888
-        , SDL_TEXTUREACCESS_STREAMING,
-        emu_width, emu_height);
-  
+//  wasm_create_renderer((char*)"webgl");
 }
+
+
 
 
 void theListener(const void *, int type, long data){

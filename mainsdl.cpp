@@ -219,6 +219,24 @@ void draw_one_frame_into_SDL(void *thisC64)
   uint64_t targetFrameCount = (uint64_t)(elapsedTimeInSeconds * 50.125);
  
   unsigned int max_gap = 8;
+
+
+  C64 *c64 = (C64 *)thisC64;
+
+  if(c64->getWarp() == true)
+  {
+    printf("warping at least 25 cycles at once ...\n");
+    int i=25;
+    while(c64->getWarp() == true && i>0)
+    {
+      c64->executeOneFrame();
+      i--;
+    }
+    start_time=now;
+    total_executed_frame_count=0;
+    targetFrameCount=1;  
+  }
+
   //lost the sync
   if(targetFrameCount-total_executed_frame_count > max_gap)
   {
@@ -239,8 +257,6 @@ void draw_one_frame_into_SDL(void *thisC64)
     rendered_frame_count=0;
     executed_frame_count=0;
   }
-
-  C64 *c64 = (C64 *)thisC64;
 
   while(total_executed_frame_count < targetFrameCount) {
     executed_frame_count++;
@@ -427,6 +443,7 @@ class C64Wrapper {
     printf("wrapper calls run on c64->run() method\n");
 
     c64->setTakeAutoSnapshots(true);
+    //c64->setWarpLoad(true);
     c64->vic.emulateGrayDotBug=false;
  //   c64->dump();
  //   c64->drive1.dump();
@@ -605,6 +622,14 @@ extern "C" void wasm_resume_auto_snapshots()
   return wrapper->c64->resumeAutoSnapshots();
 }
 
+
+
+extern "C" void wasm_set_warp(long on)
+{
+  wrapper->c64->setWarpLoad(on == 1);
+}
+
+
 extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 {
   printf("load file=%s len=%ld\n", name, len);
@@ -700,6 +725,8 @@ extern "C" void wasm_run()
   printf("wasm_run\n");
   wrapper->c64->run();
 }
+
+
 
 extern "C" void wasm_joystick(char* port_plus_event)
 {

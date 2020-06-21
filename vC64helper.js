@@ -269,7 +269,7 @@ function InitWrappers() {
     wasm_suspend_auto_snapshots = Module.cwrap('wasm_suspend_auto_snapshots', 'undefined');
     wasm_resume_auto_snapshots = Module.cwrap('wasm_resume_auto_snapshots', 'undefined');
     wasm_create_renderer =  Module.cwrap('wasm_create_renderer', 'undefined', ['string']);
-
+    wasm_set_warp = Module.cwrap('wasm_set_warp', 'undefined', ['number']);
     dark_switch = document.getElementById('dark_switch');
 
     loadTheme();
@@ -337,7 +337,15 @@ function InitWrappers() {
     webgl_switch.change( function() {
         save_setting('use_webgl', this.checked);
     });
-
+//----
+    warp_switch = $('#warp_switch');
+    var use_warp=load_setting('use_warp', false);
+    warp_switch.prop('checked', use_warp);
+    wasm_set_warp(use_warp ? 1:0);
+    warp_switch.change( function() {
+        wasm_set_warp(this.checked ? 1:0);
+        save_setting('use_warp', this.checked);
+    });
 
 //----------
 

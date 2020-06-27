@@ -549,6 +549,25 @@ void changeDisk(AnyArchive *a, int iDriveNumber)
   }
 }
 
+extern "C" Uint8 *wasm_pull_user_snapshot_file(unsigned nr)
+{
+  printf("wasm_pull_user_snapshot_file nr=%u\n", nr);
+  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
+  
+  size_t size = snapshot->writeToBuffer(NULL);
+  uint8_t *buffer = new uint8_t[size];
+  snapshot->writeToBuffer(buffer);
+  return buffer;
+}
+extern "C" size_t wasm_pull_user_snapshot_file_size(unsigned nr)
+{
+  printf("wasm_pull_user_snapshot_file_size nr=%u\n", nr);
+  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
+  size_t size = snapshot->writeToBuffer(NULL);
+  return size;
+}
+
+
 
 extern "C" Uint8 *wasm_pull_user_snapshot(unsigned nr)
 {
@@ -654,6 +673,10 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     printf("isCRT\n");
     wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(wrapper->c64,(CRTFile::makeWithBuffer(blob, len))));
     wrapper->c64->reset();
+  }
+  else if (checkFileSuffix(name, ".vc64")|| checkFileSuffix(name, ".vc64")) {
+    printf("isSnapshot\n");
+    wrapper->c64->loadFromSnapshotSafe(Snapshot::makeWithBuffer(blob, len));
   }
   else if (checkFileSuffix(name, ".BIN")|| checkFileSuffix(name, ".bin")) {
     printf("isBIN\n");

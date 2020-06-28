@@ -63,7 +63,7 @@
     </div>
 
     <div id="div_canvas" class="emscripten_border">
-      <canvas class="emscripten" width="428" height="284" id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+      <canvas class="emscripten" width="428" height="284" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
     </div>
     <!-- virtual keyboard-->
     <!-- 
@@ -120,7 +120,7 @@
           </svg>
         </button>
         </span>      
-      <button type="button" id="button_take_snapshot" class="btn btn-sm icon mr-1" data-toggle="tooltip" data-placement="top" title="take snaphot">
+      <button type="button" id="button_take_snapshot" class="btn btn-sm icon mr-1" data-toggle="tooltip" data-placement="top" title="take snapshot">
         <svg class="bi bi-box-arrow-in-down" width="1.6em" height="auto" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
           <path fill-rule="evenodd" d="M4.646 8.146a.5.5 0 0 1 .708 0L8 10.793l2.646-2.647a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 0-.708z"/>
           <path fill-rule="evenodd" d="M8 1a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-1 0v-9A.5.5 0 0 1 8 1z"/>
@@ -289,6 +289,35 @@
     </div>
     <!-- end of modal settings-->
 
+    <!-- modal take snapshot--->
+    <div class="modal fade" id="modal_take_snapshot" tabindex="-1" role="dialog" aria-labelledby="take_snapshot_ModalLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="take_snapshot_ModalLabel">save a snapshot (local browser storage)</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>this snapshot will be filed in the snapshot browser under the following game title:</p>
+      
+            <div class="input-group mb-3">
+              <div class="input-group-prepend">
+                <span class="input-group-text" id="inputGroup-sizing-default">game title</span>
+              </div>
+              <input id="input_app_title" type="text" class="form-control" aria-label="Sizing example input" aria-describedby="inputGroup-sizing-default">
+            </div>
+            
+          </div>
+          <div class="modal-footer">
+            <button type="button" id="button_save_snapshot" class="btn btn-primary">save</button>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--take snapshot modal-->
 
 
     <script type='text/javascript'>
@@ -298,7 +327,7 @@
 
       live_debug_output=load_setting('live_debug_output', false);
       var Module = {
-        preRun: [],
+        preRun: [function () {ENV.SDL_EMSCRIPTEN_KEYBOARD_ELEMENT = "#canvas";}],
         postRun: [InitWrappers],
         print: (function() {
           var element = document.getElementById('output');

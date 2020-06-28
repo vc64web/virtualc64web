@@ -135,7 +135,16 @@ joystick_keyup_map = {
 }
 
 function keydown(e) {
-    e.preventDefault();
+/*
+    if (document.activeElement === Module['canvas']) {
+        event.preventDefault();
+    }
+    else
+    {   //
+        //return;
+    }
+ */
+//    e.preventDefault();
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keydown_map[e.code];
@@ -151,8 +160,15 @@ function keydown(e) {
 }
 
 function keyup(e) {
-    e.preventDefault();
-
+/*    if (document.activeElement === Module['canvas']) {
+        event.preventDefault();
+    }
+    else
+    {
+       // return;
+    }
+    //e.preventDefault();
+*/
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keyup_map[e.code];
@@ -346,6 +362,7 @@ function InitWrappers() {
     {
             wasm_create_renderer("2d");
     }
+
     webgl_switch.change( function() {
         save_setting('use_webgl', this.checked);
     });
@@ -419,6 +436,8 @@ function InitWrappers() {
     }
     $("#button_halt").click(function() {
         wasm_halt();
+//        var app_name = prompt("fako", global_apptitle);
+        
         $('#button_halt').prop('disabled', 'true');
         $('#button_run').removeAttr('disabled');
         document.getElementById('canvas').focus();
@@ -434,10 +453,25 @@ function InitWrappers() {
     });
 
 
+    $('#modal_take_snapshot').on('hidden.bs.modal', function () {
+        var running=$('#button_run').attr('disabled')=='disabled';
+        if(running)
+        {
+            setTimeout(function(){try{wasm_run();} catch(e) {}},200);
+        }
+    })
+   
     document.getElementById('button_take_snapshot').onclick = function() 
-    {
+    {       
         wasm_halt();
-        var app_name = prompt("name of the title", global_apptitle);
+        $("#modal_take_snapshot").modal('show');
+        $("#input_app_title").val(global_apptitle);
+        $("#input_app_title").focus();
+    }
+
+    $('#button_save_snapshot').click(function() 
+    {       
+        var app_name = $("#input_app_title").val();
         wasm_take_user_snapshot();
         var ptr=wasm_pull_user_snapshot_file(0);
         var size = wasm_pull_user_snapshot_file_size(0);
@@ -445,8 +479,13 @@ function InitWrappers() {
    
         //snapshot_buffer is only a typed array view therefore slice, which creates a new array with byteposition 0 ...
         save_snapshot(app_name, snapshot_buffer.slice(0,size));
-        wasm_run();
-    }
+   
+        $("#modal_take_snapshot").modal('hide');
+        document.getElementById('canvas').focus();
+    });
+
+
+
 
     $('#snapshotModal').on('hidden.bs.modal', function () {
         wasm_resume_auto_snapshots();

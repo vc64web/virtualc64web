@@ -52,7 +52,7 @@ function save_snapshot(the_name, the_data) {
   let tx_apps = db.transaction('apps', 'readwrite');
   let req_apps = tx_apps.objectStore('apps').put({title: the_name});
   req_apps.onsuccess= function(e){ 
-        console.log("wrote snapshot with id="+e.target.result)        
+        console.log("wrote app with id="+e.target.result)        
   };
 
 
@@ -90,10 +90,9 @@ function get_stored_app_titles(callback_fn)
 
     request.onsuccess = function() {
         if (request.result !== undefined) {
-            console.log("titles only", request.result); // array of books with price=10
             callback_fn(request.result);
         } else {
-            console.log("No such titles");
+            console.log("No titles found");
         }
     };
 }

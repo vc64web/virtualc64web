@@ -21,7 +21,7 @@ function initDB() {
       }
       if(!db.objectStoreNames.contains('snapshots'))
       {
-         alert("create two Object Stores");
+         //alert("create two local object stores");
          var snapshot_store=db.createObjectStore('snapshots', {keyPath: 'id', autoIncrement: true});
          snapshot_store.createIndex("title", "title", { unique: false });
       }
@@ -129,10 +129,6 @@ function delete_snapshot_per_id(the_id)
     let snapshots = transaction.objectStore("snapshots");
     let request = snapshots.delete(parseInt(the_id));
 }
-
-
-
-
 
 
 //--- local storage API ---

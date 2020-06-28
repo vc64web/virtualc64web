@@ -1,25 +1,9 @@
 let global_apptitle="c64 - start screen"
 
-function ToBase64_small (u8) 
+function ToBase64(u8) 
 {
     return btoa(String.fromCharCode.apply(null, u8));
 }
-
-function ToBase64 (u8) 
-{
-  var CHUNK_SIZE = 0x8000; //arbitrary number
-  var index = 0;
-  var length = u8.length;
-  var result = '';
-  var slice;
-  while (index < length) {
-    slice = u8.subarray(index, Math.min(index + CHUNK_SIZE, length)); 
-    result += String.fromCharCode.apply(null, slice);
-    index += CHUNK_SIZE;
-  }
-  return btoa(result);
-}
-
 
 function FromBase64(str) {
     return atob(str).split('').map(function (c) { return c.charCodeAt(0); });
@@ -321,11 +305,9 @@ function InitWrappers() {
     $('#navbar').on('hide.bs.collapse', function () {
         //close all open tooltips on hiding navbar
         $('[data-toggle="tooltip"]').tooltip('hide');
-  //      $("#canvas").css("image-rendering", "auto");
     });
 
     $('#navbar').on('shown.bs.collapse', function () { 
-  //      $("#canvas").css("image-rendering", "crisp-edges");
     });
 
 
@@ -460,9 +442,8 @@ function InitWrappers() {
         var ptr=wasm_pull_user_snapshot_file(0);
         var size = wasm_pull_user_snapshot_file_size(0);
         var snapshot_buffer = new Uint8Array(Module.HEAPU8.buffer, ptr, size);
-        //var str = ToBase64(snapshot_buffer);
-        //localStorage.setItem("snap0.vc64", str);
-        //snapshot_buffer is only a typed array view therefore slice ...
+   
+        //snapshot_buffer is only a typed array view therefore slice, which creates a new array with byteposition 0 ...
         save_snapshot(app_name, snapshot_buffer.slice(0,size));
         wasm_run();
     }
@@ -472,7 +453,7 @@ function InitWrappers() {
         var running=$('#button_run').attr('disabled')=='disabled';
         if(running)
         {
-           wasm_run();
+            try{wasm_run();} catch(e) {}
         }
     })
     document.getElementById('button_snapshots').onclick = function() 
@@ -537,7 +518,7 @@ function InitWrappers() {
                 
                 canvas.onclick = function() {
                     let id = this.id.match(/[a-z_]*(.*)/)[1];
-                    let answer=confirm('restore snapshot '+this.id+' ?'  );
+                    let answer=confirm('activate snapshot now ?' );
                     if(answer)
                     {
                         get_snapshot_per_id(id,
@@ -547,6 +528,7 @@ function InitWrappers() {
                                 snapshot.data, 
                                 snapshot.data.length);
                             $('#snapshotModal').modal('hide');
+                            global_apptitle=snapshot.title;
                         }
                         );
                     }
@@ -557,7 +539,6 @@ function InitWrappers() {
                         {
                             delete_snapshot_per_id(id);
                             $("#"+this.id).remove();
-
                         }
                     }
                 }
@@ -572,7 +553,7 @@ function InitWrappers() {
             
                 var data = imgData.data;
                 var src_data = app_snaps[z].data;
-                snapshot_data = new Uint8Array(src_data, 40/* offset */, data.length);
+                snapshot_data = new Uint8Array(src_data, 40/* offset .. this number was a guess... */, data.length);
 
                 for (var i = 0; i < data.length; i += 4) {
                     data[i]     = snapshot_data[i+0]; // red

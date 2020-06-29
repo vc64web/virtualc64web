@@ -49,18 +49,6 @@ background-color:var(--dark) !important;
 color: var(--light) !important;
 }
 
-[data-theme="dark"] .btn-primary {
-background-color: var(--secondary) !important;
-color: var(--light) !important;
-border-color: var(--gray-dark);
-}
-
-[data-theme="dark"] .btn-primary:hover {
-background-color: var(--secondary) !important;
-color: var(--light) !important;
-opacity: .65;
-}
-
 /* the filled circle in the switch was to high */
 .custom-switch .custom-control-label::before{
     top: .23rem;

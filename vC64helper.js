@@ -436,8 +436,6 @@ function InitWrappers() {
     }
     $("#button_halt").click(function() {
         wasm_halt();
-//        var app_name = prompt("fako", global_apptitle);
-        
         $('#button_halt').prop('disabled', 'true');
         $('#button_run').removeAttr('disabled');
         document.getElementById('canvas').focus();

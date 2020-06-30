@@ -530,10 +530,12 @@ function InitWrappers() {
 
 //--- indexeddb snaps
         var render_persistent_snapshot=function(the_id){
+            var x_icon = '<svg width="1.8em" height="auto" viewBox="0 0 16 16" class="bi bi-x" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M11.854 4.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708-.708l7-7a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M4.146 4.146a.5.5 0 0 0 0 .708l7 7a.5.5 0 0 0 .708-.708l-7-7a.5.5 0 0 0-.708 0z"/></svg>';
             var the_html=
             '<div class="col-xs-4">'
-            +'<div class="card" style="width: 15rem;">'
+            +'<div id="card_snap_'+the_id+'" class="card" style="width: 15rem;">'
                 +'<canvas id="canvas_snap_'+the_id+'" class="card-img-top rounded" alt="Card image cap"></canvas>'
+                +'<button id="delete_snap_'+the_id+'" type="button" style="position:absolute;top:0;right:0;padding:0;" class="btn btn-sm icon">'+x_icon+'</button>'
             +'</div>'
             +'</div>';
             return the_html;
@@ -550,15 +552,20 @@ function InitWrappers() {
             $('#container_snapshots').append(the_grid);
             for(var z=0; z<app_snaps.length; z++)
             {
-                var element_id= "canvas_snap_s"+app_snaps[z].id;
-                var canvas = document.getElementById(element_id);
+                var canvas_id= "canvas_snap_s"+app_snaps[z].id;
+                var delete_id= "delete_snap_s"+app_snaps[z].id;
+                var canvas = document.getElementById(canvas_id);
+                var delete_btn = document.getElementById(delete_id);
                 
+                delete_btn.onclick = function() {
+                    let id = this.id.match(/[a-z_]*(.*)/)[1];
+                    delete_snapshot_per_id(id);
+                    $("#card_snap_s"+id).remove();
+                };
+
                 canvas.onclick = function() {
                     let id = this.id.match(/[a-z_]*(.*)/)[1];
-                    let answer=confirm('activate snapshot now ?' );
-                    if(answer)
-                    {
-                        get_snapshot_per_id(id,
+                    get_snapshot_per_id(id,
                         function (snapshot) {
                             wasm_loadfile(
                                 snapshot.title+".vc64",
@@ -567,18 +574,8 @@ function InitWrappers() {
                             $('#snapshotModal').modal('hide');
                             global_apptitle=snapshot.title;
                         }
-                        );
-                    }
-                    else
-                    {
-                        let answer=confirm('should I delete it ?'  );
-                        if(answer)
-                        {
-                            delete_snapshot_per_id(id);
-                            $("#"+this.id).remove();
-                        }
-                    }
-                }
+                    );
+                };
 
                 width=392;
                 height=268;

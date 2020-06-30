@@ -1,3 +1,15 @@
+let global_apptitle="c64 - start screen"
+
+function ToBase64(u8) 
+{
+    return btoa(String.fromCharCode.apply(null, u8));
+}
+
+function FromBase64(str) {
+    return atob(str).split('').map(function (c) { return c.charCodeAt(0); });
+}
+    
+
 function message_handler(cores_msg)
 {
     var msg = UTF8ToString(cores_msg);
@@ -10,9 +22,6 @@ function message_handler(cores_msg)
     {        
         //try to load roms from local storage
         setTimeout(function() {
-            FromBase64 = function (str) {
-                return atob(str).split('').map(function (c) { return c.charCodeAt(0); });
-            }
             var loadStoredItem= function (item_name){
                 var stored_item = localStorage.getItem(item_name); 
                 if(stored_item != null)
@@ -97,10 +106,11 @@ function pushFile(file, startup) {
             var romtype = wasm_loadfile(file.name, byteArray, byteArray.byteLength);
             if(romtype != "")
             {
-                ToBase64 = function (u8) {
-                    return btoa(String.fromCharCode.apply(null, u8));
-                }
                 localStorage.setItem(romtype+".bin", ToBase64(byteArray));
+            }
+            else
+            {
+                global_apptitle = file.name;
             }
 
         } catch(e) {}
@@ -125,7 +135,11 @@ joystick_keyup_map = {
 }
 
 function keydown(e) {
-    e.preventDefault();
+    if($('input').is(":focus") == false)
+    {//incase any html5 input control has the focus, we should let it get the keyup 
+        event.preventDefault();
+    }
+
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keydown_map[e.code];
@@ -141,8 +155,10 @@ function keydown(e) {
 }
 
 function keyup(e) {
-    e.preventDefault();
-
+    if($('input').is(":focus") == false)
+    {//incase any html5 input control has the focus, we should let it get the keyup 
+        event.preventDefault();
+    }
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keyup_map[e.code];
@@ -257,6 +273,10 @@ function InitWrappers() {
     wasm_run = Module.cwrap('wasm_run', 'undefined');
     wasm_take_user_snapshot = Module.cwrap('wasm_take_user_snapshot', 'undefined');
     wasm_pull_user_snapshot = Module.cwrap('wasm_pull_user_snapshot', 'number', ['number']);
+    wasm_pull_user_snapshot_file = Module.cwrap('wasm_pull_user_snapshot_file', 'number', ['number']);
+    wasm_pull_user_snapshot_file_size = Module.cwrap('wasm_pull_user_snapshot_file_size', 'number', ['number']);
+
+
     wasm_user_snapshot_width = Module.cwrap('wasm_user_snapshot_width', 'number', ['number']);
     wasm_user_snapshot_height = Module.cwrap('wasm_user_snapshot_height', 'number', ['number']);
     wasm_user_snapshots_count = Module.cwrap('wasm_user_snapshots_count', 'number');
@@ -268,8 +288,8 @@ function InitWrappers() {
     wasm_restore_auto_snapshot = Module.cwrap('wasm_restore_auto_snapshot', 'undefined', ['number']);
     wasm_suspend_auto_snapshots = Module.cwrap('wasm_suspend_auto_snapshots', 'undefined');
     wasm_resume_auto_snapshots = Module.cwrap('wasm_resume_auto_snapshots', 'undefined');
-
-
+    wasm_create_renderer =  Module.cwrap('wasm_create_renderer', 'undefined', ['string']);
+    wasm_set_warp = Module.cwrap('wasm_set_warp', 'undefined', ['number']);
     dark_switch = document.getElementById('dark_switch');
 
     loadTheme();
@@ -278,76 +298,202 @@ function InitWrappers() {
     });
     
     installKeyboard();
+    $("#button_keyboard").click(function(){setTimeout( scaleVMCanvas, 500);});
+
+    window.addEventListener("orientationchange", function() {
+      setTimeout( scaleVMCanvas, 500);
+    });
+
+    window.addEventListener("resize", function() {
+      setTimeout( scaleVMCanvas, 500);
+    });
+    
+    $('#navbar').on('hide.bs.collapse', function () {
+        //close all open tooltips on hiding navbar
+        $('[data-toggle="tooltip"]').tooltip('hide');
+    });
+
+    $('#navbar').on('shown.bs.collapse', function () { 
+    });
+
+
+    menu_button_fade_out = function () {
+        setTimeout(function() {
+            if($("#navbar").is(":hidden"))
+            {
+                $("#button_show_menu").fadeOut( "slow" );
+            }
+            else
+            { //maybe try recursivele again?
+            }
+        },5000);    
+    };
+
+    //make the menubutton not visible until a click or a touch
+    menu_button_fade_out();
+    window.addEventListener("click", function() {
+        $("#button_show_menu").fadeIn( "slow" );
+        menu_button_fade_out();
+    });
+    $("#canvas").on({ 'touchstart' : function() {
+        $("#button_show_menu").fadeIn( "slow" );
+        menu_button_fade_out();
+    }});
+
+//----
+    webgl_switch = $('#webgl_switch');
+    var use_webgl=load_setting('use_webgl', true);
+    webgl_switch.prop('checked', use_webgl);
+    if(use_webgl)
+    {
+            wasm_create_renderer("webgl");
+    }
+    else
+    {
+            wasm_create_renderer("2d");
+    }
+
+    webgl_switch.change( function() {
+        save_setting('use_webgl', this.checked);
+    });
+//----
+    warp_switch = $('#warp_switch');
+    var use_warp=load_setting('use_warp', false);
+    warp_switch.prop('checked', use_warp);
+    wasm_set_warp(use_warp ? 1:0);
+    warp_switch.change( function() {
+        wasm_set_warp(this.checked ? 1:0);
+        save_setting('use_warp', this.checked);
+    });
+
+//----------
+
+    pixel_art_switch = $('#pixel_art_switch');
+    set_pixel_art = function(value){
+        if(value)
+        {
+            $("#canvas").addClass("pixel_art");
+        }
+        else
+        {
+            $("#canvas").removeClass("pixel_art");
+        }
+        $('#pixel_art_switch').prop('checked', value);
+    }    
+    set_pixel_art(load_setting('pixel_art', false));
+    pixel_art_switch.change( function() {
+        pixel_art=this.checked;
+        save_setting('pixel_art', this.checked);
+        set_pixel_art(this.checked);
+    });
+
 
     live_debug_output=load_setting('live_debug_output', false);
     $("#cb_debug_output").prop('checked', live_debug_output);
     if(live_debug_output)
     {
-        $("#output").show(); 
+        $("#output_row").show(); 
     }
     else
     {
-        $("#output").hide(); 
+        $("#output_row").hide(); 
     }
 
     $("#cb_debug_output").change( function() {
         live_debug_output=this.checked;
         save_setting('live_debug_output', this.checked);
-        if( this.checked)
+        if(this.checked)
         {
-           $("#output").show();
+           $("#output_row").show();
         }
         else
         {
-            $("#output").hide();
+            $("#output_row").hide();
         }
     });
     
 
-    document.getElementById('button_fullscreen').onclick = function() {
+    /*document.getElementById('button_fullscreen').onclick = function() {
         if (wasm_toggleFullscreen != null) {
             wasm_toggleFullscreen();
         }
         document.getElementById('canvas').focus();
     }
+    */
     document.getElementById('button_reset').onclick = function() {
         wasm_reset();
         document.getElementById('canvas').focus();
-    
-        installKeyboard();
-
     }
-    document.getElementById('button_halt').onclick = function() {
+    $("#button_halt").click(function() {
         wasm_halt();
         $('#button_halt').prop('disabled', 'true');
         $('#button_run').removeAttr('disabled');
-        
         document.getElementById('canvas').focus();
-    }
-    document.getElementById('button_run').onclick = function() {
+    });
+    $("#button_run").click(function() {
         //have to catch an intentional "unwind" exception here, which is thrown
         //by emscripten_set_main_loop() after emscripten_cancel_main_loop();
         //to simulate infinity gamelloop see emscripten API for more info ... 
         try{wasm_run();} catch(e) {}
         $('#button_run').prop('disabled', 'true');
         $('#button_halt').removeAttr('disabled');
-
         document.getElementById('canvas').focus();
-    }
+    });
 
 
+    $('#modal_take_snapshot').on('hidden.bs.modal', function () {
+        var running=$('#button_run').attr('disabled')=='disabled';
+        if(running)
+        {
+            setTimeout(function(){try{wasm_run();} catch(e) {}},200);
+        }
+    })
+   
     document.getElementById('button_take_snapshot').onclick = function() 
-    {
-        wasm_take_user_snapshot();
+    {       
+        wasm_halt();
+        $("#modal_take_snapshot").modal('show');
+        $("#input_app_title").val(global_apptitle);
+        $("#input_app_title").focus();
     }
+
+    $('#button_save_snapshot').click(function() 
+    {       
+        var app_name = $("#input_app_title").val();
+        wasm_take_user_snapshot();
+        var ptr=wasm_pull_user_snapshot_file(0);
+        var size = wasm_pull_user_snapshot_file_size(0);
+        var snapshot_buffer = new Uint8Array(Module.HEAPU8.buffer, ptr, size);
+   
+        //snapshot_buffer is only a typed array view therefore slice, which creates a new array with byteposition 0 ...
+        save_snapshot(app_name, snapshot_buffer.slice(0,size));
+   
+        $("#modal_take_snapshot").modal('hide');
+        document.getElementById('canvas').focus();
+    });
+
+
+
 
     $('#snapshotModal').on('hidden.bs.modal', function () {
         wasm_resume_auto_snapshots();
+        var running=$('#button_run').attr('disabled')=='disabled';
+        if(running)
+        {
+            try{wasm_run();} catch(e) {}
+        }
     })
     document.getElementById('button_snapshots').onclick = function() 
     {
+        internal_usersnapshots_enabled=false;
+        var running=$('#button_run').attr('disabled')=='disabled';
+        if(running)
+        {
+           wasm_halt();
+        }
+ 
         wasm_suspend_auto_snapshots();
-
+        $('#container_snapshots').empty();
         var renderSnapshot=function(the_id){
             var the_html=
             '<div class="col-xs-4">'
@@ -366,22 +512,109 @@ function InitWrappers() {
         }
         the_grid+='</div>';
 
-        var ucount = wasm_user_snapshots_count();
-        the_grid+='<div class="row" data-toggle="tooltip" data-placement="left" title="user snapshots">';
-        for(var z=0; z<ucount; z++)
+        $('#container_snapshots').append(the_grid);
+
+
+        if(internal_usersnapshots_enabled)
         {
-            the_grid += renderSnapshot('u'+z);
+            the_grid="";
+            var ucount = wasm_user_snapshots_count();
+            the_grid+='<div class="row" data-toggle="tooltip" data-placement="left" title="user snapshots">';
+            for(var z=0; z<ucount; z++)
+            {
+                the_grid += renderSnapshot('u'+z);
+            }
+            the_grid+='</div>';
+            $('#container_snapshots').append(the_grid);
         }
-        the_grid+='</div>';
 
-        $('#container_snapshots').html(the_grid);
+//--- indexeddb snaps
+        var render_persistent_snapshot=function(the_id){
+            var x_icon = '<svg width="1.8em" height="auto" viewBox="0 0 16 16" class="bi bi-x" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M11.854 4.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708-.708l7-7a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M4.146 4.146a.5.5 0 0 0 0 .708l7 7a.5.5 0 0 0 .708-.708l-7-7a.5.5 0 0 0-.708 0z"/></svg>';
+            var the_html=
+            '<div class="col-xs-4">'
+            +'<div id="card_snap_'+the_id+'" class="card" style="width: 15rem;">'
+                +'<canvas id="canvas_snap_'+the_id+'" class="card-img-top rounded" alt="Card image cap"></canvas>'
+                +'<button id="delete_snap_'+the_id+'" type="button" style="position:absolute;top:0;right:0;padding:0;" class="btn btn-sm icon">'+x_icon+'</button>'
+            +'</div>'
+            +'</div>';
+            return the_html;
+        }
 
+        var row_renderer = function(app_title, app_snaps) {
+            app_title=app_title.split(' ').join('_');
+            the_grid='<div class="row" data-toggle="tooltip" data-placement="left" title="'+app_title+'">';
+            for(var z=0; z<app_snaps.length; z++)
+            {
+                the_grid += render_persistent_snapshot('s'+app_snaps[z].id);
+            }
+            the_grid+='</div>';
+            $('#container_snapshots').append(the_grid);
+            for(var z=0; z<app_snaps.length; z++)
+            {
+                var canvas_id= "canvas_snap_s"+app_snaps[z].id;
+                var delete_id= "delete_snap_s"+app_snaps[z].id;
+                var canvas = document.getElementById(canvas_id);
+                var delete_btn = document.getElementById(delete_id);
+                
+                delete_btn.onclick = function() {
+                    let id = this.id.match(/[a-z_]*(.*)/)[1];
+                    delete_snapshot_per_id(id);
+                    $("#card_snap_s"+id).remove();
+                };
+
+                canvas.onclick = function() {
+                    let id = this.id.match(/[a-z_]*(.*)/)[1];
+                    get_snapshot_per_id(id,
+                        function (snapshot) {
+                            wasm_loadfile(
+                                snapshot.title+".vc64",
+                                snapshot.data, 
+                                snapshot.data.length);
+                            $('#snapshotModal').modal('hide');
+                            global_apptitle=snapshot.title;
+                        }
+                    );
+                };
+
+                width=392;
+                height=268;
+                var ctx = canvas.getContext("2d");
+                canvas.width = width;
+                canvas.height = height;
+
+                imgData=ctx.createImageData(width,height);
+            
+                var data = imgData.data;
+                var src_data = app_snaps[z].data;
+                snapshot_data = new Uint8Array(src_data, 40/* offset .. this number was a guess... */, data.length);
+
+                for (var i = 0; i < data.length; i += 4) {
+                    data[i]     = snapshot_data[i+0]; // red
+                    data[i + 1] = snapshot_data[i+1]; // green
+                    data[i + 2] = snapshot_data[i+2]; // blue
+                    data[i + 3] = snapshot_data[i+3];
+
+                }
+                ctx.putImageData(imgData,0,0); 
+                
+            }
+        }
+        var store_renderer = function(app_titles)
+        {
+            for(var t=0; t<app_titles.length;t++)
+            {
+                var app_title=app_titles[t];
+                var app_snaps = get_snapshots_for_app_title(app_title, row_renderer); 
+            }
+        }
+        get_stored_app_titles(store_renderer);
+//---
 
         var copy_snapshot_to_canvas= function(snapshot_ptr, canvas, width, height){ 
             var ctx = canvas.getContext("2d");
             canvas.width = width;
             canvas.height = height;
-
             imgData=ctx.createImageData(width,height);
         
             var data = imgData.data;
@@ -407,6 +640,7 @@ function InitWrappers() {
                 let nr = this.id.match(/[a-z_]*(.*)/)[1];;
             //    alert('restore auto nr'+nr);
                 wasm_restore_auto_snapshot(nr);
+                $('#snapshotModal').modal('hide');
             }
         
             snapshot_ptr = wasm_pull_auto_snapshot(z);
@@ -417,22 +651,25 @@ function InitWrappers() {
             copy_snapshot_to_canvas(snapshot_ptr, c, width, height);
         }
 
-        for(var z=0; z<ucount; z++)
+        if(internal_usersnapshots_enabled)
         {
-            var c = document.getElementById("canvas_snap_u"+z);
-            
-            c.onclick = function() {
-                let nr = this.id.match(/[a-z_]*(.*)/)[1];;
-            //    alert('restore user nr'+nr);
-                wasm_restore_user_snapshot(nr);
+            for(var z=0; z<ucount; z++)
+            {
+                var c = document.getElementById("canvas_snap_u"+z);
+                
+                c.onclick = function() {
+                    let nr = this.id.match(/[a-z_]*(.*)/)[1];;
+                //    alert('restore user nr'+nr);
+                    wasm_restore_user_snapshot(nr);
+                }
+
+                snapshot_ptr = wasm_pull_user_snapshot(z);
+                
+                var width=wasm_user_snapshot_width(z);
+                var height=wasm_user_snapshot_height(z);
+
+                copy_snapshot_to_canvas(snapshot_ptr, c, width, height);            
             }
-
-            snapshot_ptr = wasm_pull_user_snapshot(z);
-            
-            var width=wasm_user_snapshot_width(z);
-            var height=wasm_user_snapshot_height(z);
-
-            copy_snapshot_to_canvas(snapshot_ptr, c, width, height);            
         }
 
     }
@@ -520,8 +757,10 @@ function InitWrappers() {
         }
     });
 
-
-    if(window.matchMedia("(max-width: 767px)").matches){
+    scaleVMCanvas();
+   
+    return;
+  /*  if(window.matchMedia("(max-width: 767px)").matches){
         // The viewport is less than 768 pixels wide
         $("#canvas").css("width", "95%");
     } else{
@@ -529,13 +768,12 @@ function InitWrappers() {
         $("#canvas").css("width", "75%");
 
     }
+    */
 }
 
 
 function loadTheme() {
-  const dark_theme_selected =
-    localStorage.getItem('dark_switch') !== null &&
-    localStorage.getItem('dark_switch') === 'dark';
+  const dark_theme_selected = load_setting('dark_switch', false);
   dark_switch.checked = dark_theme_selected;
   dark_theme_selected ? document.body.setAttribute('data-theme', 'dark') :
     document.body.removeAttribute('data-theme');
@@ -544,143 +782,45 @@ function loadTheme() {
 function setTheme() {
   if (dark_switch.checked) {
     document.body.setAttribute('data-theme', 'dark');
-    localStorage.setItem('dark_switch', 'dark');
+    save_setting('dark_switch', true);
   } else {
     document.body.removeAttribute('data-theme');
-    localStorage.removeItem('dark_switch');
+    save_setting('dark_switch', null);
   }
 }
-
-function load_setting(name, default_value) {
-    var value = localStorage.getItem(name);
-    if(value === null)
-    {
-        return default_value;
-    } 
-    else
-    {
-        if(value=='true')
-          return true;
-        else if(value=='false')
-          return false;
-        else
-          return value;
-    }
-}
-
-function save_setting(name, value) {
-    if (value!= null) {
-      localStorage.setItem(name, value);
-    } else {
-      localStorage.removeItem(name);
-    }
-  }
   
 
+function scaleVMCanvas() {
+        var src_width=428;
+        var src_height=284;
+        var src_ratio = src_width/src_height; //1.6  kehrwert=0.625
+        var inv_src_ratio = src_height/src_width;
+        var wratio = window.innerWidth / window.innerHeight;
 
-
-function installKeyboard() {
-    keymap= [ 
-    [{k:'hide keyboard', c:'hide_keyboard'},{style:'width:120px'},{k:'F1',c:'F1'}, {k:'F2',c:'F2'},{k:'F3',c:'F3'},{k:'F4',c:'F4'},{k:'F5',c:'F5'},{k:'F6',c:'F6'},{k:'F7',c:'F7'},{k:'F8',c:'F8'}],
-    [{k:'<-',c:'Delete'}, {k:'1',c:'Digit1'},{k:'2',c:'Digit2'},{k:'3',c:'Digit3'},{k:'4',c:'Digit4'},{k:'5',c:'Digit5'},{k:'6',c:'Digit6'},{k:'7',c:'Digit7'},{k:'8',c:'Digit8'},{k:'9',c:'Digit9'},{k:'0',c:'Digit0'},{k:'+', c:'Minus'},{k:'-', c:'Equal'},{k:'€', c:'pound'},{k:'CLR/Home', c:'home'},{k:'Inst/DEL',c:'Backspace'} ], 
-    [{k:'CTRL',c:'ControlLeft'}, {k:'Q'},{k:'W'},{k:'E'},{k:'R'},{k:'T'},{k:'Y'},{k:'U'},{k:'I'},{k:'O'},{k:'P'},{k:'@',c:'BracketLeft'},{k:'*', c:'BracketRight'},{k:'up',c:'upArrow'},{k:'RESTORE', c:'restore'}], 
-    [{k:'RunStop',c:'runStop'},{k:'ShftLock', c:'shiftlock'},{k:'A'},{k:'S'},{k:'D'},{k:'F'},{k:'G'},{k:'H'},{k:'J'},{k:'K'},{k:'L'},{k:':', c:'Semicolon'},{k:';', c:'Quote'},{k:'=', c:'Backslash'},{k:'RETURN',c:'Enter'}], 
-    [{k:'C=', c:'commodore'},{k:'SHIFT',c:'ShiftLeft'},{k:'Z'},{k:'X'},{k:'C'},{k:'V'},{k:'B'},{k:'N'},{k:'M'},{k:',',c:'Comma'},{k:'.',c:'Period'},{k:'/', c:'Slash'},{k:'SHIFT',c:'rightShift'},{k:'DOWN', c:'ArrowDown'},{k:'RIGHT', c:'ArrowRight'} ],
-    [{k:'SPACE', c:'Space', style:'width:450px'}]
-    ];
-
-    var the_keyBoard='';
-    keymap.forEach(row => {
-        the_keyBoard+='<div class="justify-content-center" style="display:flex">';
-        row.forEach(keydef => {
-            if(keydef.k === undefined)
-            {
-                var style = "";
-                if(keydef.s !== undefined)
-                    css = keydef.s; 
-                if(keydef.style !== undefined)
-                    style = keydef.style; 
-                
-                the_keyBoard +='<div class="'+css+'" style="'+style+'"></div>';
+        var topPos=0;
+        if(wratio < src_ratio)
+        {
+            var reducedHeight=window.innerWidth*inv_src_ratio;
+            //alles was kleiner 1.6
+            $("#canvas").css("width", "100%");
+            $("#canvas").css("height", Math.round(reducedHeight)+'px');
+            
+            if($("#virtual_keyboard").is(":hidden"))
+            {//center vertical, but only if virtual keyboard not present
+                topPos=Math.round(((window.innerHeight-reducedHeight)/2));
             }
-            else
-            {
-                if(keydef.c === undefined)
-                    keydef.c = 'Key'+keydef.k;
-                var css = "btn btn-secondary ml-1 mt-1";
-                var style = null; 
-                if(keydef.css !== undefined)
-                    css = keydef.css; 
-                if(keydef.style !== undefined)
-                    style = keydef.style; 
-                
-                the_keyBoard +='<button type="button" id="button_'+keydef.c+'" class="'+css+'"';
-                if(style !=null)
-                    the_keyBoard += ' style="'+style+'"';
-                the_keyBoard += '>'+keydef.k+'</button>'
-            }
-        });
-        the_keyBoard+='</div>';
-    });
-    $('#divKeyboardRows').html(the_keyBoard);
+        }
+        else
+        {
+            //alles was größer als 1.6
+            $("#canvas").css("width", Math.round((window.innerHeight*src_ratio)) +'px');
+            $("#canvas").css("height", "100%"); 
+        }
 
-    keymap.forEach(row => {
-        row.forEach(keydef => {
-            if(keydef.k === undefined)
-                return;
-            if(keydef.c === undefined)
-              keydef.c = 'Key'+keydef.k;
+        $("#canvas").css("top", topPos + 'px');   
 
-            $("#button_"+keydef.c).click(function() 
-            {
-               if(keydef.c == 'hide_keyboard')
-               {
-                $('#virtual_keyboard').collapse('hide');
-               }
-               else if(keydef.c == 'shiftlock')
-               {
-                   var c64code = translateKey('ShiftLeft', 'ShiftLeft');
-                   if(keydef.locked === undefined || keydef.locked == 0)
-                   {
-                     wasm_key(c64code[0], c64code[1], 1);                   
-                     keydef.locked = 1;
-                     $("#button_"+keydef.c).attr("style", "background-color: var(--green) !important");
-                   }
-                   else
-                   {
-                     wasm_key(c64code[0], c64code[1], 0);                   
-                     keydef.locked = 0;
-                     $("#button_"+keydef.c).attr("style", "");
-                   
-                   }
-               }
-               else
-               {
-                var c64code = translateKey(keydef.c, keydef.k);
-                if(c64code !== undefined){
-                    wasm_key(c64code[0], c64code[1], 1);
-                    
-                    if(keydef.c == 'ShiftLeft' ||keydef.c == 'ShiftRight')
-                    {
-                        $("#button_"+keydef.c).attr("style", "background-color: var(--green) !important");
-                    
-                        setTimeout(() => {
-                            wasm_key(c64code[0], c64code[1], 0);
-                            $("#button_"+keydef.c).attr("style", "");
-                        }, 1000*3);
-                    
-                    }
-                    else
-                    {  
-                        setTimeout(() => {
-                            wasm_key(c64code[0], c64code[1], 0);
-                        }, 20);
-                    }
-                }
-               }
-            });
-        });
-    });
+        //durchsichtiges div über alles legen zum scrollen
 
 
-}
+    };
+

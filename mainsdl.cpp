@@ -14,12 +14,12 @@
 #include <emscripten/html5.h>
 
 /* SDL2 start*/
-SDL_Window * window;
-SDL_Surface * window_surface;
+SDL_Window * window = NULL;
+SDL_Surface * window_surface = NULL;
 unsigned int * pixels;
 
-SDL_Renderer * renderer;
-SDL_Texture * screen_texture;
+SDL_Renderer * renderer = NULL;
+SDL_Texture * screen_texture = NULL;
 
 /* SDL2 end */
 
@@ -95,12 +95,12 @@ void PrintEvent(const SDL_Event * event)
     }
 }
 
-int emu_width  = NTSC_PIXELS;
-int emu_height = PAL_RASTERLINES;
+int emu_width  = NTSC_PIXELS; //428
+int emu_height = PAL_RASTERLINES; //284
 int xOff = 12;
 int yOff = 12;
-int clipped_width  = NTSC_PIXELS -12 -24;
-int clipped_height = PAL_RASTERLINES -12 -24;
+int clipped_width  = NTSC_PIXELS -12 -24; //392
+int clipped_height = PAL_RASTERLINES -12 -24; //248
 
 int bFullscreen = false;
 
@@ -219,6 +219,24 @@ void draw_one_frame_into_SDL(void *thisC64)
   uint64_t targetFrameCount = (uint64_t)(elapsedTimeInSeconds * 50.125);
  
   unsigned int max_gap = 8;
+
+
+  C64 *c64 = (C64 *)thisC64;
+
+  if(c64->getWarp() == true)
+  {
+    printf("warping at least 25 cycles at once ...\n");
+    int i=25;
+    while(c64->getWarp() == true && i>0)
+    {
+      c64->executeOneFrame();
+      i--;
+    }
+    start_time=now;
+    total_executed_frame_count=0;
+    targetFrameCount=1;  
+  }
+
   //lost the sync
   if(targetFrameCount-total_executed_frame_count > max_gap)
   {
@@ -239,8 +257,6 @@ void draw_one_frame_into_SDL(void *thisC64)
     rendered_frame_count=0;
     executed_frame_count=0;
   }
-
-  C64 *c64 = (C64 *)thisC64;
 
   while(total_executed_frame_count < targetFrameCount) {
     executed_frame_count++;
@@ -289,6 +305,60 @@ void MyAudioCallback(void*  thisC64,
 }
 
 
+extern "C" void wasm_create_renderer(char* name)
+{ 
+  printf("try to create %s renderer\n", name);
+  window = SDL_CreateWindow("",
+   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+        clipped_width, clipped_height,
+        /*SDL_WINDOW_RESIZABLE*/ 0);
+
+  if(0==strcmp("webgl", name))
+  {
+    renderer = SDL_CreateRenderer(window,
+          -1, 
+          SDL_RENDERER_PRESENTVSYNC|SDL_RENDERER_ACCELERATED);
+    if(renderer == NULL)
+    {
+      printf("can not get hardware accelerated renderer going with software renderer instead...\n");
+    }
+    else
+    {
+      printf("got hardware accelerated renderer ...\n");
+    }
+  }
+  if(renderer == NULL)
+  {
+      renderer = SDL_CreateRenderer(window,
+          -1, 
+          SDL_RENDERER_SOFTWARE
+          );
+
+    if(renderer == NULL)
+    {
+      printf("can not get software renderer ...\n");
+      return;
+    }
+    else
+    {
+      printf("got software renderer ...\n");
+    }
+  }
+
+    // Since we are going to display a low resolution buffer,
+    // it is best to limit the window size so that it cannot
+    // be smaller than our internal buffer size.
+  SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);
+  SDL_RenderSetLogicalSize(renderer, clipped_width, clipped_height); 
+  SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
+
+  screen_texture = SDL_CreateTexture(renderer,
+        SDL_PIXELFORMAT_ABGR8888
+        , SDL_TEXTUREACCESS_STREAMING,
+        emu_width, emu_height);
+
+  window_surface = SDL_GetWindowSurface(window);
+}
 
 void initSDL(void *thisC64)
 {
@@ -324,42 +394,10 @@ void initSDL(void *thisC64)
     //listen to mouse, finger and keys
     SDL_SetEventFilter(eventFilter, thisC64);
 
-
-   window = SDL_CreateWindow("",
-   SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        clipped_width, clipped_height,
-        SDL_WINDOW_RESIZABLE);
- 
-  //Texture
-  renderer = SDL_CreateRenderer(window,
-        -1, 
-        SDL_RENDERER_PRESENTVSYNC|SDL_RENDERER_ACCELERATED);
-  if(renderer == NULL)
-  {
-    printf("can not get hardware accelerated renderer going with software renderer instead...\n");
-    renderer = SDL_CreateRenderer(window,
-        -1, 
-        SDL_RENDERER_SOFTWARE
-        );
-  }
-  else
-  {
-    printf("got hardware accelerated renderer ...\n");
-  }
-
-    // Since we are going to display a low resolution buffer,
-    // it is best to limit the window size so that it cannot
-    // be smaller than our internal buffer size.
-  SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);
-  SDL_RenderSetLogicalSize(renderer, clipped_width, clipped_height); 
-  SDL_RenderSetIntegerScale(renderer, SDL_TRUE);
-
-  screen_texture = SDL_CreateTexture(renderer,
-        SDL_PIXELFORMAT_ABGR8888
-        , SDL_TEXTUREACCESS_STREAMING,
-        emu_width, emu_height);
-  
+//  wasm_create_renderer((char*)"webgl");
 }
+
+
 
 
 void theListener(const void *, int type, long data){
@@ -405,6 +443,7 @@ class C64Wrapper {
     printf("wrapper calls run on c64->run() method\n");
 
     c64->setTakeAutoSnapshots(true);
+    //c64->setWarpLoad(true);
     c64->vic.emulateGrayDotBug=false;
  //   c64->dump();
  //   c64->drive1.dump();
@@ -510,6 +549,25 @@ void changeDisk(AnyArchive *a, int iDriveNumber)
   }
 }
 
+extern "C" Uint8 *wasm_pull_user_snapshot_file(unsigned nr)
+{
+  printf("wasm_pull_user_snapshot_file nr=%u\n", nr);
+  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
+  
+  size_t size = snapshot->writeToBuffer(NULL);
+  uint8_t *buffer = new uint8_t[size];
+  snapshot->writeToBuffer(buffer);
+  return buffer;
+}
+extern "C" size_t wasm_pull_user_snapshot_file_size(unsigned nr)
+{
+  printf("wasm_pull_user_snapshot_file_size nr=%u\n", nr);
+  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
+  size_t size = snapshot->writeToBuffer(NULL);
+  return size;
+}
+
+
 
 extern "C" Uint8 *wasm_pull_user_snapshot(unsigned nr)
 {
@@ -583,6 +641,14 @@ extern "C" void wasm_resume_auto_snapshots()
   return wrapper->c64->resumeAutoSnapshots();
 }
 
+
+
+extern "C" void wasm_set_warp(long on)
+{
+  wrapper->c64->setWarpLoad(on == 1);
+}
+
+
 extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 {
   printf("load file=%s len=%ld\n", name, len);
@@ -607,6 +673,10 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     printf("isCRT\n");
     wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(wrapper->c64,(CRTFile::makeWithBuffer(blob, len))));
     wrapper->c64->reset();
+  }
+  else if (checkFileSuffix(name, ".vc64")|| checkFileSuffix(name, ".vc64")) {
+    printf("isSnapshot\n");
+    wrapper->c64->loadFromSnapshotSafe(Snapshot::makeWithBuffer(blob, len));
   }
   else if (checkFileSuffix(name, ".BIN")|| checkFileSuffix(name, ".bin")) {
     printf("isBIN\n");
@@ -678,6 +748,8 @@ extern "C" void wasm_run()
   printf("wasm_run\n");
   wrapper->c64->run();
 }
+
+
 
 extern "C" void wasm_joystick(char* port_plus_event)
 {

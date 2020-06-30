@@ -1,14 +1,29 @@
+#canvas {
+    position:fixed;
+    left:0;
+    right:0;
+ } 
+/*    image-rendering: -webkit-optimize-contrast;*/
+    /*image-rendering: crisp-edges;
+    image-rendering: pixelated;
+    */
+
+.pixel_art{
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+}
+
 #drop_zone {
     cursor: pointer;
-    background-color: var(--light);
+/*    background-color: var(--light);*/
     border: 3px dashed var(--blue);
-    height: 48px;
+    height: 32px;
 }
 
 [data-theme="dark"] #drop_zone {
-    background-color: var(--secondary);
+    background-color: var(--dark);
     border: 3px dashed var(--blue);
-    height: 48px;
+    height: 32px;
 }
 
 
@@ -34,18 +49,6 @@ background-color:var(--dark) !important;
 color: var(--light) !important;
 }
 
-[data-theme="dark"] .btn-primary {
-background-color: var(--secondary) !important;
-color: var(--light) !important;
-border-color: var(--gray-dark);
-}
-
-[data-theme="dark"] .btn-primary:hover {
-background-color: var(--secondary) !important;
-color: var(--light) !important;
-opacity: .65;
-}
-
 /* the filled circle in the switch was to high */
 .custom-switch .custom-control-label::before{
     top: .23rem;
@@ -56,10 +59,26 @@ border-color: var(--secondary) !important;
 background-color: var(--secondary) !important;
 }
 
+#port1, #port2 {
+    height:32px;
+    min-width:100px;
+    width: 49%;
+    padding-top: .165rem;
+    margin-top: 1px; 
+    background-color: inherit !important;
+    border-color: var(--dark);
+    color: var(--dark) !important;
+}
+
+    
+[data-theme="dark"] #port1, [data-theme="dark"] #port2 {
+    border-color: var(--light);
+    color: #aaa !important;
+}
+
 [data-theme="dark"] .custom-select {
-background-color: var(--secondary) !important;
 color: var(--light) !important;
-border-color: var(--gray);
+border-color: var(--light) !important;
 }
 
 [data-theme="dark"] #output {
@@ -85,16 +104,29 @@ background-color: #555 !important;
     bottom:0;
     z-index:999;
     width:100%;
-    background-color: #aaa;
+    background-color: #bbb;
 }
 
 [data-theme="dark"] #virtual_keyboard {
     background-color:var(--gray-dark);
 }
+
+#navbar {
+    background-color: #bbb;
+}
+
+[data-theme="dark"] #navbar {
+    background-color:var(--gray-dark);
+}
+    
     
 
 .icon {
-    fill: var(--light);
+    fill: var(--dark);
+    color: var(--dark) !important;
 }
 
-
+[data-theme="dark"] .icon {
+    fill: var(--light);
+    color: var(--light) !important;
+}

@@ -8,7 +8,7 @@ INCLUDE   = -I. -IC64 -IC64/Cartridges -IC64/Cartridges/CustomCartridges -IC64/C
 WARNINGS  = -Wall -Wno-unused-variable
 STD       = -std=c++17
 OPTIMIZE  = -O2
-WASM_EXPORTS= -s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS="['_main', '_wasm_toggleFullscreen', '_wasm_loadFile', '_wasm_key', '_wasm_joystick', '_wasm_reset', '_wasm_halt', '_wasm_run', '_wasm_take_user_snapshot', '_wasm_pull_user_snapshot','_wasm_user_snapshot_width', '_wasm_user_snapshot_height', '_wasm_user_snapshots_count','_wasm_pull_auto_snapshot','_wasm_auto_snapshot_width', '_wasm_auto_snapshot_height', '_wasm_auto_snapshots_count','_wasm_restore_user_snapshot','_wasm_restore_auto_snapshot', '_wasm_suspend_auto_snapshots', '_wasm_resume_auto_snapshots']"
+WASM_EXPORTS= -s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS="['_main', '_wasm_toggleFullscreen', '_wasm_loadFile', '_wasm_key', '_wasm_joystick', '_wasm_reset', '_wasm_halt', '_wasm_run', '_wasm_take_user_snapshot', '_wasm_pull_user_snapshot','_wasm_user_snapshot_width', '_wasm_user_snapshot_height', '_wasm_user_snapshots_count','_wasm_pull_auto_snapshot','_wasm_auto_snapshot_width', '_wasm_auto_snapshot_height', '_wasm_auto_snapshots_count','_wasm_restore_user_snapshot','_wasm_restore_auto_snapshot', '_wasm_suspend_auto_snapshots', '_wasm_resume_auto_snapshots', '_wasm_create_renderer', '_wasm_set_warp', '_wasm_pull_user_snapshot_file','_wasm_pull_user_snapshot_file_size']"
 CFLAGS    = $(INCLUDE) $(WARNINGS) $(STD) $(OPTIMIZE) -s USE_SDL=2 $(WASM_EXPORTS) 
 #-s ASSERTIONS=1
 
@@ -33,6 +33,8 @@ publish:
 	rm -rf ../gh-pages/js
 	rm -f ../gh-pages/vC64.*
 	rm -f ../gh-pages/vC64*.js
+	rm -f ../gh-pages/vc64web.png
+	cp vc64web.png ../gh-pages
 	cp vC64.* ../gh-pages
 	cp vC64*.js ../gh-pages
 	cp -r js ../gh-pages

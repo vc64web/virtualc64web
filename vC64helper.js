@@ -135,16 +135,11 @@ joystick_keyup_map = {
 }
 
 function keydown(e) {
-/*
-    if (document.activeElement === Module['canvas']) {
+    if($('input').is(":focus") == false)
+    {//incase any html5 input control has the focus, we should let it get the keyup 
         event.preventDefault();
     }
-    else
-    {   //
-        //return;
-    }
- */
-//    e.preventDefault();
+
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keydown_map[e.code];
@@ -160,15 +155,10 @@ function keydown(e) {
 }
 
 function keyup(e) {
-/*    if (document.activeElement === Module['canvas']) {
+    if($('input').is(":focus") == false)
+    {//incase any html5 input control has the focus, we should let it get the keyup 
         event.preventDefault();
     }
-    else
-    {
-       // return;
-    }
-    //e.preventDefault();
-*/
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keyup_map[e.code];
@@ -539,12 +529,22 @@ function InitWrappers() {
         }
 
 //--- indexeddb snaps
+        var render_persistent_snapshot=function(the_id){
+            var the_html=
+            '<div class="col-xs-4">'
+            +'<div class="card" style="width: 15rem;">'
+                +'<canvas id="canvas_snap_'+the_id+'" class="card-img-top rounded" alt="Card image cap"></canvas>'
+            +'</div>'
+            +'</div>';
+            return the_html;
+        }
+
         var row_renderer = function(app_title, app_snaps) {
             app_title=app_title.split(' ').join('_');
             the_grid='<div class="row" data-toggle="tooltip" data-placement="left" title="'+app_title+'">';
             for(var z=0; z<app_snaps.length; z++)
             {
-                the_grid += renderSnapshot('s'+app_snaps[z].id);
+                the_grid += render_persistent_snapshot('s'+app_snaps[z].id);
             }
             the_grid+='</div>';
             $('#container_snapshots').append(the_grid);

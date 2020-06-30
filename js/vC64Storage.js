@@ -124,9 +124,23 @@ function get_snapshot_per_id(the_id, callback_fn)
 
 function delete_snapshot_per_id(the_id)
 {
+  get_snapshot_per_id(the_id, 
+  function(the_snapshot) {
     let transaction = db.transaction("snapshots", 'readwrite'); 
     let snapshots = transaction.objectStore("snapshots");
-    let request = snapshots.delete(parseInt(the_id));
+    snapshots.delete(parseInt(the_id));
+    //check if this was the last snapshot of the game title 
+    get_snapshots_for_app_title(the_snapshot.title, 
+      function (app_title, snapshot_list) {
+        if(snapshot_list.length == 0)
+        {//when it was the last one, then also delete the app title
+          let tx_apps = db.transaction("apps", 'readwrite'); 
+          let apps = tx_apps.objectStore("apps");
+          apps.delete(app_title);
+        }
+      }
+    );
+  });
 }
 
 

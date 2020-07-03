@@ -5,7 +5,13 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>vc64web</title>
   
-    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+  <link rel="manifest" href="manifest.json">
+  <!-- ios support -->
+  <link rel="apple-touch-icon" href="/img/icon-96x96.png">
+  <meta name="apple-mobile-web-app-status-bar" content="#FFE1C4">
+  <meta name="theme-color" content="#FFE1C4">
+
 
   <link rel="stylesheet" href="css/bootstrap.min.css">
   <link rel="stylesheet" href="css/vc64.css">
@@ -235,7 +241,7 @@
       <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title" id="settingsModalLabel"><img src="vc64web.png" style="height: 50px;" /> settings</h5>
+            <h5 class="modal-title" id="settingsModalLabel"><img src="img/vc64web.png" style="height: 50px;" /> settings</h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
@@ -399,6 +405,14 @@
           if (text) Module.printErr('[post-exception status] ' + text);
         };
       };
+
+      if('serviceWorker' in navigator){        
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => {
+            console.log('service worker registered')
+          })
+          .catch(err => console.log('service worker not registered', err));
+      }
 
       var db;    
       //ready function

@@ -2,11 +2,7 @@
     position:fixed;
     left:0;
     right:0;
- } 
-/*    image-rendering: -webkit-optimize-contrast;*/
-    /*image-rendering: crisp-edges;
-    image-rendering: pixelated;
-    */
+ }
 
 .pixel_art{
     image-rendering: pixelated;
@@ -15,7 +11,6 @@
 
 #drop_zone {
     cursor: pointer;
-/*    background-color: var(--light);*/
     border: 3px dashed var(--blue);
     height: 32px;
 }

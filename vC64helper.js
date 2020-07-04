@@ -472,8 +472,16 @@ function InitWrappers() {
         document.getElementById('canvas').focus();
     });
 
-
-
+    document.getElementById('button_update').onclick = function() 
+    {
+        caches.keys().then(keys => {
+            console.log('deleting cache files:'+keys);
+            return Promise.all(keys
+              .map(key => caches.delete(key))
+            );
+          });
+          window.location.reload(true);
+    }
 
     $('#snapshotModal').on('hidden.bs.modal', function () {
         wasm_resume_auto_snapshots();

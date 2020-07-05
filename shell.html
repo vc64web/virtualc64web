@@ -20,6 +20,8 @@
   <script src="js/vC64Storage.js"></script>
   <script src="vC64helper.js"></script>
   <script src="vC64keymap.js"></script>
+  <script src="js/virtualjoystick.js"></script>
+
     <style>
       .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
       textarea.emscripten { font-family: monospace; width: 80%; }
@@ -164,11 +166,13 @@
     <div class="col-4">
       <select id="port1" class="custom-select mr-1" data-toggle="tooltip" data-placement="left" title="game port 1">
         <option value="none">none</option>
-        <option value="keys">cursor keys, space to fire</option>        
+        <option value="keys">cursor keys, space to fire</option>
+        <option value="touch">touch</option>
       </select>
       <select id="port2" class="custom-select" data-toggle="tooltip" data-placement="left" title="game port 2">
         <option value="none">none</option>
-        <option value="keys">cursor keys, space to fire</option>        
+        <option value="keys">cursor keys, space to fire</option>
+        <option value="touch">touch</option>
       </select>
     </div>
     </div>      

@@ -18,7 +18,7 @@ all: $(OBJECTS_CC) $(OBJECTS)
 
 clean:
 	rm -rf obj
-	rm -f vC64.html
+	rm -f index.html
 	rm -f vC64.js
 	rm -f vC64.wasm
 	rm -f vC64.data
@@ -27,20 +27,24 @@ main:
 	$(CC)  -c $(CFLAGS) mainsdl.cpp 
 	mv *.o obj
 	$(CC)  $(CFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB -s ALLOW_MEMORY_GROWTH=1 $(OBJDIR)/*.o --preload-file roms
+	mv vC64.html index.html
 
 publish:
 	rm -rf ../gh-pages/css
 	rm -rf ../gh-pages/js
-	rm -f ../gh-pages/vC64.*
-	rm -f ../gh-pages/vC64*.js
-	rm -f ../gh-pages/vc64web.png
-	cp vc64web.png ../gh-pages
+	rm -rf ../gh-pages/img
+	rm -f  ../gh-pages/vC64.*
+	rm -f  ../gh-pages/*.js
+	rm -f  ../gh-pages/*.json
+	rm -f  ../gh-pages/index.html
 	cp vC64.* ../gh-pages
 	cp vC64*.js ../gh-pages
 	cp -r js ../gh-pages
 	cp -r css ../gh-pages
-	mv ../gh-pages/vC64.html ../gh-pages/index.html 
-
+	cp -r img ../gh-pages/
+	cp index.html ../gh-pages 
+	cp sw.js ../gh-pages
+	cp manifest.json ../gh-pages
 
 $(OBJECTS): %.o: %.cpp
 	$(CC) -c $(CFLAGS) $< -o $(OBJDIR)/$(@F)

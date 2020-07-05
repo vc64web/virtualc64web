@@ -472,8 +472,16 @@ function InitWrappers() {
         document.getElementById('canvas').focus();
     });
 
-
-
+    document.getElementById('button_update').onclick = function() 
+    {
+        caches.keys().then(keys => {
+            console.log('deleting cache files:'+keys);
+            return Promise.all(keys
+              .map(key => caches.delete(key))
+            );
+          });
+          window.location.reload(true);
+    }
 
     $('#snapshotModal').on('hidden.bs.modal', function () {
         wasm_resume_auto_snapshots();
@@ -806,8 +814,18 @@ function scaleVMCanvas() {
             $("#canvas").css("height", Math.round(reducedHeight)+'px');
             
             if($("#virtual_keyboard").is(":hidden"))
-            {//center vertical, but only if virtual keyboard not present
-                topPos=Math.round(((window.innerHeight-reducedHeight)/2));
+            {   //center vertical, if virtual keyboard and navbar not present
+                topPos=Math.round((window.innerHeight-reducedHeight)/2);
+            }
+            else
+            {//virtual keyboard is present
+                var keyb_height= $("#virtual_keyboard").innerHeight();          
+                //positioning directly stacked onto keyboard          
+                topPos=Math.round(window.innerHeight-reducedHeight-keyb_height);
+            }
+            if(topPos<0)
+            {
+                topPos=0;
             }
         }
         else

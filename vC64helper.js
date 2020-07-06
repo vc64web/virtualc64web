@@ -180,7 +180,7 @@ timestampjoy2 = null;
 function draw_one_frame()
 {
     var gamepads=null;
-    if(port1 != 'none' && port1 !='keys')
+    if(port1 != 'none' && port1 !='keys' && port1 !='touch')
     {
         gamepads = navigator.getGamepads();        
         var joy1= gamepads[port1];
@@ -191,7 +191,7 @@ function draw_one_frame()
             handleGamePad('1', joy1);
         }
     }
-    if(port2 != 'none' && port2 !='keys')
+    if(port2 != 'none' && port2 !='keys' && port2 !='touch')
     {
         if(gamepads==null)
         {
@@ -204,6 +204,54 @@ function draw_one_frame()
             timestampjoy2 = joy2.timestamp;
             handleGamePad('2', joy2);
         }
+    }
+    if(port1 == 'touch')
+    {
+        handle_touch("1");
+    }
+    else if(port2 == 'touch')
+    {
+        handle_touch("2");
+    }	
+}
+
+
+function handle_touch(portnr)
+{    
+    if(v_joystick == null || v_fire == null)
+        return;
+    try {
+
+        if(v_joystick.right())
+        {
+            wasm_joystick(portnr+"PULL_RIGHT");
+        }
+        else if(v_joystick.left())
+        {
+            wasm_joystick(portnr+"PULL_LEFT");
+        }
+        else
+        {
+            wasm_joystick(portnr+"RELEASE_X");
+        }
+
+        if(v_joystick.up())
+        {
+            wasm_joystick(portnr+"PULL_UP");
+        }
+        else if(v_joystick.down())
+        {
+            wasm_joystick(portnr+"PULL_DOWN");
+        }
+        else
+        {
+            wasm_joystick(portnr+"RELEASE_Y");
+        }
+
+        wasm_joystick(portnr + (v_fire._pressed?"PRESS_FIRE":"RELEASE_FIRE"));
+
+    } catch (error) {
+        console.error("error while handle_touch: "+ error);        
     }
 }
 
@@ -682,14 +730,29 @@ function InitWrappers() {
 
     }
 
+
+
+
+    v_joystick=null;
+    v_fire=null;
+
     document.getElementById('port1').onchange = function() {
-        port1 = document.getElementById('port1').value;
+        port1 = document.getElementById('port1').value; 
         if(port1 == port2)
         {
             port2 = 'none';
             document.getElementById('port2').value = 'none';
         }
         document.getElementById('canvas').focus();
+
+        if(v_joystick == null && port1 == 'touch')
+        {
+            register_v_joystick();
+        }
+        if(port1 != 'touch' && port2 != 'touch')
+        {
+            unregister_v_joystick();
+        }
     }
     document.getElementById('port2').onchange = function() {
         port2 = document.getElementById('port2').value;
@@ -699,6 +762,15 @@ function InitWrappers() {
             document.getElementById('port1').value = 'none';
         }
         document.getElementById('canvas').focus();
+
+        if(v_joystick == null && port2 == 'touch')
+        {
+            register_v_joystick();
+        }
+        if(port1 != 'touch' && port2 != 'touch')
+        {
+            unregister_v_joystick();
+        }
     }
 
 
@@ -766,7 +838,6 @@ function InitWrappers() {
     });
 
     scaleVMCanvas();
-   
     return;
   /*  if(window.matchMedia("(max-width: 767px)").matches){
         // The viewport is less than 768 pixels wide
@@ -842,3 +913,44 @@ function scaleVMCanvas() {
 
     };
 
+
+
+    function register_v_joystick()
+    {
+        v_joystick	= new VirtualJoystick({
+            container	: document.getElementById('div_canvas'),
+            mouseSupport	: true,
+            strokeStyle	: 'white'
+        });
+        v_joystick.addEventListener('touchStartValidation', function(event){
+            var touch	= event.changedTouches[0];
+            return touch.pageX < window.innerWidth/2;
+        });
+       
+        // one on the right of the screen
+        v_fire	= new VirtualJoystick({
+            container	: document.getElementById('div_canvas'),
+            strokeStyle	: 'red',
+            limitStickTravel: true,
+            stickRadius	: 0,
+            mouseSupport	: true		
+        });
+        v_fire.addEventListener('touchStartValidation', function(event){
+            var touch	= event.changedTouches[0];
+            return touch.pageX >= window.innerWidth/2;
+        });
+    }
+
+    function unregister_v_joystick()
+    {   
+        if(v_joystick != null)
+        {
+            v_joystick.destroy();
+            v_joystick=null;
+        }
+        if(v_fire != null)
+        {
+            v_fire.destroy();
+            v_fire=null;
+        }
+    }

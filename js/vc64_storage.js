@@ -5,9 +5,7 @@ function initDB() {
     alert("Error: " + event.reason.message);
   });
 
-
-  //indexedDB.deleteDatabase('vc64db');
-
+  
   let openReq =  indexedDB.open('vc64db', 2);
 
   openReq.onupgradeneeded = function (event){

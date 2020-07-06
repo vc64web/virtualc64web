@@ -38,7 +38,6 @@ publish:
 	rm -f  ../gh-pages/*.json
 	rm -f  ../gh-pages/index.html
 	cp vC64.* ../gh-pages
-	cp vC64*.js ../gh-pages
 	cp -r js ../gh-pages
 	cp -r css ../gh-pages
 	cp -r img ../gh-pages/

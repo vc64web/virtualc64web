@@ -19,7 +19,7 @@ https://github.com/dirkwhoffmann/vAmiga/issues/291
 * make 
 * make main
 * ./start.sh
-* open your browser and head to http://localhost:8080/vC64.html
+* open your browser and head to http://localhost:8080/
 
 _note_: start.sh starts an webserver with URL base path pointing to the folder where the build resides.
 

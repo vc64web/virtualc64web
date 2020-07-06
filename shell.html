@@ -17,9 +17,9 @@
   <link rel="stylesheet" href="css/vc64.css">
   <script src="js/jquery-3.5.0.min.js"></script>
   <script src="js/bootstrap.bundle.min.js"></script>
-  <script src="js/vC64Storage.js"></script>
-  <script src="vC64helper.js"></script>
-  <script src="vC64keymap.js"></script>
+  <script src="js/vC64ui.js"></script>
+  <script src="js/vC64storage.js"></script>
+  <script src="js/vC64keyboard.js"></script>
   <script src="js/virtualjoystick.js"></script>
 
     <style>
@@ -408,13 +408,26 @@
         }
       };
       Module.setStatus('Downloading...');
-      window.onerror = function() {
+      window.onerror = function(msg, url, lineNo, columnNo, error) {
+        var message = [
+          'Error-Message: ' + msg,
+          'URL: ' + url,
+          'Line: ' + lineNo,
+          'Column: ' + columnNo,
+          'Error object: ' + JSON.stringify(error)
+        ].join(' - ');
+        alert(message + " -- go to settings open live debug console ...");
+        document.getElementById('output').value += "\n"+ message + "\n";
+
         Module.setStatus('Exception thrown, see JavaScript console');
         spinnerElement.style.display = 'none';
         Module.setStatus = function(text) {
           if (text) Module.printErr('[post-exception status] ' + text);
         };
       };
+
+
+
 
       if('serviceWorker' in navigator){        
         navigator.serviceWorker.register('sw.js')

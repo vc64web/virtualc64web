@@ -97,10 +97,12 @@ void PrintEvent(const SDL_Event * event)
 
 int emu_width  = NTSC_PIXELS; //428
 int emu_height = PAL_RASTERLINES; //284
-int xOff = 12;
-int yOff = 12;
-int clipped_width  = NTSC_PIXELS -12 -24; //392
-int clipped_height = PAL_RASTERLINES -12 -24; //248
+int eat_border_width = 0;
+int eat_border_height = 0;
+int xOff = 12 + eat_border_width;
+int yOff = 12 + eat_border_height;
+int clipped_width  = NTSC_PIXELS -12 -24 -2*eat_border_width; //392
+int clipped_height = PAL_RASTERLINES -12 -24 -2*eat_border_height; //248
 
 int bFullscreen = false;
 
@@ -311,7 +313,7 @@ extern "C" void wasm_create_renderer(char* name)
   window = SDL_CreateWindow("",
    SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         clipped_width, clipped_height,
-        /*SDL_WINDOW_RESIZABLE*/ 0);
+        SDL_WINDOW_RESIZABLE);
 
   if(0==strcmp("webgl", name))
   {
@@ -568,39 +570,11 @@ extern "C" size_t wasm_pull_user_snapshot_file_size(unsigned nr)
 }
 
 
-
-extern "C" Uint8 *wasm_pull_user_snapshot(unsigned nr)
-{
-  printf("wasm_pull_user_snapshot nr=%u\n", nr);
-  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
-  return snapshot->getImageData();
-}
-
-extern "C" unsigned wasm_user_snapshot_width(unsigned nr)
-{
-  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
-  return snapshot->getImageWidth();
-}
-extern "C" unsigned wasm_user_snapshot_height(unsigned nr)
-{
-  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
-  return snapshot->getImageHeight();
-}
-
-extern "C" size_t wasm_user_snapshots_count()
-{
-  return wrapper->c64->numUserSnapshots();
-}
-
 extern "C" void wasm_take_user_snapshot()
 {
   wrapper->c64->takeUserSnapshot();
 }
 
-extern "C" void wasm_restore_user_snapshot(unsigned nr)
-{
-  wrapper->c64->restoreUserSnapshot(nr);
-}
 
 extern "C" void wasm_restore_auto_snapshot(unsigned nr)
 {
@@ -648,6 +622,35 @@ extern "C" void wasm_set_warp(long on)
   wrapper->c64->setWarpLoad(on == 1);
 }
 
+
+extern "C" void wasm_set_borderless(long on)
+{
+  //wrapper->c64->setWarpLoad(on == 1);
+  printf("load wasm_set_borderless=%ld\n", on);
+
+  //NTSC_PIXEL=428
+  //PAL_RASTERLINES=284 
+
+
+  eat_border_width = on*33;
+  xOff = 12 + eat_border_width;
+  clipped_width  = NTSC_PIXELS -12 -24 -2*eat_border_width; //392
+//428-12-24-2*33 =326
+
+
+
+  eat_border_height = on*22;
+  yOff = 11 + eat_border_height;
+  clipped_height = PAL_RASTERLINES -11 -24 -2*eat_border_height; //248
+//284-11-24-2*22=205
+ 
+
+
+  SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);
+  SDL_RenderSetLogicalSize(renderer, clipped_width, clipped_height); 
+  SDL_SetWindowSize(window, clipped_width, clipped_height);
+
+}
 
 extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 {

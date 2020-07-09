@@ -443,6 +443,20 @@ borderless_switch.change( function() {
 
 
 //------
+
+wide_screen_switch = $('#wide_screen_switch');
+use_wide_screen=load_setting('widescreen', false);
+wide_screen_switch.prop('checked', use_wide_screen);
+wide_screen_switch.change( function() {
+    use_wide_screen  = this.checked;
+    save_setting('widescreen', this.checked);
+    scaleVMCanvas();
+});
+
+
+//------
+
+
     live_debug_output=load_setting('live_debug_output', false);
     $("#cb_debug_output").prop('checked', live_debug_output);
     if(live_debug_output)
@@ -888,7 +902,14 @@ function scaleVMCanvas() {
         else
         {
             //alles was größer als 1.6
-            $("#canvas").css("width", Math.round((window.innerHeight*src_ratio)) +'px');
+            if(use_wide_screen)
+            {
+                $("#canvas").css("width", "100%"); 
+            }
+            else
+            {
+                 $("#canvas").css("width", Math.round((window.innerHeight*src_ratio)) +'px');
+            }
             $("#canvas").css("height", "100%"); 
         }
 

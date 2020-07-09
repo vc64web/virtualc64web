@@ -632,16 +632,16 @@ extern "C" void wasm_set_borderless(long on)
   //PAL_RASTERLINES=284 
 
 
-  eat_border_width = on*33;
+  eat_border_width = on*35;
   xOff = 12 + eat_border_width;
   clipped_width  = NTSC_PIXELS -12 -24 -2*eat_border_width; //392
 //428-12-24-2*33 =326
 
 
 
-  eat_border_height = on*22;
-  yOff = 11 + eat_border_height;
-  clipped_height = PAL_RASTERLINES -11 -24 -2*eat_border_height; //248
+  eat_border_height = on*24;
+  yOff = 10 + eat_border_height;
+  clipped_height = PAL_RASTERLINES -10 -24 -2*eat_border_height; //248
 //284-11-24-2*22=205
  
 

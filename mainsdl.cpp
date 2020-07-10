@@ -242,7 +242,7 @@ void draw_one_frame_into_SDL(void *thisC64)
   //lost the sync
   if(targetFrameCount-total_executed_frame_count > max_gap)
   {
-//      printf("lost sync target=%llu, total_executed=%llu\n", targetFrameCount, total_executed_frame_count);
+      printf("lost sync target=%llu, total_executed=%llu\n", targetFrameCount, total_executed_frame_count);
       //reset timer
       //because we are out of sync, we do now skip max_gap-1 emulation frames 
       start_time=now;
@@ -254,7 +254,7 @@ void draw_one_frame_into_SDL(void *thisC64)
   { 
     double passed_time= now - last_time;
     last_time = now;
- //   printf("time[ms]=%lf, audio samples=%d, frames [executed=%u, rendered=%u]\n", passed_time, sum_samples, executed_frame_count, rendered_frame_count);
+    printf("time[ms]=%lf, audio samples=%d, frames [executed=%u, rendered=%u]\n", passed_time, sum_samples, executed_frame_count, rendered_frame_count);
     sum_samples=0;
     rendered_frame_count=0;
     executed_frame_count=0;
@@ -444,7 +444,7 @@ class C64Wrapper {
     c64->loadRom("roms/1541-II.251968-03.bin");
     printf("wrapper calls run on c64->run() method\n");
 
-    c64->setTakeAutoSnapshots(true);
+    //c64->setTakeAutoSnapshots(false);
     //c64->setWarpLoad(true);
     c64->vic.emulateGrayDotBug=false;
  //   c64->dump();
@@ -576,6 +576,12 @@ extern "C" void wasm_take_user_snapshot()
 }
 
 
+
+extern "C" void wasm_set_take_auto_snapshots(unsigned enable)
+{
+  wrapper->c64->setTakeAutoSnapshots(enable == 1);
+}
+
 extern "C" void wasm_restore_auto_snapshot(unsigned nr)
 {
   wrapper->c64->restoreAutoSnapshot(nr);
@@ -617,35 +623,27 @@ extern "C" void wasm_resume_auto_snapshots()
 
 
 
-extern "C" void wasm_set_warp(long on)
+extern "C" void wasm_set_warp(unsigned on)
 {
   wrapper->c64->setWarpLoad(on == 1);
 }
 
 
-extern "C" void wasm_set_borderless(long on)
+extern "C" void wasm_set_borderless(unsigned on)
 {
-  //wrapper->c64->setWarpLoad(on == 1);
-  printf("load wasm_set_borderless=%ld\n", on);
-
   //NTSC_PIXEL=428
   //PAL_RASTERLINES=284 
-
 
   eat_border_width = on*35;
   xOff = 12 + eat_border_width;
   clipped_width  = NTSC_PIXELS -12 -24 -2*eat_border_width; //392
 //428-12-24-2*33 =326
 
-
-
   eat_border_height = on*24;
   yOff = 10 + eat_border_height;
   clipped_height = PAL_RASTERLINES -10 -24 -2*eat_border_height; //248
 //284-11-24-2*22=205
  
-
-
   SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);
   SDL_RenderSetLogicalSize(renderer, clipped_width, clipped_height); 
   SDL_SetWindowSize(window, clipped_width, clipped_height);

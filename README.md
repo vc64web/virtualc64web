@@ -15,7 +15,7 @@ https://github.com/dirkwhoffmann/vAmiga/issues/291
 * install [emsdk](https://emscripten.org/docs/getting_started/downloads.html) 
 * clone this repository into a folder 
 * cd into that folder
-* copy c64-roms (four .bin files) into subfolder roms
+* copy c64-roms (four .bin files) into subfolder roms (this is optional ... roms can be loaded into emulator while running)
 * make 
 * make main
 * ./start.sh

@@ -176,6 +176,7 @@ function keyup(e) {
 
 timestampjoy1 = null;
 timestampjoy2 = null;
+last_touch_cmd = null;
 /* callback for wasm mainsdl.cpp */
 function draw_one_frame()
 {
@@ -221,35 +222,42 @@ function handle_touch(portnr)
     if(v_joystick == null || v_fire == null)
         return;
     try {
-
+        var new_touch_cmd_x = "";
         if(v_joystick.right())
         {
-            wasm_joystick(portnr+"PULL_RIGHT");
+            new_touch_cmd_x = "PULL_RIGHT";
         }
         else if(v_joystick.left())
         {
-            wasm_joystick(portnr+"PULL_LEFT");
+            new_touch_cmd_x = "PULL_LEFT";
         }
         else
         {
-            wasm_joystick(portnr+"RELEASE_X");
+            new_touch_cmd_x = "RELEASE_X";
         }
 
+        var new_touch_cmd_y = "";
         if(v_joystick.up())
         {
-            wasm_joystick(portnr+"PULL_UP");
+            new_touch_cmd_y = "PULL_UP";
         }
         else if(v_joystick.down())
         {
-            wasm_joystick(portnr+"PULL_DOWN");
+            new_touch_cmd_y = "PULL_DOWN";
         }
         else
         {
-            wasm_joystick(portnr+"RELEASE_Y");
+            new_touch_cmd_y ="RELEASE_Y";
         }
-
-        wasm_joystick(portnr + (v_fire._pressed?"PRESS_FIRE":"RELEASE_FIRE"));
-
+        var new_fire = (v_fire._pressed?"PRESS_FIRE":"RELEASE_FIRE");
+        var new_touch_cmd = portnr + new_touch_cmd_x + new_touch_cmd_y + new_fire;
+        if( last_touch_cmd != new_touch_cmd)
+        {
+            last_touch_cmd = new_touch_cmd;
+            wasm_joystick(portnr+new_touch_cmd_x);
+            wasm_joystick(portnr+new_touch_cmd_y);
+            wasm_joystick(portnr+new_fire);
+        }
     } catch (error) {
         console.error("error while handle_touch: "+ error);        
     }
@@ -503,13 +511,14 @@ wide_screen_switch.change( function() {
     */
     document.getElementById('button_reset').onclick = function() {
         wasm_reset();
-        document.getElementById('canvas').focus();
+        //document.getElementById('canvas').focus();
+        //alert('reset');
     }
     $("#button_halt").click(function() {
         wasm_halt();
         $('#button_halt').prop('disabled', 'true');
         $('#button_run').removeAttr('disabled');
-        document.getElementById('canvas').focus();
+        //document.getElementById('canvas').focus();
     });
     $("#button_run").click(function() {
         //have to catch an intentional "unwind" exception here, which is thrown
@@ -518,7 +527,7 @@ wide_screen_switch.change( function() {
         try{wasm_run();} catch(e) {}
         $('#button_run').prop('disabled', 'true');
         $('#button_halt').removeAttr('disabled');
-        document.getElementById('canvas').focus();
+        //document.getElementById('canvas').focus();
     });
 
 
@@ -550,7 +559,7 @@ wide_screen_switch.change( function() {
         save_snapshot(app_name, snapshot_buffer.slice(0,size));
    
         $("#modal_take_snapshot").modal('hide');
-        document.getElementById('canvas').focus();
+        //document.getElementById('canvas').focus();
     });
 
     document.getElementById('button_update').onclick = function() 
@@ -755,7 +764,7 @@ wide_screen_switch.change( function() {
             port2 = 'none';
             document.getElementById('port2').value = 'none';
         }
-        document.getElementById('canvas').focus();
+        //document.getElementById('canvas').focus();
 
         if(v_joystick == null && port1 == 'touch')
         {
@@ -773,7 +782,7 @@ wide_screen_switch.change( function() {
             port1 = 'none';
             document.getElementById('port1').value = 'none';
         }
-        document.getElementById('canvas').focus();
+        //document.getElementById('canvas').focus();
 
         if(v_joystick == null && port2 == 'touch')
         {

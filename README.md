@@ -37,6 +37,7 @@ _note_: start.sh starts an webserver with URL base path pointing to the folder w
 * virtual joystick for touch screen devices
 
 ## next goals
+* free positional custom keys as button overlays which trigger an action script
 * cleanup and refactoring of the UI javascript code
 * new  modern boot sequence/animation  replacing the standard emscripten visual boot code 
 * javascript interface for settings of the emulation like (greydotbugemulation, autosnapshots) 

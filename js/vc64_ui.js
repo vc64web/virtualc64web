@@ -176,6 +176,7 @@ function keyup(e) {
 
 timestampjoy1 = null;
 timestampjoy2 = null;
+last_touch_cmd = null;
 /* callback for wasm mainsdl.cpp */
 function draw_one_frame()
 {
@@ -221,35 +222,42 @@ function handle_touch(portnr)
     if(v_joystick == null || v_fire == null)
         return;
     try {
-
+        var new_touch_cmd_x = "";
         if(v_joystick.right())
         {
-            wasm_joystick(portnr+"PULL_RIGHT");
+            new_touch_cmd_x = "PULL_RIGHT";
         }
         else if(v_joystick.left())
         {
-            wasm_joystick(portnr+"PULL_LEFT");
+            new_touch_cmd_x = "PULL_LEFT";
         }
         else
         {
-            wasm_joystick(portnr+"RELEASE_X");
+            new_touch_cmd_x = "RELEASE_X";
         }
 
+        var new_touch_cmd_y = "";
         if(v_joystick.up())
         {
-            wasm_joystick(portnr+"PULL_UP");
+            new_touch_cmd_y = "PULL_UP";
         }
         else if(v_joystick.down())
         {
-            wasm_joystick(portnr+"PULL_DOWN");
+            new_touch_cmd_y = "PULL_DOWN";
         }
         else
         {
-            wasm_joystick(portnr+"RELEASE_Y");
+            new_touch_cmd_y ="RELEASE_Y";
         }
-
-        wasm_joystick(portnr + (v_fire._pressed?"PRESS_FIRE":"RELEASE_FIRE"));
-
+        var new_fire = (v_fire._pressed?"PRESS_FIRE":"RELEASE_FIRE");
+        var new_touch_cmd = portnr + new_touch_cmd_x + new_touch_cmd_y + new_fire;
+        if( last_touch_cmd != new_touch_cmd)
+        {
+            last_touch_cmd = new_touch_cmd;
+            wasm_joystick(portnr+new_touch_cmd_x);
+            wasm_joystick(portnr+new_touch_cmd_y);
+            wasm_joystick(portnr+new_fire);
+        }
     } catch (error) {
         console.error("error while handle_touch: "+ error);        
     }
@@ -320,24 +328,22 @@ function InitWrappers() {
     wasm_halt = Module.cwrap('wasm_halt', 'undefined');
     wasm_run = Module.cwrap('wasm_run', 'undefined');
     wasm_take_user_snapshot = Module.cwrap('wasm_take_user_snapshot', 'undefined');
-    wasm_pull_user_snapshot = Module.cwrap('wasm_pull_user_snapshot', 'number', ['number']);
     wasm_pull_user_snapshot_file = Module.cwrap('wasm_pull_user_snapshot_file', 'number', ['number']);
     wasm_pull_user_snapshot_file_size = Module.cwrap('wasm_pull_user_snapshot_file_size', 'number', ['number']);
 
-
-    wasm_user_snapshot_width = Module.cwrap('wasm_user_snapshot_width', 'number', ['number']);
-    wasm_user_snapshot_height = Module.cwrap('wasm_user_snapshot_height', 'number', ['number']);
-    wasm_user_snapshots_count = Module.cwrap('wasm_user_snapshots_count', 'number');
     wasm_pull_auto_snapshot = Module.cwrap('wasm_pull_auto_snapshot', 'number', ['number']);
     wasm_auto_snapshot_width = Module.cwrap('wasm_auto_snapshot_width', 'number', ['number']);
     wasm_auto_snapshot_height = Module.cwrap('wasm_auto_snapshot_height', 'number', ['number']);
     wasm_auto_snapshots_count = Module.cwrap('wasm_auto_snapshots_count', 'number');
-    wasm_restore_user_snapshot = Module.cwrap('wasm_restore_user_snapshot', 'undefined', ['number']);
     wasm_restore_auto_snapshot = Module.cwrap('wasm_restore_auto_snapshot', 'undefined', ['number']);
     wasm_suspend_auto_snapshots = Module.cwrap('wasm_suspend_auto_snapshots', 'undefined');
     wasm_resume_auto_snapshots = Module.cwrap('wasm_resume_auto_snapshots', 'undefined');
+    wasm_set_take_auto_snapshots = Module.cwrap('wasm_set_take_auto_snapshots', 'undefined', ['number']);
+
     wasm_create_renderer =  Module.cwrap('wasm_create_renderer', 'undefined', ['string']);
     wasm_set_warp = Module.cwrap('wasm_set_warp', 'undefined', ['number']);
+    wasm_set_borderless = Module.cwrap('wasm_set_borderless', 'undefined', ['number']);
+
     dark_switch = document.getElementById('dark_switch');
 
     loadTheme();
@@ -434,6 +440,41 @@ function InitWrappers() {
         save_setting('pixel_art', this.checked);
         set_pixel_art(this.checked);
     });
+//--------
+
+borderless_switch = $('#borderless_switch');
+var use_borderless=load_setting('borderless', false);
+borderless_switch.prop('checked', use_borderless);
+wasm_set_borderless(use_borderless ? 1:0);
+borderless_switch.change( function() {
+    wasm_set_borderless(this.checked ? 1:0);
+    save_setting('borderless', this.checked);
+});
+
+//------
+
+auto_snapshot_switch = $('#auto_snapshot_switch');
+var take_auto_snapshots=load_setting('auto_snapshot_switch', true);
+auto_snapshot_switch.prop('checked', take_auto_snapshots);
+wasm_set_take_auto_snapshots(take_auto_snapshots ? 1:0);
+auto_snapshot_switch.change( function() {
+    wasm_set_take_auto_snapshots(this.checked ? 1:0);
+    save_setting('auto_snapshot_switch', this.checked);
+});
+
+//------
+
+wide_screen_switch = $('#wide_screen_switch');
+use_wide_screen=load_setting('widescreen', false);
+wide_screen_switch.prop('checked', use_wide_screen);
+wide_screen_switch.change( function() {
+    use_wide_screen  = this.checked;
+    save_setting('widescreen', this.checked);
+    scaleVMCanvas();
+});
+
+
+//------
 
 
     live_debug_output=load_setting('live_debug_output', false);
@@ -470,13 +511,14 @@ function InitWrappers() {
     */
     document.getElementById('button_reset').onclick = function() {
         wasm_reset();
-        document.getElementById('canvas').focus();
+        //document.getElementById('canvas').focus();
+        //alert('reset');
     }
     $("#button_halt").click(function() {
         wasm_halt();
         $('#button_halt').prop('disabled', 'true');
         $('#button_run').removeAttr('disabled');
-        document.getElementById('canvas').focus();
+        //document.getElementById('canvas').focus();
     });
     $("#button_run").click(function() {
         //have to catch an intentional "unwind" exception here, which is thrown
@@ -485,7 +527,7 @@ function InitWrappers() {
         try{wasm_run();} catch(e) {}
         $('#button_run').prop('disabled', 'true');
         $('#button_halt').removeAttr('disabled');
-        document.getElementById('canvas').focus();
+        //document.getElementById('canvas').focus();
     });
 
 
@@ -517,7 +559,7 @@ function InitWrappers() {
         save_snapshot(app_name, snapshot_buffer.slice(0,size));
    
         $("#modal_take_snapshot").modal('hide');
-        document.getElementById('canvas').focus();
+        //document.getElementById('canvas').focus();
     });
 
     document.getElementById('button_update').onclick = function() 
@@ -707,27 +749,6 @@ function InitWrappers() {
             copy_snapshot_to_canvas(snapshot_ptr, c, width, height);
         }
 
-        if(internal_usersnapshots_enabled)
-        {
-            for(var z=0; z<ucount; z++)
-            {
-                var c = document.getElementById("canvas_snap_u"+z);
-                
-                c.onclick = function() {
-                    let nr = this.id.match(/[a-z_]*(.*)/)[1];;
-                //    alert('restore user nr'+nr);
-                    wasm_restore_user_snapshot(nr);
-                }
-
-                snapshot_ptr = wasm_pull_user_snapshot(z);
-                
-                var width=wasm_user_snapshot_width(z);
-                var height=wasm_user_snapshot_height(z);
-
-                copy_snapshot_to_canvas(snapshot_ptr, c, width, height);            
-            }
-        }
-
     }
 
 
@@ -743,7 +764,7 @@ function InitWrappers() {
             port2 = 'none';
             document.getElementById('port2').value = 'none';
         }
-        document.getElementById('canvas').focus();
+        //document.getElementById('canvas').focus();
 
         if(v_joystick == null && port1 == 'touch')
         {
@@ -761,7 +782,7 @@ function InitWrappers() {
             port1 = 'none';
             document.getElementById('port1').value = 'none';
         }
-        document.getElementById('canvas').focus();
+        //document.getElementById('canvas').focus();
 
         if(v_joystick == null && port2 == 'touch')
         {
@@ -870,8 +891,8 @@ function setTheme() {
   
 
 function scaleVMCanvas() {
-        var src_width=428;
-        var src_height=284;
+        var src_width=428 -2*33;
+        var src_height=284 -2*22;
         var src_ratio = src_width/src_height; //1.6  kehrwert=0.625
         var inv_src_ratio = src_height/src_width;
         var wratio = window.innerWidth / window.innerHeight;
@@ -902,7 +923,14 @@ function scaleVMCanvas() {
         else
         {
             //alles was größer als 1.6
-            $("#canvas").css("width", Math.round((window.innerHeight*src_ratio)) +'px');
+            if(use_wide_screen)
+            {
+                $("#canvas").css("width", "100%"); 
+            }
+            else
+            {
+                 $("#canvas").css("width", Math.round((window.innerHeight*src_ratio)) +'px');
+            }
             $("#canvas").css("height", "100%"); 
         }
 

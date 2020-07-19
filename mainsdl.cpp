@@ -97,10 +97,12 @@ void PrintEvent(const SDL_Event * event)
 
 int emu_width  = NTSC_PIXELS; //428
 int emu_height = PAL_RASTERLINES; //284
-int xOff = 12;
-int yOff = 12;
-int clipped_width  = NTSC_PIXELS -12 -24; //392
-int clipped_height = PAL_RASTERLINES -12 -24; //248
+int eat_border_width = 0;
+int eat_border_height = 0;
+int xOff = 12 + eat_border_width;
+int yOff = 12 + eat_border_height;
+int clipped_width  = NTSC_PIXELS -12 -24 -2*eat_border_width; //392
+int clipped_height = PAL_RASTERLINES -12 -24 -2*eat_border_height; //248
 
 int bFullscreen = false;
 
@@ -198,7 +200,7 @@ int eventFilter(void* thisC64, SDL_Event* event) {
 int sum_samples=0;
 double last_time = 0.0 ;
 unsigned int executed_frame_count=0;
-uint64_t total_executed_frame_count=0;
+int64_t total_executed_frame_count=0;
 double start_time=emscripten_get_now();
 unsigned int rendered_frame_count=0;
 // The emscripten "main loop" replacement function.
@@ -216,9 +218,9 @@ void draw_one_frame_into_SDL(void *thisC64)
   double now = emscripten_get_now();  
  
   double elapsedTimeInSeconds = (now - start_time)/1000.0;
-  uint64_t targetFrameCount = (uint64_t)(elapsedTimeInSeconds * 50.125);
+  int64_t targetFrameCount = (int64_t)(elapsedTimeInSeconds * 50.125);
  
-  unsigned int max_gap = 8;
+  int max_gap = 8;
 
 
   C64 *c64 = (C64 *)thisC64;
@@ -240,7 +242,7 @@ void draw_one_frame_into_SDL(void *thisC64)
   //lost the sync
   if(targetFrameCount-total_executed_frame_count > max_gap)
   {
-//      printf("lost sync target=%llu, total_executed=%llu\n", targetFrameCount, total_executed_frame_count);
+      printf("lost sync target=%lld, total_executed=%lld\n", targetFrameCount, total_executed_frame_count);
       //reset timer
       //because we are out of sync, we do now skip max_gap-1 emulation frames 
       start_time=now;
@@ -252,7 +254,7 @@ void draw_one_frame_into_SDL(void *thisC64)
   { 
     double passed_time= now - last_time;
     last_time = now;
- //   printf("time[ms]=%lf, audio samples=%d, frames [executed=%u, rendered=%u]\n", passed_time, sum_samples, executed_frame_count, rendered_frame_count);
+    printf("time[ms]=%lf, audio_samples=%d, frames [executed=%u, rendered=%u]\n", passed_time, sum_samples, executed_frame_count, rendered_frame_count);
     sum_samples=0;
     rendered_frame_count=0;
     executed_frame_count=0;
@@ -311,7 +313,7 @@ extern "C" void wasm_create_renderer(char* name)
   window = SDL_CreateWindow("",
    SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         clipped_width, clipped_height,
-        /*SDL_WINDOW_RESIZABLE*/ 0);
+        SDL_WINDOW_RESIZABLE);
 
   if(0==strcmp("webgl", name))
   {
@@ -442,12 +444,13 @@ class C64Wrapper {
     c64->loadRom("roms/1541-II.251968-03.bin");
     printf("wrapper calls run on c64->run() method\n");
 
-    c64->setTakeAutoSnapshots(true);
+    //c64->setTakeAutoSnapshots(false);
     //c64->setWarpLoad(true);
     c64->vic.emulateGrayDotBug=false;
  //   c64->dump();
  //   c64->drive1.dump();
- //   c64->sid.setDebugLevel(2);
+    c64->setDebugLevel(2);
+    c64->sid.setDebugLevel(4);
  //   c64->drive1.setDebugLevel(3);
     c64->run();
     printf("after run ...\n");
@@ -568,38 +571,16 @@ extern "C" size_t wasm_pull_user_snapshot_file_size(unsigned nr)
 }
 
 
-
-extern "C" Uint8 *wasm_pull_user_snapshot(unsigned nr)
-{
-  printf("wasm_pull_user_snapshot nr=%u\n", nr);
-  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
-  return snapshot->getImageData();
-}
-
-extern "C" unsigned wasm_user_snapshot_width(unsigned nr)
-{
-  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
-  return snapshot->getImageWidth();
-}
-extern "C" unsigned wasm_user_snapshot_height(unsigned nr)
-{
-  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
-  return snapshot->getImageHeight();
-}
-
-extern "C" size_t wasm_user_snapshots_count()
-{
-  return wrapper->c64->numUserSnapshots();
-}
-
 extern "C" void wasm_take_user_snapshot()
 {
   wrapper->c64->takeUserSnapshot();
 }
 
-extern "C" void wasm_restore_user_snapshot(unsigned nr)
+
+
+extern "C" void wasm_set_take_auto_snapshots(unsigned enable)
 {
-  wrapper->c64->restoreUserSnapshot(nr);
+  wrapper->c64->setTakeAutoSnapshots(enable == 1);
 }
 
 extern "C" void wasm_restore_auto_snapshot(unsigned nr)
@@ -643,11 +624,32 @@ extern "C" void wasm_resume_auto_snapshots()
 
 
 
-extern "C" void wasm_set_warp(long on)
+extern "C" void wasm_set_warp(unsigned on)
 {
   wrapper->c64->setWarpLoad(on == 1);
 }
 
+
+extern "C" void wasm_set_borderless(unsigned on)
+{
+  //NTSC_PIXEL=428
+  //PAL_RASTERLINES=284 
+
+  eat_border_width = on*35;
+  xOff = 12 + eat_border_width;
+  clipped_width  = NTSC_PIXELS -12 -24 -2*eat_border_width; //392
+//428-12-24-2*33 =326
+
+  eat_border_height = on*24;
+  yOff = 10 + eat_border_height;
+  clipped_height = PAL_RASTERLINES -10 -24 -2*eat_border_height; //248
+//284-11-24-2*22=205
+ 
+  SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);
+  SDL_RenderSetLogicalSize(renderer, clipped_width, clipped_height); 
+  SDL_SetWindowSize(window, clipped_width, clipped_height);
+
+}
 
 extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 {

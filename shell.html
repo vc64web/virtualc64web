@@ -362,6 +362,8 @@
           var element = document.getElementById('output');
           if (element) element.value = ''; // clear browser cache
           return function(text) {
+            console.log(text);
+
             if(!live_debug_output)
             return;
 
@@ -371,7 +373,6 @@
             //text = text.replace(/</g, "&lt;");
             //text = text.replace(/>/g, "&gt;");
             //text = text.replace('\n', '<br>', 'g');
-            console.log(text);
             if (element) {
               element.value += text + "\n";
               element.scrollTop = element.scrollHeight; // focus on bottom

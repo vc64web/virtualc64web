@@ -200,7 +200,7 @@ int eventFilter(void* thisC64, SDL_Event* event) {
 int sum_samples=0;
 double last_time = 0.0 ;
 unsigned int executed_frame_count=0;
-uint64_t total_executed_frame_count=0;
+int64_t total_executed_frame_count=0;
 double start_time=emscripten_get_now();
 unsigned int rendered_frame_count=0;
 // The emscripten "main loop" replacement function.
@@ -218,9 +218,9 @@ void draw_one_frame_into_SDL(void *thisC64)
   double now = emscripten_get_now();  
  
   double elapsedTimeInSeconds = (now - start_time)/1000.0;
-  uint64_t targetFrameCount = (uint64_t)(elapsedTimeInSeconds * 50.125);
+  int64_t targetFrameCount = (int64_t)(elapsedTimeInSeconds * 50.125);
  
-  unsigned int max_gap = 8;
+  int max_gap = 8;
 
 
   C64 *c64 = (C64 *)thisC64;
@@ -242,7 +242,7 @@ void draw_one_frame_into_SDL(void *thisC64)
   //lost the sync
   if(targetFrameCount-total_executed_frame_count > max_gap)
   {
-      printf("lost sync target=%llu, total_executed=%llu\n", targetFrameCount, total_executed_frame_count);
+      printf("lost sync target=%lld, total_executed=%lld\n", targetFrameCount, total_executed_frame_count);
       //reset timer
       //because we are out of sync, we do now skip max_gap-1 emulation frames 
       start_time=now;
@@ -254,7 +254,7 @@ void draw_one_frame_into_SDL(void *thisC64)
   { 
     double passed_time= now - last_time;
     last_time = now;
-    printf("time[ms]=%lf, audio samples=%d, frames [executed=%u, rendered=%u]\n", passed_time, sum_samples, executed_frame_count, rendered_frame_count);
+    printf("time[ms]=%lf, audio_samples=%d, frames [executed=%u, rendered=%u]\n", passed_time, sum_samples, executed_frame_count, rendered_frame_count);
     sum_samples=0;
     rendered_frame_count=0;
     executed_frame_count=0;

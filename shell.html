@@ -349,6 +349,39 @@
     <!--take snapshot modal-->
 
 
+    <!-- custom key modal--->
+    <div class="modal fade" id="modal_custom_key" tabindex="-1" role="dialog" aria-labelledby="custom_key_ModalLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="custom_key_ModalLabel">define a custom key</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="input-group mb-3">
+              <div class="input-group-prepend">
+                <span class="input-group-text" id="inputGroup-sizing-default">app title</span>
+              </div>
+              <input id="input_custom_key" type="text" class="form-control" aria-label="Sizing example input" aria-describedby="inputGroup-sizing-default"
+              data-toggle="tooltip" data-placement="right" title="store in a snapshot browser row dedicated for this app title"
+              >
+            </div>
+            
+          </div>
+          <div class="modal-footer">
+            <button type="button" id="button_save_snapshot" class="btn btn-primary">save</button>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--custom key modal-->
+
+
+
+
     <script type='text/javascript'>
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');

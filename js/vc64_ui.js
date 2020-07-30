@@ -612,20 +612,6 @@ wide_screen_switch.change( function() {
 
         $('#container_snapshots').append(the_grid);
 
-
-        if(internal_usersnapshots_enabled)
-        {
-            the_grid="";
-            var ucount = wasm_user_snapshots_count();
-            the_grid+='<div class="row" data-toggle="tooltip" data-placement="left" title="user snapshots">';
-            for(var z=0; z<ucount; z++)
-            {
-                the_grid += renderSnapshot('u'+z);
-            }
-            the_grid+='</div>';
-            $('#container_snapshots').append(the_grid);
-        }
-
 //--- indexeddb snaps
         var render_persistent_snapshot=function(the_id){
             var x_icon = '<svg width="1.8em" height="auto" viewBox="0 0 16 16" class="bi bi-x" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M11.854 4.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708-.708l7-7a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M4.146 4.146a.5.5 0 0 0 0 .708l7 7a.5.5 0 0 0 .708-.708l-7-7a.5.5 0 0 0-.708 0z"/></svg>';
@@ -751,9 +737,6 @@ wide_screen_switch.change( function() {
 
     }
 
-
-
-
     v_joystick=null;
     v_fire=null;
 
@@ -859,18 +842,153 @@ wide_screen_switch.change( function() {
     });
 
     scaleVMCanvas();
-    return;
-  /*  if(window.matchMedia("(max-width: 767px)").matches){
-        // The viewport is less than 768 pixels wide
-        $("#canvas").css("width", "95%");
-    } else{
-        // The viewport is at least 768 pixels wide
-        $("#canvas").css("width", "75%");
 
+
+    var bEnableCustomKeys = false;
+    if(bEnableCustomKeys)
+    {
+        //----- custom keys
+        $('#div_canvas').append('<button id="ck1" style="position:absolute;left:10%;top:10%;opacity:0.5">button</button>');
+        $('#ck1').click(function() 
+        {       
+            var c64code = translateKey("undef", "z");
+            if(c64code !== undefined)
+                wasm_key(c64code[0], c64code[1], 1);
+            setTimeout(function() {wasm_key(c64code[0], c64code[1], 0);}, 15);
+        });
+
+        $('#div_canvas').append('<button id="ck2" style="position:absolute;left:90%;top:90%;opacity:0.5">button</button>');
+        $('#ck2').click(function() 
+        {       
+            var c64code = translateKey("undef", "y");
+            if(c64code !== undefined)
+                wasm_key(c64code[0], c64code[1], 1);
+            setTimeout(function() {wasm_key(c64code[0], c64code[1], 0);}, 15);
+        });
+        //----- 
+        install_drag();
     }
-    */
+    return;
+  
 }
 
+//---- start custom keys ------
+
+    function install_drag()
+    {
+        dragItems = [document.querySelector("#ck1"),document.querySelector("#ck2")];
+        dragItem  = null;
+        container = document.querySelector("#div_canvas");
+
+        active = false;
+        currentX=0;
+        currentY=0;
+        initialX=0;
+        initialY=0;
+    
+        xOffset = { };
+        yOffset = { };
+
+        container.addEventListener("touchstart", dragStart, false);
+        container.addEventListener("touchend", dragEnd, false);
+        container.addEventListener("touchmove", drag, false);
+
+        container.addEventListener("mousedown", dragStart, false);
+        container.addEventListener("mouseup", dragEnd, false);
+        container.addEventListener("mousemove", drag, false);
+    }
+
+
+    function dragStart(e) {
+      if (dragItems.includes(e.target)) {  
+        dragItem = e.target;
+        active = true;
+        haptic_active=false;
+        timeStart = Date.now(); 
+
+        if(xOffset[e.target.id] === undefined)
+        {
+            xOffset[e.target.id] = 0;
+            yOffset[e.target.id] = 0;
+        }
+        currentX = xOffset[e.target.id];
+        currentY = yOffset[e.target.id];
+        startX = currentX;
+        startY = currentY;        
+
+        
+        setTimeout(() => {
+            checkForHapticTouch(e);
+        }, 600);
+        
+
+        if (e.type === "touchstart") {
+            initialX = e.touches[0].clientX - xOffset[e.target.id];
+            initialY = e.touches[0].clientY - yOffset[e.target.id];
+        } else {
+            initialX = e.clientX - xOffset[e.target.id];
+            initialY = e.clientY - yOffset[e.target.id];
+        }
+      }
+    }
+
+
+
+    function checkForHapticTouch(e)
+    {
+        if(active)
+        {
+            var dragTime = Date.now()-timeStart;
+            if(Math.abs(currentX - startX) < 3 &&
+                Math.abs(currentY - startY) < 3 &&
+                dragTime > 300
+                )
+            {
+                haptic_active=true;
+                $('#modal_custom_key').modal('show');
+            }
+        }
+    }
+
+
+    function dragEnd(e) {
+      if (active) {
+        if(!haptic_active)
+        {
+            checkForHapticTouch(e);
+        }
+        initialX = currentX;
+        initialY = currentY;
+        active = false;
+
+      }
+    }
+
+    function drag(e) {
+      if (active && !haptic_active) {
+      
+        e.preventDefault();
+
+        if (e.type === "touchmove") {
+          currentX = e.touches[0].clientX - initialX;
+          currentY = e.touches[0].clientY - initialY;
+        } else {
+          currentX = e.clientX - initialX;
+          currentY = e.clientY - initialY;
+        }
+
+        xOffset[e.target.id] = currentX;
+        yOffset[e.target.id] = currentY;
+
+        setTranslate(currentX, currentY, dragItem);
+      }
+    }
+
+    function setTranslate(xPos, yPos, el) {
+      el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
+    }
+
+//---- end custom key ----
 
 function loadTheme() {
   const dark_theme_selected = load_setting('dark_switch', false);
@@ -948,7 +1066,8 @@ function scaleVMCanvas() {
         v_joystick	= new VirtualJoystick({
             container	: document.getElementById('div_canvas'),
             mouseSupport	: true,
-            strokeStyle	: 'white'
+            strokeStyle	: 'white',
+            limitStickTravel: true
         });
         v_joystick.addEventListener('touchStartValidation', function(event){
             var touch	= event.changedTouches[0];

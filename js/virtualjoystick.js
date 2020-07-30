@@ -193,7 +193,7 @@ VirtualJoystick.prototype._onMove	= function(x, y)
 	if( this._pressed === true ){
 		this._stickX	= x;
 		this._stickY	= y;
-		
+
 		if(this._limitStickTravel === true){
 			var deltaX	= this.deltaX();
 			var deltaY	= this.deltaY();
@@ -205,9 +205,26 @@ VirtualJoystick.prototype._onMove	= function(x, y)
 				this._stickX = stickNormalizedX * this._stickRadius + this._baseX;
 				this._stickY = stickNormalizedY * this._stickRadius + this._baseY;
 			} 		
+
+			//patch let the base move too, when innercircle collides with outercircle 
+			var the_gap = (this._baseEl.width - this._stickEl.width) /2;
+			if(stickDistance > the_gap){
+				var stickNormalizedX = deltaX / stickDistance;
+				var stickNormalizedY = deltaY / stickDistance;
+			
+				var overlap = stickDistance / the_gap;
+				this._baseX	+= stickNormalizedX * overlap * 4; //rethink the *4 
+				this._baseY	+= stickNormalizedY * overlap * 4; //again...
+				this._baseEl.style.display	= "";
+				this._move(this._baseEl.style, (this._baseX - this._baseEl.width /2), (this._baseY - this._baseEl.height/2));	
+			} 		
+
+
+
+
 		}
 		
-        	this._move(this._stickEl.style, (this._stickX - this._stickEl.width /2), (this._stickY - this._stickEl.height/2));	
+        this._move(this._stickEl.style, (this._stickX - this._stickEl.width /2), (this._stickY - this._stickEl.height/2));	
 	}	
 }
 

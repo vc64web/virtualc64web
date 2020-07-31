@@ -844,40 +844,46 @@ wide_screen_switch.change( function() {
     scaleVMCanvas();
 
 
-    var bEnableCustomKeys = false;
+    var bEnableCustomKeys = true;
     if(bEnableCustomKeys)
     {
-        //----- custom keys
-        $('#div_canvas').append('<button id="ck1" style="position:absolute;left:10%;top:10%;opacity:0.5">button</button>');
-        $('#ck1').click(function() 
-        {       
-            var c64code = translateKey("undef", "z");
-            if(c64code !== undefined)
-                wasm_key(c64code[0], c64code[1], 1);
-            setTimeout(function() {wasm_key(c64code[0], c64code[1], 0);}, 15);
-        });
 
-        $('#div_canvas').append('<button id="ck2" style="position:absolute;left:90%;top:90%;opacity:0.5">button</button>');
-        $('#ck2').click(function() 
-        {       
-            var c64code = translateKey("undef", "y");
-            if(c64code !== undefined)
-                wasm_key(c64code[0], c64code[1], 1);
-            setTimeout(function() {wasm_key(c64code[0], c64code[1], 0);}, 15);
+
+        //----- custom keys
+        custom_keys = [ 
+            { title: 'hey', script: "z", position: "top:10%;left:10%" },            
+            { title: 'you', script: "y", position: "top:10%;left:90%" },
+            { title: '🙃', script: "y", position: "top:90%;left:90%" }
+            
+        ];
+         action_scripts= {};
+
+        custom_keys.forEach(function (element, i) {
+             $('#div_canvas').append(
+                 '<button id="ck'+i+'" class="btn" style="position:absolute;'+element.position+';opacity:1.0">'+element.title+'</button>');
+             action_scripts["ck"+i] = element.script;
+
+            $('#ck'+i).click(function() 
+            {       
+                var c64code = translateKey("undef", action_scripts['ck'+i]);
+                if(c64code !== undefined)
+                    wasm_key(c64code[0], c64code[1], 1);
+                setTimeout(function() {wasm_key(c64code[0], c64code[1], 0);}, 15);
+            });
         });
-        //----- 
         install_drag();
+        //----- 
     }
     return;
-  
 }
 
 //---- start custom keys ------
-
     function install_drag()
     {
-        dragItems = [document.querySelector("#ck1"),document.querySelector("#ck2")];
-        dragItem  = null;
+        dragItems = [];
+        custom_keys.forEach(function (element, i) {
+            dragItems.push(document.querySelector("#ck"+i));
+        });
         container = document.querySelector("#div_canvas");
 
         active = false;
@@ -901,6 +907,7 @@ wide_screen_switch.change( function() {
 
     function dragStart(e) {
       if (dragItems.includes(e.target)) {  
+        //console.log('drag start:' +e.target.id);  
         dragItem = e.target;
         active = true;
         haptic_active=false;
@@ -944,7 +951,16 @@ wide_screen_switch.change( function() {
                 dragTime > 300
                 )
             {
+//                active=false;
+
                 haptic_active=true;
+                haptic_touch_selected_id= e.target.id;
+                $('#input_action_script').val(action_scripts[e.target.id]);
+                $('#button_save_action_script').click(function(e) 
+                {  
+                    action_scripts[haptic_touch_selected_id] = $('#input_action_script').val();
+                    $('#modal_custom_key').modal('hide');
+                });
                 $('#modal_custom_key').modal('show');
             }
         }
@@ -953,6 +969,8 @@ wide_screen_switch.change( function() {
 
     function dragEnd(e) {
       if (active) {
+        //console.log('drag end:' +e.target.id);  
+ 
         if(!haptic_active)
         {
             checkForHapticTouch(e);
@@ -966,7 +984,11 @@ wide_screen_switch.change( function() {
 
     function drag(e) {
       if (active && !haptic_active) {
-      
+ 
+        if(dragItems.includes(e.target) && e.target != dragItem)
+          return; // custom key is dragged onto other custom key, don't allow that
+ 
+       // console.log('drag:' +e.target.id);  
         e.preventDefault();
 
         if (e.type === "touchmove") {
@@ -985,6 +1007,7 @@ wide_screen_switch.change( function() {
     }
 
     function setTranslate(xPos, yPos, el) {
+     //   console.log('translate: x'+xPos+' y'+yPos+ 'el=' +el.id);  
       el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
     }
 

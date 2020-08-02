@@ -847,43 +847,90 @@ wide_screen_switch.change( function() {
     var bEnableCustomKeys = true;
     if(bEnableCustomKeys)
     {
+        create_new_custom_key = false;
+        $("#button_custom_key").click(
+            function(e) 
+            {  
+                create_new_custom_key = true;
+                $('#input_action_script').val('');
+ 
+                $('#modal_custom_key').modal('show');
+            }
+        );
+
+        $('#button_save_action_script').click(function(e) 
+        {
+            if(create_new_custom_key)
+            {
+                //create a new custom key buttom  
+                //action_scripts[haptic_touch_selected_id] = $('#input_action_script').val();
+                
+                custom_keys.push( 
+                    {  id: custom_keys.length
+                      ,title: '😎' 
+                      ,script:  $('#input_action_script').val()
+                      ,position: "top:50%;left:50%" });        
+
+                install_custom_keys();
+                create_new_custom_key=false;
+            }
+            else
+            {
+                action_scripts[haptic_touch_selected_id] = $('#input_action_script').val();
+            }
+            $('#modal_custom_key').modal('hide');
+        });
 
 
         //----- custom keys
         custom_keys = [ 
-            { title: 'hey', script: "z", position: "top:10%;left:10%" },            
-            { title: 'you', script: "y", position: "top:10%;left:90%" },
-            { title: '🙃', script: "y", position: "top:90%;left:90%" }
-            
+            { id: 0, title: 'hey', script: "z", position: "top:10%;left:10%" },            
+            { id: 1, title: 'you', script: "y", position: "top:10%;left:90%" },
+            { id: 2, title: '🙃', script: "y", position: "top:90%;left:90%" }
         ];
-         action_scripts= {};
+        action_scripts= {};
 
-        custom_keys.forEach(function (element, i) {
-             $('#div_canvas').append(
-                 '<button id="ck'+i+'" class="btn" style="position:absolute;'+element.position+';opacity:1.0">'+element.title+'</button>');
-             action_scripts["ck"+i] = element.script;
-
-            $('#ck'+i).click(function() 
-            {       
-                var c64code = translateKey("undef", action_scripts['ck'+i]);
-                if(c64code !== undefined)
-                    wasm_key(c64code[0], c64code[1], 1);
-                setTimeout(function() {wasm_key(c64code[0], c64code[1], 0);}, 15);
-            });
-        });
-        install_drag();
+        install_custom_keys();
         //----- 
     }
     return;
 }
 
 //---- start custom keys ------
+    function install_custom_keys(){
+        //remove all existing custom key buttons
+        $(".custom_key").remove();
+        
+        //insert the new buttons
+        custom_keys.forEach(function (element, i) {
+            var btn_html='<button id="ck'+element.id+'" class="btn custom_key" style="position:absolute;'+element.position;
+            if(element.currentX)
+            {
+                btn_html += ';transform:translate3d(' + element.currentX + 'px,' + element.currentY + 'px,0)';
+               // setTranslate(currentX, currentY, $("#ck"+element.id));
+            } 
+            btn_html += ';opacity:1.0">'+element.title+'</button>';
+
+            $('#div_canvas').append(btn_html);
+            action_scripts["ck"+element.id] = element.script;
+
+
+            $('#ck'+element.id).click(function() 
+            {       
+                var c64code = translateKey("undef", action_scripts['ck'+element.id]);
+                if(c64code !== undefined)
+                    wasm_key(c64code[0], c64code[1], 1);
+                setTimeout(function() {wasm_key(c64code[0], c64code[1], 0);}, 15);
+            });
+        });
+
+        install_drag();
+    }
+
+
     function install_drag()
     {
         dragItems = [];
-        custom_keys.forEach(function (element, i) {
-            dragItems.push(document.querySelector("#ck"+i));
-        });
         container = document.querySelector("#div_canvas");
 
         active = false;
@@ -894,6 +941,12 @@ wide_screen_switch.change( function() {
     
         xOffset = { };
         yOffset = { };
+
+        custom_keys.forEach(function (element, i) {
+            dragItems.push(document.querySelector("#ck"+element.id));
+            xOffset["ck"+element.id] = element.currentX;
+            yOffset["ck"+element.id] = element.currentY;
+        });
 
         container.addEventListener("touchstart", dragStart, false);
         container.addEventListener("touchend", dragEnd, false);
@@ -951,16 +1004,9 @@ wide_screen_switch.change( function() {
                 dragTime > 300
                 )
             {
-//                active=false;
-
                 haptic_active=true;
                 haptic_touch_selected_id= e.target.id;
                 $('#input_action_script').val(action_scripts[e.target.id]);
-                $('#button_save_action_script').click(function(e) 
-                {  
-                    action_scripts[haptic_touch_selected_id] = $('#input_action_script').val();
-                    $('#modal_custom_key').modal('hide');
-                });
                 $('#modal_custom_key').modal('show');
             }
         }
@@ -977,6 +1023,11 @@ wide_screen_switch.change( function() {
         }
         initialX = currentX;
         initialY = currentY;
+
+        var ckdef = custom_keys.find(el => ('ck'+el.id) == e.target.id); 
+        ckdef.currentX = currentX;
+        ckdef.currentY = currentY;
+        
         active = false;
 
       }

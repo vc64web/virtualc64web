@@ -955,7 +955,7 @@ wide_screen_switch.change( function() {
             {
                 btn_html += ';transform:translate3d(' + element.currentX + 'px,' + element.currentY + 'px,0)';
             } 
-            btn_html += ';opacity:1.0">'+element.title+'</button>';
+            btn_html += ';opacity:1.0;touch-action:none">'+element.title+'</button>';
 
             $('#div_canvas').append(btn_html);
             action_scripts["ck"+element.id] = element.script;
@@ -1080,12 +1080,12 @@ wide_screen_switch.change( function() {
 
     function drag(e) {
       if (active && !haptic_active) {
- 
+        e.preventDefault();
+
         if(dragItems.includes(e.target) && e.target != dragItem)
           return; // custom key is dragged onto other custom key, don't allow that
  
        // console.log('drag:' +e.target.id);  
-        e.preventDefault();
 
         if (e.type === "touchmove") {
           currentX = e.touches[0].clientX - initialX;

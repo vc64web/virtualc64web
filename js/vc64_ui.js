@@ -370,29 +370,40 @@ function InitWrappers() {
     $('#navbar').on('shown.bs.collapse', function () { 
     });
 
-
-    menu_button_fade_out = function () {
-        setTimeout(function() {
+    burger_time_out_handle=null
+    burger_button=null;
+    menu_button_fade_in = function () {
+        if(burger_button == null)
+        {
+            burger_button = $("#button_show_menu");
+        }
+        
+        burger_button.fadeTo( "slow", 1.0 );
+        
+        if(burger_time_out_handle != null)
+        {
+            clearTimeout(burger_time_out_handle);
+        }
+        burger_time_out_handle = setTimeout(function() {
             if($("#navbar").is(":hidden"))
             {
-                $("#button_show_menu").fadeOut( "slow" );
-            }
-            else
-            { //maybe try recursivele again?
+                burger_button.fadeTo( "slow", 0.0 );
             }
         },5000);    
     };
 
     //make the menubutton not visible until a click or a touch
-    menu_button_fade_out();
+    menu_button_fade_in();
+    burger_button.hover(function(){ menu_button_fade_in();});
+
     window.addEventListener("click", function() {
-        $("#button_show_menu").fadeIn( "slow" );
-        menu_button_fade_out();
+        menu_button_fade_in();
     });
     $("#canvas").on({ 'touchstart' : function() {
-        $("#button_show_menu").fadeIn( "slow" );
-        menu_button_fade_out();
+        menu_button_fade_in();
     }});
+
+
 
 //----
     webgl_switch = $('#webgl_switch');
@@ -537,7 +548,7 @@ wide_screen_switch.change( function() {
         {
             setTimeout(function(){try{wasm_run();} catch(e) {}},200);
         }
-    })
+    });
    
     document.getElementById('button_take_snapshot').onclick = function() 
     {       
@@ -844,7 +855,7 @@ wide_screen_switch.change( function() {
     scaleVMCanvas();
 
 
-    var bEnableCustomKeys = true;
+    var bEnableCustomKeys = false;
     if(bEnableCustomKeys)
     {
         create_new_custom_key = false;
@@ -858,7 +869,23 @@ wide_screen_switch.change( function() {
             }
         );
 
-        $('#button_save_action_script').click(function(e) 
+        $('#modal_custom_key').on('show.bs.modal', function () {
+            
+            if(create_new_custom_key)
+            {
+                $('#button_delete_custom_button').hide();
+            }
+            else
+            {
+                $('#button_delete_custom_button').show();
+            }
+        });
+
+        $('#modal_custom_key').on('hidden.bs.modal', function () {
+            create_new_custom_key=false;
+        });
+
+        $('#button_save_custom_button').click(function(e) 
         {
             if(create_new_custom_key)
             {
@@ -881,6 +908,12 @@ wide_screen_switch.change( function() {
             $('#modal_custom_key').modal('hide');
         });
 
+        $('#button_delete_custom_button').click(function(e) 
+        {
+            custom_keys=custom_keys.filter(el=> ('ck'+el.id) != haptic_touch_selected_id);
+            install_custom_keys();
+            $('#modal_custom_key').modal('hide');
+        });
 
         //----- custom keys
         custom_keys = [ 

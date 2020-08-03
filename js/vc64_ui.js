@@ -855,7 +855,11 @@ wide_screen_switch.change( function() {
     scaleVMCanvas();
 
 
-    var bEnableCustomKeys = false;
+    var bEnableCustomKeys = true;
+    if(!bEnableCustomKeys)
+    {
+        $("#button_custom_key").remove();
+    }
     if(bEnableCustomKeys)
     {
         create_new_custom_key = false;
@@ -964,7 +968,7 @@ wide_screen_switch.change( function() {
     function install_drag()
     {
         dragItems = [];
-        container = document.querySelector("#div_canvas");
+        container = document;
 
         active = false;
         currentX=0;
@@ -1057,12 +1061,12 @@ wide_screen_switch.change( function() {
         initialX = currentX;
         initialY = currentY;
 
-        var ckdef = custom_keys.find(el => ('ck'+el.id) == e.target.id); 
+        var ckdef = custom_keys.find(el => ('ck'+el.id) == dragItem.id); 
         ckdef.currentX = currentX;
         ckdef.currentY = currentY;
-        
-        active = false;
 
+        dragItem = null;
+        active = false;
       }
     }
 

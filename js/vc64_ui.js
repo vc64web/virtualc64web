@@ -867,6 +867,7 @@ wide_screen_switch.change( function() {
             function(e) 
             {  
                 create_new_custom_key = true;
+                $('#input_button_text').val('');
                 $('#input_action_script').val('');
  
                 $('#modal_custom_key').modal('show');
@@ -881,6 +882,11 @@ wide_screen_switch.change( function() {
             }
             else
             {
+                var btn_def = custom_keys.find(el=> ('ck'+el.id) == haptic_touch_selected.id);
+
+                $('#input_button_text').val(btn_def.title);
+                $('#input_action_script').val(btn_def.script);
+
                 $('#button_delete_custom_button').show();
             }
         });
@@ -894,11 +900,9 @@ wide_screen_switch.change( function() {
             if(create_new_custom_key)
             {
                 //create a new custom key buttom  
-                //action_scripts[haptic_touch_selected_id] = $('#input_action_script').val();
-                
                 custom_keys.push( 
                     {  id: custom_keys.length
-                      ,title: '😎' 
+                      ,title: $('#input_button_text').val() 
                       ,script:  $('#input_action_script').val()
                       ,position: "top:50%;left:50%" });        
 
@@ -907,14 +911,19 @@ wide_screen_switch.change( function() {
             }
             else
             {
-                action_scripts[haptic_touch_selected_id] = $('#input_action_script').val();
+                 var btn_def = custom_keys.find(el=> ('ck'+el.id) == haptic_touch_selected.id);
+//                action_scripts[haptic_touch_selected.id] = $('#input_action_script').val();
+                 btn_def.title = $('#input_button_text').val();
+                 btn_def.script = $('#input_action_script').val();
+                 
+                install_custom_keys();
             }
             $('#modal_custom_key').modal('hide');
         });
 
         $('#button_delete_custom_button').click(function(e) 
         {
-            custom_keys=custom_keys.filter(el=> ('ck'+el.id) != haptic_touch_selected_id);
+            custom_keys=custom_keys.filter(el=> ('ck'+el.id) != haptic_touch_selected.id);
             install_custom_keys();
             $('#modal_custom_key').modal('hide');
         });
@@ -940,11 +949,11 @@ wide_screen_switch.change( function() {
         
         //insert the new buttons
         custom_keys.forEach(function (element, i) {
+            element.id = i;
             var btn_html='<button id="ck'+element.id+'" class="btn custom_key" style="position:absolute;'+element.position;
             if(element.currentX)
             {
                 btn_html += ';transform:translate3d(' + element.currentX + 'px,' + element.currentY + 'px,0)';
-               // setTranslate(currentX, currentY, $("#ck"+element.id));
             } 
             btn_html += ';opacity:1.0">'+element.title+'</button>';
 
@@ -1042,8 +1051,7 @@ wide_screen_switch.change( function() {
                 )
             {
                 haptic_active=true;
-                haptic_touch_selected_id= e.target.id;
-                $('#input_action_script').val(action_scripts[e.target.id]);
+                haptic_touch_selected= e.target;
                 $('#modal_custom_key').modal('show');
             }
         }

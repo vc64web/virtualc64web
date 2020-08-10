@@ -56,8 +56,8 @@ background-color: var(--secondary) !important;
 
 #port1, #port2 {
     height:32px;
-    min-width:100px;
-    width: 49%;
+    min-width:80px;
+    width: 48%;
     padding-top: .165rem;
     margin-top: 1px; 
     background-color: inherit !important;
@@ -69,6 +69,12 @@ background-color: var(--secondary) !important;
 [data-theme="dark"] #port1, [data-theme="dark"] #port2 {
     border-color: var(--light);
     color: #aaa !important;
+}
+
+
+.btn-sm
+{
+    font-size: .86rem;
 }
 
 [data-theme="dark"] .custom-select {

@@ -16,6 +16,30 @@ function translateKey(keycode, key)
 }
 
 symbolic_map = {
+    a: 'KeyA',
+    b: 'KeyB',
+    c: 'KeyC',
+    d: 'KeyD',
+    e: 'KeyE',
+    f: 'KeyF',
+    g: 'KeyG',
+    h: 'KeyH',
+    i: 'KeyI',
+    j: 'KeyJ',
+    k: 'KeyK',
+    l: 'KeyL',
+    m: 'KeyM',
+    n: 'KeyN',
+    o: 'KeyO',
+    q: 'KeyQ',
+    r: 'KeyR',
+    s: 'KeyS',
+    t: 'KeyT',
+    u: 'KeyU',
+    v: 'KeyV',
+    w: 'KeyW',
+    x: 'KeyX',
+
     z: 'KeyZ',
     y: 'KeyY'
 }

@@ -111,6 +111,12 @@ function pushFile(file, startup) {
             else
             {
                 global_apptitle = file.name;
+                get_custom_buttons(global_apptitle, 
+                    function(the_buttons) {
+                        custom_keys = the_buttons.data;
+                        install_custom_keys();
+                    }
+                );
             }
 
         } catch(e) {}
@@ -668,6 +674,12 @@ wide_screen_switch.change( function() {
                                 snapshot.data.length);
                             $('#snapshotModal').modal('hide');
                             global_apptitle=snapshot.title;
+                            get_custom_buttons(global_apptitle, 
+                                function(the_buttons) {
+                                    custom_keys = the_buttons.data;
+                                    install_custom_keys();
+                                }
+                            );
                         }
                     );
                 };
@@ -919,6 +931,7 @@ wide_screen_switch.change( function() {
                 install_custom_keys();
             }
             $('#modal_custom_key').modal('hide');
+            save_custom_buttons(global_apptitle, custom_keys);
         });
 
         $('#button_delete_custom_button').click(function(e) 
@@ -950,7 +963,7 @@ wide_screen_switch.change( function() {
         //insert the new buttons
         custom_keys.forEach(function (element, i) {
             element.id = i;
-            var btn_html='<button id="ck'+element.id+'" class="btn custom_key" style="position:absolute;'+element.position;
+            var btn_html='<button id="ck'+element.id+'" class="btn btn-secondary custom_key" style="position:absolute;'+element.position;
             if(element.currentX)
             {
                 btn_html += ';transform:translate3d(' + element.currentX + 'px,' + element.currentY + 'px,0)';
@@ -1072,6 +1085,9 @@ wide_screen_switch.change( function() {
         var ckdef = custom_keys.find(el => ('ck'+el.id) == dragItem.id); 
         ckdef.currentX = currentX;
         ckdef.currentY = currentY;
+
+        //save new position
+        save_custom_buttons(global_apptitle, custom_keys);
 
         dragItem = null;
         active = false;

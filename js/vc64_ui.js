@@ -549,8 +549,7 @@ wide_screen_switch.change( function() {
 
 
     $('#modal_take_snapshot').on('hidden.bs.modal', function () {
-        var running=$('#button_run').attr('disabled')=='disabled';
-        if(running)
+        if(is_running())
         {
             setTimeout(function(){try{wasm_run();} catch(e) {}},200);
         }
@@ -592,8 +591,7 @@ wide_screen_switch.change( function() {
 
     $('#snapshotModal').on('hidden.bs.modal', function () {
         wasm_resume_auto_snapshots();
-        var running=$('#button_run').attr('disabled')=='disabled';
-        if(running)
+        if(is_running())
         {
             try{wasm_run();} catch(e) {}
         }
@@ -601,8 +599,7 @@ wide_screen_switch.change( function() {
     document.getElementById('button_snapshots').onclick = function() 
     {
         internal_usersnapshots_enabled=false;
-        var running=$('#button_run').attr('disabled')=='disabled';
-        if(running)
+        if(is_running())
         {
            wasm_halt();
         }
@@ -901,10 +898,20 @@ wide_screen_switch.change( function() {
 
                 $('#button_delete_custom_button').show();
             }
+
+            if(is_running())
+            {
+                wasm_halt();
+            }
         });
 
         $('#modal_custom_key').on('hidden.bs.modal', function () {
             create_new_custom_key=false;
+        
+            if(is_running())
+            {
+                wasm_run();
+            }
         });
 
         $('#button_save_custom_button').click(function(e) 
@@ -924,7 +931,6 @@ wide_screen_switch.change( function() {
             else
             {
                  var btn_def = custom_keys.find(el=> ('ck'+el.id) == haptic_touch_selected.id);
-//                action_scripts[haptic_touch_selected.id] = $('#input_action_script').val();
                  btn_def.title = $('#input_button_text').val();
                  btn_def.script = $('#input_action_script').val();
                  
@@ -941,16 +947,16 @@ wide_screen_switch.change( function() {
             $('#modal_custom_key').modal('hide');
         });
 
-        //----- custom keys
-        custom_keys = [ 
-            { id: 0, title: 'hey', script: "z", position: "top:10%;left:10%" },            
-            { id: 1, title: 'you', script: "y", position: "top:10%;left:90%" },
-            { id: 2, title: '🙃', script: "y", position: "top:90%;left:90%" }
-        ];
+        custom_keys = [];
         action_scripts= {};
 
+        get_custom_buttons(global_apptitle, 
+            function(the_buttons) {
+                custom_keys = the_buttons.data;
+                install_custom_keys();
+            }
+        );
         install_custom_keys();
-        //----- 
     }
     return;
 }
@@ -976,7 +982,8 @@ wide_screen_switch.change( function() {
 
             $('#ck'+element.id).click(function() 
             {       
-                var c64code = translateKey("undef", action_scripts['ck'+element.id]);
+                var action_script = action_scripts['ck'+element.id];
+                var c64code = translateKey(action_script, action_script);
                 if(c64code !== undefined)
                     wasm_key(c64code[0], c64code[1], 1);
                 setTimeout(function() {wasm_key(c64code[0], c64code[1], 0);}, 15);
@@ -1236,3 +1243,10 @@ function scaleVMCanvas() {
             v_fire=null;
         }
     }
+
+
+    function is_running()
+    {
+        return $('#button_run').attr('disabled')=='disabled';
+    }
+        

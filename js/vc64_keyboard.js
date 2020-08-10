@@ -41,7 +41,18 @@ symbolic_map = {
     x: 'KeyX',
 
     z: 'KeyZ',
-    y: 'KeyY'
+    y: 'KeyY',
+
+    f1: 'F1',
+    f2: 'F2',
+    f3: 'F3',
+    f4: 'F4',
+    f5: 'F5',
+    f6: 'F6',
+    f7: 'F7',
+    f8: 'F8'
+
+
 }
 
 c64keymap = [

@@ -988,7 +988,7 @@ wide_screen_switch.change( function() {
                 var c64code = translateKey(action_script, action_script.toLowerCase());
                 if(c64code !== undefined)
                     wasm_key(c64code[0], c64code[1], 1);
-                setTimeout(function() {wasm_key(c64code[0], c64code[1], 0);}, 15);
+                setTimeout(function() {wasm_key(c64code[0], c64code[1], 0);}, 100);
             });
         });
 

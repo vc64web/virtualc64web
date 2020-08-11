@@ -772,6 +772,7 @@ wide_screen_switch.change( function() {
         if(v_joystick == null && port1 == 'touch')
         {
             register_v_joystick();
+            install_custom_keys();
         }
         if(port1 != 'touch' && port2 != 'touch')
         {
@@ -790,6 +791,7 @@ wide_screen_switch.change( function() {
         if(v_joystick == null && port2 == 'touch')
         {
             register_v_joystick();
+            install_custom_keys();
         }
         if(port1 != 'touch' && port2 != 'touch')
         {
@@ -983,7 +985,6 @@ wide_screen_switch.change( function() {
             $('#ck'+element.id).click(function() 
             {       
                 var action_script = action_scripts['ck'+element.id];
-                action_script = action_script.
                 var c64code = translateKey(action_script, action_script.toLowerCase());
                 if(c64code !== undefined)
                     wasm_key(c64code[0], c64code[1], 1);
@@ -1091,11 +1092,16 @@ wide_screen_switch.change( function() {
         initialY = currentY;
 
         var ckdef = custom_keys.find(el => ('ck'+el.id) == dragItem.id); 
-        ckdef.currentX = currentX;
-        ckdef.currentY = currentY;
+        
+        if(ckdef.currentX != currentX || ckdef.currentY != currentY)
+        {
+            ckdef.currentX = currentX;
+            ckdef.currentY = currentY;
+         
+            //save new position
+            save_custom_buttons(global_apptitle, custom_keys);
+        }
 
-        //save new position
-        save_custom_buttons(global_apptitle, custom_keys);
 
         dragItem = null;
         active = false;

@@ -13,7 +13,7 @@ var VirtualJoystick	= function(opts)
 	this._stickRadius	= opts.stickRadius !== undefined ? opts.stickRadius : 100
 	this._useCssTransform	= opts.useCssTransform !== undefined ? opts.useCssTransform : false
 
-	this._container.style.position	= "relative"
+	//this._container.style.position	= "relative"
 
 	this._container.appendChild(this._baseEl)
 	this._baseEl.style.position	= "absolute"
@@ -254,6 +254,8 @@ VirtualJoystick.prototype._onTouchStart	= function(event)
 {
 	// if there is already a touch inprogress do nothing
 	if( this._touchIdx !== null )	return;
+
+	if(dragItems.includes(event.target)) return;
 
 	// notify event for validation
 	var isValid	= this.dispatchEvent('touchStartValidation', event);

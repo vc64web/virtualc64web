@@ -77,6 +77,12 @@ background-color: var(--secondary) !important;
     font-size: .86rem;
 }
 
+.custom_key
+{
+    font-size: 1.2rem !important;
+    opacity: 0.7 !important;
+}
+
 [data-theme="dark"] .custom-select {
 color: var(--light) !important;
 border-color: var(--light) !important;

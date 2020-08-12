@@ -271,10 +271,10 @@ function installKeyboard() {
                     
                     }
                     else
-                    {  
+                    {  //release the key automatically after a short time ...
                         setTimeout(() => {
                             wasm_key(c64code[0], c64code[1], 0);
-                        }, 20);
+                        }, 100);
                     }
                 }
                }

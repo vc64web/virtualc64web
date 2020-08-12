@@ -137,3 +137,10 @@ background-color: #555 !important;
     fill: var(--light);
     color: var(--light) !important;
 }
+
+
+
+
+.justify-start {
+  margin-right: auto;
+}

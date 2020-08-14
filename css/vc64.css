@@ -120,6 +120,11 @@ background-color: #555 !important;
 
 #navbar {
     background-color: #bbb;
+
+    position: fixed; 
+    top:0; 
+    left:0; 
+    opacity: 0.8; backdrop-filter: blur(6px);
 }
 
 [data-theme="dark"] #navbar {

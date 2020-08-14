@@ -960,6 +960,8 @@ wide_screen_switch.change( function() {
         );
         install_custom_keys();
     }
+
+    $("#button_show_menu").click();
     return;
 }
 

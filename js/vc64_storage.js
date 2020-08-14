@@ -6,7 +6,7 @@ function initDB() {
   });
 
   
-  let openReq =  indexedDB.open('vc64db', 2);
+  let openReq =  indexedDB.open('vc64db', 4);
 
   openReq.onupgradeneeded = function (event){
       let db = openReq.result;
@@ -19,7 +19,6 @@ function initDB() {
       }
       if(!db.objectStoreNames.contains('snapshots'))
       {
-         //alert("create two local object stores");
          var snapshot_store=db.createObjectStore('snapshots', {keyPath: 'id', autoIncrement: true});
          snapshot_store.createIndex("title", "title", { unique: false });
       }
@@ -27,6 +26,14 @@ function initDB() {
       {
          var apps_store=db.createObjectStore('apps', {keyPath: 'title'}); 
       }
+
+      //db.deleteObjectStore('custom_buttons');
+      if(!db.objectStoreNames.contains('custom_buttons'))
+      {
+         //alert("create two local object stores");
+         var custom_buttons_store=db.createObjectStore('custom_buttons', {keyPath: 'title'});
+      }
+
   };
   openReq.onerror = function() { console.error("Error", openReq.error);}
   openReq.onsuccess = function() {
@@ -81,7 +88,7 @@ function save_snapshot(the_name, the_data) {
 
 function get_stored_app_titles(callback_fn)
 {
-       let transaction = db.transaction("apps"); // readonly
+    let transaction = db.transaction("apps"); // readonly
     let apps = transaction.objectStore("apps");
 
     let request = apps.getAllKeys();
@@ -167,4 +174,64 @@ function save_setting(name, value) {
     } else {
       localStorage.removeItem(name);
     }
+}
+
+//-------------- custom buttons
+function save_custom_buttons(the_name, the_data) {
+  let the_custom_buttons = {
+    title: the_name,
+    data: the_data 
+  };
+
+  let tx_apps = db.transaction('apps', 'readwrite');
+  let req_apps = tx_apps.objectStore('apps').put({title: the_name});
+  req_apps.onsuccess= function(e){ 
+        console.log("wrote app with id="+e.target.result)        
+  };
+
+
+  let tx = db.transaction('custom_buttons', 'readwrite');
+  tx.oncomplete = function() {
+    console.log("Transaction is complete");
+  };
+  tx.onabort = function() {
+    console.log("Transaction is aborted");
+  };
+ 
+  try {
+    let req = tx.objectStore('custom_buttons').put(the_custom_buttons);
+    req.onsuccess= function(e){ 
+        console.log("wrote custom_buttons with id="+e.target.result)        
+    };
+    req.onerror = function(e){ 
+        console.error("could not write custom_buttons: ",  req.error) 
+    };
+  } catch(err) {
+      throw err;
+  }
+}
+
+
+function get_custom_buttons(the_app_title, callback_fn)
+{
+    let transaction = db.transaction("custom_buttons"); 
+    let custom_buttons = transaction.objectStore("custom_buttons");
+ 
+    let request = custom_buttons.get(the_app_title);
+
+    request.onsuccess = function() {
+        if(request.result !== undefined)
+        {
+          callback_fn(request.result);
+        }
+        else
+        {
+          let empty_custom_buttons = {
+              title: the_app_title,
+              data: [] 
+            };
+
+          callback_fn(empty_custom_buttons);
+        }
+    };
 }

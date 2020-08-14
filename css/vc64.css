@@ -56,8 +56,8 @@ background-color: var(--secondary) !important;
 
 #port1, #port2 {
     height:32px;
-    min-width:100px;
-    width: 49%;
+    min-width:80px;
+    width: 48%;
     padding-top: .165rem;
     margin-top: 1px; 
     background-color: inherit !important;
@@ -69,6 +69,18 @@ background-color: var(--secondary) !important;
 [data-theme="dark"] #port1, [data-theme="dark"] #port2 {
     border-color: var(--light);
     color: #aaa !important;
+}
+
+
+.btn-sm
+{
+    font-size: .86rem;
+}
+
+.custom_key
+{
+    font-size: 1.2rem !important;
+    opacity: 0.7 !important;
 }
 
 [data-theme="dark"] .custom-select {
@@ -108,6 +120,11 @@ background-color: #555 !important;
 
 #navbar {
     background-color: #bbb;
+
+    position: fixed; 
+    top:0; 
+    left:0; 
+    opacity: 0.8; backdrop-filter: blur(6px);
 }
 
 [data-theme="dark"] #navbar {
@@ -124,4 +141,11 @@ background-color: #555 !important;
 [data-theme="dark"] .icon {
     fill: var(--light);
     color: var(--light) !important;
+}
+
+
+
+
+.justify-start {
+  margin-right: auto;
 }

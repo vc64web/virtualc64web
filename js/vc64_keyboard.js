@@ -16,8 +16,43 @@ function translateKey(keycode, key)
 }
 
 symbolic_map = {
+    a: 'KeyA',
+    b: 'KeyB',
+    c: 'KeyC',
+    d: 'KeyD',
+    e: 'KeyE',
+    f: 'KeyF',
+    g: 'KeyG',
+    h: 'KeyH',
+    i: 'KeyI',
+    j: 'KeyJ',
+    k: 'KeyK',
+    l: 'KeyL',
+    m: 'KeyM',
+    n: 'KeyN',
+    o: 'KeyO',
+    q: 'KeyQ',
+    r: 'KeyR',
+    s: 'KeyS',
+    t: 'KeyT',
+    u: 'KeyU',
+    v: 'KeyV',
+    w: 'KeyW',
+    x: 'KeyX',
+
     z: 'KeyZ',
-    y: 'KeyY'
+    y: 'KeyY',
+
+    f1: 'F1',
+    f2: 'F2',
+    f3: 'F3',
+    f4: 'F4',
+    f5: 'F5',
+    f6: 'F6',
+    f7: 'F7',
+    f8: 'F8'
+
+
 }
 
 c64keymap = [
@@ -236,10 +271,10 @@ function installKeyboard() {
                     
                     }
                     else
-                    {  
+                    {  //release the key automatically after a short time ...
                         setTimeout(() => {
                             wasm_key(c64code[0], c64code[1], 0);
-                        }, 20);
+                        }, 100);
                     }
                 }
                }

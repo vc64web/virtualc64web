@@ -13,7 +13,7 @@ var VirtualJoystick	= function(opts)
 	this._stickRadius	= opts.stickRadius !== undefined ? opts.stickRadius : 100
 	this._useCssTransform	= opts.useCssTransform !== undefined ? opts.useCssTransform : false
 
-	this._container.style.position	= "relative"
+	//this._container.style.position	= "relative"
 
 	this._container.appendChild(this._baseEl)
 	this._baseEl.style.position	= "absolute"
@@ -193,7 +193,7 @@ VirtualJoystick.prototype._onMove	= function(x, y)
 	if( this._pressed === true ){
 		this._stickX	= x;
 		this._stickY	= y;
-		
+
 		if(this._limitStickTravel === true){
 			var deltaX	= this.deltaX();
 			var deltaY	= this.deltaY();
@@ -205,9 +205,19 @@ VirtualJoystick.prototype._onMove	= function(x, y)
 				this._stickX = stickNormalizedX * this._stickRadius + this._baseX;
 				this._stickY = stickNormalizedY * this._stickRadius + this._baseY;
 			} 		
+
+			//vc64web patch start let the base move too, when innercircle collides with outercircle 
+			var base_radius = this._baseEl.width /2;
+			if(stickDistance >= base_radius/2){
+				this._baseX	= this._stickX - ((this._stickX - this._baseX)/stickDistance)*base_radius/2; 
+				this._baseY	= this._stickY - ((this._stickY - this._baseY)/stickDistance)*base_radius/2;
+				this._baseEl.style.display	= "";
+				this._move(this._baseEl.style, (this._baseX - base_radius), (this._baseY - base_radius));	
+			} 
+			//vc64web patch end
 		}
 		
-        	this._move(this._stickEl.style, (this._stickX - this._stickEl.width /2), (this._stickY - this._stickEl.height/2));	
+        this._move(this._stickEl.style, (this._stickX - this._stickEl.width /2), (this._stickY - this._stickEl.height/2));	
 	}	
 }
 
@@ -244,6 +254,8 @@ VirtualJoystick.prototype._onTouchStart	= function(event)
 {
 	// if there is already a touch inprogress do nothing
 	if( this._touchIdx !== null )	return;
+
+	if(dragItems.includes(event.target)) return;
 
 	// notify event for validation
 	var isValid	= this.dispatchEvent('touchStartValidation', event);

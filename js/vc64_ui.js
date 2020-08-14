@@ -111,6 +111,12 @@ function pushFile(file, startup) {
             else
             {
                 global_apptitle = file.name;
+                get_custom_buttons(global_apptitle, 
+                    function(the_buttons) {
+                        custom_keys = the_buttons.data;
+                        install_custom_keys();
+                    }
+                );
             }
 
         } catch(e) {}
@@ -370,29 +376,40 @@ function InitWrappers() {
     $('#navbar').on('shown.bs.collapse', function () { 
     });
 
-
-    menu_button_fade_out = function () {
-        setTimeout(function() {
+    burger_time_out_handle=null
+    burger_button=null;
+    menu_button_fade_in = function () {
+        if(burger_button == null)
+        {
+            burger_button = $("#button_show_menu");
+        }
+        
+        burger_button.fadeTo( "slow", 1.0 );
+        
+        if(burger_time_out_handle != null)
+        {
+            clearTimeout(burger_time_out_handle);
+        }
+        burger_time_out_handle = setTimeout(function() {
             if($("#navbar").is(":hidden"))
             {
-                $("#button_show_menu").fadeOut( "slow" );
-            }
-            else
-            { //maybe try recursivele again?
+                burger_button.fadeTo( "slow", 0.0 );
             }
         },5000);    
     };
 
     //make the menubutton not visible until a click or a touch
-    menu_button_fade_out();
+    menu_button_fade_in();
+    burger_button.hover(function(){ menu_button_fade_in();});
+
     window.addEventListener("click", function() {
-        $("#button_show_menu").fadeIn( "slow" );
-        menu_button_fade_out();
+        menu_button_fade_in();
     });
     $("#canvas").on({ 'touchstart' : function() {
-        $("#button_show_menu").fadeIn( "slow" );
-        menu_button_fade_out();
+        menu_button_fade_in();
     }});
+
+
 
 //----
     webgl_switch = $('#webgl_switch');
@@ -532,12 +549,11 @@ wide_screen_switch.change( function() {
 
 
     $('#modal_take_snapshot').on('hidden.bs.modal', function () {
-        var running=$('#button_run').attr('disabled')=='disabled';
-        if(running)
+        if(is_running())
         {
             setTimeout(function(){try{wasm_run();} catch(e) {}},200);
         }
-    })
+    });
    
     document.getElementById('button_take_snapshot').onclick = function() 
     {       
@@ -575,8 +591,7 @@ wide_screen_switch.change( function() {
 
     $('#snapshotModal').on('hidden.bs.modal', function () {
         wasm_resume_auto_snapshots();
-        var running=$('#button_run').attr('disabled')=='disabled';
-        if(running)
+        if(is_running())
         {
             try{wasm_run();} catch(e) {}
         }
@@ -584,8 +599,7 @@ wide_screen_switch.change( function() {
     document.getElementById('button_snapshots').onclick = function() 
     {
         internal_usersnapshots_enabled=false;
-        var running=$('#button_run').attr('disabled')=='disabled';
-        if(running)
+        if(is_running())
         {
            wasm_halt();
         }
@@ -611,20 +625,6 @@ wide_screen_switch.change( function() {
         the_grid+='</div>';
 
         $('#container_snapshots').append(the_grid);
-
-
-        if(internal_usersnapshots_enabled)
-        {
-            the_grid="";
-            var ucount = wasm_user_snapshots_count();
-            the_grid+='<div class="row" data-toggle="tooltip" data-placement="left" title="user snapshots">';
-            for(var z=0; z<ucount; z++)
-            {
-                the_grid += renderSnapshot('u'+z);
-            }
-            the_grid+='</div>';
-            $('#container_snapshots').append(the_grid);
-        }
 
 //--- indexeddb snaps
         var render_persistent_snapshot=function(the_id){
@@ -671,6 +671,12 @@ wide_screen_switch.change( function() {
                                 snapshot.data.length);
                             $('#snapshotModal').modal('hide');
                             global_apptitle=snapshot.title;
+                            get_custom_buttons(global_apptitle, 
+                                function(the_buttons) {
+                                    custom_keys = the_buttons.data;
+                                    install_custom_keys();
+                                }
+                            );
                         }
                     );
                 };
@@ -751,9 +757,6 @@ wide_screen_switch.change( function() {
 
     }
 
-
-
-
     v_joystick=null;
     v_fire=null;
 
@@ -769,6 +772,7 @@ wide_screen_switch.change( function() {
         if(v_joystick == null && port1 == 'touch')
         {
             register_v_joystick();
+            install_custom_keys();
         }
         if(port1 != 'touch' && port2 != 'touch')
         {
@@ -787,6 +791,7 @@ wide_screen_switch.change( function() {
         if(v_joystick == null && port2 == 'touch')
         {
             register_v_joystick();
+            install_custom_keys();
         }
         if(port1 != 'touch' && port2 != 'touch')
         {
@@ -859,18 +864,282 @@ wide_screen_switch.change( function() {
     });
 
     scaleVMCanvas();
-    return;
-  /*  if(window.matchMedia("(max-width: 767px)").matches){
-        // The viewport is less than 768 pixels wide
-        $("#canvas").css("width", "95%");
-    } else{
-        // The viewport is at least 768 pixels wide
-        $("#canvas").css("width", "75%");
 
+
+    var bEnableCustomKeys = true;
+    if(!bEnableCustomKeys)
+    {
+        $("#button_custom_key").remove();
     }
-    */
+    if(bEnableCustomKeys)
+    {
+        create_new_custom_key = false;
+        $("#button_custom_key").click(
+            function(e) 
+            {  
+                create_new_custom_key = true;
+                $('#input_button_text').val('');
+                $('#input_action_script').val('');
+ 
+                $('#modal_custom_key').modal('show');
+            }
+        );
+
+        $('#modal_custom_key').on('show.bs.modal', function () {
+            
+            if(create_new_custom_key)
+            {
+                $('#button_delete_custom_button').hide();
+            }
+            else
+            {
+                var btn_def = custom_keys.find(el=> ('ck'+el.id) == haptic_touch_selected.id);
+
+                $('#input_button_text').val(btn_def.title);
+                $('#input_action_script').val(btn_def.script);
+
+                $('#button_delete_custom_button').show();
+            }
+
+            if(is_running())
+            {
+                wasm_halt();
+            }
+        });
+
+        $('#modal_custom_key').on('hidden.bs.modal', function () {
+            create_new_custom_key=false;
+        
+            if(is_running())
+            {
+                wasm_run();
+            }
+        });
+
+        $('#button_save_custom_button').click(function(e) 
+        {
+            if(create_new_custom_key)
+            {
+                //create a new custom key buttom  
+                custom_keys.push( 
+                    {  id: custom_keys.length
+                      ,title: $('#input_button_text').val() 
+                      ,script:  $('#input_action_script').val()
+                      ,position: "top:50%;left:50%" });        
+
+                install_custom_keys();
+                create_new_custom_key=false;
+            }
+            else
+            {
+                 var btn_def = custom_keys.find(el=> ('ck'+el.id) == haptic_touch_selected.id);
+                 btn_def.title = $('#input_button_text').val();
+                 btn_def.script = $('#input_action_script').val();
+                 
+                install_custom_keys();
+            }
+            $('#modal_custom_key').modal('hide');
+            save_custom_buttons(global_apptitle, custom_keys);
+        });
+
+        $('#button_delete_custom_button').click(function(e) 
+        {
+            custom_keys=custom_keys.filter(el=> ('ck'+el.id) != haptic_touch_selected.id);
+            install_custom_keys();
+            $('#modal_custom_key').modal('hide');
+        });
+
+        custom_keys = [];
+        action_scripts= {};
+
+        get_custom_buttons(global_apptitle, 
+            function(the_buttons) {
+                custom_keys = the_buttons.data;
+                install_custom_keys();
+            }
+        );
+        install_custom_keys();
+    }
+
+    $("#button_show_menu").click();
+    return;
 }
 
+//---- start custom keys ------
+    function install_custom_keys(){
+        //remove all existing custom key buttons
+        $(".custom_key").remove();
+        
+        //insert the new buttons
+        custom_keys.forEach(function (element, i) {
+            element.id = i;
+            var btn_html='<button id="ck'+element.id+'" class="btn btn-secondary custom_key" style="position:absolute;'+element.position;
+            if(element.currentX)
+            {
+                btn_html += ';transform:translate3d(' + element.currentX + 'px,' + element.currentY + 'px,0)';
+            } 
+            btn_html += ';opacity:1.0;touch-action:none">'+element.title+'</button>';
+
+            $('#div_canvas').append(btn_html);
+            action_scripts["ck"+element.id] = element.script;
+
+
+            $('#ck'+element.id).click(function() 
+            {       
+                var action_script = action_scripts['ck'+element.id];
+                var c64code = translateKey(action_script, action_script.toLowerCase());
+                if(c64code !== undefined)
+                    wasm_key(c64code[0], c64code[1], 1);
+                setTimeout(function() {wasm_key(c64code[0], c64code[1], 0);}, 100);
+            });
+        });
+
+        install_drag();
+    }
+
+
+    function install_drag()
+    {
+        dragItems = [];
+        container = document;
+
+        active = false;
+        currentX=0;
+        currentY=0;
+        initialX=0;
+        initialY=0;
+    
+        xOffset = { };
+        yOffset = { };
+
+        custom_keys.forEach(function (element, i) {
+            dragItems.push(document.querySelector("#ck"+element.id));
+            xOffset["ck"+element.id] = element.currentX;
+            yOffset["ck"+element.id] = element.currentY;
+        });
+
+        container.addEventListener("touchstart", dragStart, false);
+        container.addEventListener("touchend", dragEnd, false);
+        container.addEventListener("touchmove", drag, false);
+
+        container.addEventListener("mousedown", dragStart, false);
+        container.addEventListener("mouseup", dragEnd, false);
+        container.addEventListener("mousemove", drag, false);
+    }
+
+
+    function dragStart(e) {
+      if (dragItems.includes(e.target)) {  
+        //console.log('drag start:' +e.target.id);  
+        dragItem = e.target;
+        active = true;
+        haptic_active=false;
+        timeStart = Date.now(); 
+
+        if(xOffset[e.target.id] === undefined)
+        {
+            xOffset[e.target.id] = 0;
+            yOffset[e.target.id] = 0;
+        }
+        currentX = xOffset[e.target.id];
+        currentY = yOffset[e.target.id];
+        startX = currentX;
+        startY = currentY;        
+
+        
+        setTimeout(() => {
+            checkForHapticTouch(e);
+        }, 600);
+        
+
+        if (e.type === "touchstart") {
+            initialX = e.touches[0].clientX - xOffset[e.target.id];
+            initialY = e.touches[0].clientY - yOffset[e.target.id];
+        } else {
+            initialX = e.clientX - xOffset[e.target.id];
+            initialY = e.clientY - yOffset[e.target.id];
+        }
+      }
+    }
+
+
+
+    function checkForHapticTouch(e)
+    {
+        if(active)
+        {
+            var dragTime = Date.now()-timeStart;
+            if(Math.abs(currentX - startX) < 3 &&
+                Math.abs(currentY - startY) < 3 &&
+                dragTime > 300
+                )
+            {
+                haptic_active=true;
+                haptic_touch_selected= e.target;
+                $('#modal_custom_key').modal('show');
+            }
+        }
+    }
+
+
+    function dragEnd(e) {
+      if (active) {
+        //console.log('drag end:' +e.target.id);  
+ 
+        if(!haptic_active)
+        {
+            checkForHapticTouch(e);
+        }
+        initialX = currentX;
+        initialY = currentY;
+
+        var ckdef = custom_keys.find(el => ('ck'+el.id) == dragItem.id); 
+        
+        if(ckdef.currentX != currentX || ckdef.currentY != currentY)
+        {
+            ckdef.currentX = currentX;
+            ckdef.currentY = currentY;
+         
+            //save new position
+            save_custom_buttons(global_apptitle, custom_keys);
+        }
+
+
+        dragItem = null;
+        active = false;
+      }
+    }
+
+    function drag(e) {
+      if (active && !haptic_active) {
+        e.preventDefault();
+
+        if(dragItems.includes(e.target) && e.target != dragItem)
+          return; // custom key is dragged onto other custom key, don't allow that
+ 
+       // console.log('drag:' +e.target.id);  
+
+        if (e.type === "touchmove") {
+          currentX = e.touches[0].clientX - initialX;
+          currentY = e.touches[0].clientY - initialY;
+        } else {
+          currentX = e.clientX - initialX;
+          currentY = e.clientY - initialY;
+        }
+
+        xOffset[e.target.id] = currentX;
+        yOffset[e.target.id] = currentY;
+
+        setTranslate(currentX, currentY, dragItem);
+      }
+    }
+
+    function setTranslate(xPos, yPos, el) {
+     //   console.log('translate: x'+xPos+' y'+yPos+ 'el=' +el.id);  
+      el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
+    }
+
+//---- end custom key ----
 
 function loadTheme() {
   const dark_theme_selected = load_setting('dark_switch', false);
@@ -948,7 +1217,8 @@ function scaleVMCanvas() {
         v_joystick	= new VirtualJoystick({
             container	: document.getElementById('div_canvas'),
             mouseSupport	: true,
-            strokeStyle	: 'white'
+            strokeStyle	: 'white',
+            limitStickTravel: true
         });
         v_joystick.addEventListener('touchStartValidation', function(event){
             var touch	= event.changedTouches[0];
@@ -982,3 +1252,10 @@ function scaleVMCanvas() {
             v_fire=null;
         }
     }
+
+
+    function is_running()
+    {
+        return $('#button_run').attr('disabled')=='disabled';
+    }
+        

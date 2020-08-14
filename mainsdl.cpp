@@ -449,9 +449,10 @@ class C64Wrapper {
     c64->vic.emulateGrayDotBug=false;
  //   c64->dump();
  //   c64->drive1.dump();
-    c64->setDebugLevel(2);
-    c64->sid.setDebugLevel(4);
+    //c64->setDebugLevel(2);
+    //c64->sid.setDebugLevel(4);
  //   c64->drive1.setDebugLevel(3);
+ //   c64->sid.dump();
     c64->run();
     printf("after run ...\n");
   }

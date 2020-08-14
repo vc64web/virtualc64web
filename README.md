@@ -35,9 +35,10 @@ _note_: start.sh starts an webserver with URL base path pointing to the folder w
 * a virtual keyboard
 * storing selected snapshots into local storage ... effectively making those choosen snapshots persistent 
 * virtual joystick for touch screen devices
+* free positional custom keys as button overlays (aka action buttons) which trigger an action (but no script yet)
 
 ## next goals
-* free positional custom keys as button overlays which trigger an action script
+* action script for the action buttons 
 * cleanup and refactoring of the UI javascript code
 * new  modern boot sequence/animation  replacing the standard emscripten visual boot code 
 * javascript interface for more settings of the emulation like (greydotbugemulation, autosnapshots) 

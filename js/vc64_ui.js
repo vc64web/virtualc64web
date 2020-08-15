@@ -861,8 +861,9 @@ wide_screen_switch.change( function() {
 //---- rom dialog start
     
    document.getElementById('button_rom_dialog').addEventListener("click", function(e) {
-     $('#modal_roms').modal();
-    }, false);
+     $('#modal_settings').modal('hide');
+     setTimeout(function() { $('#modal_roms').modal('show');}, 500);
+   }, false);
 
    
    var bindROMUI = function (id_dropzone, id_delete, id_local_storage) 

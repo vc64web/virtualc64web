@@ -654,7 +654,7 @@ extern "C" void wasm_set_borderless(unsigned on)
 
 extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 {
-  printf("load file=%s len=%ld\n", name, len);
+  printf("load file=%s len=%ld, header bytes= %x, %x, %x\n", name, len, blob[0],blob[1],blob[2]);
   filename=name;
   if(wrapper == NULL)
   {

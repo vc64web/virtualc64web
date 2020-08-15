@@ -681,8 +681,8 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     printf("isSnapshot\n");
     wrapper->c64->loadFromSnapshotSafe(Snapshot::makeWithBuffer(blob, len));
   }
-  else if (checkFileSuffix(name, ".BIN")|| checkFileSuffix(name, ".bin")) {
-    printf("isBIN\n");
+  else /*if (checkFileSuffix(name, ".BIN")|| checkFileSuffix(name, ".bin"))*/ {
+ //   printf("\n");
     //wrapper->c64->flash(ROMFile::makeWithBuffer(blob, len),0);
 
     bool result;

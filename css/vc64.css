@@ -124,7 +124,7 @@ background-color: #555 !important;
     position: fixed; 
     top:0; 
     left:0; 
-    opacity: 0.8; backdrop-filter: blur(6px);
+    opacity: 0.85; backdrop-filter: blur(6px);
 }
 
 [data-theme="dark"] #navbar {

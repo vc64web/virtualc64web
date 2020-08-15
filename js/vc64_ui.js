@@ -22,40 +22,77 @@ function message_handler(cores_msg)
     {        
         //try to load roms from local storage
         setTimeout(function() {
-            var loadStoredItem= function (item_name){
-                var stored_item = localStorage.getItem(item_name); 
-                if(stored_item != null)
-                {
-                    var restoredbytearray = Uint8Array.from(FromBase64(stored_item));
-                    wasm_loadfile(item_name, restoredbytearray, restoredbytearray.byteLength);
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            try{
-                var all_fine = true;
-                if (!loadStoredItem('basic_rom.bin'))
-                    all_fine=false;
-                if (!loadStoredItem('kernal_rom.bin'))
-                    all_fine=false;
-                if (!loadStoredItem('char_rom.bin'))
-                    all_fine=false;
-                if (!loadStoredItem('vc1541_rom.bin'))
-                    all_fine=false;
- 
-                if(all_fine == false)
-                    $('#modal_roms').modal();
-       
-            } catch(e){}
-        
+            if(load_roms(true) == false)
+                $('#modal_roms').modal();
         },0);
  
     }
+}
 
+function load_roms(install_to_core){
+    var loadStoredItem= function (item_name){
+        var stored_item = localStorage.getItem(item_name); 
+        if(stored_item != null)
+        {
+            if(install_to_core)
+            {
+                var restoredbytearray = Uint8Array.from(FromBase64(stored_item));
+                wasm_loadfile(item_name, restoredbytearray, restoredbytearray.byteLength);
+            }
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    var all_fine = true;
+    try{
+        if (!loadStoredItem('basic_rom.bin')){
+            all_fine=false;
+            $("#rom_basic").attr("src", "img/rom_empty.png");
+            $("#button_delete_basic").hide();
+        }
+        else
+        {
+            $("#rom_basic").attr("src", "img/rom_mega65.png");
+            $("#button_delete_basic").show();
+        }
 
+        if (!loadStoredItem('kernal_rom.bin')){
+            all_fine=false;
+            $("#rom_kernal").attr("src", "img/rom_empty.png");
+            $("#button_delete_kernal").hide();
+        }
+        else
+        {
+            $("#rom_kernal").attr("src", "img/rom_mega65.png");
+            $("#button_delete_kernal").show();
+        }
+
+        if (!loadStoredItem('char_rom.bin')){
+            all_fine=false;
+            $("#rom_charset").attr("src", "img/rom_empty.png");
+            $("#button_delete_char_rom").hide();
+        }
+        else
+        {
+            $("#rom_charset").attr("src", "img/rom_mega65.png");
+            $("#button_delete_char_rom").show();
+        }
+
+        if (!loadStoredItem('vc1541_rom.bin')){
+            all_fine=false;
+            $("#rom_disk_drive").attr("src", "img/rom_empty.png");
+            $("#button_delete_rom_disk_drive").hide();
+        }
+        else
+        {
+            $("#rom_disk_drive").attr("src", "img/rom.png");
+            $("#button_delete_disk_drive_rom").show();
+        }
+    } catch(e){}
+    return all_fine;
 }
 
 function dragover_handler(ev) {
@@ -107,6 +144,7 @@ function pushFile(file, startup) {
             if(romtype != "")
             {
                 localStorage.setItem(romtype+".bin", ToBase64(byteArray));
+                load_roms(false);
             }
             else
             {
@@ -819,6 +857,48 @@ wide_screen_switch.change( function() {
     document.getElementById('filedialog').addEventListener("change", function(e) {
           handleFileInput();
         }, false);
+
+//---- rom dialog start
+    
+   document.getElementById('button_rom_dialog').addEventListener("click", function(e) {
+     $('#modal_roms').modal();
+    }, false);
+
+   
+   var bindROMUI = function (id_dropzone, id_delete, id_local_storage) 
+   {
+        document.getElementById(id_dropzone).addEventListener("click", function(e) {
+            document.getElementById('theFileInput').elements['theFileDialog'].click();
+        }, false);
+
+        document.getElementById(id_dropzone).addEventListener("dragover", function(e) {
+            dragover_handler(e);
+        }, false);
+
+        document.getElementById(id_dropzone).addEventListener("drop", function(e) {
+            drop_handler(e);
+        }, false);
+
+        document.getElementById(id_delete).addEventListener("click", function(e) {
+            save_setting(id_local_storage, null);
+            load_roms(true);
+        }, false);
+    }
+    bindROMUI('rom_basic', 'button_delete_basic', "basic_rom.bin");
+   
+    bindROMUI('rom_kernal', 'button_delete_kernal', "kernal_rom.bin");
+   
+    bindROMUI('rom_charset', 'button_delete_char_rom', "char_rom.bin");
+   
+    bindROMUI('rom_disk_drive', 'button_delete_disk_drive_rom', "vc1541_rom.bin");
+   
+
+
+
+//---- rom dialog end
+
+
+
     document.addEventListener('keyup', keyup, false);
     document.addEventListener('keydown', keydown, false);
 
@@ -978,7 +1058,7 @@ wide_screen_switch.change( function() {
             {
                 btn_html += ';transform:translate3d(' + element.currentX + 'px,' + element.currentY + 'px,0)';
             } 
-            btn_html += ';opacity:1.0;touch-action:none">'+element.title+'</button>';
+            btn_html += ';touch-action:none">'+element.title+'</button>';
 
             $('#div_canvas').append(btn_html);
             action_scripts["ck"+element.id] = element.script;

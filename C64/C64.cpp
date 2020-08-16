@@ -467,9 +467,9 @@ C64::isRunnable()
     return
     mem.basicRomIsLoaded() &&
     mem.characterRomIsLoaded() &&
-    mem.kernalRomIsLoaded() &&
+    mem.kernalRomIsLoaded() /*&&
     drive1.mem.romIsLoaded() &&
-    drive2.mem.romIsLoaded();
+    drive2.mem.romIsLoaded()*/;  //patch mithrendal to make it work without commodore disk rom
 }
 
 bool

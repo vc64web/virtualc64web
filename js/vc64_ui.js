@@ -84,7 +84,7 @@ function load_roms(install_to_core){
         if (!loadStoredItem('vc1541_rom.bin')){
             all_fine=false;
             $("#rom_disk_drive").attr("src", "img/rom_empty.png");
-            $("#button_delete_rom_disk_drive").hide();
+            $("#button_delete_disk_drive_rom").hide();
         }
         else
         {

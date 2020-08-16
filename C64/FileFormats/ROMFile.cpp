@@ -24,7 +24,9 @@ const uint8_t ROMFile::magicBasicRomBytes[basicRomSignatureCnt][3] = {
 
     { 0x94, 0xE3, 0x7B },       // Commodore ROM
     { 0xB9, 0xA7, 0xC1 },       // MEGA65 project
-    { 0x63, 0xA6, 0xC1 }        // MEGA65 project
+    { 0x63, 0xA6, 0xC1 },       // MEGA65 project
+    { 0x94, 0xE3, 0xB7 }        // MEGA65 2020.08.15
+    
 
 };
 
@@ -46,7 +48,9 @@ const uint8_t ROMFile::magicKernalRomBytes[kernalRomSignatureCnt][3] = {
 
     { 0x85, 0x56, 0x20 },       // Commodore ROM
     { 0x20, 0x70, 0xA8 },       // MEGA65 project
-    { 0x20, 0x02, 0xBE }
+    { 0x20, 0x02, 0xBE },
+    { 0x4C, 0xB2, 0xA6 }        // MEGA65 2020.08.15
+
 };
 
 const uint8_t ROMFile::magicVC1541RomBytes[vc1541RomSignatureCnt][3] = {

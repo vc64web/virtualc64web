@@ -654,7 +654,7 @@ extern "C" void wasm_set_borderless(unsigned on)
 
 extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 {
-  printf("load file=%s len=%ld\n", name, len);
+  printf("load file=%s len=%ld, header bytes= %x, %x, %x\n", name, len, blob[0],blob[1],blob[2]);
   filename=name;
   if(wrapper == NULL)
   {
@@ -681,8 +681,8 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     printf("isSnapshot\n");
     wrapper->c64->loadFromSnapshotSafe(Snapshot::makeWithBuffer(blob, len));
   }
-  else if (checkFileSuffix(name, ".BIN")|| checkFileSuffix(name, ".bin")) {
-    printf("isBIN\n");
+  else /*if (checkFileSuffix(name, ".BIN")|| checkFileSuffix(name, ".bin"))*/ {
+ //   printf("\n");
     //wrapper->c64->flash(ROMFile::makeWithBuffer(blob, len),0);
 
     bool result;

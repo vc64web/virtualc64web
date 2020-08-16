@@ -26,10 +26,12 @@ clean:
 main:
 	$(CC)  -c $(CFLAGS) mainsdl.cpp 
 	mv *.o obj
-	$(CC)  $(CFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB -s ALLOW_MEMORY_GROWTH=1 $(OBJDIR)/*.o --preload-file roms
+	$(CC)  $(CFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB -s ALLOW_MEMORY_GROWTH=1 $(OBJDIR)/*.o 
+	#--preload-file roms
 	mv vC64.html index.html
 
 publish:
+	rm -rf ../gh-pages/roms
 	rm -rf ../gh-pages/css
 	rm -rf ../gh-pages/js
 	rm -rf ../gh-pages/img
@@ -41,6 +43,7 @@ publish:
 	cp -r js ../gh-pages
 	cp -r css ../gh-pages
 	cp -r img ../gh-pages/
+	cp -r roms ../gh-pages/
 	cp index.html ../gh-pages 
 	cp sw.js ../gh-pages
 	cp manifest.json ../gh-pages

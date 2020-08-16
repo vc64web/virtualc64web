@@ -29,59 +29,115 @@ function message_handler(cores_msg)
     }
 }
 
+
+function fetchOpenROMS(){
+
+
+
+    install = function (rom_url){
+        var oReq = new XMLHttpRequest();
+        oReq.open("GET", rom_url, true);
+        oReq.responseType = "arraybuffer";
+
+        oReq.onload = function(oEvent) {
+            var arrayBuffer = oReq.response;
+            var byteArray = new Uint8Array(arrayBuffer);
+            var rom_url_path = rom_url.split('/');
+            var rom_name = rom_url_path[rom_url_path.length-1];
+
+            var romtype = wasm_loadfile(rom_name, byteArray, byteArray.byteLength);
+            if(romtype != "")
+            {
+                localStorage.setItem(romtype+".bin", ToBase64(byteArray));
+                load_roms(false);
+            }
+        };
+        oReq.send();  
+    }
+
+    install("roms/basic_generic.rom");
+    install("roms/kernal_generic.rom");
+    install("roms/chargen_openroms.rom");
+}
+
+
+
+
 function load_roms(install_to_core){
     var loadStoredItem= function (item_name){
         var stored_item = localStorage.getItem(item_name); 
         if(stored_item != null)
         {
+            var restoredbytearray = Uint8Array.from(FromBase64(stored_item));
             if(install_to_core)
             {
-                var restoredbytearray = Uint8Array.from(FromBase64(stored_item));
                 wasm_loadfile(item_name, restoredbytearray, restoredbytearray.byteLength);
             }
-            return true;
+            return restoredbytearray;
         }
         else
         {
-            return false;
+            return null;
         }
     }
+
+    compare_header = function (header_array,file_array)
+    {
+        var matches = true;
+        header_array.forEach(function (element, i) {
+            if(file_array[i] != element)
+              matches=false;
+        }
+        );
+
+        return matches;
+
+    }
+
     var all_fine = true;
     try{
-        if (!loadStoredItem('basic_rom.bin')){
+        var the_rom=loadStoredItem('basic_rom.bin');
+        if (the_rom==null){
             all_fine=false;
             $("#rom_basic").attr("src", "img/rom_empty.png");
             $("#button_delete_basic").hide();
         }
         else
         {
-            $("#rom_basic").attr("src", "img/rom_mega65.png");
+            $("#rom_basic").attr("src", compare_header([0x94,0xe3, 0xb7], the_rom) ?
+            "img/rom_mega65.png":"img/rom.png");
+        
             $("#button_delete_basic").show();
         }
 
-        if (!loadStoredItem('kernal_rom.bin')){
+        var the_rom=loadStoredItem('kernal_rom.bin');
+        if (the_rom==null){
             all_fine=false;
             $("#rom_kernal").attr("src", "img/rom_empty.png");
             $("#button_delete_kernal").hide();
         }
         else
         {
-            $("#rom_kernal").attr("src", "img/rom_mega65.png");
+            $("#rom_kernal").attr("src", compare_header([0x4c,0xb2, 0xa6], the_rom) ?
+            "img/rom_mega65.png":"img/rom.png");
             $("#button_delete_kernal").show();
         }
 
-        if (!loadStoredItem('char_rom.bin')){
+        var the_rom=loadStoredItem('char_rom.bin');
+        if (the_rom==null){
             all_fine=false;
             $("#rom_charset").attr("src", "img/rom_empty.png");
             $("#button_delete_char_rom").hide();
         }
         else
         {
-            $("#rom_charset").attr("src", "img/rom_mega65.png");
+            $("#rom_charset").attr("src", compare_header([0x3c, 0x66, 0x6e, 110, 96, 102], the_rom) ?
+            "img/rom_mega65.png":"img/rom.png");
             $("#button_delete_char_rom").show();
         }
 
-        if (!loadStoredItem('vc1541_rom.bin')){
+        var the_rom=loadStoredItem('vc1541_rom.bin'); 
+        if (the_rom==null){
             all_fine=false;
             $("#rom_disk_drive").attr("src", "img/rom_empty.png");
             $("#button_delete_disk_drive_rom").hide();
@@ -863,6 +919,11 @@ wide_screen_switch.change( function() {
    document.getElementById('button_rom_dialog').addEventListener("click", function(e) {
      $('#modal_settings').modal('hide');
      setTimeout(function() { $('#modal_roms').modal('show');}, 500);
+   }, false);
+
+
+   document.getElementById('button_fetch_open_roms').addEventListener("click", function(e) {
+       fetchOpenROMS();
    }, false);
 
    

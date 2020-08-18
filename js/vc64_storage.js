@@ -214,24 +214,27 @@ function save_custom_buttons(the_name, the_data) {
 
 function get_custom_buttons(the_app_title, callback_fn)
 {
-    let transaction = db.transaction("custom_buttons"); 
-    let custom_buttons = transaction.objectStore("custom_buttons");
- 
-    let request = custom_buttons.get(the_app_title);
+  if(db === undefined)
+    return;
 
-    request.onsuccess = function() {
-        if(request.result !== undefined)
-        {
-          callback_fn(request.result);
-        }
-        else
-        {
-          let empty_custom_buttons = {
-              title: the_app_title,
-              data: [] 
-            };
+  let transaction = db.transaction("custom_buttons"); 
+  let custom_buttons = transaction.objectStore("custom_buttons");
 
-          callback_fn(empty_custom_buttons);
-        }
-    };
+  let request = custom_buttons.get(the_app_title);
+
+  request.onsuccess = function() {
+      if(request.result !== undefined)
+      {
+        callback_fn(request.result);
+      }
+      else
+      {
+        let empty_custom_buttons = {
+            title: the_app_title,
+            data: [] 
+          };
+
+        callback_fn(empty_custom_buttons);
+      }
+  };
 }

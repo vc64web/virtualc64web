@@ -677,6 +677,13 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(wrapper->c64,(CRTFile::makeWithBuffer(blob, len))));
     wrapper->c64->reset();
   }
+  else if (checkFileSuffix(name, ".TAP")|| checkFileSuffix(name, ".tap")) {
+    printf("isTAP\n");
+    wrapper->c64->datasette.insertTape(TAPFile::makeWithBuffer(blob, len));
+    wrapper->c64->datasette.rewind();
+    wrapper->c64->datasette.pressPlay();
+  //  wrapper->c64->datasette.pressStop();
+  }
   else if (checkFileSuffix(name, ".vc64")|| checkFileSuffix(name, ".vc64")) {
     printf("isSnapshot\n");
     wrapper->c64->loadFromSnapshotSafe(Snapshot::makeWithBuffer(blob, len));

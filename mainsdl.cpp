@@ -684,6 +684,10 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     wrapper->c64->datasette.pressPlay();
   //  wrapper->c64->datasette.pressStop();
   }
+  else if (checkFileSuffix(name, ".T64")|| checkFileSuffix(name, ".t64")) {
+    printf("isT64\n");
+    wrapper->c64->flash(T64File::makeWithBuffer(blob, len),0);
+  }
   else if (checkFileSuffix(name, ".vc64")|| checkFileSuffix(name, ".vc64")) {
     printf("isSnapshot\n");
     wrapper->c64->loadFromSnapshotSafe(Snapshot::makeWithBuffer(blob, len));

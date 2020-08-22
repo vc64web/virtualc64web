@@ -65,7 +65,7 @@
     </style>
   </head>
   <body data-theme="dark">
-    <figure style="overflow:visible;" id="spinner"><div class="spinner"></div><center style="margin-top:0.5em"><strong>emscripten</strong></center></figure>
+    <figure style="overflow:visible;" id="spinner"><div class="spinner"></div><center style="margin-top:0.5em"><strong>booting into Virtual C64 WebEdition...</strong></center></figure>
     <div class="emscripten" id="status">Downloading...</div>
     <div class="emscripten">
       <progress value="0" max="100" id="progress" hidden=1></progress>  
@@ -498,6 +498,42 @@ goes into edit mode which takes you right back to here ...
       </div>
     </div>
     <!--custom key modal-->
+
+
+    <!-- file slot modal--->
+    <div class="modal fade" id="modal_file_slot" tabindex="-1" role="dialog" aria-labelledby="file_slot_ModalLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="file_slot_ModalLabel"><span id="file_slot_dialog_label"></span></h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div id="div_auto_load" class="custom-control custom-switch mt-1">
+              <input type="checkbox" class="custom-control-input" id="auto_load"/>
+              <label class="custom-control-label" for="auto_load">auto load</label>
+            </div>
+            <div id="div_auto_press_play" class="custom-control custom-switch mt-1">
+              <input type="checkbox" class="custom-control-input" id="auto_press_play"/>
+              <label class="custom-control-label" for="auto_press_play">auto press play on tape</label>
+            </div>
+            <div id="div_auto_run" class="custom-control custom-switch mt-1">
+              <input type="checkbox" class="custom-control-input" id="auto_run"/>
+              <label class="custom-control-label" for="auto_run">auto run</label>
+            </div>
+            
+
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary justify-start" data-dismiss="modal">cancel</button>
+            <button id="button_insert_file" type="button" class="btn btn-primary">insert</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--file slot modal-->
 
 
 

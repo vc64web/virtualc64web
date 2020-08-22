@@ -167,14 +167,14 @@ function drop_handler(ev) {
         for (var i=0; i < dt.items.length; i++) {
             if (dt.items[i].kind == "file") {
                 var f = dt.items[i].getAsFile();
-                pushFile(f, false);
+                pushFile(f);
                 break;
             }
         }
     }
     else {
         for (var i=0; i < dt.files.length; i++) {
-            pushFile(dt.files[i], false);
+            pushFile(dt.files[i]);
             break;
         }
     }
@@ -185,34 +185,73 @@ function handleFileInput(event)
     var myForm = document.getElementById('theFileInput');
     var myfiles = myForm.elements['theFileDialog'].files;
     for (var i=0; i < myfiles.length; i++) {
-        pushFile(myfiles[i], false);
+        pushFile(myfiles[i]);
         break;
     }
     return false;
 }
 
-function pushFile(file, startup) {
+
+file_slot_file_name = null;
+file_slot_file =null;
+
+function pushFile(file) {
     var fileReader  = new FileReader();
     fileReader.onload  = function() {
-        var byteArray = new Uint8Array(this.result);
+        file_slot_file_name = file.name;
+        file_slot_file = new Uint8Array(this.result);
+
         try{
-            var romtype = wasm_loadfile(file.name, byteArray, byteArray.byteLength);
-            if(romtype != "")
+            if($("#modal_roms").is(":visible"))
             {
-                localStorage.setItem(romtype+".bin", ToBase64(byteArray));
-                load_roms(false);
+                var romtype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
+                if(romtype != "")
+                {
+                    localStorage.setItem(romtype+".bin", ToBase64(file_slot_file));
+                    load_roms(false);
+                }
             }
             else
             {
-                global_apptitle = file.name;
-                get_custom_buttons(global_apptitle, 
-                    function(the_buttons) {
-                        custom_keys = the_buttons.data;
-                        install_custom_keys();
-                    }
-                );
-            }
+                $("#file_slot_dialog_label").html(" "+file_slot_file_name);
+                //configure file_slot
 
+                $("#auto_load").prop('checked', true);
+                $("#auto_press_play").prop('checked', true);
+                $("#auto_run").prop('checked', true);
+
+                if(file_slot_file_name.match(/[.](prg|t64)$/i)) 
+                {
+                    $("#div_auto_load").hide();
+                    $("#div_auto_press_play").hide();
+                    $("#div_auto_run").show();
+                    $("#button_insert_file").html("flash program");
+                }
+                else if(file_slot_file_name.match(/[.]tap$/i)) 
+                {
+                    $("#div_auto_load").show();
+                    $("#div_auto_press_play").show();
+                    $("#div_auto_run").hide();
+                    $("#button_insert_file").html("insert tape");
+                }
+                else if(file_slot_file_name.match(/[.](d64|g64)$/i)) 
+                {
+                    $("#div_auto_load").show();
+                    $("#div_auto_press_play").hide();
+                    $("#div_auto_run").hide();
+                    $("#button_insert_file").html("insert disk");
+                }
+                else if(file_slot_file_name.match(/[.](crt)$/i)) 
+                {
+                    $("#div_auto_load").hide();
+                    $("#div_auto_press_play").hide();
+                    $("#div_auto_run").hide();
+                    $("#button_insert_file").html("insert cartridge");
+                }
+
+                $("#modal_file_slot").modal();
+            }    
+ 
         } catch(e) {}
     }
     fileReader.readAsArrayBuffer(file);
@@ -640,6 +679,56 @@ wide_screen_switch.change( function() {
         $('#button_halt').removeAttr('disabled');
         //document.getElementById('canvas').focus();
     });
+
+    $('#modal_file_slot').on('hidden.bs.modal', function () {
+
+/*
+        if(is_running())
+        {
+            setTimeout(function(){try{wasm_run();} catch(e) {}},200);
+        }
+*/
+    });
+
+    $("#button_insert_file").click(function() 
+    {       
+        var filetype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
+        global_apptitle = file_slot_file_name;
+        get_custom_buttons(global_apptitle, 
+            function(the_buttons) {
+                custom_keys = the_buttons.data;
+                install_custom_keys();
+            }
+        );
+        $('#modal_file_slot').modal('hide');
+
+        if($("#auto_load").is(":visible") && $("#auto_load").prop('checked'))
+        {
+            if(file_slot_file_name.endsWith('.tap'))
+            {
+                //shift + runStop
+                emit_string(['Enter','ShiftRunStop']);
+                
+                if($("#auto_press_play").is(":visible") && $("#auto_press_play").prop('checked'))
+                {
+                    //press play on tape
+                }
+            }
+            else
+            {
+                emit_string(['Enter','l','o','a', 'd','"','*','"',',','8',',', '1', 'Enter']);
+            }
+      
+        }
+
+        if($("#auto_run").is(":visible") && $("#auto_run").prop('checked'))
+        {
+            emit_string(['Enter','r','u','n','Enter']);
+        }
+      
+    }
+    );
+
 
 
     $('#modal_take_snapshot').on('hidden.bs.modal', function () {
@@ -1401,3 +1490,27 @@ function scaleVMCanvas() {
         return $('#button_run').attr('disabled')=='disabled';
     }
         
+    
+
+function emit_string(keys_to_emit_array)
+{  
+    time_in_future=150;
+    keys_to_emit_array.forEach(function (the_key, i) {
+             
+             var c64code = translateKey2(the_key, the_key.toLowerCase());
+             if(c64code !== undefined)
+             {
+                if(c64code.modifier != null)
+                {
+                    setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 1);}, time_in_future);
+                    setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 0);}, time_in_future+120);
+                }
+
+                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 1);}, time_in_future+3);
+                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 0);}, time_in_future+100);
+                time_in_future +=150;
+             }
+        }
+    );
+}
+    

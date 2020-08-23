@@ -681,7 +681,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     printf("isTAP\n");
     wrapper->c64->datasette.insertTape(TAPFile::makeWithBuffer(blob, len));
     wrapper->c64->datasette.rewind();
-    wrapper->c64->datasette.pressPlay();
+  //  wrapper->c64->datasette.pressPlay();
   //  wrapper->c64->datasette.pressStop();
   }
   else if (checkFileSuffix(name, ".T64")|| checkFileSuffix(name, ".t64")) {
@@ -763,6 +763,12 @@ extern "C" void wasm_run()
   wrapper->c64->run();
 }
 
+
+extern "C" void wasm_press_play()
+{
+  printf("wasm_press_play\n");
+  wrapper->c64->datasette.pressPlay();
+}
 
 
 extern "C" void wasm_joystick(char* port_plus_event)

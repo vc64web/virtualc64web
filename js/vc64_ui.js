@@ -482,6 +482,7 @@ function InitWrappers() {
     wasm_create_renderer =  Module.cwrap('wasm_create_renderer', 'undefined', ['string']);
     wasm_set_warp = Module.cwrap('wasm_set_warp', 'undefined', ['number']);
     wasm_set_borderless = Module.cwrap('wasm_set_borderless', 'undefined', ['number']);
+    wasm_press_play = Module.cwrap('wasm_press_play', 'undefined');
 
     dark_switch = document.getElementById('dark_switch');
 
@@ -711,7 +712,9 @@ wide_screen_switch.change( function() {
                 
                 if($("#auto_press_play").is(":visible") && $("#auto_press_play").prop('checked'))
                 {
-                    //press play on tape
+                    //press play on tape shortly after emitting load command
+                    setTimeout(function() {wasm_press_play(); },1000);
+                    
                 }
             }
             else

@@ -238,7 +238,7 @@ function pushFile(file) {
                 {
                     $("#div_auto_load").show();
                     $("#div_auto_press_play").hide();
-                    $("#div_auto_run").hide();
+                    $("#div_auto_run").show();
                     $("#button_insert_file").html("insert disk");
                 }
                 else if(file_slot_file_name.match(/[.](crt)$/i)) 
@@ -713,18 +713,20 @@ wide_screen_switch.change( function() {
                 if($("#auto_press_play").is(":visible") && $("#auto_press_play").prop('checked'))
                 {
                     //press play on tape shortly after emitting load command
-                    setTimeout(function() {wasm_press_play(); },1000);
-                    
+                    setTimeout(function() {wasm_press_play(); },320);
                 }
             }
             else
             {
                 emit_string(['Enter','l','o','a', 'd','"','*','"',',','8',',', '1', 'Enter']);
+                
+                if($("#auto_run").is(":visible") && $("#auto_run").prop('checked'))
+                {
+                    emit_string(['Enter','r','u','n','Enter'], 2000, 800);
+                }
             }
-      
         }
-
-        if($("#auto_run").is(":visible") && $("#auto_run").prop('checked'))
+        else if($("#auto_run").is(":visible") && $("#auto_run").prop('checked'))
         {
             emit_string(['Enter','r','u','n','Enter']);
         }
@@ -1495,9 +1497,9 @@ function scaleVMCanvas() {
         
     
 
-function emit_string(keys_to_emit_array)
+function emit_string(keys_to_emit_array, type_first_key_time=150, next_key_time=150)
 {  
-    time_in_future=150;
+    time_in_future=type_first_key_time;
     keys_to_emit_array.forEach(function (the_key, i) {
              
              var c64code = translateKey2(the_key, the_key.toLowerCase());
@@ -1506,12 +1508,12 @@ function emit_string(keys_to_emit_array)
                 if(c64code.modifier != null)
                 {
                     setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 1);}, time_in_future);
-                    setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 0);}, time_in_future+120);
+                    setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 0);}, time_in_future+next_key_time-10);
                 }
 
-                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 1);}, time_in_future+3);
-                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 0);}, time_in_future+100);
-                time_in_future +=150;
+                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 1);}, time_in_future+10);
+                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 0);}, time_in_future+next_key_time-10);
+                time_in_future +=next_key_time;
              }
         }
     );

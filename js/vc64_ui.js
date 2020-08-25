@@ -682,13 +682,7 @@ wide_screen_switch.change( function() {
     });
 
     $('#modal_file_slot').on('hidden.bs.modal', function () {
-
-/*
-        if(is_running())
-        {
-            setTimeout(function(){try{wasm_run();} catch(e) {}},200);
-        }
-*/
+        $("#filedialog").val(''); //clear file slot after file has been loaded
     });
 
     $("#button_insert_file").click(function() 

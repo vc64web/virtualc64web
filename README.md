@@ -3,7 +3,11 @@
 ![alt Logo](http://www.dirkwhoffmann.de/software/images/banner-vcweb3.jpg)
 
 ## info
+this project aims to build a fancy, cool and stylish version of dirks VirtualC64 emulator with pure HTML5 techniques for desktop browsers and touch devices like phones and tablets ... 
+
 The base is a copy of virtualC64 without its usual mac GUI in v3.4b1 master branch March 3 2020 latest commit point fe1629c
+
+
 
 ## try and feel it here 
 https://dirkwhoffmann.github.io/virtualc64web/

@@ -266,24 +266,22 @@ function configure_file_dialog()
                 
                 var zip = new JSZip();
                 zip.loadAsync(file_slot_file).then(function (zip) {
-                        // "zip" is still in the "subfolder" folder
-                    console.log(zip.files);
-                    // subfolder/file1.txt
-                    // subfolder/folder1/file2.txt
-                    //$("#div_zip_content").html("files "+ zip.files);
-                        var list='<ul id="ui_file_list" class="list-group">';
-                        zip.forEach(function (relativePath, zipfile){
-                        console.log("iterating over", relativePath);
-                        if(relativePath.endsWith(".d64"))
+                    var list='<ul id="ui_file_list" class="list-group">';
+                    var mountable_count=0;
+                    zip.forEach(function (relativePath, zipfile){
+                        var mountable = relativePath.toLowerCase().match(/[.](zip|prg|t64|d64|g64|tap|crt)$/i);
+                        list+='<li '+
+                        (mountable ? 'id="li_fileselect'+mountable_count+'"':'')
+                        +' class="list-group-item list-group-item-action'+ 
+                            (mountable ? '':' disabled')+'" data-toggle="list">'+relativePath+'</li>';
+                        if(mountable)
                         {
+                            mountable_count++;
                         }
-
-                        list+='<li class="list-group-item list-group-item-action" data-toggle="list">'+relativePath+'</li>';
-                        });
-                        list += '</ul>';
-                        $("#div_zip_content").html("select a file<br><br>"+ list);
-
-                        $('#ui_file_list li').click( function (e) {
+                    });
+                    list += '</ul>';
+                    $("#div_zip_content").html("select a file<br><br>"+ list);
+                    $('#ui_file_list li').click( function (e) {
                         e.preventDefault();
                         $(this).parent().find('li').removeClass('active');
                         $(this).addClass('active');
@@ -297,8 +295,11 @@ function configure_file_dialog()
                                 file_slot_file=u8;
                             });
                         $("#button_insert_file").removeAttr("disabled");
-                        });
-
+                    });
+                    if(mountable_count==1)
+                    {
+                        $("#li_fileselect0").click();
+                    }
                 });
 
                 $("#button_insert_file").html("mount file");
@@ -776,7 +777,7 @@ wide_screen_switch.change( function() {
                 if($("#auto_press_play").is(":visible") && $("#auto_press_play").prop('checked'))
                 {
                     //press play on tape shortly after emitting load command
-                    setTimeout(function() {wasm_press_play(); },320);
+                    setTimeout(function() {wasm_press_play(); },420);
                 }
             }
             else

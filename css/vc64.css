@@ -114,6 +114,11 @@ color: var(--light) !important;
 background-color: #007bff !important;
 }
 
+[data-theme="dark"] .list-group-item.disabled {
+color: #aaa !important;
+}
+
+
 
 #virtual_keyboard {
     position:fixed;

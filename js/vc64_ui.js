@@ -54,10 +54,10 @@ function fetchOpenROMS(){
         };
         oReq.send();  
     }
-    install("roms/basic_generic.rom");
-    install("roms/kernal_generic.rom");
-    install("roms/chargen_openroms.rom");
-
+    
+    install("https://mega65.github.io/open-roms/bin/basic_generic.rom");
+    install("https://mega65.github.io/open-roms/bin/kernal_generic.rom");
+    install("https://mega65.github.io/open-roms/bin/chargen_openroms.rom");
 }
 
 
@@ -200,62 +200,125 @@ function pushFile(file) {
     fileReader.onload  = function() {
         file_slot_file_name = file.name;
         file_slot_file = new Uint8Array(this.result);
-
-        try{
-            if($("#modal_roms").is(":visible"))
-            {
-                var romtype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
-                if(romtype != "")
-                {
-                    localStorage.setItem(romtype+".bin", ToBase64(file_slot_file));
-                    load_roms(false);
-                }
-            }
-            else
-            {
-                $("#file_slot_dialog_label").html(" "+file_slot_file_name);
-                //configure file_slot
-
-                $("#auto_load").prop('checked', true);
-                $("#auto_press_play").prop('checked', true);
-                $("#auto_run").prop('checked', true);
-
-                if(file_slot_file_name.match(/[.](prg|t64)$/i)) 
-                {
-                    $("#div_auto_load").hide();
-                    $("#div_auto_press_play").hide();
-                    $("#div_auto_run").show();
-                    $("#button_insert_file").html("flash program");
-                }
-                else if(file_slot_file_name.match(/[.]tap$/i)) 
-                {
-                    $("#div_auto_load").show();
-                    $("#div_auto_press_play").show();
-                    $("#div_auto_run").hide();
-                    $("#button_insert_file").html("insert tape");
-                }
-                else if(file_slot_file_name.match(/[.](d64|g64)$/i)) 
-                {
-                    $("#div_auto_load").show();
-                    $("#div_auto_press_play").hide();
-                    $("#div_auto_run").show();
-                    $("#button_insert_file").html("insert disk");
-                }
-                else if(file_slot_file_name.match(/[.](crt)$/i)) 
-                {
-                    $("#div_auto_load").hide();
-                    $("#div_auto_press_play").hide();
-                    $("#div_auto_run").hide();
-                    $("#button_insert_file").html("insert cartridge");
-                }
-
-                $("#modal_file_slot").modal();
-            }    
- 
-        } catch(e) {}
+        configure_file_dialog();
     }
     fileReader.readAsArrayBuffer(file);
 }
+
+function configure_file_dialog()
+{
+    try{
+        if($("#modal_roms").is(":visible"))
+        {
+            var romtype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
+            if(romtype != "")
+            {
+                localStorage.setItem(romtype+".bin", ToBase64(file_slot_file));
+                load_roms(false);
+            }
+        }
+        else
+        {
+            $("#file_slot_dialog_label").html(" "+file_slot_file_name);
+            //configure file_slot
+
+            $("#auto_load").prop('checked', true);
+            $("#auto_press_play").prop('checked', true);
+            $("#auto_run").prop('checked', true);
+            $("#button_insert_file").removeAttr("disabled");
+            $("#div_zip_content").hide();
+
+            if(file_slot_file_name.match(/[.](prg|t64)$/i)) 
+            {
+                $("#div_auto_load").hide();
+                $("#div_auto_press_play").hide();
+                $("#div_auto_run").show();
+                $("#button_insert_file").html("flash program");
+            }
+            else if(file_slot_file_name.match(/[.]tap$/i)) 
+            {
+                $("#div_auto_load").show();
+                $("#div_auto_press_play").show();
+                $("#div_auto_run").hide();
+                $("#button_insert_file").html("insert tape");
+            }
+            else if(file_slot_file_name.match(/[.](d64|g64)$/i)) 
+            {
+                $("#div_auto_load").show();
+                $("#div_auto_press_play").hide();
+                $("#div_auto_run").show();
+                $("#button_insert_file").html("insert disk");
+            }
+            else if(file_slot_file_name.match(/[.](crt)$/i)) 
+            {
+                $("#div_auto_load").hide();
+                $("#div_auto_press_play").hide();
+                $("#div_auto_run").hide();
+                $("#button_insert_file").html("insert cartridge");
+            }
+            else if(file_slot_file_name.match(/[.](zip)$/i)) 
+            {
+                $("#div_auto_load").hide();
+                $("#div_auto_press_play").hide();
+                $("#div_auto_run").hide();
+
+                $("#div_zip_content").show();
+                
+                var zip = new JSZip();
+                zip.loadAsync(file_slot_file).then(function (zip) {
+                        // "zip" is still in the "subfolder" folder
+                    console.log(zip.files);
+                    // subfolder/file1.txt
+                    // subfolder/folder1/file2.txt
+                    //$("#div_zip_content").html("files "+ zip.files);
+                        var list='<ul id="ui_file_list" class="list-group">';
+                        zip.forEach(function (relativePath, zipfile){
+                        console.log("iterating over", relativePath);
+                        if(relativePath.endsWith(".d64"))
+                        {
+                        }
+
+                        list+='<li class="list-group-item list-group-item-action" data-toggle="list">'+relativePath+'</li>';
+                        });
+                        list += '</ul>';
+                        $("#div_zip_content").html("select a file<br><br>"+ list);
+
+                        $('#ui_file_list li').click( function (e) {
+                        e.preventDefault();
+                        $(this).parent().find('li').removeClass('active');
+                        $(this).addClass('active');
+
+                        var path = $(this).html();
+                        zip.file(path).async("uint8array", 
+                            function updateCallback(metadata) {
+                                console.log("progression: " + metadata.percent.toFixed(2) + " %");
+                            }).then(function (u8) {
+                                file_slot_file_name=path;
+                                file_slot_file=u8;
+                            });
+                        $("#button_insert_file").removeAttr("disabled");
+                        });
+
+                });
+
+                $("#button_insert_file").html("mount file");
+                $("#button_insert_file").attr("disabled", true);
+            }
+            $("#modal_file_slot").modal();
+        }    
+
+    } catch(e) {
+        console.log(e);
+    }
+}
+
+
+
+
+
+
+
+
 var port1 = 'none';
 var port2 = 'none';
 joystick_keydown_map = {
@@ -686,7 +749,13 @@ wide_screen_switch.change( function() {
     });
 
     $("#button_insert_file").click(function() 
-    {       
+    {   
+        if($('#div_zip_content').is(':visible'))
+        {
+            configure_file_dialog();
+            return;
+        }
+
         var filetype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
         global_apptitle = file_slot_file_name;
         get_custom_buttons(global_apptitle, 
@@ -716,7 +785,7 @@ wide_screen_switch.change( function() {
                 
                 if($("#auto_run").is(":visible") && $("#auto_run").prop('checked'))
                 {
-                    emit_string(['Enter','r','u','n','Enter'], 2000, 800);
+                    emit_string(['Enter','r','u','n','Enter'], 3000, 800);
                 }
             }
         }
@@ -1000,7 +1069,7 @@ wide_screen_switch.change( function() {
     }, false);
     document.getElementById('filedialog').addEventListener("change", function(e) {
           handleFileInput();
-        }, false);
+    }, false);
 
 //---- rom dialog start
     
@@ -1491,7 +1560,7 @@ function scaleVMCanvas() {
         
     
 
-function emit_string(keys_to_emit_array, type_first_key_time=150, next_key_time=150)
+function emit_string(keys_to_emit_array, type_first_key_time=200, next_key_time=200)
 {  
     time_in_future=type_first_key_time;
     keys_to_emit_array.forEach(function (the_key, i) {

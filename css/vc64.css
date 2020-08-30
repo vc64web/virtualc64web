@@ -105,6 +105,15 @@ color: var(--light) !important;
 background-color: #555 !important;
 }
 
+[data-theme="dark"] .list-group-item {
+background-color: #555 !important;
+color: var(--light) !important;
+}
+
+[data-theme="dark"] .list-group-item.active {
+background-color: #007bff !important;
+}
+
 
 #virtual_keyboard {
     position:fixed;

@@ -12,13 +12,14 @@
 #drop_zone {
     cursor: pointer;
     border: 3px dashed var(--blue);
-    height: 32px;
+    height: 30px;
+    border-radius: 6px;
 }
 
 [data-theme="dark"] #drop_zone {
     background-color: var(--dark);
     border: 3px dashed var(--blue);
-    height: 32px;
+    height: 30px;
 }
 
 

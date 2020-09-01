@@ -225,7 +225,7 @@
           <div class="modal-body">
             The emulator needs system ROM files. Please drag the missing files into the empty chip sockets. Or just touch or click the sockets.<br>
             If you don't own already the commodore roms,
-            download the free generic roms at &nbsp;<a href="https://github.com/MEGA65/open-roms/tree/master/bin" target="_blank"> <img src="img/mega.png" xstyle="width: 4%;margin-right:3px;"/> open roms project</a>.
+            download the free generic roms at &nbsp;<a href="https://github.com/MEGA65/open-roms/tree/master/bin" target="_blank"> <img src="img/mega.png"/> open roms project</a>.
             <br>
             <div class="container mt-4">
             <div class="row my-2">
@@ -528,7 +528,10 @@ goes into edit mode which takes you right back to here ...
 
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary justify-start" data-dismiss="modal">cancel</button>
+            <div class="justify-start">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">cancel</button>
+            <button id="button_eject_zip" type="button" class="btn btn-success ml-2">eject zip</button>
+            </div>
             <button id="button_insert_file" type="button" class="btn btn-primary">insert</button>
           </div>
         </div>

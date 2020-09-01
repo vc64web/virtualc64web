@@ -195,6 +195,10 @@ function handleFileInput(event)
 file_slot_file_name = null;
 file_slot_file =null;
 
+last_zip_archive_name = null
+last_zip_archive = null
+
+
 function pushFile(file) {
     var fileReader  = new FileReader();
     fileReader.onload  = function() {
@@ -227,6 +231,7 @@ function configure_file_dialog()
             $("#auto_run").prop('checked', true);
             $("#button_insert_file").removeAttr("disabled");
             $("#div_zip_content").hide();
+            $("#button_eject_zip").hide();
 
             if(file_slot_file_name.match(/[.](prg|t64)$/i)) 
             {
@@ -263,7 +268,22 @@ function configure_file_dialog()
                 $("#div_auto_run").hide();
 
                 $("#div_zip_content").show();
-                
+
+                $("#button_eject_zip").show();
+                $("#button_eject_zip").click(function(){
+                    last_zip_archive_name = null;
+                    last_zip_archive = null;
+                    
+                    $("#drop_zone").html("file slot");
+                    $("#drop_zone").css("border", "");
+
+                    $("#modal_file_slot").modal('hide');
+                    $("#drop_zone").click();
+                });
+
+
+
+
                 var zip = new JSZip();
                 zip.loadAsync(file_slot_file).then(function (zip) {
                     var list='<ul id="ui_file_list" class="list-group">';
@@ -296,6 +316,23 @@ function configure_file_dialog()
                             });
                         $("#button_insert_file").removeAttr("disabled");
                     });
+                    if(mountable_count>1)
+                    {
+                        last_zip_archive_name = file_slot_file_name;
+                        last_zip_archive = file_slot_file;
+
+                        $("#drop_zone").html("open zip");
+                        $("#drop_zone").css("border", "3px solid var(--green)");
+                    }
+                    else
+                    {
+                         $("#drop_zone").html("file slot");
+                        $("#drop_zone").css("border", "");
+
+                        last_zip_archive_name = null;
+                        last_zip_archive = null; 
+                    }
+
                     if(mountable_count==1)
                     {
                         $("#li_fileselect0").click();
@@ -1058,7 +1095,16 @@ wide_screen_switch.change( function() {
     }, false);
 
     document.getElementById('drop_zone').addEventListener("click", function(e) {
-    document.getElementById('theFileInput').elements['theFileDialog'].click();
+        if(last_zip_archive_name != null)
+        {
+            file_slot_file_name = last_zip_archive_name;
+            file_slot_file = last_zip_archive;
+            configure_file_dialog();
+        }
+        else
+        {
+            document.getElementById('theFileInput').elements['theFileDialog'].click();
+        }
     }, false);
 
     document.getElementById('drop_zone').addEventListener("dragover", function(e) {

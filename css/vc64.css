@@ -13,7 +13,7 @@
     cursor: pointer;
     border: 3px dashed var(--blue);
     height: 30px;
-    border-radius: 6px;
+    border-radius: 5px;
 }
 
 [data-theme="dark"] #drop_zone {

@@ -198,13 +198,6 @@ private:
 
     //! @brief    Internal execution function
     void _execute();
-
-    //! @brief    Simulates the falling edge of a pulse
-    void _executeFalling();
-
-    //! @brief    Simulates the rising edge of a pulse
-    void _executeRising();
-
 };
 
 #endif

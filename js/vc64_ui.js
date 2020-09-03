@@ -54,10 +54,10 @@ function fetchOpenROMS(){
         };
         oReq.send();  
     }
-    install("roms/basic_generic.rom");
-    install("roms/kernal_generic.rom");
-    install("roms/chargen_openroms.rom");
-
+    
+    install("https://mega65.github.io/open-roms/bin/basic_generic.rom");
+    install("https://mega65.github.io/open-roms/bin/kernal_generic.rom");
+    install("https://mega65.github.io/open-roms/bin/chargen_openroms.rom");
 }
 
 
@@ -167,14 +167,14 @@ function drop_handler(ev) {
         for (var i=0; i < dt.items.length; i++) {
             if (dt.items[i].kind == "file") {
                 var f = dt.items[i].getAsFile();
-                pushFile(f, false);
+                pushFile(f);
                 break;
             }
         }
     }
     else {
         for (var i=0; i < dt.files.length; i++) {
-            pushFile(dt.files[i], false);
+            pushFile(dt.files[i]);
             break;
         }
     }
@@ -185,38 +185,180 @@ function handleFileInput(event)
     var myForm = document.getElementById('theFileInput');
     var myfiles = myForm.elements['theFileDialog'].files;
     for (var i=0; i < myfiles.length; i++) {
-        pushFile(myfiles[i], false);
+        pushFile(myfiles[i]);
         break;
     }
     return false;
 }
 
-function pushFile(file, startup) {
+
+file_slot_file_name = null;
+file_slot_file =null;
+
+last_zip_archive_name = null
+last_zip_archive = null
+
+
+function pushFile(file) {
     var fileReader  = new FileReader();
     fileReader.onload  = function() {
-        var byteArray = new Uint8Array(this.result);
-        try{
-            var romtype = wasm_loadfile(file.name, byteArray, byteArray.byteLength);
-            if(romtype != "")
-            {
-                localStorage.setItem(romtype+".bin", ToBase64(byteArray));
-                load_roms(false);
-            }
-            else
-            {
-                global_apptitle = file.name;
-                get_custom_buttons(global_apptitle, 
-                    function(the_buttons) {
-                        custom_keys = the_buttons.data;
-                        install_custom_keys();
-                    }
-                );
-            }
-
-        } catch(e) {}
+        file_slot_file_name = file.name;
+        file_slot_file = new Uint8Array(this.result);
+        configure_file_dialog();
     }
     fileReader.readAsArrayBuffer(file);
 }
+
+function configure_file_dialog()
+{
+    try{
+        if($("#modal_roms").is(":visible"))
+        {
+            var romtype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
+            if(romtype != "")
+            {
+                localStorage.setItem(romtype+".bin", ToBase64(file_slot_file));
+                load_roms(false);
+            }
+        }
+        else
+        {
+            $("#file_slot_dialog_label").html(" "+file_slot_file_name);
+            //configure file_slot
+
+            $("#auto_load").prop('checked', true);
+            $("#auto_press_play").prop('checked', true);
+            $("#auto_run").prop('checked', true);
+            $("#button_insert_file").removeAttr("disabled");
+            $("#div_zip_content").hide();
+            $("#button_eject_zip").hide();
+
+            if(file_slot_file_name.match(/[.](prg|t64)$/i)) 
+            {
+                $("#div_auto_load").hide();
+                $("#div_auto_press_play").hide();
+                $("#div_auto_run").show();
+                $("#button_insert_file").html("flash program");
+            }
+            else if(file_slot_file_name.match(/[.]tap$/i)) 
+            {
+                $("#div_auto_load").show();
+                $("#div_auto_press_play").show();
+                $("#div_auto_run").hide();
+                $("#button_insert_file").html("insert tape");
+            }
+            else if(file_slot_file_name.match(/[.](d64|g64)$/i)) 
+            {
+                $("#div_auto_load").show();
+                $("#div_auto_press_play").hide();
+                $("#div_auto_run").show();
+                $("#button_insert_file").html("insert disk");
+            }
+            else if(file_slot_file_name.match(/[.](crt)$/i)) 
+            {
+                $("#div_auto_load").hide();
+                $("#div_auto_press_play").hide();
+                $("#div_auto_run").hide();
+                $("#button_insert_file").html("insert cartridge");
+            }
+            else if(file_slot_file_name.match(/[.](zip)$/i)) 
+            {
+                $("#div_auto_load").hide();
+                $("#div_auto_press_play").hide();
+                $("#div_auto_run").hide();
+
+                $("#div_zip_content").show();
+
+                $("#button_eject_zip").show();
+                $("#button_eject_zip").click(function(){
+
+                    $("#modal_file_slot").modal('hide');
+
+                    last_zip_archive_name = null;
+                    last_zip_archive = null;
+                    
+                    $("#drop_zone").html("file slot");
+                    $("#drop_zone").css("border", "");
+
+                    //$("#drop_zone").click(); this only works robust on firefox ... so better don't do it
+                });
+
+
+
+
+                var zip = new JSZip();
+                zip.loadAsync(file_slot_file).then(function (zip) {
+                    var list='<ul id="ui_file_list" class="list-group">';
+                    var mountable_count=0;
+                    zip.forEach(function (relativePath, zipfile){
+                        var mountable = relativePath.toLowerCase().match(/[.](zip|prg|t64|d64|g64|tap|crt)$/i);
+                        list+='<li '+
+                        (mountable ? 'id="li_fileselect'+mountable_count+'"':'')
+                        +' class="list-group-item list-group-item-action'+ 
+                            (mountable ? '':' disabled')+'" data-toggle="list">'+relativePath+'</li>';
+                        if(mountable)
+                        {
+                            mountable_count++;
+                        }
+                    });
+                    list += '</ul>';
+                    $("#div_zip_content").html("select a file<br><br>"+ list);
+                    $('#ui_file_list li').click( function (e) {
+                        e.preventDefault();
+                        $(this).parent().find('li').removeClass('active');
+                        $(this).addClass('active');
+
+                        var path = $(this).html();
+                        zip.file(path).async("uint8array", 
+                            function updateCallback(metadata) {
+                                console.log("progression: " + metadata.percent.toFixed(2) + " %");
+                            }).then(function (u8) {
+                                file_slot_file_name=path;
+                                file_slot_file=u8;
+                            });
+                        $("#button_insert_file").removeAttr("disabled");
+                    });
+                    if(mountable_count>1)
+                    {
+                        last_zip_archive_name = file_slot_file_name;
+                        last_zip_archive = file_slot_file;
+
+                        $("#drop_zone").html('<svg width="1.3em" height="1.3em" viewBox="0 0 16 16" class="bi bi-archive-fill" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M12.643 15C13.979 15 15 13.845 15 12.5V5H1v7.5C1 13.845 2.021 15 3.357 15h9.286zM5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zM.8 1a.8.8 0 0 0-.8.8V3a.8.8 0 0 0 .8.8h14.4A.8.8 0 0 0 16 3V1.8a.8.8 0 0 0-.8-.8H.8z"/></svg> zip');
+                        $("#drop_zone").css("border", "3px solid var(--green)");
+                    }
+                    else
+                    {
+                         $("#drop_zone").html("file slot");
+                        $("#drop_zone").css("border", "");
+
+                        last_zip_archive_name = null;
+                        last_zip_archive = null; 
+                    }
+
+                    if(mountable_count==1)
+                    {
+                        $("#li_fileselect0").click();
+                    }
+                });
+
+                $("#button_insert_file").html("mount file");
+                $("#button_insert_file").attr("disabled", true);
+            }
+            $("#modal_file_slot").modal();
+        }    
+
+    } catch(e) {
+        console.log(e);
+    }
+}
+
+
+
+
+
+
+
+
 var port1 = 'none';
 var port2 = 'none';
 joystick_keydown_map = {
@@ -443,6 +585,7 @@ function InitWrappers() {
     wasm_create_renderer =  Module.cwrap('wasm_create_renderer', 'undefined', ['string']);
     wasm_set_warp = Module.cwrap('wasm_set_warp', 'undefined', ['number']);
     wasm_set_borderless = Module.cwrap('wasm_set_borderless', 'undefined', ['number']);
+    wasm_press_play = Module.cwrap('wasm_press_play', 'undefined');
 
     dark_switch = document.getElementById('dark_switch');
 
@@ -640,6 +783,60 @@ wide_screen_switch.change( function() {
         $('#button_halt').removeAttr('disabled');
         //document.getElementById('canvas').focus();
     });
+
+    $('#modal_file_slot').on('hidden.bs.modal', function () {
+        $("#filedialog").val(''); //clear file slot after file has been loaded
+    });
+
+    $("#button_insert_file").click(function() 
+    {   
+        if($('#div_zip_content').is(':visible'))
+        {
+            configure_file_dialog();
+            return;
+        }
+
+        var filetype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
+        global_apptitle = file_slot_file_name;
+        get_custom_buttons(global_apptitle, 
+            function(the_buttons) {
+                custom_keys = the_buttons.data;
+                install_custom_keys();
+            }
+        );
+        $('#modal_file_slot').modal('hide');
+
+        if($("#auto_load").is(":visible") && $("#auto_load").prop('checked'))
+        {
+            if(file_slot_file_name.endsWith('.tap'))
+            {
+                //shift + runStop
+                emit_string(['Enter','ShiftRunStop']);
+                
+                if($("#auto_press_play").is(":visible") && $("#auto_press_play").prop('checked'))
+                {
+                    //press play on tape shortly after emitting load command
+                    setTimeout(function() {wasm_press_play(); },420);
+                }
+            }
+            else
+            {
+                emit_string(['Enter','l','o','a', 'd','"','*','"',',','8',',', '1', 'Enter']);
+                
+                if($("#auto_run").is(":visible") && $("#auto_run").prop('checked'))
+                {
+                    emit_string(['Enter','r','u','n','Enter'], 3000, 800);
+                }
+            }
+        }
+        else if($("#auto_run").is(":visible") && $("#auto_run").prop('checked'))
+        {
+            emit_string(['Enter','r','u','n','Enter']);
+        }
+      
+    }
+    );
+
 
 
     $('#modal_take_snapshot').on('hidden.bs.modal', function () {
@@ -900,7 +1097,16 @@ wide_screen_switch.change( function() {
     }, false);
 
     document.getElementById('drop_zone').addEventListener("click", function(e) {
-    document.getElementById('theFileInput').elements['theFileDialog'].click();
+        if(last_zip_archive_name != null)
+        {
+            file_slot_file_name = last_zip_archive_name;
+            file_slot_file = last_zip_archive;
+            configure_file_dialog();
+        }
+        else
+        {
+            document.getElementById('theFileInput').elements['theFileDialog'].click();
+        }
     }, false);
 
     document.getElementById('drop_zone').addEventListener("dragover", function(e) {
@@ -912,7 +1118,7 @@ wide_screen_switch.change( function() {
     }, false);
     document.getElementById('filedialog').addEventListener("change", function(e) {
           handleFileInput();
-        }, false);
+    }, false);
 
 //---- rom dialog start
     
@@ -1401,3 +1607,27 @@ function scaleVMCanvas() {
         return $('#button_run').attr('disabled')=='disabled';
     }
         
+    
+
+function emit_string(keys_to_emit_array, type_first_key_time=200, next_key_time=200)
+{  
+    time_in_future=type_first_key_time;
+    keys_to_emit_array.forEach(function (the_key, i) {
+             
+             var c64code = translateKey2(the_key, the_key.toLowerCase());
+             if(c64code !== undefined)
+             {
+                if(c64code.modifier != null)
+                {
+                    setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 1);}, time_in_future);
+                    setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 0);}, time_in_future+next_key_time-10);
+                }
+
+                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 1);}, time_in_future+10);
+                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 0);}, time_in_future+next_key_time-10);
+                time_in_future +=next_key_time;
+             }
+        }
+    );
+}
+    

@@ -22,7 +22,7 @@
   <script src="js/vc64_storage.js"></script>
   <script src="js/vc64_keyboard.js"></script>
   <script src="js/virtualjoystick.js"></script>
-
+  <script src="js/jszip.min.js"></script>
     <style>
       .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
       textarea.emscripten { font-family: monospace; width: 80%; }
@@ -65,7 +65,7 @@
     </style>
   </head>
   <body data-theme="dark">
-    <figure style="overflow:visible;" id="spinner"><div class="spinner"></div><center style="margin-top:0.5em"><strong>emscripten</strong></center></figure>
+    <figure style="overflow:visible;" id="spinner"><div class="spinner"></div><center style="margin-top:0.5em"><strong>booting into Virtual C64 WebEdition...</strong></center></figure>
     <div class="emscripten" id="status">Downloading...</div>
     <div class="emscripten">
       <progress value="0" max="100" id="progress" hidden=1></progress>  
@@ -93,12 +93,12 @@
 
 
 
-    <button id="button_show_menu" 
+    <button id="button_show_menu"
     style="position: fixed; top:0; left:0;z-index:200;" 
     type="button" class="btn btn-sm icon mt-2"
     data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"
     >
-      <svg class="bi bi-list" width="1.6em" height="auto" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <svg class="bi bi-list" width="1.6em" height="auto" viewBox="0 -1 16 17" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <path fill-rule="evenodd" d="M2.5 11.5A.5.5 0 0 1 3 11h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4A.5.5 0 0 1 3 7h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4A.5.5 0 0 1 3 3h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/>
       </svg>
     </button>
@@ -160,7 +160,7 @@
         </svg>
       </button>
       <form id="theFileInput" style="display: inline-block;">
-        <div id="drop_zone" class="px-1 u-full-width" data-toggle="tooltip" data-placement="bottom" title="drop .g64 .d64 .crt, .prg or .bin files into here, or just click into the drop zone">
+        <div id="drop_zone" class="px-1 u-full-width" data-toggle="tooltip" data-placement="bottom" title="drop .g64 .d64 .t64 .crt .prg .tap or .zip files into here, or just click into the drop zone">
           file slot
         </div>
         <!-- iOS won't work with accept=".g64,.d64,.crt,.prg,.bin" on d64 files -->
@@ -225,7 +225,7 @@
           <div class="modal-body">
             The emulator needs system ROM files. Please drag the missing files into the empty chip sockets. Or just touch or click the sockets.<br>
             If you don't own already the commodore roms,
-            download the free generic roms at github&nbsp;<a href="https://github.com/MEGA65/open-roms/tree/master/bin" target="_blank">open roms project</a>.
+            download the free generic roms at &nbsp;<a href="https://github.com/MEGA65/open-roms/tree/master/bin" target="_blank"> <img src="img/mega.png"/> open roms project</a>.
             <br>
             <div class="container mt-4">
             <div class="row my-2">
@@ -310,7 +310,7 @@
     <div class="col-md-8">
       <div class="card-body">
         <h5 class="card-title">disk drive rom</h5>
-        <p class="card-text">(optional)<br/><small class="text-muted">only .prg, .crt, .tape files will work without</small></p>
+        <p class="card-text">(optional)<br/><small class="text-muted">only .t64 .prg .crt .tap files will work without</small></p>
         
       <button type="button" id="button_delete_disk_drive_rom" class="btn btn-sm icon">
         <svg width="1.6em" height="auto" viewBox="0 0 16 16" class="bi bi-trash-fill" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -336,7 +336,7 @@
 
           </div>
           <div class="modal-footer">
-            <button id="button_fetch_open_roms" type="button" class="btn btn-primary justify-start">fetch and install open roms</button>
+            <button id="button_fetch_open_roms" type="button" class="btn btn-primary justify-start"><img src="img/mega.png"/> install open roms</button>
 
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
           </div>
@@ -500,6 +500,46 @@ goes into edit mode which takes you right back to here ...
     <!--custom key modal-->
 
 
+    <!-- file slot modal--->
+    <div class="modal fade" id="modal_file_slot" tabindex="-1" role="dialog" aria-labelledby="file_slot_ModalLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="file_slot_ModalLabel"><span id="file_slot_dialog_label"></span></h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div id="div_auto_load" class="custom-control custom-switch mt-1">
+              <input type="checkbox" class="custom-control-input" id="auto_load"/>
+              <label class="custom-control-label" for="auto_load">auto load</label>
+            </div>
+            <div id="div_auto_press_play" class="custom-control custom-switch mt-1">
+              <input type="checkbox" class="custom-control-input" id="auto_press_play"/>
+              <label class="custom-control-label" for="auto_press_play">auto press play on tape</label>
+            </div>
+            <div id="div_auto_run" class="custom-control custom-switch mt-1">
+              <input type="checkbox" class="custom-control-input" id="auto_run"/>
+              <label class="custom-control-label" for="auto_run">auto run</label>
+            </div>
+            
+            <div id="div_zip_content"></div>
+
+          </div>
+          <div class="modal-footer">
+            <div class="justify-start">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">cancel</button>
+            <button id="button_eject_zip" type="button" class="btn btn-success ml-2">eject zip</button>
+            </div>
+            <button id="button_insert_file" type="button" class="btn btn-primary">insert</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--file slot modal-->
+
+
 
 
     <script type='text/javascript'>
@@ -612,7 +652,7 @@ goes into edit mode which takes you right back to here ...
         $("body").tooltip({selector: '[data-toggle="tooltip"]'});
   
         initDB();
-      })
+      });
 
     </script>
     {{{ SCRIPT }}}

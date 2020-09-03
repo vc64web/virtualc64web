@@ -102,8 +102,7 @@ Datasette::setHeadInCycles(uint64_t value)
 {
     printf("Fast forwarding to cycle %lld (duration %lld)\n", value, durationInCycles);
     rewind();
-    while (headInCycles <= value && head < size)
-        advanceHead(true);
+    while (headInCycles <= value && head < size) advanceHead(true);
     printf("Head is %llu (max %llu)\n", head, size);
 }
 
@@ -162,9 +161,7 @@ Datasette::ejectTape()
 void
 Datasette::advanceHead(bool silent)
 {
-    // Return if end of tape has been reached already
-    if (head == size)
-        return;
+    assert(head < size);
     
     // Update head and headInCycles
     int length, skip;
@@ -174,8 +171,10 @@ Datasette::advanceHead(bool silent)
     
     // Send message if the tapeCounter (in seconds) changes
     uint32_t newHeadInSeconds = (uint32_t)(headInCycles / c64->frequency);
-    if (newHeadInSeconds != headInSeconds && !silent)
+    if (newHeadInSeconds != headInSeconds && !silent) {
+        // debug("Tape counter: %d (%llu out of %llu)\n", newHeadInSeconds, head, size);
         c64->putMessage(MSG_VC1530_PROGRESS);
+    }
 
     // Update headInSeconds
     headInSeconds = newHeadInSeconds;
@@ -199,16 +198,22 @@ Datasette::pulseLength(int *skip)
     } else {
         // Pulse lengths greater than 8 * 255 (TAP V1 files)
         if (skip) *skip = 4;
-        return  LO_LO_HI_HI(data[head+1], data[head+2], data[head+3], 0);
+        if (head + 3 < size) {
+            return  LO_LO_HI_HI(data[head+1], data[head+2], data[head+3], 0);
+        } else {
+            debug("TAP file ended unexpectedly (%d, %d)\n", size, head + 3);
+            assert(false);
+            return 8 * 256;
+        }
     }
 }
 
 void
 Datasette::pressPlay()
 {
-    if (!hasTape())
+    if (!hasTape() || head >= size)
         return;
-    
+ 
     debug("Datasette::pressPlay\n");
     playKey = true;
 
@@ -216,6 +221,7 @@ Datasette::pressPlay()
     uint64_t length = pulseLength();
     nextRisingEdge = length / 2;
     nextFallingEdge = length;
+    advanceHead();
 }
 
 void
@@ -238,41 +244,30 @@ Datasette::setMotor(bool value)
 void
 Datasette::_execute()
 {
-    if (!hasTape() || !playKey || !motor)
-        return;
-    
-    nextRisingEdge--;
-    nextFallingEdge--;
-    
-    if (nextRisingEdge == 0) {
-        _executeRising();
-        return;
+    // Only proceed if the datasette is active
+    if (!hasTape() || !playKey || !motor) return;
+        
+    if (--nextRisingEdge == 0) {
+        
+        c64->cia1.triggerRisingEdgeOnFlagPin();
     }
 
-    if (nextFallingEdge == 0 && head < size) {
-        _executeFalling();
-        return;
-    }
-    
-    if (head >= size) {
-        pressStop();
-    }
-}
+    if (--nextFallingEdge == 0) {
+        
+        c64->cia1.triggerFallingEdgeOnFlagPin();
 
-void
-Datasette::_executeRising()
-{
-    c64->cia1.triggerRisingEdgeOnFlagPin();
-}
+        if (head < size) {
 
-void
-Datasette::_executeFalling()
-{
-    c64->cia1.triggerFallingEdgeOnFlagPin();
-    
-    // Schedule next pulse
-    advanceHead();
-    uint64_t length = pulseLength();
-    nextRisingEdge = length / 2;
-    nextFallingEdge = length;
+            // Schedule the next pulse
+            uint64_t length = pulseLength();
+            nextRisingEdge = length / 2;
+            nextFallingEdge = length;
+            advanceHead();
+            
+        } else {
+            
+            // Press the stop key
+            pressStop();
+        }
+    }
 }

@@ -244,7 +244,7 @@ function configure_file_dialog()
             {
                 $("#div_auto_load").show();
                 $("#div_auto_press_play").show();
-                $("#div_auto_run").hide();
+                $("#div_auto_run").show();
                 $("#button_insert_file").html("insert tape");
             }
             else if(file_slot_file_name.match(/[.](d64|g64)$/i)) 
@@ -817,6 +817,11 @@ wide_screen_switch.change( function() {
                 {
                     //press play on tape shortly after emitting load command
                     setTimeout(function() {wasm_press_play(); },420);
+                }
+
+                if($("#auto_run").is(":visible") && $("#auto_run").prop('checked'))
+                {
+                    emit_string(['Enter','r','u','n','Enter'], 3000, 800);
                 }
             }
             else

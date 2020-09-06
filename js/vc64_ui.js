@@ -797,7 +797,18 @@ wide_screen_switch.change( function() {
         }
 
         var filetype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
-        global_apptitle = file_slot_file_name;
+
+        //if it is a disk from a multi disk zip file, apptitle should be the name of the zip file only
+        //instead of disk1, disk2, etc....
+        if(last_zip_archive_name !== null)
+        {
+            global_apptitle = last_zip_archive_name;
+        }
+        else
+        {
+            global_apptitle = file_slot_file_name;
+        }
+
         get_custom_buttons(global_apptitle, 
             function(the_buttons) {
                 custom_keys = the_buttons.data;
@@ -1258,6 +1269,22 @@ wide_screen_switch.change( function() {
             {
                 wasm_halt();
             }
+
+            
+            var list_actions=['Space','F1','F2','F7','F8','A','B','C'];
+            var html_action_list='';
+            list_actions.forEach(element => {
+                html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
+            });
+            
+            $('#add_action').html(html_action_list);
+
+            $('#add_action a').click( function() {
+                var txt= $(this).text();
+                $('#input_action_script').val(/*$('#input_action_script').val()+*/txt);
+            });
+
+
         });
 
         $('#modal_custom_key').on('hidden.bs.modal', function () {

@@ -1270,20 +1270,64 @@ wide_screen_switch.change( function() {
                 wasm_halt();
             }
 
-            
+            //click function
+            var on_add_action = function() {
+                var txt= $(this).text();
+
+                var action_script_val = $('#input_action_script').val();
+                if(action_script_val.trim().length==0)
+                {
+                    action_script_val = txt;
+                }
+                else
+                {
+                    action_script_val += ","+txt;
+                }
+
+                $('#input_action_script').val(action_script_val);
+            };
+
+            $('#predefined_actions').collapse('hide');
+
+            //Special Keys action
             var list_actions=['Space','F1','F2','F7','F8','A','B','C'];
             var html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
             });
-            
-            $('#add_action').html(html_action_list);
+            $('#add_special_key').html(html_action_list);
+            $('#add_special_key a').click(on_add_action);
 
-            $('#add_action a').click( function() {
-                var txt= $(this).text();
-                $('#input_action_script').val(/*$('#input_action_script').val()+*/txt);
+
+
+            //joystick action
+            var list_actions=['j2down1','j2down0'];
+            var html_action_list='';
+            list_actions.forEach(element => {
+                html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
             });
+            $('#add_joystick_action').html(html_action_list);
+            $('#add_joystick_action a').click(on_add_action);
 
+
+            //timer action
+            var list_actions=['delay100','delay500','delay1000'];
+            html_action_list='';
+            list_actions.forEach(element => {
+                html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
+            });
+            $('#add_timer_action').html(html_action_list);
+            $('#add_timer_action a').click(on_add_action);
+
+            
+            //system action
+            var list_actions=['pause', 'run', 'take_snapshot', 'restore_last_snapshot'];
+            html_action_list='';
+            list_actions.forEach(element => {
+                html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
+            });
+            $('#add_system_action').html(html_action_list);
+            $('#add_system_action a').click(on_add_action);
 
         });
 

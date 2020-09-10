@@ -377,7 +377,7 @@ joystick_keyup_map = {
 }
 
 function keydown(e) {
-    if($('input').is(":focus") == false)
+    if($('input').is(":focus") == false && $('textarea').is(":focus") == false )
     {//incase any html5 input control has the focus, we should let it get the keyup 
         event.preventDefault();
     }
@@ -397,7 +397,7 @@ function keydown(e) {
 }
 
 function keyup(e) {
-    if($('input').is(":focus") == false)
+    if($('input').is(":focus") == false && $('textarea').is(":focus") == false)
     {//incase any html5 input control has the focus, we should let it get the keyup 
         event.preventDefault();
     }
@@ -1279,6 +1279,10 @@ wide_screen_switch.change( function() {
                 {
                     action_script_val = txt;
                 }
+                else if(action_script_val.trim().endsWith('{') || txt == '}')
+                {
+                    action_script_val += txt;
+                }
                 else
                 {
                     action_script_val += ","+txt;
@@ -1310,18 +1314,18 @@ wide_screen_switch.change( function() {
             $('#add_joystick_action a').click(on_add_action);
 
 
+
             //timer action
-            var list_actions=['delay100','delay500','delay1000'];
+            var list_actions=['delay100','delay500','delay1000', 'loop2{','loop3{','loop6{', '}'];
             html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
             });
             $('#add_timer_action').html(html_action_list);
             $('#add_timer_action a').click(on_add_action);
-
             
             //system action
-            var list_actions=['pause', 'run', 'take_snapshot', 'restore_last_snapshot'];
+            var list_actions=['pause', 'run', 'take_snapshot', 'restore_last_snapshot', 'swap_joystick', 'keyboard'];
             html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
@@ -1342,6 +1346,21 @@ wide_screen_switch.change( function() {
 
         $('#button_save_custom_button').click(function(e) 
         {
+            if( $('#input_button_text').val().trim().length==0)
+            {
+                $('#input_button_text').addClass("is-invalid");
+                
+                /*<small id="input_button_text" class="text-danger">
+          Must at least 1 character long
+        </small>*/
+                return;
+            }
+            else
+            {
+                $('#input_button_text').removeClass("is-invalid");
+            }
+
+
             if(create_new_custom_key)
             {
                 //create a new custom key buttom  

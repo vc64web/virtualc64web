@@ -1344,22 +1344,14 @@ wide_screen_switch.change( function() {
             }
         });
 
+
+        $('#input_button_text').keyup( function () {validate_custom_key(); return true;} );
+        $('#input_action_script').keyup( function () {validate_custom_key(); return true;} );
+
         $('#button_save_custom_button').click(function(e) 
         {
-            if( $('#input_button_text').val().trim().length==0)
-            {
-                $('#input_button_text').addClass("is-invalid");
-                
-                /*<small id="input_button_text" class="text-danger">
-          Must at least 1 character long
-        </small>*/
+            if( validate_custom_key() == false)
                 return;
-            }
-            else
-            {
-                $('#input_button_text').removeClass("is-invalid");
-            }
-
 
             if(create_new_custom_key)
             {
@@ -1430,10 +1422,7 @@ wide_screen_switch.change( function() {
             $('#ck'+element.id).click(function() 
             {       
                 var action_script = action_scripts['ck'+element.id];
-                var c64code = translateKey(action_script, action_script.toLowerCase());
-                if(c64code !== undefined)
-                    wasm_key(c64code[0], c64code[1], 1);
-                setTimeout(function() {wasm_key(c64code[0], c64code[1], 0);}, 100);
+                setTimeout(function() { execute_cmd_seq(action_script) });
             });
         });
 

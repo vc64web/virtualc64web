@@ -21,6 +21,7 @@
   <script src="js/vc64_ui.js"></script>
   <script src="js/vc64_storage.js"></script>
   <script src="js/vc64_keyboard.js"></script>
+  <script src="js/vc64_action_script.js"></script>
   <script src="js/virtualjoystick.js"></script>
   <script src="js/jszip.min.js"></script>
     <style>
@@ -473,7 +474,9 @@
               <div class="input-group-prepend">
                 <span class="input-group-text" id="inputGroup-sizing-default">button text</span>
               </div>
-              <input id="input_button_text" placeholder="put the button label here" type="text" class="form-control" aria-label="action script" aria-describedby="inputGroup-sizing-default">
+              <input id="input_button_text" required pattern="^.+$" placeholder="put the button label here" type="text" class="form-control" aria-label="action script" aria-describedby="inputGroup-sizing-default">
+              <div id="input_button_text_error" class="invalid-feedback">you are missing text here</div>
+           
             </div> 
 
             and a custom action script ... for the time being you can only input the keys and f1 ... f8 ... and some special keys are supported ... stay tuned for more 😎... 
@@ -525,6 +528,8 @@
 
               </div>
               <textarea id="input_action_script" placeholder="type your action in here" class="form-control" aria-label="action script" aria-describedby="inputGroup-sizing-default"></textarea>
+              <!--div class="valid-feedback">Nice! You got this one!</div-->
+              <div class="invalid-feedback">Syntax Error</div>
             </div>
             
              ...  after created you can change the position of the button by dragging ... when clicking a custom key with a long press it 

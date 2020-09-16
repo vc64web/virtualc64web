@@ -1289,6 +1289,7 @@ wide_screen_switch.change( function() {
                 }
 
                 $('#input_action_script').val(action_script_val);
+                validate_custom_key();
             };
 
             $('#predefined_actions').collapse('hide');

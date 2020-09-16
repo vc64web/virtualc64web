@@ -17,8 +17,10 @@ async function parseActionScript(action_script, execute = false) {
     var valid = true;
 
     var pc=0;
-    var pc_loop_begin=0;
-    var lc=0;
+    var pc_loop_begin=[];
+    var lc=[];
+    var loop_depth=0;
+
 
     while (pc < cmd_sequence.length) {
         //alert(cmd);
@@ -29,8 +31,9 @@ async function parseActionScript(action_script, execute = false) {
         {
             if(execute)
             {
-                lc=parseInt(cmd.match(/[0-9]+/));
-                pc_loop_begin=pc;
+                loop_depth++;
+                lc[loop_depth]=parseInt(cmd.match(/[0-9]+/));
+                pc_loop_begin[loop_depth]=pc;
                 //alert(lc);
             }
         }
@@ -38,10 +41,14 @@ async function parseActionScript(action_script, execute = false) {
         {
             if(execute)
             {
-                lc--;
-                if(lc>0)
+                lc[loop_depth]--;
+                if(lc[loop_depth]>0)
                 {
-                    pc=pc_loop_begin;
+                    pc=pc_loop_begin[loop_depth];
+                }
+                else
+                {
+                    loop_depth--;
                 }
 
             }

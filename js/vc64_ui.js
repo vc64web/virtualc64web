@@ -1348,9 +1348,9 @@ wide_screen_switch.change( function() {
         $('#input_button_text').keyup( function () {validate_custom_key(); return true;} );
         $('#input_action_script').keyup( function () {validate_custom_key(); return true;} );
 
-        $('#button_save_custom_button').click(function(e) 
+        $('#button_save_custom_button').click(async function(e) 
         {
-            if( validate_custom_key() == false)
+            if( (await validate_custom_key()) == false)
                 return;
 
             if(create_new_custom_key)

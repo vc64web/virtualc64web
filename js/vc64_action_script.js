@@ -10,12 +10,44 @@ var execute_cmd_seq = function(action_script) {
 async function parseActionScript(action_script, execute = false) {
     if(action_script.trim().length==0)
         return false;
+
+    action_script=action_script.replace(/[{]/g,'{,')
+    action_script=action_script.replace(/[}]/g,',}')
     var cmd_sequence = action_script.split(',');
     var valid = true;
-    for (const cmd of cmd_sequence) {
+
+    var pc=0;
+    var pc_loop_begin=0;
+    var lc=0;
+
+    while (pc < cmd_sequence.length) {
         //alert(cmd);
-        //key
-        if(cmd.trim().length == 1)
+        var cmd = cmd_sequence[pc];
+        pc++;
+
+        if(cmd.trim().match(/^loop[0-9]+[{]$/) != null)
+        {
+            if(execute)
+            {
+                lc=parseInt(cmd.match(/[0-9]+/));
+                pc_loop_begin=pc;
+                //alert(lc);
+            }
+        }
+        else if(cmd.trim().length == 1 && cmd.trim()=='}')
+        {
+            if(execute)
+            {
+                lc--;
+                if(lc>0)
+                {
+                    pc=pc_loop_begin;
+                }
+
+            }
+           
+        }
+        else if(cmd.trim().length == 1)
         {
             if(execute)
             {            

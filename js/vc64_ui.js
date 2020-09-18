@@ -1306,7 +1306,7 @@ wide_screen_switch.change( function() {
 
 
             //joystick action
-            var list_actions=['j2down1','j2down0'];
+            var list_actions=['j2fire1','j2fire0','j2down1','j2down0','j2up1','j2up0','j2right1','j2right0','j2left1','j2left0'];
             var html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
@@ -1317,7 +1317,7 @@ wide_screen_switch.change( function() {
 
 
             //timer action
-            var list_actions=['delay100','delay500','delay1000', 'loop2{','loop3{','loop6{', '}'];
+            var list_actions=['100ms','300ms','1000ms', 'loop2{','loop3{','loop6{', '}'];
             html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';

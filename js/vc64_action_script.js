@@ -21,6 +21,7 @@ async function parseActionScript(action_script, execute = false) {
     var lc=[];
     var loop_depth=0;
 
+    var joy_cmd_tokens=null;
 
     while (pc < cmd_sequence.length) {
         //alert(cmd);
@@ -86,12 +87,25 @@ async function parseActionScript(action_script, execute = false) {
                 } 
             }
         }
-        else if(cmd.startsWith('delay') && !isNaN(cmd.substring(5)) )
+        else if(cmd.trim().match(/^[0-9]+ms$/) != null)
         {
             //alert('sleep '+parseInt(cmd.substring(5)));
             if(execute)
             {
-                await sleep(parseInt(cmd.substring(5)));                 
+                await sleep(parseInt(cmd.match(/[0-9]+/)));                 
+            }
+        }
+        else if(
+            (
+                joy_cmd_tokens=cmd.trim().match(/^j([12])(fire|up|down|right|left)([01])$/)
+            )
+            != null
+        )
+        {
+            //alert('sleep '+parseInt(cmd.substring(5)));
+            if(execute)
+            {
+                execute_joystick_script(joy_cmd_tokens);
             }
         }
         else
@@ -133,3 +147,19 @@ async function validate_custom_key(){
     return is_valid;
 };
 
+
+function execute_joystick_script(cmd_tokens)
+{
+    var portnr=cmd_tokens[1];
+    var dir= cmd_tokens[2].toUpperCase();
+    var down_or_release = cmd_tokens[3];
+
+    if(dir == "FIRE")
+    {
+        wasm_joystick(portnr+(down_or_release == 1 ?"PRESS_"+dir:"RELEASE_"+dir));
+    }
+    else
+    {
+        wasm_joystick(portnr+(down_or_release == 1 ?"PULL_"+dir:"RELEASE_"+((dir=="LEFT" || dir=="RIGHT")?"X":"Y")));
+    }
+ }

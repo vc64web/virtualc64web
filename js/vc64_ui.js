@@ -1016,7 +1016,7 @@ wide_screen_switch.change( function() {
             for(var t=0; t<app_titles.length;t++)
             {
                 var app_title=app_titles[t];
-                var app_snaps = get_snapshots_for_app_title(app_title, row_renderer); 
+                get_snapshots_for_app_title(app_title, row_renderer); 
             }
         }
         get_stored_app_titles(store_renderer);

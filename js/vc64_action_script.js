@@ -108,6 +108,21 @@ async function parseActionScript(action_script, execute = false) {
                 $('#button_keyboard').click();
             }
         }
+        else if(cmd == 'restore_last_snapshot')
+        {
+            if(execute)
+            {
+                load_last_snapshot();
+            }
+        }
+/*        else if(cmd == 'swap_joystick')
+        {
+            if(execute)
+            {
+                $('#button_keyboard').click();
+            }
+        }
+*/
         else if(
             (
                 joy_cmd_tokens=cmd.trim().match(/^j([12])(fire|up|down|right|left)([01])$/)
@@ -182,4 +197,20 @@ function execute_joystick_script(cmd_tokens)
     {
         wasm_joystick(portnr+(down_or_release == 1 ?"PULL_"+dir:"RELEASE_"+((dir=="LEFT" || dir=="RIGHT")?"X":"Y")));
     }
+ }
+
+ function load_last_snapshot()
+ {
+    get_snapshots_for_app_title(global_apptitle, 
+        function(app_title, app_snaps) {
+            if(app_snaps.length>0)
+            {
+                var snapshot = app_snaps[app_snaps.length-1];
+                wasm_loadfile(
+                    snapshot.title+".vc64",
+                    snapshot.data, 
+                    snapshot.data.length);
+            }
+        }
+    ); 
  }

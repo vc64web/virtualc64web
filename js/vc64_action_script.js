@@ -8,13 +8,17 @@ var execute_cmd_seq = function(action_script) {
 
 
 async function parseActionScript(action_script, execute = false) {
-    if(action_script.trim().length==0)
+   if(action_script.trim().length==0)
+    {
+        $('#action_button_syntax_error').html('you have to enter at least one action ...');
         return false;
+    }
 
     action_script=action_script.replace(/[{]/g,'{,')
     action_script=action_script.replace(/[}]/g,',}')
     var cmd_sequence = action_script.split(',');
     var valid = true;
+    var error_message = "";
 
     var pc=0;
     var pc_loop_begin=[];
@@ -24,38 +28,34 @@ async function parseActionScript(action_script, execute = false) {
     var joy_cmd_tokens=null;
 
     while (pc < cmd_sequence.length) {
-        //alert(cmd);
         var cmd = cmd_sequence[pc];
         pc++;
 
         if(cmd.trim().match(/^loop[0-9]+[{]$/) != null)
         {
-            if(execute)
-            {
-                loop_depth++;
-                lc[loop_depth]=parseInt(cmd.match(/[0-9]+/));
-                pc_loop_begin[loop_depth]=pc;
-                //alert(lc);
-            }
+            loop_depth++;
+            lc[loop_depth]=execute ? parseInt(cmd.match(/[0-9]+/)) : 1;
+            pc_loop_begin[loop_depth]=pc;
         }
         else if(cmd.trim().length == 1 && cmd.trim()=='}')
         {
-            if(execute)
+            lc[loop_depth]--;
+            if(lc[loop_depth]>0)
             {
-                lc[loop_depth]--;
-                if(lc[loop_depth]>0)
-                {
-                    pc=pc_loop_begin[loop_depth];
-                }
-                else
-                {
-                    loop_depth--;
-                }
-
+                pc=pc_loop_begin[loop_depth];
             }
-           
+            else
+            {
+                loop_depth--;
+                if(loop_depth<0)
+                {
+                    error_message="too many closing loop bracket at pc="+pc;
+                    valid=false;
+                    break;
+                }
+            }
         }
-        else if(cmd.trim().length == 1)
+        else if(translateKey(cmd,cmd.toLowerCase()) !== undefined  )
         {
             if(execute)
             {            
@@ -72,7 +72,7 @@ async function parseActionScript(action_script, execute = false) {
             {
                 //if(is_running())
                 {
-                    wasm_pause();
+                    wasm_halt();
                 } 
             }
         
@@ -89,10 +89,23 @@ async function parseActionScript(action_script, execute = false) {
         }
         else if(cmd.trim().match(/^[0-9]+ms$/) != null)
         {
-            //alert('sleep '+parseInt(cmd.substring(5)));
             if(execute)
             {
                 await sleep(parseInt(cmd.match(/[0-9]+/)));                 
+            }
+        }
+        else if(cmd == 'take_snapshot')
+        {
+            if(execute)
+            {
+                    $('#button_take_snapshot').click();
+            }
+        }
+        else if(cmd == 'keyboard')
+        {
+            if(execute)
+            {
+                $('#button_keyboard').click();
             }
         }
         else if(
@@ -102,7 +115,6 @@ async function parseActionScript(action_script, execute = false) {
             != null
         )
         {
-            //alert('sleep '+parseInt(cmd.substring(5)));
             if(execute)
             {
                 execute_joystick_script(joy_cmd_tokens);
@@ -110,10 +122,18 @@ async function parseActionScript(action_script, execute = false) {
         }
         else
         {
+            error_message='unknown command "'+cmd+'" at pc=' +pc;
             valid = false;
             break;
         }
     }//);
+
+    if(loop_depth>0)
+    {
+        error_message="missing closing loop "+pc_loop_begin+" brackets";
+        valid=false;
+    }
+    $('#action_button_syntax_error').html(error_message);
     return valid;
 };
 

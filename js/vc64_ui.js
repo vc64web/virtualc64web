@@ -1295,7 +1295,7 @@ wide_screen_switch.change( function() {
             $('#predefined_actions').collapse('hide');
 
             //Special Keys action
-            var list_actions=['Space','F1','F2','F7','F8','A','B','C'];
+            var list_actions=['Space','F1','F2','F7','F8','runStop','restore','commodore', 'Delete'];
             var html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
@@ -1303,16 +1303,24 @@ wide_screen_switch.change( function() {
             $('#add_special_key').html(html_action_list);
             $('#add_special_key a').click(on_add_action);
 
+            //joystick1 action
+            var list_actions=['j1fire1','j1fire0','j1down1','j1down0','j1up1','j1up0','j1right1','j1right0','j1left1','j1left0'];
+            var html_action_list='';
+            list_actions.forEach(element => {
+                html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
+            });
+            $('#add_joystick1_action').html(html_action_list);
+            $('#add_joystick1_action a').click(on_add_action);
 
 
-            //joystick action
+            //joystick2 action
             var list_actions=['j2fire1','j2fire0','j2down1','j2down0','j2up1','j2up0','j2right1','j2right0','j2left1','j2left0'];
             var html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
             });
-            $('#add_joystick_action').html(html_action_list);
-            $('#add_joystick_action a').click(on_add_action);
+            $('#add_joystick2_action').html(html_action_list);
+            $('#add_joystick2_action a').click(on_add_action);
 
 
 

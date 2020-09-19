@@ -8,9 +8,10 @@ this project aims to build a fancy, cool and stylish version of dirks VirtualC64
 The base is a copy of virtualC64 without its usual mac GUI in v3.4b1 master branch March 3 2020 latest commit point fe1629c
 
 
-
-## try and feel it here 
+## start up VirtualC64Web right now in your browser
 https://dirkwhoffmann.github.io/virtualc64web/
+
+on a touch screen device, don't forget to save it to homescreen as it fully supports the PWA standard and for that will behave like a real app and not just like a browser app (with save to homescreen you will get rid of all those unwanted browser gestures like adressbar swipe back and swipe forward, etc...)  
 
 ## what happened so far ...
 https://github.com/dirkwhoffmann/vAmiga/issues/291
@@ -40,9 +41,11 @@ _note_: start.sh starts an webserver with URL base path pointing to the folder w
 * storing selected snapshots into local storage ... effectively making those choosen snapshots persistent 
 * virtual joystick for touch screen devices
 * free positional custom keys as button overlays (aka action buttons) which trigger an action (but no script yet)
+* zip support, and enhanced multidisk support when using zip archives 
+* action script for the self composed action sequence overlay buttons 
 
 ## next goals
-* action script for the action buttons 
+* more possible system actions in action script ...
 * cleanup and refactoring of the UI javascript code
 * new  modern boot sequence/animation  replacing the standard emscripten visual boot code 
 * javascript interface for more settings of the emulation like (greydotbugemulation, autosnapshots) 

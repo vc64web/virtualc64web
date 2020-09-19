@@ -244,7 +244,7 @@ function configure_file_dialog()
             {
                 $("#div_auto_load").show();
                 $("#div_auto_press_play").show();
-                $("#div_auto_run").hide();
+                $("#div_auto_run").show();
                 $("#button_insert_file").html("insert tape");
             }
             else if(file_slot_file_name.match(/[.](d64|g64)$/i)) 
@@ -377,7 +377,7 @@ joystick_keyup_map = {
 }
 
 function keydown(e) {
-    if($('input').is(":focus") == false)
+    if($('input').is(":focus") == false && $('textarea').is(":focus") == false )
     {//incase any html5 input control has the focus, we should let it get the keyup 
         event.preventDefault();
     }
@@ -397,7 +397,7 @@ function keydown(e) {
 }
 
 function keyup(e) {
-    if($('input').is(":focus") == false)
+    if($('input').is(":focus") == false && $('textarea').is(":focus") == false)
     {//incase any html5 input control has the focus, we should let it get the keyup 
         event.preventDefault();
     }
@@ -797,7 +797,18 @@ wide_screen_switch.change( function() {
         }
 
         var filetype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
-        global_apptitle = file_slot_file_name;
+
+        //if it is a disk from a multi disk zip file, apptitle should be the name of the zip file only
+        //instead of disk1, disk2, etc....
+        if(last_zip_archive_name !== null)
+        {
+            global_apptitle = last_zip_archive_name;
+        }
+        else
+        {
+            global_apptitle = file_slot_file_name;
+        }
+
         get_custom_buttons(global_apptitle, 
             function(the_buttons) {
                 custom_keys = the_buttons.data;
@@ -817,6 +828,11 @@ wide_screen_switch.change( function() {
                 {
                     //press play on tape shortly after emitting load command
                     setTimeout(function() {wasm_press_play(); },420);
+                }
+
+                if($("#auto_run").is(":visible") && $("#auto_run").prop('checked'))
+                {
+                    emit_string(['Enter','r','u','n','Enter'], 3000, 800);
                 }
             }
             else
@@ -1253,6 +1269,79 @@ wide_screen_switch.change( function() {
             {
                 wasm_halt();
             }
+
+            //click function
+            var on_add_action = function() {
+                var txt= $(this).text();
+
+                var action_script_val = $('#input_action_script').val();
+                if(action_script_val.trim().length==0)
+                {
+                    action_script_val = txt;
+                }
+                else if(action_script_val.trim().endsWith('{') || txt == '}')
+                {
+                    action_script_val += txt;
+                }
+                else
+                {
+                    action_script_val += ","+txt;
+                }
+
+                $('#input_action_script').val(action_script_val);
+                validate_custom_key();
+            };
+
+            $('#predefined_actions').collapse('hide');
+
+            //Special Keys action
+            var list_actions=['Space','F1','F2','F7','F8','runStop','restore','commodore', 'Delete'];
+            var html_action_list='';
+            list_actions.forEach(element => {
+                html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
+            });
+            $('#add_special_key').html(html_action_list);
+            $('#add_special_key a').click(on_add_action);
+
+            //joystick1 action
+            var list_actions=['j1fire1','j1fire0','j1down1','j1down0','j1up1','j1up0','j1right1','j1right0','j1left1','j1left0'];
+            var html_action_list='';
+            list_actions.forEach(element => {
+                html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
+            });
+            $('#add_joystick1_action').html(html_action_list);
+            $('#add_joystick1_action a').click(on_add_action);
+
+
+            //joystick2 action
+            var list_actions=['j2fire1','j2fire0','j2down1','j2down0','j2up1','j2up0','j2right1','j2right0','j2left1','j2left0'];
+            var html_action_list='';
+            list_actions.forEach(element => {
+                html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
+            });
+            $('#add_joystick2_action').html(html_action_list);
+            $('#add_joystick2_action a').click(on_add_action);
+
+
+
+            //timer action
+            var list_actions=['100ms','300ms','1000ms', 'loop2{','loop3{','loop6{', '}'];
+            html_action_list='';
+            list_actions.forEach(element => {
+                html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
+            });
+            $('#add_timer_action').html(html_action_list);
+            $('#add_timer_action a').click(on_add_action);
+            
+            //system action
+            var list_actions=['pause', 'run', 'take_snapshot', 'restore_last_snapshot', 'swap_joystick', 'keyboard'];
+            html_action_list='';
+            list_actions.forEach(element => {
+                html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
+            });
+            $('#add_system_action').html(html_action_list);
+            $('#add_system_action a').click(on_add_action);
+
         });
 
         $('#modal_custom_key').on('hidden.bs.modal', function () {
@@ -1264,8 +1353,15 @@ wide_screen_switch.change( function() {
             }
         });
 
-        $('#button_save_custom_button').click(function(e) 
+
+        $('#input_button_text').keyup( function () {validate_custom_key(); return true;} );
+        $('#input_action_script').keyup( function () {validate_custom_key(); return true;} );
+
+        $('#button_save_custom_button').click(async function(e) 
         {
+            if( (await validate_custom_key()) == false)
+                return;
+
             if(create_new_custom_key)
             {
                 //create a new custom key buttom  
@@ -1335,10 +1431,7 @@ wide_screen_switch.change( function() {
             $('#ck'+element.id).click(function() 
             {       
                 var action_script = action_scripts['ck'+element.id];
-                var c64code = translateKey(action_script, action_script.toLowerCase());
-                if(c64code !== undefined)
-                    wasm_key(c64code[0], c64code[1], 1);
-                setTimeout(function() {wasm_key(c64code[0], c64code[1], 0);}, 100);
+                setTimeout(function() { execute_cmd_seq(action_script) });
             });
         });
 

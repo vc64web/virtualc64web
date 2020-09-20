@@ -1295,7 +1295,7 @@ wide_screen_switch.change( function() {
             $('#predefined_actions').collapse('hide');
 
             //Special Keys action
-            var list_actions=['Space','F1','F2','F7','F8','runStop','restore','commodore', 'Delete'];
+            var list_actions=['Space','Comma','F1','F2','F7','F8','runStop','restore','commodore', 'Delete'];
             var html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
@@ -1706,7 +1706,7 @@ function emit_string(keys_to_emit_array, type_first_key_time=200, next_key_time=
 {  
     time_in_future=type_first_key_time;
     keys_to_emit_array.forEach(function (the_key, i) {
-             
+             console.log(the_key);
              var c64code = translateKey2(the_key, the_key.toLowerCase());
              if(c64code !== undefined)
              {

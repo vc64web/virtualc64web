@@ -55,15 +55,16 @@ async function parseActionScript(action_script, execute = false) {
                 }
             }
         }
-        else if(translateKey(cmd,cmd.toLowerCase()) !== undefined  )
+        else if(translateKey2(cmd,cmd.toLowerCase()).raw_key !== undefined)
         {
             if(execute)
             {            
-                var c64code = translateKey(cmd, cmd.toLowerCase());
+                emit_string([cmd],0,100);
+                /*var c64code = translateKey2(cmd, cmd.toLowerCase());
                 if(c64code !== undefined){
                     wasm_key(c64code[0], c64code[1], 1);
                     setTimeout(function() {wasm_key(c64code[0], c64code[1], 0);}, 100);
-                }
+                }*/
             }
         }
         else if(cmd == 'pause')

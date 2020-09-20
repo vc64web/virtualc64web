@@ -115,14 +115,18 @@ async function parseActionScript(action_script, execute = false) {
                 load_last_snapshot();
             }
         }
-/*        else if(cmd == 'swap_joystick')
+        else if(cmd == 'swap_joystick')
         {
             if(execute)
             {
-                $('#button_keyboard').click();
+                var port1_value=port1;
+                port1=port2;
+                port2=port1_value;
+                port1_value= $('#port1').val();
+                $('#port1').val($('#port2').val());
+                $('#port2').val(port1_value);
             }
         }
-*/
         else if(
             (
                 joy_cmd_tokens=cmd.trim().match(/^j([12])(fire|up|down|right|left)([01])$/)

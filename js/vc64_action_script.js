@@ -8,7 +8,7 @@ var execute_cmd_seq = function(action_script) {
 
 
 async function parseActionScript(action_script, execute = false) {
-   if(action_script.trim().length==0)
+    if(action_script.trim().length==0)
     {
         $('#action_button_syntax_error').html('you have to enter at least one action ...');
         return false;
@@ -77,94 +77,8 @@ async function parseActionScript(action_script, execute = false) {
                 }
             }
         }
-        else if(cmd.match(/^'.+?'$/) != null)
-        {
-            var chars = cmd.substring(1,cmd.length-1).split("");
-            var time_to_emit_next_char = 100;
-            emit_string(chars,0,time_to_emit_next_char);
- 
-            //blocking execution of action script and wait for all keys emitted
-            await sleep(time_to_emit_next_char*chars.length);                  
-        }
-        else if(translateKey2(cmd,cmd.toLowerCase()).raw_key !== undefined)
-        {
-            if(execute)
-            {            
-                emit_string([cmd],0,100); 
-            }
-        }
-        else if(cmd == 'pause')
-        {
-            if(execute)
-            {
-                //if(is_running())
-                {
-                    wasm_halt();
-                } 
-            }
-        
-        }
-        else if(cmd == 'run')
-        {
-            if(execute)
-            {
-                //if(is_running())
-                {
-                    wasm_run();
-                } 
-            }
-        }
-        else if(cmd.match(/^[0-9]+ms$/) != null)
-        {
-            if(execute)
-            {
-                await sleep(parseInt(cmd.match(/[0-9]+/)));                 
-            }
-        }
-        else if(cmd == 'take_snapshot')
-        {
-            if(execute)
-            {
-                    $('#button_take_snapshot').click();
-            }
-        }
-        else if(cmd == 'keyboard')
-        {
-            if(execute)
-            {
-                $('#button_keyboard').click();
-            }
-        }
-        else if(cmd == 'restore_last_snapshot')
-        {
-            if(execute)
-            {
-                load_last_snapshot();
-            }
-        }
-        else if(cmd == 'swap_joystick')
-        {
-            if(execute)
-            {
-                var port1_value=port1;
-                port1=port2;
-                port2=port1_value;
-                port1_value= $('#port1').val();
-                $('#port1').val($('#port2').val());
-                $('#port2').val(port1_value);
-            }
-        }
-        else if(
-            (
-                joy_cmd_tokens=cmd.match(/^j([12])(fire|up|down|right|left)([01])$/)
-            )
-            != null
-        )
-        {
-            if(execute)
-            {
-                execute_joystick_script(joy_cmd_tokens);
-            }
+        else if(await action(cmd, execute)==true)
+        {            
         }
         else
         {
@@ -213,11 +127,113 @@ async function validate_custom_key(){
     return is_valid;
 };
 
-
+/*
 function press_key(c)
 {
     emit_string([c],0,100); 
+}*/
+
+
+async function action(cmd, execute=true)
+{
+    cmd=cmd.trim();
+    var valid = true;
+    if(cmd.match(/^'.+?'$/) != null)
+    {
+        var chars = cmd.substring(1,cmd.length-1).split("");
+        var time_to_emit_next_char = 100;
+        emit_string(chars,0,time_to_emit_next_char);
+
+        //blocking execution of action script and wait for all keys emitted
+        await sleep(time_to_emit_next_char*chars.length);                  
+    }
+    else if(translateKey2(cmd,cmd.toLowerCase()).raw_key !== undefined)
+    {
+        if(execute)
+        {            
+            emit_string([cmd],0,100); 
+        }
+    }
+    else if(cmd == 'pause')
+    {
+        if(execute)
+        {
+            //if(is_running())
+            {
+                wasm_halt();
+            } 
+        }
+    
+    }
+    else if(cmd == 'run')
+    {
+        if(execute)
+        {
+            //if(is_running())
+            {
+                wasm_run();
+            } 
+        }
+    }
+    else if(cmd.match(/^[0-9]+ms$/) != null)
+    {
+        if(execute)
+        {
+            await sleep(parseInt(cmd.match(/[0-9]+/)));                 
+        }
+    }
+    else if(cmd == 'take_snapshot')
+    {
+        if(execute)
+        {
+            $('#button_take_snapshot').click();
+        }
+    }
+    else if(cmd == 'keyboard')
+    {
+        if(execute)
+        {
+            $('#button_keyboard').click();
+        }
+    }
+    else if(cmd == 'restore_last_snapshot')
+    {
+        if(execute)
+        {
+            load_last_snapshot();
+        }
+    }
+    else if(cmd == 'swap_joystick')
+    {
+        if(execute)
+        {
+            var port1_value=port1;
+            port1=port2;
+            port2=port1_value;
+            port1_value= $('#port1').val();
+            $('#port1').val($('#port2').val());
+            $('#port2').val(port1_value);
+        }
+    }
+    else if(
+        (
+            joy_cmd_tokens=cmd.match(/^j([12])(fire|up|down|right|left)([01])$/)
+        )
+        != null
+    )
+    {
+        if(execute)
+        {
+            execute_joystick_script(joy_cmd_tokens);
+        }
+    }
+    else
+    {
+        valid=false;
+    }
+    return valid;
 }
+
 
 
 function execute_joystick_script(cmd_tokens)

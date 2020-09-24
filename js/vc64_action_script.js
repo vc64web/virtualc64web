@@ -14,9 +14,31 @@ async function parseActionScript(action_script, execute = false) {
         return false;
     }
 
-    action_script=action_script.replace(/[{]/g,'{,')
-    action_script=action_script.replace(/[}]/g,',}')
-    var cmd_sequence = action_script.split(',');
+    if(action_script.startsWith("js:"))
+    {
+        var valid = true;
+        var js_script=action_script.substring(3);
+        var js_script_function;
+        //console.log(js_script);
+        let AsyncFunction = Object.getPrototypeOf(async function(){}).constructor
+        try {
+            js_script_function=new AsyncFunction(js_script);
+        } catch (error) {
+            valid=false;
+            $('#action_button_syntax_error').html(error.message);
+        }
+
+        if(execute)
+        {
+            js_script_function();
+        }
+
+        return valid; 
+    }
+
+    action_script=action_script.replace(/[{]/g,'{=>')
+    action_script=action_script.replace(/[}]/g,'=>}')
+    var cmd_sequence = action_script.split('=>');
     var valid = true;
     var error_message = "";
 
@@ -28,16 +50,16 @@ async function parseActionScript(action_script, execute = false) {
     var joy_cmd_tokens=null;
 
     while (pc < cmd_sequence.length) {
-        var cmd = cmd_sequence[pc];
+        var cmd = cmd_sequence[pc].trim();
         pc++;
 
-        if(cmd.trim().match(/^loop[0-9]+[{]$/) != null)
+        if(cmd.match(/^loop[0-9]+[{]$/) != null)
         {
             loop_depth++;
             lc[loop_depth]=execute ? parseInt(cmd.match(/[0-9]+/)) : 1;
             pc_loop_begin[loop_depth]=pc;
         }
-        else if(cmd.trim().length == 1 && cmd.trim()=='}')
+        else if(cmd.length == 1 && cmd =='}')
         {
             lc[loop_depth]--;
             if(lc[loop_depth]>0)
@@ -55,16 +77,20 @@ async function parseActionScript(action_script, execute = false) {
                 }
             }
         }
+        else if(cmd.match(/^'.+?'$/) != null)
+        {
+            var chars = cmd.substring(1,cmd.length-1).split("");
+            var time_to_emit_next_char = 100;
+            emit_string(chars,0,time_to_emit_next_char);
+ 
+            //blocking execution of action script and wait for all keys emitted
+            await sleep(time_to_emit_next_char*chars.length);                  
+        }
         else if(translateKey2(cmd,cmd.toLowerCase()).raw_key !== undefined)
         {
             if(execute)
             {            
-                emit_string([cmd],0,100);
-                /*var c64code = translateKey2(cmd, cmd.toLowerCase());
-                if(c64code !== undefined){
-                    wasm_key(c64code[0], c64code[1], 1);
-                    setTimeout(function() {wasm_key(c64code[0], c64code[1], 0);}, 100);
-                }*/
+                emit_string([cmd],0,100); 
             }
         }
         else if(cmd == 'pause')
@@ -88,7 +114,7 @@ async function parseActionScript(action_script, execute = false) {
                 } 
             }
         }
-        else if(cmd.trim().match(/^[0-9]+ms$/) != null)
+        else if(cmd.match(/^[0-9]+ms$/) != null)
         {
             if(execute)
             {
@@ -130,7 +156,7 @@ async function parseActionScript(action_script, execute = false) {
         }
         else if(
             (
-                joy_cmd_tokens=cmd.trim().match(/^j([12])(fire|up|down|right|left)([01])$/)
+                joy_cmd_tokens=cmd.match(/^j([12])(fire|up|down|right|left)([01])$/)
             )
             != null
         )
@@ -186,6 +212,12 @@ async function validate_custom_key(){
     }
     return is_valid;
 };
+
+
+function press_key(c)
+{
+    emit_string([c],0,100); 
+}
 
 
 function execute_joystick_script(cmd_tokens)

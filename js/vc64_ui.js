@@ -1285,7 +1285,7 @@ wide_screen_switch.change( function() {
                 }
                 else
                 {
-                    action_script_val += ","+txt;
+                    action_script_val += "=>"+txt;
                 }
 
                 $('#input_action_script').val(action_script_val);

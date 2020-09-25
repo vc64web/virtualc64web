@@ -118,7 +118,10 @@ function load_roms(install_to_core){
         }
         else
         {
-            $("#rom_kernal").attr("src", compare_header([0x4c,0xb2, 0xa6], the_rom) ?
+            $("#rom_kernal").attr("src", 
+            compare_header([0x4c,0xb2, 0xa6], the_rom)||
+            compare_header([0xA9,0x01, 0x2C], the_rom)  //2020_09_22
+             ?
             "img/rom_mega65.png":"img/rom.png");
             $("#button_delete_kernal").show();
         }

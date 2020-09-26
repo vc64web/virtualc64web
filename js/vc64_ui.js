@@ -589,6 +589,7 @@ function InitWrappers() {
     wasm_set_warp = Module.cwrap('wasm_set_warp', 'undefined', ['number']);
     wasm_set_borderless = Module.cwrap('wasm_set_borderless', 'undefined', ['number']);
     wasm_press_play = Module.cwrap('wasm_press_play', 'undefined');
+    wasm_sprite_info = Module.cwrap('wasm_sprite_info', 'string');
 
     dark_switch = document.getElementById('dark_switch');
 
@@ -1434,7 +1435,7 @@ wide_screen_switch.change( function() {
             $('#ck'+element.id).click(function() 
             {       
                 var action_script = action_scripts['ck'+element.id];
-                setTimeout(function() { execute_cmd_seq(action_script) });
+                setTimeout(function() { execute_script(action_script) });
             });
         });
 

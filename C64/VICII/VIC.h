@@ -90,7 +90,6 @@ public:
     // I/O space (CPU accessible)
     //
     
-private:
     
     /*! @brief    Piped I/O register state.
      *  @details  When an I/O register is written to, the corresponding value
@@ -104,6 +103,7 @@ private:
         VICIIRegisters delayed;
     } reg;
     
+private:
     //! @brief    Raster interrupt line ($D012)
     uint8_t rasterIrqLine;
     

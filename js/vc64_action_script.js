@@ -2,13 +2,14 @@ const sleep = (milliseconds) => {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
 }
 
-var execute_cmd_seq = function(action_script) {
-    parseActionScript(action_script, true);
+var execute_script = function(action_script) {
+    parse_script(action_script, true);
 }
 
 
-async function parseActionScript(action_script, execute = false) {
-    if(action_script.trim().length==0)
+async function parse_script(action_script, execute = false) {
+    action_script = action_script.trim();
+    if(action_script.length==0)
     {
         $('#action_button_syntax_error').html('you have to enter at least one action ...');
         return false;
@@ -19,23 +20,36 @@ async function parseActionScript(action_script, execute = false) {
         var valid = true;
         var js_script=action_script.substring(3);
         var js_script_function;
-        //console.log(js_script);
         let AsyncFunction = Object.getPrototypeOf(async function(){}).constructor
         try {
             js_script_function=new AsyncFunction(js_script);
         } catch (error) {
             valid=false;
-            $('#action_button_syntax_error').html(error.message);
+            if(execute==false)
+            {
+                $('#action_button_syntax_error').html(error.message);
+            }
         }
-
         if(execute)
         {
             js_script_function();
         }
-
-        return valid; 
     }
+    else
+    {
+       valid = await execute_action_sequence_script(action_script, execute);
+    }
+    return valid;
+};
 
+async function action(cmd, execute=true)
+{
+    await execute_action_sequence_script(cmd, execute);
+}
+
+
+async function execute_action_sequence_script(action_script, execute=false)
+{
     action_script=action_script.replace(/[{]/g,'{=>')
     action_script=action_script.replace(/[}]/g,'=>}')
     var cmd_sequence = action_script.split('=>');
@@ -77,7 +91,7 @@ async function parseActionScript(action_script, execute = false) {
                 }
             }
         }
-        else if(await action(cmd, execute)==true)
+        else if(await execute_single_action(cmd, execute)==true)
         {            
         }
         else
@@ -86,55 +100,23 @@ async function parseActionScript(action_script, execute = false) {
             valid = false;
             break;
         }
-    }//);
+    }
 
     if(loop_depth>0)
     {
         error_message="missing closing loop "+pc_loop_begin+" brackets";
         valid=false;
     }
-    $('#action_button_syntax_error').html(error_message);
+
+    if(execute == false)
+    {
+        $('#action_button_syntax_error').html(error_message);
+    }
     return valid;
-};
+}
 
 
-async function validate_custom_key(){
-
-    var is_valid=true;
-    $('#input_button_text').removeClass("is-valid");
-    $('#input_button_text').removeClass("is-invalid");
-    if( $('#input_button_text').val().trim().length==0)
-    {
-        $('#input_button_text').addClass("is-invalid");
-        is_valid=false;
-    }
-    else
-    {  
-        $('#input_button_text').addClass("is-valid");
-    }
-
-    $('#input_action_script').removeClass("is-valid");
-    $('#input_action_script').removeClass("is-invalid");
-    if( (await parseActionScript($('#input_action_script').val())) == false)
-    {
-        $('#input_action_script').addClass("is-invalid");
-        is_valid=false;
-    }
-    else
-    {
-        $('#input_action_script').addClass("is-valid");
-    }
-    return is_valid;
-};
-
-/*
-function press_key(c)
-{
-    emit_string([c],0,100); 
-}*/
-
-
-async function action(cmd, execute=true)
+async function execute_single_action(cmd, execute=true)
 {
     cmd=cmd.trim();
     var valid = true;
@@ -235,6 +217,36 @@ async function action(cmd, execute=true)
 }
 
 
+async function validate_custom_key(){
+
+    var is_valid=true;
+    $('#input_button_text').removeClass("is-valid");
+    $('#input_button_text').removeClass("is-invalid");
+    if( $('#input_button_text').val().trim().length==0)
+    {
+        $('#input_button_text').addClass("is-invalid");
+        is_valid=false;
+    }
+    else
+    {  
+        $('#input_button_text').addClass("is-valid");
+    }
+
+    $('#input_action_script').removeClass("is-valid");
+    $('#input_action_script').removeClass("is-invalid");
+    if( (await parse_script($('#input_action_script').val())) == false)
+    {
+        $('#input_action_script').addClass("is-invalid");
+        is_valid=false;
+    }
+    else
+    {
+        $('#input_action_script').addClass("is-valid");
+    }
+    return is_valid;
+};
+
+
 
 function execute_joystick_script(cmd_tokens)
 {
@@ -266,4 +278,16 @@ function execute_joystick_script(cmd_tokens)
             }
         }
     ); 
+ }
+
+ function sprite_xpos(sprite_id)
+ {
+   var all_sprite_pos = wasm_sprite_info().split(",");
+   return all_sprite_pos[sprite_id*2];
+ }
+
+ function sprite_ypos(sprite_id)
+ {
+   var all_sprite_pos = wasm_sprite_info().split(",");
+   return all_sprite_pos[sprite_id*2+1];
  }

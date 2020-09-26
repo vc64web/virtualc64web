@@ -24,7 +24,7 @@ var execute_script = function(id, action_script) {
 
 function not_stopped(id)
 {
-    return map_of_running_scripts_stop_request[id] != true;
+    return id<0 ? true : map_of_running_scripts_stop_request[id] != true;
 }
 
 async function parse_script(action_script, execute = false, execution_id = -1) {
@@ -57,7 +57,7 @@ async function parse_script(action_script, execute = false, execution_id = -1) {
     }
     else
     {
-       valid = await execute_action_sequence_script(action_script, execute);
+       valid = await execute_action_sequence_script(action_script, execute, execution_id);
     }
     return valid;
 };
@@ -68,7 +68,7 @@ async function action(cmd, execute=true)
 }
 
 
-async function execute_action_sequence_script(action_script, execute=false)
+async function execute_action_sequence_script(action_script, execute=false, execution_id=-1)
 {
     action_script=action_script.replace(/[{]/g,'{=>')
     action_script=action_script.replace(/[}]/g,'=>}')
@@ -83,7 +83,7 @@ async function execute_action_sequence_script(action_script, execute=false)
 
     var joy_cmd_tokens=null;
 
-    while (pc < cmd_sequence.length) {
+    while (pc < cmd_sequence.length && not_stopped(execution_id)) {
         var cmd = cmd_sequence[pc].trim();
         pc++;
 

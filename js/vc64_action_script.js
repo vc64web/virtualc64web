@@ -2,12 +2,32 @@ const sleep = (milliseconds) => {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
 }
 
-var execute_script = function(action_script) {
-    parse_script(action_script, true);
+var map_of_running_scripts = [];
+var map_of_running_scripts_stop_request = [];
+var execute_script = function(id, action_script) {    
+    if(map_of_running_scripts[id] == true)
+    {
+        //alert("action script with "+id+" is still running, double execution is prevented... requesting stop");
+        map_of_running_scripts_stop_request[id]=true;
+    }
+    else
+    {
+        setTimeout(async function() { 
+            map_of_running_scripts[id]=true;
+            map_of_running_scripts_stop_request[id]=false;
+            await parse_script(action_script, true, id);
+            map_of_running_scripts[id]=false;
+            map_of_running_scripts_stop_request[id]=false;
+        });
+    }
 }
 
+function not_stopped(id)
+{
+    return map_of_running_scripts_stop_request[id] != true;
+}
 
-async function parse_script(action_script, execute = false) {
+async function parse_script(action_script, execute = false, execution_id = -1) {
     action_script = action_script.trim();
     if(action_script.length==0)
     {
@@ -21,8 +41,8 @@ async function parse_script(action_script, execute = false) {
         var js_script=action_script.substring(3);
         var js_script_function;
         let AsyncFunction = Object.getPrototypeOf(async function(){}).constructor
-        try {
-            js_script_function=new AsyncFunction(js_script);
+        try {            
+            js_script_function=new AsyncFunction("var this_id="+execution_id+";"+js_script);
         } catch (error) {
             valid=false;
             if(execute==false)
@@ -32,7 +52,7 @@ async function parse_script(action_script, execute = false) {
         }
         if(execute)
         {
-            js_script_function();
+            await js_script_function();
         }
     }
     else

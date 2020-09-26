@@ -1299,7 +1299,7 @@ wide_screen_switch.change( function() {
             $('#predefined_actions').collapse('hide');
 
             //Special Keys action
-            var list_actions=['Space','Comma','F1','F2','F7','F8','runStop','restore','commodore', 'Delete'];
+            var list_actions=['Space','Comma','F1','F3','F5','F8','runStop','restore','commodore', 'Delete','Enter'];
             var html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
@@ -1435,7 +1435,7 @@ wide_screen_switch.change( function() {
             $('#ck'+element.id).click(function() 
             {       
                 var action_script = action_scripts['ck'+element.id];
-                setTimeout(function() { execute_script(action_script) });
+                execute_script(element.id, action_script);
             });
         });
 

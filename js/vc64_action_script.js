@@ -13,11 +13,18 @@ var execute_script = function(id, action_script) {
     else
     {
         setTimeout(async function() { 
+            $('#ck'+id).css("background-color", "var(--red)");
             map_of_running_scripts[id]=true;
             map_of_running_scripts_stop_request[id]=false;
-            await parse_script(action_script, true, id);
-            map_of_running_scripts[id]=false;
-            map_of_running_scripts_stop_request[id]=false;
+            try{
+              await parse_script(action_script, true, id);
+            }
+            finally
+            {
+              $('#ck'+id).css("background-color", "");
+              map_of_running_scripts[id]=false;
+              map_of_running_scripts_stop_request[id]=false;
+            }
         });
     }
 }

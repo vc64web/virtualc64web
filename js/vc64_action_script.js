@@ -292,6 +292,7 @@ function execute_joystick_script(cmd_tokens)
     var dir= cmd_tokens[2].toUpperCase();
     var down_or_release = cmd_tokens[3];
 
+    var previous_owner = set_port_owner(portnr,PORT_ACCESSOR.BOT);
     if(dir == "FIRE")
     {
         send_joystick(PORT_ACCESSOR.BOT,portnr, portnr+(down_or_release == 1 ?"PRESS_"+dir:"RELEASE_"+dir));
@@ -300,6 +301,7 @@ function execute_joystick_script(cmd_tokens)
     {
         send_joystick(PORT_ACCESSOR.BOT,portnr, portnr+(down_or_release == 1 ?"PULL_"+dir:"RELEASE_"+((dir=="LEFT" || dir=="RIGHT")?"X":"Y")));
     }
+    set_port_owner(portnr,previous_owner);
  }
 
  function load_last_snapshot()

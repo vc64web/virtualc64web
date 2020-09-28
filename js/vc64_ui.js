@@ -619,7 +619,9 @@ set_port_owner(2,PORT_ACCESSOR.MANUAL);
 
 function set_port_owner(port, new_owner)
 {
+    var previous_owner=current_port_owner[port];
     current_port_owner[port]=new_owner;
+    return previous_owner;
 }
 function send_joystick( accessor, port, command )
 {

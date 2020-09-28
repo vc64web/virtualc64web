@@ -390,7 +390,7 @@ function keydown(e) {
         var joystick_cmd = joystick_keydown_map[e.code];
         if(joystick_cmd !== undefined)
         {
-            wasm_joystick((port1=='keys'?'1':'2')+joystick_cmd);
+            emit_joystick_cmd((port1=='keys'?'1':'2')+joystick_cmd);
             return;
         }
     }
@@ -409,7 +409,7 @@ function keyup(e) {
         var joystick_cmd = joystick_keyup_map[e.code];
         if(joystick_cmd !== undefined)
         {
-            wasm_joystick((port1=='keys'?'1':'2')+joystick_cmd);
+            emit_joystick_cmd((port1=='keys'?'1':'2')+joystick_cmd);
             return;
         }
     }
@@ -499,9 +499,9 @@ function handle_touch(portnr)
         if( last_touch_cmd != new_touch_cmd)
         {
             last_touch_cmd = new_touch_cmd;
-            wasm_joystick(portnr+new_touch_cmd_x);
-            wasm_joystick(portnr+new_touch_cmd_y);
-            wasm_joystick(portnr+new_fire);
+            emit_joystick_cmd(portnr+new_touch_cmd_x);
+            emit_joystick_cmd(portnr+new_touch_cmd_y);
+            emit_joystick_cmd(portnr+new_fire);
         }
     } catch (error) {
         console.error("error while handle_touch: "+ error);        
@@ -514,11 +514,11 @@ function handleGamePad(portnr, gamepad)
     var bReleaseY=false;
     if(0.8<gamepad.axes[0])
     {
-        wasm_joystick(portnr+"PULL_RIGHT");   
+        emit_joystick_cmd(portnr+"PULL_RIGHT");   
     }
     else if(-0.8>gamepad.axes[0])
     {
-        wasm_joystick(portnr+"PULL_LEFT");
+        emit_joystick_cmd(portnr+"PULL_LEFT");
     }
     else
     {
@@ -527,11 +527,11 @@ function handleGamePad(portnr, gamepad)
 
     if(0.8<gamepad.axes[1])
     {
-        wasm_joystick(portnr+"PULL_DOWN");   
+        emit_joystick_cmd(portnr+"PULL_DOWN");   
     }
     else if(-0.8>gamepad.axes[1])
     {
-        wasm_joystick(portnr+"PULL_UP");
+        emit_joystick_cmd(portnr+"PULL_UP");
     }
     else
     {
@@ -540,16 +540,16 @@ function handleGamePad(portnr, gamepad)
 
     if(bReleaseX && bReleaseY)
     {
-        wasm_joystick(portnr+"RELEASE_XY");
+        emit_joystick_cmd(portnr+"RELEASE_XY");
     }
     else if(bReleaseX)
     {
-        wasm_joystick(portnr+"RELEASE_X");
+        emit_joystick_cmd(portnr+"RELEASE_X");
 
     }
     else if(bReleaseY)
     {
-        wasm_joystick(portnr+"RELEASE_Y");
+        emit_joystick_cmd(portnr+"RELEASE_Y");
     }
 
 
@@ -561,8 +561,82 @@ function handleGamePad(portnr, gamepad)
             bFirePressed=true;
         }
     }
-    wasm_joystick(portnr + (bFirePressed?"PRESS_FIRE":"RELEASE_FIRE"));
+    emit_joystick_cmd(portnr + (bFirePressed?"PRESS_FIRE":"RELEASE_FIRE"));
 }
+
+var port_state={};
+function emit_joystick_cmd(command)
+{
+    var port = command.substring(0,1);
+    var cmd  = command.substring(1); 
+    
+    if(cmd == "PULL_RIGHT")
+    {
+        port_state[port+'x'] = cmd;
+    }
+    else if(cmd == "PULL_LEFT")
+    {
+        port_state[port+'x'] = cmd;
+    }
+    else if(cmd == "RELEASE_X");
+    {
+        port_state[port+'x'] = cmd;
+    }
+
+    if(cmd == "PULL_UP")
+    {
+        port_state[port+'y'] = cmd;
+    }
+    else if(cmd == "PULL_DOWN")
+    {
+        port_state[port+'y'] = cmd;
+    }
+    else if(cmd == "RELEASE_Y")
+    {
+        port_state[port+'y'] = cmd;
+    }
+
+    var new_fire = "";
+    if(cmd=="PRESS_FIRE")
+    {
+        port_state[port+'fire']= cmd;
+    }
+    else if(cmd=="RELEASE_FIRE")
+    {
+        port_state[port+'fire']= cmd;
+    }
+    send_joystick(PORT_ACCESSOR.MANUAL, port, command);
+}
+
+const PORT_ACCESSOR = {
+    MANUAL: 'MANUAL',
+    BOT: 'BOT'
+}
+
+var current_port_owner = {}; 
+set_port_owner(1,PORT_ACCESSOR.MANUAL);
+set_port_owner(2,PORT_ACCESSOR.MANUAL);
+
+function set_port_owner(port, new_owner)
+{
+    current_port_owner[port]=new_owner;
+}
+function send_joystick( accessor, port, command )
+{
+    if(accessor == current_port_owner[port])
+    {
+        wasm_joystick(command);
+    }
+}
+
+function restore_manual_state(port)
+{
+    wasm_joystick( port_state[port+'x'] );
+    wasm_joystick( port_state[port+'y'] );
+    wasm_joystick( port_state[port+'fire'] );
+}
+
+
 
 function InitWrappers() {
     wasm_loadfile = Module.cwrap('wasm_loadFile', 'string', ['string', 'array', 'number']);
@@ -973,6 +1047,7 @@ wide_screen_switch.change( function() {
                 };
 
                 canvas.onclick = function() {
+                    stop_all_scripts();
                     let id = this.id.match(/[a-z_]*(.*)/)[1];
                     get_snapshot_per_id(id,
                         function (snapshot) {

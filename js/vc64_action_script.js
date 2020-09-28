@@ -29,6 +29,17 @@ var execute_script = function(id, action_script) {
     }
 }
 
+function stop_all_scripts()
+{
+    for(id in map_of_running_scripts)
+    {
+        if(map_of_running_scripts[id]==true)
+        {
+            map_of_running_scripts_stop_request[id]=true;
+        }
+    }
+}
+
 function not_stopped(id)
 {
     return id<0 ? true : map_of_running_scripts_stop_request[id] != true;
@@ -283,11 +294,11 @@ function execute_joystick_script(cmd_tokens)
 
     if(dir == "FIRE")
     {
-        wasm_joystick(portnr+(down_or_release == 1 ?"PRESS_"+dir:"RELEASE_"+dir));
+        send_joystick(PORT_ACCESSOR.BOT,portnr, portnr+(down_or_release == 1 ?"PRESS_"+dir:"RELEASE_"+dir));
     }
     else
     {
-        wasm_joystick(portnr+(down_or_release == 1 ?"PULL_"+dir:"RELEASE_"+((dir=="LEFT" || dir=="RIGHT")?"X":"Y")));
+        send_joystick(PORT_ACCESSOR.BOT,portnr, portnr+(down_or_release == 1 ?"PULL_"+dir:"RELEASE_"+((dir=="LEFT" || dir=="RIGHT")?"X":"Y")));
     }
  }
 

@@ -582,8 +582,7 @@ function emit_joystick_cmd(command)
     {
         port_state[port+'x'] = cmd;
     }
-
-    if(cmd == "PULL_UP")
+    else if(cmd == "PULL_UP")
     {
         port_state[port+'y'] = cmd;
     }
@@ -595,9 +594,12 @@ function emit_joystick_cmd(command)
     {
         port_state[port+'y'] = cmd;
     }
-
-    var new_fire = "";
-    if(cmd=="PRESS_FIRE")
+    else if(cmd == "RELEASE_XY")
+    {
+        port_state[port+'x'] = "RELEASE_X";
+        port_state[port+'y'] = "RELEASE_Y";
+    }
+    else if(cmd=="PRESS_FIRE")
     {
         port_state[port+'fire']= cmd;
     }
@@ -605,7 +607,6 @@ function emit_joystick_cmd(command)
     {
         port_state[port+'fire']= cmd;
     }
-
 
     send_joystick(PORT_ACCESSOR.MANUAL, port, command);
 /*

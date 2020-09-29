@@ -569,7 +569,7 @@ function emit_joystick_cmd(command)
 {
     var port = command.substring(0,1);
     var cmd  = command.substring(1); 
-    
+  
     if(cmd == "PULL_RIGHT")
     {
         port_state[port+'x'] = cmd;
@@ -578,7 +578,7 @@ function emit_joystick_cmd(command)
     {
         port_state[port+'x'] = cmd;
     }
-    else if(cmd == "RELEASE_X");
+    else if(cmd == "RELEASE_X")
     {
         port_state[port+'x'] = cmd;
     }
@@ -605,7 +605,14 @@ function emit_joystick_cmd(command)
     {
         port_state[port+'fire']= cmd;
     }
+
+
     send_joystick(PORT_ACCESSOR.MANUAL, port, command);
+/*
+    console.log("portstate["+port+"x]="+port_state[port+'x']);
+    console.log("portstate["+port+"y]="+port_state[port+'y']);
+*/
+
 }
 
 const PORT_ACCESSOR = {
@@ -613,14 +620,19 @@ const PORT_ACCESSOR = {
     BOT: 'BOT'
 }
 
-var current_port_owner = {}; 
-set_port_owner(1,PORT_ACCESSOR.MANUAL);
-set_port_owner(2,PORT_ACCESSOR.MANUAL);
+var current_port_owner = {
+    1:PORT_ACCESSOR.MANUAL,
+    2:PORT_ACCESSOR.MANUAL,
+}; 
 
 function set_port_owner(port, new_owner)
 {
     var previous_owner=current_port_owner[port];
     current_port_owner[port]=new_owner;
+    if(new_owner==PORT_ACCESSOR.MANUAL)
+    {
+       restore_manual_state(port);
+    }
     return previous_owner;
 }
 function send_joystick( accessor, port, command )
@@ -633,9 +645,18 @@ function send_joystick( accessor, port, command )
 
 function restore_manual_state(port)
 {
-    wasm_joystick( port_state[port+'x'] );
-    wasm_joystick( port_state[port+'y'] );
-    wasm_joystick( port_state[port+'fire'] );
+    if(port_state[port+'x'] !== 'undefined') 
+    {
+        wasm_joystick( port + port_state[port+'x'] );
+    }
+    if(port_state[port+'y'] !== 'undefined') 
+    {
+        wasm_joystick( port + port_state[port+'y'] );
+    }
+    if(port_state[port+'fire'] !== 'undefined') 
+    {
+        wasm_joystick( port + port_state[port+'fire'] );
+    }
 }
 
 
@@ -1469,9 +1490,10 @@ wide_screen_switch.change( function() {
 
         $('#button_delete_custom_button').click(function(e) 
         {
-            custom_keys=custom_keys.filter(el=> ('ck'+el.id) != haptic_touch_selected.id);
+            custom_keys=custom_keys.filter(el=> ('ck'+el.id) != haptic_touch_selected.id);            
             install_custom_keys();
             $('#modal_custom_key').modal('hide');
+            save_custom_buttons(global_apptitle, custom_keys);
         });
 
         custom_keys = [];

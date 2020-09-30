@@ -270,6 +270,13 @@ async function validate_custom_key(){
         $('#input_button_text').addClass("is-valid");
     }
 
+    is_valid = await validate_action_script();
+
+    return is_valid;
+};
+async function validate_action_script()
+{
+    var is_valid=true;
     $('#input_action_script').removeClass("is-valid");
     $('#input_action_script').removeClass("is-invalid");
     if( (await parse_script($('#input_action_script').val())) == false)

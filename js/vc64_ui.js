@@ -1351,8 +1351,20 @@ wide_screen_switch.change( function() {
             }
         );
 
+        var adjust_script_textbox_height= function ()
+        {
+            var action_script_val = $('#input_action_script').val();
+            if(action_script_val.startsWith('js:'))
+            {
+                $('#input_action_script').css("min-height","300px");
+            }
+            else
+            {
+                $('#input_action_script').css("min-height","");
+            }
+        }
+
         $('#modal_custom_key').on('show.bs.modal', function () {
-            
             if(create_new_custom_key)
             {
                 $('#button_delete_custom_button').hide();
@@ -1365,7 +1377,12 @@ wide_screen_switch.change( function() {
                 $('#input_action_script').val(btn_def.script);
 
                 $('#button_delete_custom_button').show();
+
+                //show errors
+                validate_action_script();
             }
+
+            adjust_script_textbox_height();
 
             if(is_running())
             {
@@ -1424,8 +1441,6 @@ wide_screen_switch.change( function() {
             $('#add_joystick2_action').html(html_action_list);
             $('#add_joystick2_action a').click(on_add_action);
 
-
-
             //timer action
             var list_actions=['100ms','300ms','1000ms', 'loop2{','loop3{','loop6{', '}'];
             html_action_list='';
@@ -1444,6 +1459,32 @@ wide_screen_switch.change( function() {
             $('#add_system_action').html(html_action_list);
             $('#add_system_action a').click(on_add_action);
 
+            //script action
+            
+            //system action
+            var list_actions=['simple while'];
+            html_action_list='';
+            list_actions.forEach(element => {
+                html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
+            });
+            $('#add_javascript').html(html_action_list);
+            $('#add_javascript a').click(
+                function() {
+                    var txt= $(this).text();
+
+                    var action_script_val = $('#input_action_script').val();
+                    if(action_script_val.trim().length==0)
+                    {
+                        action_script_val = 'js: \nwhile(not_stopped(this_id))\n{\n await action("A=>200ms")\n}';
+                       adjust_script_textbox_height();
+                    }
+
+                    $('#input_action_script').val(action_script_val);
+                    validate_custom_key();
+                }
+             );
+
+
         });
 
         $('#modal_custom_key').on('hidden.bs.modal', function () {
@@ -1457,7 +1498,7 @@ wide_screen_switch.change( function() {
 
 
         $('#input_button_text').keyup( function () {validate_custom_key(); return true;} );
-        $('#input_action_script').keyup( function () {validate_custom_key(); return true;} );
+        $('#input_action_script').keyup( function () {validate_action_script(); return true;} );
 
         $('#button_save_custom_button').click(async function(e) 
         {

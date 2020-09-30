@@ -1071,7 +1071,6 @@ wide_screen_switch.change( function() {
                 };
 
                 canvas.onclick = function() {
-                    stop_all_scripts();
                     let id = this.id.match(/[a-z_]*(.*)/)[1];
                     get_snapshot_per_id(id,
                         function (snapshot) {
@@ -1515,6 +1514,10 @@ wide_screen_switch.change( function() {
 
 //---- start custom keys ------
     function install_custom_keys(){
+        //requesting to stop all scripts ... because the custom keys are going to be removed
+        //and there is no way to stop their script by clicking the removed button again ...
+        stop_all_scripts();
+
         //remove all existing custom key buttons
         $(".custom_key").remove();
         

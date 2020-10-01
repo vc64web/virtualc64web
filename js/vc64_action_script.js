@@ -13,7 +13,8 @@ var execute_script = function(id, action_script) {
     else
     {
         setTimeout(async function() { 
-            $('#ck'+id).css("background-color", "var(--red)");
+            var dom_el=$('#ck'+id);
+            dom_el.css("background-color", "var(--red)");
             map_of_running_scripts[id]=true;
             map_of_running_scripts_stop_request[id]=false;
             try{
@@ -21,7 +22,7 @@ var execute_script = function(id, action_script) {
             }
             finally
             {
-              $('#ck'+id).css("background-color", "");
+              dom_el.css("background-color", "");
               map_of_running_scripts[id]=false;
               map_of_running_scripts_stop_request[id]=false;
             }
@@ -255,38 +256,58 @@ async function execute_single_action(cmd, execute=true)
 }
 
 
+
+async function validate_custom_key_form(){
+    var is_valid=true;
+    is_valid &=await validate_custom_key();
+    is_valid &=await validate_action_script();
+    return is_valid;
+}
+
 async function validate_custom_key(){
 
     var is_valid=true;
-    $('#input_button_text').removeClass("is-valid");
-    $('#input_button_text').removeClass("is-invalid");
-    if( $('#input_button_text').val().trim().length==0)
+    var input_button_text=$('#input_button_text');
+    input_button_text.removeClass("is-valid").removeClass("is-invalid");
+    if( input_button_text.val().trim().length==0)
     {
-        $('#input_button_text').addClass("is-invalid");
+        input_button_text.addClass("is-invalid");
         is_valid=false;
     }
     else
     {  
-        $('#input_button_text').addClass("is-valid");
+        input_button_text.addClass("is-valid");
     }
 
-    is_valid = await validate_action_script();
+    var input_button_shortcut=$('#input_button_shortcut');
 
+    input_button_shortcut.removeClass("is-valid")
+    input_button_shortcut.removeClass("is-invalid");
+    if( input_button_shortcut.val().length>1)
+    {
+        input_button_shortcut.addClass("is-invalid");
+        is_valid=false;
+    }
+    else
+    {  
+        input_button_shortcut.addClass("is-valid");
+    }
+  
     return is_valid;
 };
 async function validate_action_script()
 {
     var is_valid=true;
-    $('#input_action_script').removeClass("is-valid");
-    $('#input_action_script').removeClass("is-invalid");
-    if( (await parse_script($('#input_action_script').val())) == false)
+    var input_action_script=$('#input_action_script');
+    input_action_script.removeClass("is-valid").removeClass("is-invalid");
+    if( (await parse_script(input_action_script.val())) == false)
     {
-        $('#input_action_script').addClass("is-invalid");
+        input_action_script.addClass("is-invalid");
         is_valid=false;
     }
     else
     {
-        $('#input_action_script').addClass("is-valid");
+        input_action_script.addClass("is-valid");
     }
     return is_valid;
 };

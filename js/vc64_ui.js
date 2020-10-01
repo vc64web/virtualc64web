@@ -404,6 +404,15 @@ function keyup(e) {
     {//incase any html5 input control has the focus, we should let it get the keyup 
         event.preventDefault();
     }
+ 
+    for(action_button of custom_keys)
+    {
+        if(action_button.key == e.key)
+        {
+            execute_script(action_button.id, action_button.script);
+        }
+    }
+ 
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keyup_map[e.code];
@@ -1374,6 +1383,7 @@ wide_screen_switch.change( function() {
                 var btn_def = custom_keys.find(el=> ('ck'+el.id) == haptic_touch_selected.id);
 
                 $('#input_button_text').val(btn_def.title);
+                $('#input_button_shortcut').val(btn_def.key);
                 $('#input_action_script').val(btn_def.script);
 
                 $('#button_delete_custom_button').show();
@@ -1408,7 +1418,7 @@ wide_screen_switch.change( function() {
                 }
 
                 $('#input_action_script').val(action_script_val);
-                validate_custom_key();
+                validate_action_script();
             };
 
             $('#predefined_actions').collapse('hide');
@@ -1480,7 +1490,7 @@ wide_screen_switch.change( function() {
                     }
 
                     $('#input_action_script').val(action_script_val);
-                    validate_custom_key();
+                    validate_action_script();
                 }
              );
 
@@ -1502,7 +1512,7 @@ wide_screen_switch.change( function() {
 
         $('#button_save_custom_button').click(async function(e) 
         {
-            if( (await validate_custom_key()) == false)
+            if( (await validate_custom_key_form()) == false)
                 return;
 
             if(create_new_custom_key)
@@ -1510,7 +1520,8 @@ wide_screen_switch.change( function() {
                 //create a new custom key buttom  
                 custom_keys.push( 
                     {  id: custom_keys.length
-                      ,title: $('#input_button_text').val() 
+                      ,title: $('#input_button_text').val()
+                      ,key: $('#input_button_shortcut').val()
                       ,script:  $('#input_action_script').val()
                       ,position: "top:50%;left:50%" });        
 
@@ -1521,8 +1532,10 @@ wide_screen_switch.change( function() {
             {
                  var btn_def = custom_keys.find(el=> ('ck'+el.id) == haptic_touch_selected.id);
                  btn_def.title = $('#input_button_text').val();
+                 btn_def.key = $('#input_button_shortcut').val();
                  btn_def.script = $('#input_action_script').val();
                  
+
                 install_custom_keys();
             }
             $('#modal_custom_key').modal('hide');

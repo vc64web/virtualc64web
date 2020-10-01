@@ -403,13 +403,13 @@ function keyup(e) {
     if($('input').is(":focus") == false && $('textarea').is(":focus") == false)
     {//incase any html5 input control has the focus, we should let it get the keyup 
         event.preventDefault();
-    }
- 
-    for(action_button of custom_keys)
-    {
-        if(action_button.key == e.key)
+
+        for(action_button of custom_keys)
         {
-            execute_script(action_button.id, action_button.script);
+            if(action_button.key == e.key)
+            {
+                execute_script(action_button.id, action_button.script);
+            }
         }
     }
  

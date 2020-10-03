@@ -482,19 +482,21 @@
               </div>
             </div>
             <br>
+            app scope
             <div class="custom-control-lg custom-control custom-checkbox">
               <input id="check_app_scope" class="custom-control-input" type="checkbox" value="">
-              <label class="custom-control-label" for="check_app_scope">
-                app scope (if unchecked, button has global scope and will always be visible)
+              <label id="check_app_scope_label" class="custom-control-label text-muted" for="check_app_scope">
               </label>
             </div> 
             <br>
-            compose an action sequence, for example<br><b><i>loop5{j2fire1=>120ms=>j2fire0=>90ms}</i></b>&nbsp;shoots 5 times 
-            <br> or a literal action enclosed in single quotes e.g. <b>'load"$",8'</b> 
+            compose an action sequence, for example<br>
+            <ul>
+            <li><b><i>loop5{j2fire1=>120ms=>j2fire0=>90ms}</i></b>&nbsp;which will shoot 5 times</li>
+            <li>or a literal action enclosed in single quotes e.g. <b>'load"$",8'</b></li>
+            <li>for more complex tasks you can also choose to add a javascript ...</li>
+            </ul>
             <div class="input-group mb-3 mt-2">
               <div class="input-group-prepend">
-                <!--span class="input-group-text" id="inputGroup-sizing-default">action script</span-->
-          
                 <div class="dropdown">
                   <button class="btn btn-primary dropdown-toggle" type="button" style="height:100%"
                   data-toggle="collapse" data-target="#predefined_actions" aria-controls="predefined_actions" aria-expanded="false" aria-label="predefined actions"                  

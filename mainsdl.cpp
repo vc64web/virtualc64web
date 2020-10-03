@@ -847,3 +847,27 @@ RELEASE_FIRE
   }
 
 }
+
+char buffer[50];
+extern "C" char* wasm_sprite_info()
+{
+   sprintf(buffer, "%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u", 
+     wrapper->c64->vic.reg.current.sprX[0],
+     wrapper->c64->vic.reg.current.sprY[0],
+     wrapper->c64->vic.reg.current.sprX[1],
+     wrapper->c64->vic.reg.current.sprY[1],
+     wrapper->c64->vic.reg.current.sprX[2],
+     wrapper->c64->vic.reg.current.sprY[2],
+     wrapper->c64->vic.reg.current.sprX[3],
+     wrapper->c64->vic.reg.current.sprY[3],
+     wrapper->c64->vic.reg.current.sprX[4],
+     wrapper->c64->vic.reg.current.sprY[4],
+     wrapper->c64->vic.reg.current.sprX[5],
+     wrapper->c64->vic.reg.current.sprY[5],
+     wrapper->c64->vic.reg.current.sprX[6],
+     wrapper->c64->vic.reg.current.sprY[6],
+     wrapper->c64->vic.reg.current.sprX[7],
+     wrapper->c64->vic.reg.current.sprY[7]
+     );  
+   return buffer;
+}

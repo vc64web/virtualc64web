@@ -85,6 +85,7 @@ symbolic_map = {
     f8: 'F8',
     ',': 'Comma',
     '*': 'BracketRight', 
+    '$': ['ShiftLeft','Digit4'],
     "1": 'Digit1',
     "2": 'Digit2',
     "8": 'Digit8',

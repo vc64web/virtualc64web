@@ -225,8 +225,6 @@
           </div>
           <div class="modal-body">
             The emulator needs system ROM files. Please drag the missing files into the empty chip sockets. Or just touch or click the sockets.<br>
-            If you don't own already the commodore roms,
-            download the free generic roms at &nbsp;<a href="https://github.com/MEGA65/open-roms/tree/master/bin" target="_blank"> <img src="img/mega.png"/> open roms project</a>.
             <br>
             <div class="container mt-4">
             <div class="row my-2">
@@ -337,7 +335,7 @@
 
           </div>
           <div class="modal-footer">
-            <button id="button_fetch_open_roms" type="button" class="btn btn-primary justify-start"><img src="img/mega.png"/> install open roms</button>
+            <div class="justify-start"><button id="button_fetch_open_roms" type="button" class="btn btn-primary"><img src="img/mega.png"/> install open roms</button><a href="https://github.com/MEGA65/open-roms/tree/master/bin" target="_blank">&nbsp;learn more...</a></div>
 
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
           </div>
@@ -458,7 +456,7 @@
 
     <!-- custom key modal--->
     <div class="modal fade" id="modal_custom_key" tabindex="-1" role="dialog" aria-labelledby="custom_key_ModalLabel" aria-hidden="true">
-      <div class="modal-dialog" role="document">
+      <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="custom_key_ModalLabel">define an action button</h5>
@@ -469,22 +467,36 @@
           <div class="modal-body">
             This is the place where you can create app or game specific customized overlay buttons with free positioning ...
             <br><br>            
-            first choose a label for your action button
-            <div class="input-group mb-3">
-              <div class="input-group-prepend">
-                <span class="input-group-text" id="inputGroup-sizing-default">button text</span>
+            <div class="container">
+              <div class="row">
+                <div class="col-8 pl-0">
+                    label of the action button<br>
+                    <input id="input_button_text" required pattern="^.+$" placeholder="try to use emojis 😊 as icons" type="text" class="form-control" aria-label="action script" aria-describedby="inputGroup-sizing-default">
+                    <div id="input_button_text_error" class="invalid-feedback">you are missing text here</div>
+                </div>
+                <div class="col-4">
+                  shortcut key<br>
+                  <input id="input_button_shortcut" required pattern="^.{0,1}$" placeholder="(optional)" type="text" class="form-control ml-1" aria-label="action script" aria-describedby="inputGroup-sizing-default">
+                  <div id="input_button_shortcut_error" class="invalid-feedback">please specify only one shortcut key</div>
+                </div>
               </div>
-              <input id="input_button_text" required pattern="^.+$" placeholder="try to use emojis 😊 as icons" type="text" class="form-control" aria-label="action script" aria-describedby="inputGroup-sizing-default">
-              <div id="input_button_text_error" class="invalid-feedback">you are missing text here</div>
-           
+            </div>
+            <br>
+            app scope
+            <div class="custom-control-lg custom-control custom-checkbox">
+              <input id="check_app_scope" class="custom-control-input" type="checkbox" value="">
+              <label id="check_app_scope_label" class="custom-control-label text-muted" for="check_app_scope">
+              </label>
             </div> 
-
-            and after that build an action sequence, for example<br><b><i>loop5{j2fire1,120ms,j2fire0,90ms}</i></b>&nbsp;shoots 5 times 
-            
+            <br>
+            compose an action sequence, for example<br>
+            <ul>
+            <li><b><i>loop5{j2fire1=>120ms=>j2fire0=>90ms}</i></b>&nbsp;which will shoot 5 times</li>
+            <li>or a literal action enclosed in single quotes e.g. <b>'load"$",8'</b></li>
+            <li>for more complex tasks you can also choose to add a javascript ...</li>
+            </ul>
             <div class="input-group mb-3 mt-2">
               <div class="input-group-prepend">
-                <!--span class="input-group-text" id="inputGroup-sizing-default">action script</span-->
-          
                 <div class="dropdown">
                   <button class="btn btn-primary dropdown-toggle" type="button" style="height:100%"
                   data-toggle="collapse" data-target="#predefined_actions" aria-controls="predefined_actions" aria-expanded="false" aria-label="predefined actions"                  
@@ -527,6 +539,13 @@
                         system action
                       </button>
                       <div id="add_system_action" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+                      </div>
+                    </div>
+                    <div class="dropdown">
+                      <button class="btn btn-primary dropdown-toggle text-right" style="width:100%" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        javascript
+                      </button>
+                      <div id="add_javascript" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
                       </div>
                     </div>
                   </div>

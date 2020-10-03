@@ -34,7 +34,7 @@ private:
     //! @brief    Header signatures
     static const size_t basicRomSignatureCnt  = 4;
     static const size_t charRomSignatureCnt   = 10;
-    static const size_t kernalRomSignatureCnt = 4;
+    static const size_t kernalRomSignatureCnt = 5;
     static const size_t vc1541RomSignatureCnt = 4;
 
     static const uint8_t magicBasicRomBytes[basicRomSignatureCnt][3];

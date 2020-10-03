@@ -118,7 +118,10 @@ function load_roms(install_to_core){
         }
         else
         {
-            $("#rom_kernal").attr("src", compare_header([0x4c,0xb2, 0xa6], the_rom) ?
+            $("#rom_kernal").attr("src", 
+            compare_header([0x4c,0xb2, 0xa6], the_rom)||
+            compare_header([0xA9,0x01, 0x2C], the_rom)  //2020_09_22
+             ?
             "img/rom_mega65.png":"img/rom.png");
             $("#button_delete_kernal").show();
         }
@@ -387,7 +390,7 @@ function keydown(e) {
         var joystick_cmd = joystick_keydown_map[e.code];
         if(joystick_cmd !== undefined)
         {
-            wasm_joystick((port1=='keys'?'1':'2')+joystick_cmd);
+            emit_joystick_cmd((port1=='keys'?'1':'2')+joystick_cmd);
             return;
         }
     }
@@ -400,13 +403,22 @@ function keyup(e) {
     if($('input').is(":focus") == false && $('textarea').is(":focus") == false)
     {//incase any html5 input control has the focus, we should let it get the keyup 
         event.preventDefault();
+
+        for(action_button of custom_keys)
+        {
+            if(action_button.key == e.key)
+            {
+                execute_script(action_button.id, action_button.script);
+            }
+        }
     }
+ 
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keyup_map[e.code];
         if(joystick_cmd !== undefined)
         {
-            wasm_joystick((port1=='keys'?'1':'2')+joystick_cmd);
+            emit_joystick_cmd((port1=='keys'?'1':'2')+joystick_cmd);
             return;
         }
     }
@@ -496,9 +508,9 @@ function handle_touch(portnr)
         if( last_touch_cmd != new_touch_cmd)
         {
             last_touch_cmd = new_touch_cmd;
-            wasm_joystick(portnr+new_touch_cmd_x);
-            wasm_joystick(portnr+new_touch_cmd_y);
-            wasm_joystick(portnr+new_fire);
+            emit_joystick_cmd(portnr+new_touch_cmd_x);
+            emit_joystick_cmd(portnr+new_touch_cmd_y);
+            emit_joystick_cmd(portnr+new_fire);
         }
     } catch (error) {
         console.error("error while handle_touch: "+ error);        
@@ -511,11 +523,11 @@ function handleGamePad(portnr, gamepad)
     var bReleaseY=false;
     if(0.8<gamepad.axes[0])
     {
-        wasm_joystick(portnr+"PULL_RIGHT");   
+        emit_joystick_cmd(portnr+"PULL_RIGHT");   
     }
     else if(-0.8>gamepad.axes[0])
     {
-        wasm_joystick(portnr+"PULL_LEFT");
+        emit_joystick_cmd(portnr+"PULL_LEFT");
     }
     else
     {
@@ -524,11 +536,11 @@ function handleGamePad(portnr, gamepad)
 
     if(0.8<gamepad.axes[1])
     {
-        wasm_joystick(portnr+"PULL_DOWN");   
+        emit_joystick_cmd(portnr+"PULL_DOWN");   
     }
     else if(-0.8>gamepad.axes[1])
     {
-        wasm_joystick(portnr+"PULL_UP");
+        emit_joystick_cmd(portnr+"PULL_UP");
     }
     else
     {
@@ -537,16 +549,16 @@ function handleGamePad(portnr, gamepad)
 
     if(bReleaseX && bReleaseY)
     {
-        wasm_joystick(portnr+"RELEASE_XY");
+        emit_joystick_cmd(portnr+"RELEASE_XY");
     }
     else if(bReleaseX)
     {
-        wasm_joystick(portnr+"RELEASE_X");
+        emit_joystick_cmd(portnr+"RELEASE_X");
 
     }
     else if(bReleaseY)
     {
-        wasm_joystick(portnr+"RELEASE_Y");
+        emit_joystick_cmd(portnr+"RELEASE_Y");
     }
 
 
@@ -558,8 +570,106 @@ function handleGamePad(portnr, gamepad)
             bFirePressed=true;
         }
     }
-    wasm_joystick(portnr + (bFirePressed?"PRESS_FIRE":"RELEASE_FIRE"));
+    emit_joystick_cmd(portnr + (bFirePressed?"PRESS_FIRE":"RELEASE_FIRE"));
 }
+
+var port_state={};
+function emit_joystick_cmd(command)
+{
+    var port = command.substring(0,1);
+    var cmd  = command.substring(1); 
+  
+    if(cmd == "PULL_RIGHT")
+    {
+        port_state[port+'x'] = cmd;
+    }
+    else if(cmd == "PULL_LEFT")
+    {
+        port_state[port+'x'] = cmd;
+    }
+    else if(cmd == "RELEASE_X")
+    {
+        port_state[port+'x'] = cmd;
+    }
+    else if(cmd == "PULL_UP")
+    {
+        port_state[port+'y'] = cmd;
+    }
+    else if(cmd == "PULL_DOWN")
+    {
+        port_state[port+'y'] = cmd;
+    }
+    else if(cmd == "RELEASE_Y")
+    {
+        port_state[port+'y'] = cmd;
+    }
+    else if(cmd == "RELEASE_XY")
+    {
+        port_state[port+'x'] = "RELEASE_X";
+        port_state[port+'y'] = "RELEASE_Y";
+    }
+    else if(cmd=="PRESS_FIRE")
+    {
+        port_state[port+'fire']= cmd;
+    }
+    else if(cmd=="RELEASE_FIRE")
+    {
+        port_state[port+'fire']= cmd;
+    }
+
+    send_joystick(PORT_ACCESSOR.MANUAL, port, command);
+/*
+    console.log("portstate["+port+"x]="+port_state[port+'x']);
+    console.log("portstate["+port+"y]="+port_state[port+'y']);
+*/
+
+}
+
+const PORT_ACCESSOR = {
+    MANUAL: 'MANUAL',
+    BOT: 'BOT'
+}
+
+var current_port_owner = {
+    1:PORT_ACCESSOR.MANUAL,
+    2:PORT_ACCESSOR.MANUAL,
+}; 
+
+function set_port_owner(port, new_owner)
+{
+    var previous_owner=current_port_owner[port];
+    current_port_owner[port]=new_owner;
+    if(new_owner==PORT_ACCESSOR.MANUAL)
+    {
+       restore_manual_state(port);
+    }
+    return previous_owner;
+}
+function send_joystick( accessor, port, command )
+{
+    if(accessor == current_port_owner[port])
+    {
+        wasm_joystick(command);
+    }
+}
+
+function restore_manual_state(port)
+{
+    if(port_state[port+'x'] !== 'undefined') 
+    {
+        wasm_joystick( port + port_state[port+'x'] );
+    }
+    if(port_state[port+'y'] !== 'undefined') 
+    {
+        wasm_joystick( port + port_state[port+'y'] );
+    }
+    if(port_state[port+'fire'] !== 'undefined') 
+    {
+        wasm_joystick( port + port_state[port+'fire'] );
+    }
+}
+
+
 
 function InitWrappers() {
     wasm_loadfile = Module.cwrap('wasm_loadFile', 'string', ['string', 'array', 'number']);
@@ -586,6 +696,7 @@ function InitWrappers() {
     wasm_set_warp = Module.cwrap('wasm_set_warp', 'undefined', ['number']);
     wasm_set_borderless = Module.cwrap('wasm_set_borderless', 'undefined', ['number']);
     wasm_press_play = Module.cwrap('wasm_press_play', 'undefined');
+    wasm_sprite_info = Module.cwrap('wasm_sprite_info', 'string');
 
     dark_switch = document.getElementById('dark_switch');
 
@@ -811,7 +922,7 @@ wide_screen_switch.change( function() {
 
         get_custom_buttons(global_apptitle, 
             function(the_buttons) {
-                custom_keys = the_buttons.data;
+                custom_keys = the_buttons;
                 install_custom_keys();
             }
         );
@@ -980,7 +1091,7 @@ wide_screen_switch.change( function() {
                             global_apptitle=snapshot.title;
                             get_custom_buttons(global_apptitle, 
                                 function(the_buttons) {
-                                    custom_keys = the_buttons.data;
+                                    custom_keys = the_buttons;
                                     install_custom_keys();
                                 }
                             );
@@ -1016,7 +1127,7 @@ wide_screen_switch.change( function() {
             for(var t=0; t<app_titles.length;t++)
             {
                 var app_title=app_titles[t];
-                var app_snaps = get_snapshots_for_app_title(app_title, row_renderer); 
+                get_snapshots_for_app_title(app_title, row_renderer); 
             }
         }
         get_stored_app_titles(store_renderer);
@@ -1249,21 +1360,53 @@ wide_screen_switch.change( function() {
             }
         );
 
+        var adjust_script_textbox_height= function ()
+        {
+            var action_script_val = $('#input_action_script').val();
+            if(action_script_val.startsWith('js:'))
+            {
+                $('#input_action_script').css("min-height","300px");
+            }
+            else
+            {
+                $('#input_action_script').css("min-height","");
+            }
+        }
+
         $('#modal_custom_key').on('show.bs.modal', function () {
-            
             if(create_new_custom_key)
             {
                 $('#button_delete_custom_button').hide();
+                 $('#check_app_scope').prop('checked',true);
             }
             else
             {
                 var btn_def = custom_keys.find(el=> ('ck'+el.id) == haptic_touch_selected.id);
 
                 $('#input_button_text').val(btn_def.title);
+                $('#input_button_shortcut').val(btn_def.key);
+                $('#check_app_scope').prop('checked',btn_def.app_scope);
                 $('#input_action_script').val(btn_def.script);
 
                 $('#button_delete_custom_button').show();
+
+                //show errors
+                validate_action_script();
             }
+
+            set_scope_label = function (){
+                $('#check_app_scope_label').html(
+                    $('#check_app_scope').prop('checked') ? 
+                    '[ currently visible only for '+global_apptitle+' ]' :
+                    '[ currently globally visible ]'
+                );
+            }
+            set_scope_label();
+            $('#check_app_scope').change( set_scope_label );
+            
+
+
+            adjust_script_textbox_height();
 
             if(is_running())
             {
@@ -1285,17 +1428,17 @@ wide_screen_switch.change( function() {
                 }
                 else
                 {
-                    action_script_val += ","+txt;
+                    action_script_val += "=>"+txt;
                 }
 
                 $('#input_action_script').val(action_script_val);
-                validate_custom_key();
+                validate_action_script();
             };
 
             $('#predefined_actions').collapse('hide');
 
             //Special Keys action
-            var list_actions=['Space','F1','F2','F7','F8','runStop','restore','commodore', 'Delete'];
+            var list_actions=['Space','Comma','F1','F3','F5','F8','runStop','restore','commodore', 'Delete','Enter'];
             var html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
@@ -1322,8 +1465,6 @@ wide_screen_switch.change( function() {
             $('#add_joystick2_action').html(html_action_list);
             $('#add_joystick2_action a').click(on_add_action);
 
-
-
             //timer action
             var list_actions=['100ms','300ms','1000ms', 'loop2{','loop3{','loop6{', '}'];
             html_action_list='';
@@ -1342,6 +1483,41 @@ wide_screen_switch.change( function() {
             $('#add_system_action').html(html_action_list);
             $('#add_system_action a').click(on_add_action);
 
+            //script action
+            
+            //system action
+            var list_actions=['simple while', 'API example', 'aimbot'];
+            html_action_list='';
+            list_actions.forEach(element => {
+                html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
+            });
+            $('#add_javascript').html(html_action_list);
+            $('#add_javascript a').click(
+                function() {
+                    var txt= $(this).text();
+
+                    var action_script_val = $('#input_action_script').val();
+                    if(action_script_val.trim().length==0)
+                    {
+                        if(txt=='simple while')                
+                            action_script_val = 'js: \nwhile(not_stopped(this_id))\n{\n await action("A=>200ms")\n}';
+                        else if(txt=='API example')
+                            action_script_val = 'js://example of the API\nwhile(not_stopped(this_id))\n{\n  //wait some time\n  await action("100ms");\n\n  //get information about the sprites 0..7\n  var y_light=sprite_ypos(0);\n  var y_dark=sprite_ypos(0);\n\n  //reserve exclusive port 1..2 access (manual joystick control is blocked)\n  set_port_owner(1,PORT_ACCESSOR.BOT);\n  await action(`j1left1=>j1up1=>400ms=>j1left0=>j1up0`);\n  //give control back to the user\n  set_port_owner(1,PORT_ACCESSOR.MANUAL);\n}';
+                        else if(txt=='aimbot')
+                            action_script_val = 'js://archon aimbot\nconst port_light=1, port_dark=2, sprite_light=0, sprite_dark=1;\n\nwhile(not_stopped(this_id))\n{\n  await aim_and_shoot( port_light /* change bot side here ;-) */ );\n  await action("100ms");\n}\n\nasync function aim_and_shoot(port)\n{ \n  var y_light=sprite_ypos(sprite_light);\n  var y_dark=sprite_ypos(sprite_dark);\n  var x_light=sprite_xpos(sprite_light);\n  var x_dark=sprite_xpos(sprite_dark);\n\n  var y_diff=Math.abs(y_light - y_dark);\n  var x_diff=Math.abs(x_light - x_dark);\n  var angle = shoot_angle(x_diff,y_diff);\n\n  var x_aim=null;\n  var y_aim=null;\n  if( y_diff<10 || 26<angle && angle<28 )\n  {\n     var x_rel = (port == port_dark) ? x_dark-x_light: x_light-x_dark;  \n     x_aim=x_rel > 0 ?"left":"right";   \n  }\n  if( x_diff <10 || 26<angle && angle<28)\n  {\n     var y_rel = (port == port_dark) ? y_dark-y_light: y_light-y_dark;  \n     y_aim=y_rel > 0 ?"up":"down";   \n  }\n  \n  if(x_aim != null || y_aim != null)\n  {\n    set_port_owner(port, \n      PORT_ACCESSOR.BOT);\n    await action(`j${port}left0=>j${port}up0`);\n\n    await action(`j${port}fire1`);\n    if(x_aim != null)\n     await action(`j${port}${x_aim}1`);\n    if(y_aim != null)\n      await action(`j${port}${y_aim}1`);\n    await action("60ms");\n    if(x_aim != null)\n      await action(`j${port}${x_aim}0`);\n    if(y_aim != null)\n      await action(`j${port}${y_aim}0`);\n    await action(`j${port}fire0`);\n    await action("60ms");\n\n    set_port_owner(\n      port,\n      PORT_ACCESSOR.MANUAL\n    );\n    await action("500ms");\n  }\n}\n\nfunction shoot_angle(x, y) {\n  return Math.atan2(y, x) * 180 / Math.PI;\n}';
+                       adjust_script_textbox_height();
+                    }
+                    else
+                    {
+                        alert('first empty manually the existing script code then try again to insert '+txt+' template')
+                    }
+
+                    $('#input_action_script').val(action_script_val);
+                    validate_action_script();
+                }
+             );
+
+
         });
 
         $('#modal_custom_key').on('hidden.bs.modal', function () {
@@ -1355,11 +1531,11 @@ wide_screen_switch.change( function() {
 
 
         $('#input_button_text').keyup( function () {validate_custom_key(); return true;} );
-        $('#input_action_script').keyup( function () {validate_custom_key(); return true;} );
+        $('#input_action_script').keyup( function () {validate_action_script(); return true;} );
 
         $('#button_save_custom_button').click(async function(e) 
         {
-            if( (await validate_custom_key()) == false)
+            if( (await validate_custom_key_form()) == false)
                 return;
 
             if(create_new_custom_key)
@@ -1367,19 +1543,23 @@ wide_screen_switch.change( function() {
                 //create a new custom key buttom  
                 custom_keys.push( 
                     {  id: custom_keys.length
-                      ,title: $('#input_button_text').val() 
+                      ,title: $('#input_button_text').val()
+                      ,key: $('#input_button_shortcut').val()
+                      ,app_scope: $('#check_app_scope').prop('checked')
                       ,script:  $('#input_action_script').val()
-                      ,position: "top:50%;left:50%" });        
+                      ,position: "top:50%;left:50%" });
 
                 install_custom_keys();
                 create_new_custom_key=false;
             }
             else
             {
-                 var btn_def = custom_keys.find(el=> ('ck'+el.id) == haptic_touch_selected.id);
-                 btn_def.title = $('#input_button_text').val();
-                 btn_def.script = $('#input_action_script').val();
-                 
+                var btn_def = custom_keys.find(el=> ('ck'+el.id) == haptic_touch_selected.id);
+                btn_def.title = $('#input_button_text').val();
+                btn_def.key = $('#input_button_shortcut').val();
+                btn_def.app_scope = $('#check_app_scope').prop('checked');
+                btn_def.script = $('#input_action_script').val();
+
                 install_custom_keys();
             }
             $('#modal_custom_key').modal('hide');
@@ -1388,9 +1568,10 @@ wide_screen_switch.change( function() {
 
         $('#button_delete_custom_button').click(function(e) 
         {
-            custom_keys=custom_keys.filter(el=> ('ck'+el.id) != haptic_touch_selected.id);
+            custom_keys=custom_keys.filter(el=> ('ck'+el.id) != haptic_touch_selected.id);            
             install_custom_keys();
             $('#modal_custom_key').modal('hide');
+            save_custom_buttons(global_apptitle, custom_keys);
         });
 
         custom_keys = [];
@@ -1398,7 +1579,7 @@ wide_screen_switch.change( function() {
 
         get_custom_buttons(global_apptitle, 
             function(the_buttons) {
-                custom_keys = the_buttons.data;
+                custom_keys = the_buttons;
                 install_custom_keys();
             }
         );
@@ -1411,18 +1592,26 @@ wide_screen_switch.change( function() {
 
 //---- start custom keys ------
     function install_custom_keys(){
+        //requesting to stop all scripts ... because the custom keys are going to be removed
+        //and there is no way to stop their script by clicking the removed button again ...
+        stop_all_scripts();
+
         //remove all existing custom key buttons
         $(".custom_key").remove();
         
         //insert the new buttons
         custom_keys.forEach(function (element, i) {
             element.id = i;
-            var btn_html='<button id="ck'+element.id+'" class="btn btn-secondary custom_key" style="position:absolute;'+element.position;
+            var btn_html='<button id="ck'+element.id+'" class="btn btn-secondary custom_key" style="position:absolute;'+element.position+';';
             if(element.currentX)
             {
-                btn_html += ';transform:translate3d(' + element.currentX + 'px,' + element.currentY + 'px,0)';
+                btn_html += 'transform:translate3d(' + element.currentX + 'px,' + element.currentY + 'px,0);';
             } 
-            btn_html += ';touch-action:none">'+element.title+'</button>';
+            if(element.app_scope==false)
+            {
+                btn_html += 'border-width:4px;border-color: #99999999;';
+            }
+            btn_html += 'touch-action:none">'+element.title+'</button>';
 
             $('#div_canvas').append(btn_html);
             action_scripts["ck"+element.id] = element.script;
@@ -1431,7 +1620,7 @@ wide_screen_switch.change( function() {
             $('#ck'+element.id).click(function() 
             {       
                 var action_script = action_scripts['ck'+element.id];
-                setTimeout(function() { execute_cmd_seq(action_script) });
+                execute_script(element.id, action_script);
             });
         });
 
@@ -1706,7 +1895,7 @@ function emit_string(keys_to_emit_array, type_first_key_time=200, next_key_time=
 {  
     time_in_future=type_first_key_time;
     keys_to_emit_array.forEach(function (the_key, i) {
-             
+             console.log(the_key);
              var c64code = translateKey2(the_key, the_key.toLowerCase());
              if(c64code !== undefined)
              {

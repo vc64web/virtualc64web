@@ -164,3 +164,19 @@ color: #aaa !important;
 .justify-start {
   margin-right: auto;
 }
+
+
+
+
+.custom-control-lg .custom-control-label::before,
+.custom-control-lg .custom-control-label::after {
+    top: 0.0rem !important;
+    left: -2rem !important;
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+}
+
+.custom-control-lg .custom-control-label {
+    margin-left: 0.5rem !important;
+    font-size: 1rem !important;
+}

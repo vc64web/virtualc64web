@@ -922,7 +922,7 @@ wide_screen_switch.change( function() {
 
         get_custom_buttons(global_apptitle, 
             function(the_buttons) {
-                custom_keys = the_buttons.data;
+                custom_keys = the_buttons;
                 install_custom_keys();
             }
         );
@@ -1091,7 +1091,7 @@ wide_screen_switch.change( function() {
                             global_apptitle=snapshot.title;
                             get_custom_buttons(global_apptitle, 
                                 function(the_buttons) {
-                                    custom_keys = the_buttons.data;
+                                    custom_keys = the_buttons;
                                     install_custom_keys();
                                 }
                             );
@@ -1384,6 +1384,7 @@ wide_screen_switch.change( function() {
 
                 $('#input_button_text').val(btn_def.title);
                 $('#input_button_shortcut').val(btn_def.key);
+                $('#check_app_scope').prop('checked',btn_def.app_scope);
                 $('#input_action_script').val(btn_def.script);
 
                 $('#button_delete_custom_button').show();
@@ -1522,8 +1523,9 @@ wide_screen_switch.change( function() {
                     {  id: custom_keys.length
                       ,title: $('#input_button_text').val()
                       ,key: $('#input_button_shortcut').val()
+                      ,app_scope: $('#check_app_scope').prop('checked')
                       ,script:  $('#input_action_script').val()
-                      ,position: "top:50%;left:50%" });        
+                      ,position: "top:50%;left:50%" });
 
                 install_custom_keys();
                 create_new_custom_key=false;
@@ -1533,8 +1535,8 @@ wide_screen_switch.change( function() {
                  var btn_def = custom_keys.find(el=> ('ck'+el.id) == haptic_touch_selected.id);
                  btn_def.title = $('#input_button_text').val();
                  btn_def.key = $('#input_button_shortcut').val();
+                 btn_def.app_scope = $('#check_app_scope').prop('checked');
                  btn_def.script = $('#input_action_script').val();
-                 
 
                 install_custom_keys();
             }
@@ -1555,7 +1557,7 @@ wide_screen_switch.change( function() {
 
         get_custom_buttons(global_apptitle, 
             function(the_buttons) {
-                custom_keys = the_buttons.data;
+                custom_keys = the_buttons;
                 install_custom_keys();
             }
         );
@@ -1578,12 +1580,16 @@ wide_screen_switch.change( function() {
         //insert the new buttons
         custom_keys.forEach(function (element, i) {
             element.id = i;
-            var btn_html='<button id="ck'+element.id+'" class="btn btn-secondary custom_key" style="position:absolute;'+element.position;
+            var btn_html='<button id="ck'+element.id+'" class="btn btn-secondary custom_key" style="position:absolute;'+element.position+';';
             if(element.currentX)
             {
-                btn_html += ';transform:translate3d(' + element.currentX + 'px,' + element.currentY + 'px,0)';
+                btn_html += 'transform:translate3d(' + element.currentX + 'px,' + element.currentY + 'px,0);';
             } 
-            btn_html += ';touch-action:none">'+element.title+'</button>';
+            if(element.app_scope==false)
+            {
+                btn_html += 'border-width:3px;border-color: #99999999;';
+            }
+            btn_html += 'touch-action:none">'+element.title+'</button>';
 
             $('#div_canvas').append(btn_html);
             action_scripts["ck"+element.id] = element.script;

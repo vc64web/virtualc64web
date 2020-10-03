@@ -176,8 +176,36 @@ function save_setting(name, value) {
     }
 }
 
+
+
+
+
+
 //-------------- custom buttons
+
 function save_custom_buttons(the_name, the_data) {
+  var app_specific_data=[];
+  var global_data=[];
+
+  for(button_def_id in the_data)
+  {
+    var button_def=the_data[button_def_id];
+    if(button_def.app_scope)
+    {
+      app_specific_data.push(button_def);
+    }
+    else
+    {
+      global_data.push(button_def); 
+    }
+  }
+  save_custom_buttons_scope(the_name, app_specific_data);
+  save_custom_buttons_scope('__global_scope__', global_data);
+}
+
+
+
+function save_custom_buttons_scope(the_name, the_data) {
   let the_custom_buttons = {
     title: the_name,
     data: the_data 
@@ -212,7 +240,35 @@ function save_custom_buttons(the_name, the_data) {
 }
 
 
+
+var buttons_from_mixed_scopes = null;
 function get_custom_buttons(the_app_title, callback_fn)
+{
+  get_custom_buttons_app_scope(the_app_title, 
+    function(the_buttons) {
+      buttons_from_mixed_scopes = the_buttons;
+
+      //add globals
+      get_custom_buttons_app_scope('__global_scope__', 
+          function(the_global_buttons) {
+
+              var last_id_in_appscope= buttons_from_mixed_scopes.data.length-1;
+              for(gb_id in the_global_buttons.data)
+              {
+                var gb = the_global_buttons.data[gb_id];
+                last_id_in_appscope++;
+                gb.id=last_id_in_appscope;
+                buttons_from_mixed_scopes.data.push(gb);                                
+              }
+              callback_fn(buttons_from_mixed_scopes.data);
+          }
+        );
+      }
+    );
+}
+
+
+function get_custom_buttons_app_scope(the_app_title, callback_fn)
 {
   if(db === undefined)
     return;
@@ -225,6 +281,15 @@ function get_custom_buttons(the_app_title, callback_fn)
   request.onsuccess = function() {
       if(request.result !== undefined)
       {
+        for(button_id in request.result.data)
+        {
+          var action_button = request.result.data[button_id];
+          if(action_button.app_scope === undefined)
+          {
+            action_button.app_scope= true;
+          }
+        }
+
         callback_fn(request.result);
       }
       else

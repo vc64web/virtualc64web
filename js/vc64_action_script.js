@@ -182,6 +182,8 @@ async function execute_single_action(cmd, execute=true)
             //if(is_running())
             {
                 wasm_halt();
+                $('#button_halt').prop('disabled', 'true');
+                $('#button_run').removeAttr('disabled');
             } 
         }
     
@@ -193,6 +195,8 @@ async function execute_single_action(cmd, execute=true)
             //if(is_running())
             {
                 wasm_run();
+                $('#button_run').prop('disabled', 'true');
+                $('#button_halt').removeAttr('disabled');
             } 
         }
     }

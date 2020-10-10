@@ -1122,11 +1122,7 @@ wide_screen_switch.change( function() {
     bindROMUI('rom_disk_drive', 'button_delete_disk_drive_rom', "vc1541_rom.bin");
    
 
-
-
 //---- rom dialog end
-
-
 
     document.addEventListener('keyup', keyup, false);
     document.addEventListener('keydown', keydown, false);

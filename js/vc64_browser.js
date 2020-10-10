@@ -21,37 +21,160 @@ function setup_browser_interface()
         //empty all feeds
         $('#container_snapshots').empty();
 
-        //-- build auto-snapshot row feed
-        var acount = wasm_auto_snapshots_count();
+        //-- build snapshot feed
+        var collector=get_data_collector('snapshots');
 
-        var renderSnapshot = function (the_id){
+        var render_persistent_snapshot=function(app_title, the_id){
+            var x_icon = '<svg width="1.8em" height="auto" viewBox="0 0 16 16" class="bi bi-x" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M11.854 4.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708-.708l7-7a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M4.146 4.146a.5.5 0 0 0 0 .708l7 7a.5.5 0 0 0 .708-.708l-7-7a.5.5 0 0 0-.708 0z"/></svg>';
             var the_html=
             '<div class="col-xs-4">'
-            +'<div class="card" style="width: 15rem;">'
-                +'<canvas id="canvas_snap_'+the_id+'" class="card-img-top rounded"></canvas>'
-            +'</div>'
+            +'<div id="card_snap_'+the_id+'" class="card" style="width: 15rem;">'
+                +'<canvas id="canvas_snap_'+the_id+'" class="card-img-top rounded"></canvas>';
+
+            if(collector.can_delete(app_title, the_id))
+            {
+                the_html += '<button id="delete_snap_'+the_id+'" type="button" style="position:absolute;top:0;right:0;padding:0;" class="btn btn-sm icon">'+x_icon+'</button>';
+            }
+            the_html +=
+              '</div>'
             +'</div>';
             return the_html;
         }
 
-        var the_grid=
-        '<div class="row" data-toggle="tooltip" data-placement="left" title="auto snapshots">'; 
-        for(var z=0; z<acount; z++)
-        {
-            the_grid += renderSnapshot('a'+z);
+        var row_renderer = function(app_title, app_snaps) {
+            app_title=app_title.split(' ').join('_');
+            the_grid='<div class="row" data-toggle="tooltip" data-placement="left" title="'+app_title+'">';
+            for(var z=0; z<app_snaps.length; z++)
+            {
+                the_grid += render_persistent_snapshot(app_title, 's'+app_snaps[z].id);
+            }
+            the_grid+='</div>';
+            $('#container_snapshots').append(the_grid);
+            for(var z=0; z<app_snaps.length; z++)
+            {
+                var canvas_id= "canvas_snap_s"+app_snaps[z].id;
+                var delete_id= "delete_snap_s"+app_snaps[z].id;
+                var canvas = document.getElementById(canvas_id);
+                var delete_btn = document.getElementById(delete_id);
+                if(delete_btn != null)
+                {
+                    delete_btn.onclick = function() {
+                        let id = this.id.match(/[a-z_]*(.*)/)[1];
+                        delete_snapshot_per_id(id);
+                        $("#card_snap_s"+id).remove();
+                    };
+                }
+
+                canvas.onclick = function() {
+                    let id = this.id.match(/[a-z_]*(.*)/)[1];
+                    collector.run(app_title, id);
+                };
+                collector.draw_item_into_canvas(app_title, canvas, app_snaps[z]);  
+            }
         }
-        the_grid+='</div>';
+
+        //start the loading process
+        collector.load(row_renderer); 
+    }
+}
 
 
+var collectors = {
+    snapshots: {
+        load: function (row_renderer){
+            //first load autosave snapshots
 
-        $('#container_snapshots').append(the_grid);
+            var auto_save_count=wasm_auto_snapshots_count();
+            var auto_save_items=[];
+            for(var z=0; z<auto_save_count; z++)
+            {
+                var new_item = new Object();
+                new_item.id=z;
+                auto_save_items.push(new_item);
+            }
+            row_renderer('auto_save',auto_save_items);
 
-        var copy_snapshot_to_canvas= function(snapshot_ptr, canvas, width, height){ 
+            //now the user snapshots
+            var store_renderer = function(app_titles)
+            {
+                for(var t=0; t<app_titles.length;t++)
+                {
+                    var app_title=app_titles[t];
+                    get_snapshots_for_app_title(app_title, row_renderer); 
+                }
+            }
+            get_stored_app_titles(store_renderer);
+        },
+        draw_item_into_canvas: function (app_title, teaser_canvas, item){
+            if(app_title == 'auto_save')
+            {
+                snapshot_ptr = wasm_pull_auto_snapshot(item.id);
+                var width=wasm_auto_snapshot_width(item.id);
+                var height=wasm_auto_snapshot_height(item.id);
+                this.copy_snapshot_to_canvas(snapshot_ptr, teaser_canvas, width, height);
+            }
+            else
+            {
+                width=392;
+                height=268;
+                var ctx = teaser_canvas.getContext("2d");
+                teaser_canvas.width = width;
+                teaser_canvas.height = height;
+
+                imgData=ctx.createImageData(width,height);
+            
+                var data = imgData.data;
+                var src_data = item.data;
+                snapshot_data = new Uint8Array(src_data, 40/* offset .. this number was a guess... */, data.length);
+
+                for (var i = 0; i < data.length; i += 4) {
+                    data[i]     = snapshot_data[i+0]; // red
+                    data[i + 1] = snapshot_data[i+1]; // green
+                    data[i + 2] = snapshot_data[i+2]; // blue
+                    data[i + 3] = snapshot_data[i+3];
+
+                }
+                ctx.putImageData(imgData,0,0); 
+            }
+            return; 
+        },
+        run: function (app_title, id){
+            if(app_title == 'auto_save')
+            {
+                wasm_restore_auto_snapshot(id);
+                $('#snapshotModal').modal('hide');
+            }
+            else
+            {
+                get_snapshot_per_id(id,
+                    function (snapshot) {
+                        wasm_loadfile(
+                            snapshot.title+".vc64",
+                            snapshot.data, 
+                            snapshot.data.length);
+                        $('#snapshotModal').modal('hide');
+                        global_apptitle=snapshot.title;
+                        get_custom_buttons(global_apptitle, 
+                            function(the_buttons) {
+                                custom_keys = the_buttons;
+                                install_custom_keys();
+                            }
+                        );
+                    }
+                );
+            }
+            return; 
+        },
+        can_delete: function(app_title, the_id){
+            return app_title == 'auto_save' ? false: true;
+        },
+        //helper method...
+        copy_snapshot_to_canvas: function(snapshot_ptr, canvas, width, height){ 
             var ctx = canvas.getContext("2d");
             canvas.width = width;
             canvas.height = height;
             imgData=ctx.createImageData(width,height);
-        
+
             var data = imgData.data;
 
             snapshot_data = new Uint8Array(Module.HEAPU8.buffer, snapshot_ptr, data.length);
@@ -65,114 +188,11 @@ function setup_browser_interface()
             }
             ctx.putImageData(imgData,0,0); 
         }
-
-        for(var z=0; z<acount; z++)
-        {
-            var c = document.getElementById("canvas_snap_a"+z);
-
-            c.onclick = function() {
-                let nr = this.id.match(/[a-z_]*(.*)/)[1];;
-            //    alert('restore auto nr'+nr);
-                wasm_restore_auto_snapshot(nr);
-                $('#snapshotModal').modal('hide');
-            }
-        
-            snapshot_ptr = wasm_pull_auto_snapshot(z);
-
-            var width=wasm_auto_snapshot_width(z);
-            var height=wasm_auto_snapshot_height(z);
-            
-            copy_snapshot_to_canvas(snapshot_ptr, c, width, height);
-        }
-
-
-    //--- build indexeddb snapshots feeds 
-        var render_persistent_snapshot=function(the_id){
-            var x_icon = '<svg width="1.8em" height="auto" viewBox="0 0 16 16" class="bi bi-x" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M11.854 4.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708-.708l7-7a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M4.146 4.146a.5.5 0 0 0 0 .708l7 7a.5.5 0 0 0 .708-.708l-7-7a.5.5 0 0 0-.708 0z"/></svg>';
-            var the_html=
-            '<div class="col-xs-4">'
-            +'<div id="card_snap_'+the_id+'" class="card" style="width: 15rem;">'
-                +'<canvas id="canvas_snap_'+the_id+'" class="card-img-top rounded"></canvas>'
-                +'<button id="delete_snap_'+the_id+'" type="button" style="position:absolute;top:0;right:0;padding:0;" class="btn btn-sm icon">'+x_icon+'</button>'
-            +'</div>'
-            +'</div>';
-            return the_html;
-        }
-
-        var row_renderer = function(app_title, app_snaps) {
-            app_title=app_title.split(' ').join('_');
-            the_grid='<div class="row" data-toggle="tooltip" data-placement="left" title="'+app_title+'">';
-            for(var z=0; z<app_snaps.length; z++)
-            {
-                the_grid += render_persistent_snapshot('s'+app_snaps[z].id);
-            }
-            the_grid+='</div>';
-            $('#container_snapshots').append(the_grid);
-            for(var z=0; z<app_snaps.length; z++)
-            {
-                var canvas_id= "canvas_snap_s"+app_snaps[z].id;
-                var delete_id= "delete_snap_s"+app_snaps[z].id;
-                var canvas = document.getElementById(canvas_id);
-                var delete_btn = document.getElementById(delete_id);
-                
-                delete_btn.onclick = function() {
-                    let id = this.id.match(/[a-z_]*(.*)/)[1];
-                    delete_snapshot_per_id(id);
-                    $("#card_snap_s"+id).remove();
-                };
-
-                canvas.onclick = function() {
-                    let id = this.id.match(/[a-z_]*(.*)/)[1];
-                    get_snapshot_per_id(id,
-                        function (snapshot) {
-                            wasm_loadfile(
-                                snapshot.title+".vc64",
-                                snapshot.data, 
-                                snapshot.data.length);
-                            $('#snapshotModal').modal('hide');
-                            global_apptitle=snapshot.title;
-                            get_custom_buttons(global_apptitle, 
-                                function(the_buttons) {
-                                    custom_keys = the_buttons;
-                                    install_custom_keys();
-                                }
-                            );
-                        }
-                    );
-                };
-
-                width=392;
-                height=268;
-                var ctx = canvas.getContext("2d");
-                canvas.width = width;
-                canvas.height = height;
-
-                imgData=ctx.createImageData(width,height);
-            
-                var data = imgData.data;
-                var src_data = app_snaps[z].data;
-                snapshot_data = new Uint8Array(src_data, 40/* offset .. this number was a guess... */, data.length);
-
-                for (var i = 0; i < data.length; i += 4) {
-                    data[i]     = snapshot_data[i+0]; // red
-                    data[i + 1] = snapshot_data[i+1]; // green
-                    data[i + 2] = snapshot_data[i+2]; // blue
-                    data[i + 3] = snapshot_data[i+3];
-
-                }
-                ctx.putImageData(imgData,0,0); 
-                
-            }
-        }
-        var store_renderer = function(app_titles)
-        {
-            for(var t=0; t<app_titles.length;t++)
-            {
-                var app_title=app_titles[t];
-                get_snapshots_for_app_title(app_title, row_renderer); 
-            }
-        }
-        get_stored_app_titles(store_renderer);
-    //---
     }
+};
+
+
+function get_data_collector(collector_name)
+{
+    return collectors[collector_name];
 }

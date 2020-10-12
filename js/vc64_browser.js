@@ -234,9 +234,8 @@ var collectors = {
             var count=1;
             var items=[];
             
-            //var cors_proxy='https://cors-anywhere.herokuapp.com/';
-            //var csdb_url = cors_proxy;
-            csdb_url = 'https://csdb.dk/webservice/?type=latestrel';
+            var csdb_url = 'https://csdb.dk/webservice/?type=chart&ctype=release&subtype=2';
+            //'https://csdb.dk/webservice/?type=latestrel';
 
             fetch(csdb_url).then( async response => {
                 var text = await response.text();
@@ -261,10 +260,7 @@ var collectors = {
                     items.push(new_item);
                 }
                 row_renderer('latest releases',items);
-
              });
-
-
         },
         draw_item_into_canvas: function (app_title, teaser_canvas, item){
             var ctx = teaser_canvas.getContext('2d');
@@ -276,32 +272,52 @@ var collectors = {
             return; 
         },
         run: function (app_title, id){
-            wasm_restore_auto_snapshot(id);
+            //alert(`run ${app_title} with ${id}`);
+
+            var csdb_url = 'https://csdb.dk/release/?id='+id;
+
+            fetch(csdb_url).then( async response => {
+                var text = await response.text();
+                
+                var download_url = text.match('>(https?://csdb.dk/getinternalfile.php.*?)<')[1];
+                download_url = download_url.replace('http://', 'https://')
+                //alert(download_url);
+
+                fetch(download_url).then( async response => {
+                    file_slot_file_name = response.url.match(".*/(.*)$")[1];
+                    file_slot_file = new Uint8Array( await response.arrayBuffer());
+                    configure_file_dialog();
+                });
+
+/* DOM Parser does not work ... maybe HTML of csdb is broken ...
+                var parser = new DOMParser();
+                var xmlDoc = parser.parseFromString(text,"text/xml");
+
+                var anchors = xmlDoc.getElementsByTagName("a");
+                
+                for(var xml_item of anchors)
+                {
+                    //which URL should we use ?
+                    //<a href="download.php?id=153691">http://csdb.dk/getinternalfile.php/122087/Blood.d64</a>
+                    //the body of he anchor or the href? 
+                    if(xml_item.href.startWith("download.php"))
+                    {
+                        var download_url = xml_item.body.textContent;
+                        alert(`download_url=${download_url}`);
+                    }        
+                }
+*/
+             });
+
+
+
+
+
             $('#snapshotModal').modal('hide');
             return; 
         },
         can_delete: function(app_title, the_id){
             return false;
-        },
-        //helper method...
-        copy_snapshot_to_canvas: function(snapshot_ptr, canvas, width, height){ 
-            var ctx = canvas.getContext("2d");
-            canvas.width = width;
-            canvas.height = height;
-            imgData=ctx.createImageData(width,height);
-
-            var data = imgData.data;
-
-            snapshot_data = new Uint8Array(Module.HEAPU8.buffer, snapshot_ptr, data.length);
-
-            for (var i = 0; i < data.length; i += 4) {
-                data[i]     = snapshot_data[i+0]; // red
-                data[i + 1] = snapshot_data[i+1]; // green
-                data[i + 2] = snapshot_data[i+2]; // blue
-                data[i + 3] = snapshot_data[i+3];
-
-            }
-            ctx.putImageData(imgData,0,0); 
         }
     }
 

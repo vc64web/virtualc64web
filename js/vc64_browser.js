@@ -229,15 +229,11 @@ var collectors = {
     },
 
     csdb: {
-        load: function (row_renderer){
+        load: async function (row_renderer){
  
-            var count=1;
-            var items=[];
-            
-            var csdb_url = 'https://csdb.dk/webservice/?type=chart&ctype=release&subtype=2';
-            //'https://csdb.dk/webservice/?type=latestrel';
+            var webservice_loader = async response => {
+                var items=[];
 
-            fetch(csdb_url).then( async response => {
                 var text = await response.text();
                 //alert(text);
                 var parser = new DOMParser();
@@ -260,7 +256,16 @@ var collectors = {
                     items.push(new_item);
                 }
                 row_renderer('latest releases',items);
-             });
+            }
+
+            var top_one_file_demo_csdb_url = 'https://csdb.dk/webservice/?type=chart&ctype=release&subtype=2';
+            var top_demo_csdb_url = 'https://csdb.dk/webservice/?type=chart&ctype=release&subtype=1';
+            var latest_rel_csdb_url = 'https://csdb.dk/webservice/?type=latestrel';
+
+            await fetch(top_one_file_demo_csdb_url).then( webservice_loader );
+            await fetch(top_demo_csdb_url).then( webservice_loader );
+            await fetch(latest_rel_csdb_url).then( webservice_loader );
+ 
         },
         draw_item_into_canvas: function (app_title, teaser_canvas, item){
             var ctx = teaser_canvas.getContext('2d');

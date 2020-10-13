@@ -1020,6 +1020,32 @@ wide_screen_switch.change( function() {
         //document.getElementById('canvas').focus();
     });
 
+/*
+    var delete_cache = () =>{
+    caches.keys().then(keys => {
+        console.log('opening cache:'+keys);
+        return Promise.all(keys
+            .map(key => {
+                caches.open(key).then(function(cache) { 
+                    cache.keys().then(function(cached_requests) { 
+                      for(req_in_cache of cached_requests)
+                      {
+                        //console.log(req_in_cache.url);
+                        if(req_in_cache.url.match('/webservice/')!= null)
+                        {
+                           console.log('delete -> '+req_in_cache.url); 
+                           cache.delete(req_in_cache);
+                        } 
+                      }
+                    });
+                });
+            })
+        );
+    });
+    }
+    delete_cache();
+*/    
+
     document.getElementById('button_update').onclick = function() 
     {
         caches.keys().then(keys => {

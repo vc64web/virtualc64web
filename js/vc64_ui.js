@@ -908,12 +908,6 @@ wide_screen_switch.change( function() {
             configure_file_dialog();
             return;
         }
-
-        if(reset_before_load==true)
-        {
-            wasm_reset();
-        }
-        reset_before_load=false;
         
         do_auto_load = $("#auto_load").is(":visible") && $("#auto_load").prop('checked')
         do_auto_run = $("#auto_run").is(":visible") && $("#auto_run").prop('checked');
@@ -921,9 +915,7 @@ wide_screen_switch.change( function() {
 
         $('#modal_file_slot').modal('hide');
 
-        $('#alert_reset').show();
-
-        setTimeout(() => {
+        var execute_load = function(){
             var filetype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
 
             //if it is a disk from a multi disk zip file, apptitle should be the name of the zip file only
@@ -976,9 +968,23 @@ wide_screen_switch.change( function() {
             {
                 emit_string(['Enter','r','u','n','Enter']);
             }
-            $('#alert_reset').hide();
-        }, 2600);
-      
+        };
+
+
+        if(reset_before_load === undefined || reset_before_load == false)
+        {
+            execute_load();
+        }
+        else
+        {
+            $('#alert_reset').show();
+            wasm_reset();
+            setTimeout(() => {
+                execute_load();
+                $('#alert_reset').hide();
+                reset_before_load=false;
+            }, 2600);
+        }
     }
     );
     

@@ -901,6 +901,7 @@ wide_screen_switch.change( function() {
         $("#filedialog").val(''); //clear file slot after file has been loaded
     });
 
+    reset_before_load=false;
     $("#button_insert_file").click(function() 
     {   
         if($('#div_zip_content').is(':visible'))
@@ -971,7 +972,7 @@ wide_screen_switch.change( function() {
         };
 
 
-        if(reset_before_load === undefined || reset_before_load == false)
+        if(reset_before_load == false)
         {
             execute_load();
         }

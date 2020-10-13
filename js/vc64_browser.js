@@ -93,7 +93,7 @@ function load_browser(datasource_name)
             {
                 delete_btn.onclick = function() {
                     let id = this.id.match(/delete_snap_(.*)/)[1];
-                    alert('delete id='+id);
+                    //alert('delete id='+id);
                     delete_snapshot_per_id(id);
                     $("#card_snap_"+id).remove();
                 };
@@ -273,6 +273,7 @@ var collectors = {
         },
         run: function (app_title, id){
             //alert(`run ${app_title} with ${id}`);
+            //wasm_reset();
 
             var csdb_url = 'https://csdb.dk/release/?id='+id;
 
@@ -285,8 +286,8 @@ var collectors = {
 
                 fetch(download_url).then( async response => {
                     file_slot_file_name = response.url.match(".*/(.*)$")[1];
-                    file_slot_file = new Uint8Array( await response.arrayBuffer());
-                    configure_file_dialog();
+                    file_slot_file = new Uint8Array( await response.arrayBuffer());                    
+                    configure_file_dialog(mount_button_delay=1200);
                 });
 
 /* DOM Parser does not work ... maybe HTML of csdb is broken ...

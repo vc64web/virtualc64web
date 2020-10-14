@@ -43,10 +43,11 @@ _note_: start.sh starts an webserver with URL base path pointing to the folder w
 * free positional custom keys as button overlays (aka action buttons) which trigger an action (but no script yet)
 * zip support, and enhanced multidisk support when using zip archives 
 * action script for the self composed action sequence overlay buttons 
+* self designed editable javascript miniprograms which for example are able to control a game ... yes ... bots
+* Demo-Scene-Browser: v64web implements an easy browsable online interface to the CSDb scene db with lots of the cool demos 
 
 ## next goals
-* more possible system actions in action script ...
-* cleanup and refactoring of the UI javascript code
+* polishing of the scene browser UI component ... show more infos about each entry
 * new  modern boot sequence/animation  replacing the standard emscripten visual boot code 
-* javascript interface for more settings of the emulation like (greydotbugemulation, autosnapshots) 
+* javascript interface for more settings of the emulation like (greydotbugemulation) 
 * export/import of a complete snapshot library as one big zip file 

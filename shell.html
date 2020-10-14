@@ -200,14 +200,14 @@
       <div class="modal-dialog modal-xl" role="document">
         <div class="modal-content">
           <div class="modal-header">           
-<div class="btn-group btn-group-toggle" data-toggle="buttons">
-  <label class="btn btn-primary active">
-    <input type="radio" name="options" id="sel_browser_snapshots" checked> snapshots
-  </label>
-  <label class="btn btn-secondary">
-    <input type="radio" name="options" id="sel_browser_csdb"> CSDb.dk
-  </label>
-</div>
+            <div class="btn-group btn-group-toggle" data-toggle="buttons">
+              <label class="btn btn-primary active">
+                <input type="radio" name="options" id="sel_browser_snapshots" checked> snapshots
+              </label>
+              <label class="btn btn-secondary">
+                <input type="radio" name="options" id="sel_browser_csdb"> CSDb.dk
+              </label>
+            </div>
             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
@@ -608,6 +608,8 @@ goes into edit mode which takes you right back to here ...
             </div>
             
             <div id="div_zip_content"></div>
+
+            <div id="no_disk_rom_msg" class="rounded my-2 px-2 py-2" style="display: none">Warning: no rom-chip in floppy drive installed. Floppy loading will only work with floppy rom installed. Head over to roms setting and provide the rom first.</div>
 
           </div>
           <div class="modal-footer">

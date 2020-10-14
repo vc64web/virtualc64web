@@ -238,8 +238,8 @@ function configure_file_dialog(mount_button_delay=0)
             $("#button_insert_file").removeAttr("disabled");
             $("#div_zip_content").hide();
             $("#button_eject_zip").hide();
-            
-  //          $("#button_insert_file").hide();
+            $("#no_disk_rom_msg").hide();
+
 
             if(file_slot_file_name.match(/[.](prg|t64)$/i)) 
             {
@@ -261,6 +261,11 @@ function configure_file_dialog(mount_button_delay=0)
                 $("#div_auto_press_play").hide();
                 $("#div_auto_run").show();
                 $("#button_insert_file").html("insert disk");
+                
+                if (localStorage.getItem('vc1541_rom.bin')==null)
+                {
+                    $("#no_disk_rom_msg").show();
+                }
             }
             else if(file_slot_file_name.match(/[.](crt)$/i)) 
             {

@@ -212,8 +212,11 @@ function pushFile(file) {
     fileReader.readAsArrayBuffer(file);
 }
 
-function configure_file_dialog()
+function configure_file_dialog(mount_button_delay=0)
 {
+    if(mount_button_delay>0)
+        reset_before_load=true;
+
     try{
         if($("#modal_roms").is(":visible"))
         {
@@ -235,6 +238,8 @@ function configure_file_dialog()
             $("#button_insert_file").removeAttr("disabled");
             $("#div_zip_content").hide();
             $("#button_eject_zip").hide();
+            $("#no_disk_rom_msg").hide();
+
 
             if(file_slot_file_name.match(/[.](prg|t64)$/i)) 
             {
@@ -256,6 +261,11 @@ function configure_file_dialog()
                 $("#div_auto_press_play").hide();
                 $("#div_auto_run").show();
                 $("#button_insert_file").html("insert disk");
+                
+                if (localStorage.getItem('vc1541_rom.bin')==null)
+                {
+                    $("#no_disk_rom_msg").show();
+                }
             }
             else if(file_slot_file_name.match(/[.](crt)$/i)) 
             {
@@ -285,9 +295,6 @@ function configure_file_dialog()
 
                     //$("#drop_zone").click(); this only works robust on firefox ... so better don't do it
                 });
-
-
-
 
                 var zip = new JSZip();
                 zip.loadAsync(file_slot_file).then(function (zip) {
@@ -899,6 +906,7 @@ wide_screen_switch.change( function() {
         $("#filedialog").val(''); //clear file slot after file has been loaded
     });
 
+    reset_before_load=false;
     $("#button_insert_file").click(function() 
     {   
         if($('#div_zip_content').is(':visible'))
@@ -906,65 +914,86 @@ wide_screen_switch.change( function() {
             configure_file_dialog();
             return;
         }
+        
+        do_auto_load = $("#auto_load").is(":visible") && $("#auto_load").prop('checked')
+        do_auto_run = $("#auto_run").is(":visible") && $("#auto_run").prop('checked');
+        do_auto_press_play=$("#auto_press_play").is(":visible") && $("#auto_press_play").prop('checked');
 
-        var filetype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
-
-        //if it is a disk from a multi disk zip file, apptitle should be the name of the zip file only
-        //instead of disk1, disk2, etc....
-        if(last_zip_archive_name !== null)
-        {
-            global_apptitle = last_zip_archive_name;
-        }
-        else
-        {
-            global_apptitle = file_slot_file_name;
-        }
-
-        get_custom_buttons(global_apptitle, 
-            function(the_buttons) {
-                custom_keys = the_buttons;
-                install_custom_keys();
-            }
-        );
         $('#modal_file_slot').modal('hide');
 
-        if($("#auto_load").is(":visible") && $("#auto_load").prop('checked'))
-        {
-            if(file_slot_file_name.endsWith('.tap'))
-            {
-                //shift + runStop
-                emit_string(['Enter','ShiftRunStop']);
-                
-                if($("#auto_press_play").is(":visible") && $("#auto_press_play").prop('checked'))
-                {
-                    //press play on tape shortly after emitting load command
-                    setTimeout(function() {wasm_press_play(); },420);
-                }
+        var execute_load = function(){
+            var filetype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
 
-                if($("#auto_run").is(":visible") && $("#auto_run").prop('checked'))
-                {
-                    emit_string(['Enter','r','u','n','Enter'], 3000, 800);
-                }
+            //if it is a disk from a multi disk zip file, apptitle should be the name of the zip file only
+            //instead of disk1, disk2, etc....
+            if(last_zip_archive_name !== null)
+            {
+                global_apptitle = last_zip_archive_name;
             }
             else
             {
-                emit_string(['Enter','l','o','a', 'd','"','*','"',',','8',',', '1', 'Enter']);
-                
-                if($("#auto_run").is(":visible") && $("#auto_run").prop('checked'))
+                global_apptitle = file_slot_file_name;
+            }
+
+            get_custom_buttons(global_apptitle, 
+                function(the_buttons) {
+                    custom_keys = the_buttons;
+                    install_custom_keys();
+                }
+            );
+
+            if(do_auto_load)
+            {
+                if(file_slot_file_name.endsWith('.tap'))
                 {
-                    emit_string(['Enter','r','u','n','Enter'], 3000, 800);
+                    //shift + runStop
+                    emit_string(['Enter','ShiftRunStop']);
+                    
+                    if(do_auto_press_play)
+                    {
+                        //press play on tape shortly after emitting load command
+                        setTimeout(function() {wasm_press_play(); },420);
+                    }
+
+                    if(do_auto_run)
+                    {
+                        emit_string(['Enter','r','u','n','Enter'], 3000, 800);
+                    }
+                }
+                else
+                {
+                    emit_string(['Enter','l','o','a', 'd','"','*','"',',','8',',', '1', 'Enter']);
+                    
+                    if(do_auto_run)
+                    {
+                        emit_string(['Enter','r','u','n','Enter'], 3000, 800);
+                    }
                 }
             }
-        }
-        else if($("#auto_run").is(":visible") && $("#auto_run").prop('checked'))
+            else if(do_auto_run)
+            {
+                emit_string(['Enter','r','u','n','Enter']);
+            }
+        };
+
+
+        if(reset_before_load == false)
         {
-            emit_string(['Enter','r','u','n','Enter']);
+            execute_load();
         }
-      
+        else
+        {
+            $('#alert_reset').show();
+            wasm_reset();
+            setTimeout(() => {
+                execute_load();
+                $('#alert_reset').hide();
+                reset_before_load=false;
+            }, 2600);
+        }
     }
     );
-
-
+    
 
     $('#modal_take_snapshot').on('hidden.bs.modal', function () {
         if(is_running())
@@ -996,6 +1025,32 @@ wide_screen_switch.change( function() {
         //document.getElementById('canvas').focus();
     });
 
+/*
+    var delete_cache = () =>{
+    caches.keys().then(keys => {
+        console.log('opening cache:'+keys);
+        return Promise.all(keys
+            .map(key => {
+                caches.open(key).then(function(cache) { 
+                    cache.keys().then(function(cached_requests) { 
+                      for(req_in_cache of cached_requests)
+                      {
+                        //console.log(req_in_cache.url);
+                        if(req_in_cache.url.match('/webservice/')!= null)
+                        {
+                           console.log('delete -> '+req_in_cache.url); 
+                           cache.delete(req_in_cache);
+                        } 
+                      }
+                    });
+                });
+            })
+        );
+    });
+    }
+    delete_cache();
+*/    
+
     document.getElementById('button_update').onclick = function() 
     {
         caches.keys().then(keys => {
@@ -1007,173 +1062,7 @@ wide_screen_switch.change( function() {
           window.location.reload(true);
     }
 
-    $('#snapshotModal').on('hidden.bs.modal', function () {
-        wasm_resume_auto_snapshots();
-        if(is_running())
-        {
-            try{wasm_run();} catch(e) {}
-        }
-    })
-    document.getElementById('button_snapshots').onclick = function() 
-    {
-        internal_usersnapshots_enabled=false;
-        if(is_running())
-        {
-           wasm_halt();
-        }
- 
-        wasm_suspend_auto_snapshots();
-        $('#container_snapshots').empty();
-        var renderSnapshot=function(the_id){
-            var the_html=
-            '<div class="col-xs-4">'
-            +'<div class="card" style="width: 15rem;">'
-                +'<canvas id="canvas_snap_'+the_id+'" class="card-img-top rounded" alt="Card image cap"></canvas>'
-            +'</div>'
-            +'</div>';
-            return the_html;
-        }
-        var acount = wasm_auto_snapshots_count();
-        var the_grid=
-        '<div class="row" data-toggle="tooltip" data-placement="left" title="auto snapshots">'; 
-        for(var z=0; z<acount; z++)
-        {
-            the_grid += renderSnapshot('a'+z);
-        }
-        the_grid+='</div>';
-
-        $('#container_snapshots').append(the_grid);
-
-//--- indexeddb snaps
-        var render_persistent_snapshot=function(the_id){
-            var x_icon = '<svg width="1.8em" height="auto" viewBox="0 0 16 16" class="bi bi-x" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M11.854 4.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708-.708l7-7a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M4.146 4.146a.5.5 0 0 0 0 .708l7 7a.5.5 0 0 0 .708-.708l-7-7a.5.5 0 0 0-.708 0z"/></svg>';
-            var the_html=
-            '<div class="col-xs-4">'
-            +'<div id="card_snap_'+the_id+'" class="card" style="width: 15rem;">'
-                +'<canvas id="canvas_snap_'+the_id+'" class="card-img-top rounded" alt="Card image cap"></canvas>'
-                +'<button id="delete_snap_'+the_id+'" type="button" style="position:absolute;top:0;right:0;padding:0;" class="btn btn-sm icon">'+x_icon+'</button>'
-            +'</div>'
-            +'</div>';
-            return the_html;
-        }
-
-        var row_renderer = function(app_title, app_snaps) {
-            app_title=app_title.split(' ').join('_');
-            the_grid='<div class="row" data-toggle="tooltip" data-placement="left" title="'+app_title+'">';
-            for(var z=0; z<app_snaps.length; z++)
-            {
-                the_grid += render_persistent_snapshot('s'+app_snaps[z].id);
-            }
-            the_grid+='</div>';
-            $('#container_snapshots').append(the_grid);
-            for(var z=0; z<app_snaps.length; z++)
-            {
-                var canvas_id= "canvas_snap_s"+app_snaps[z].id;
-                var delete_id= "delete_snap_s"+app_snaps[z].id;
-                var canvas = document.getElementById(canvas_id);
-                var delete_btn = document.getElementById(delete_id);
-                
-                delete_btn.onclick = function() {
-                    let id = this.id.match(/[a-z_]*(.*)/)[1];
-                    delete_snapshot_per_id(id);
-                    $("#card_snap_s"+id).remove();
-                };
-
-                canvas.onclick = function() {
-                    let id = this.id.match(/[a-z_]*(.*)/)[1];
-                    get_snapshot_per_id(id,
-                        function (snapshot) {
-                            wasm_loadfile(
-                                snapshot.title+".vc64",
-                                snapshot.data, 
-                                snapshot.data.length);
-                            $('#snapshotModal').modal('hide');
-                            global_apptitle=snapshot.title;
-                            get_custom_buttons(global_apptitle, 
-                                function(the_buttons) {
-                                    custom_keys = the_buttons;
-                                    install_custom_keys();
-                                }
-                            );
-                        }
-                    );
-                };
-
-                width=392;
-                height=268;
-                var ctx = canvas.getContext("2d");
-                canvas.width = width;
-                canvas.height = height;
-
-                imgData=ctx.createImageData(width,height);
-            
-                var data = imgData.data;
-                var src_data = app_snaps[z].data;
-                snapshot_data = new Uint8Array(src_data, 40/* offset .. this number was a guess... */, data.length);
-
-                for (var i = 0; i < data.length; i += 4) {
-                    data[i]     = snapshot_data[i+0]; // red
-                    data[i + 1] = snapshot_data[i+1]; // green
-                    data[i + 2] = snapshot_data[i+2]; // blue
-                    data[i + 3] = snapshot_data[i+3];
-
-                }
-                ctx.putImageData(imgData,0,0); 
-                
-            }
-        }
-        var store_renderer = function(app_titles)
-        {
-            for(var t=0; t<app_titles.length;t++)
-            {
-                var app_title=app_titles[t];
-                get_snapshots_for_app_title(app_title, row_renderer); 
-            }
-        }
-        get_stored_app_titles(store_renderer);
-//---
-
-        var copy_snapshot_to_canvas= function(snapshot_ptr, canvas, width, height){ 
-            var ctx = canvas.getContext("2d");
-            canvas.width = width;
-            canvas.height = height;
-            imgData=ctx.createImageData(width,height);
-        
-            var data = imgData.data;
-
-            snapshot_data = new Uint8Array(Module.HEAPU8.buffer, snapshot_ptr, data.length);
-
-            for (var i = 0; i < data.length; i += 4) {
-                data[i]     = snapshot_data[i+0]; // red
-                data[i + 1] = snapshot_data[i+1]; // green
-                data[i + 2] = snapshot_data[i+2]; // blue
-                data[i + 3] = snapshot_data[i+3];
-
-            }
-            ctx.putImageData(imgData,0,0); 
-        }
-
-
-        for(var z=0; z<acount; z++)
-        {
-            var c = document.getElementById("canvas_snap_a"+z);
-
-            c.onclick = function() {
-                let nr = this.id.match(/[a-z_]*(.*)/)[1];;
-            //    alert('restore auto nr'+nr);
-                wasm_restore_auto_snapshot(nr);
-                $('#snapshotModal').modal('hide');
-            }
-        
-            snapshot_ptr = wasm_pull_auto_snapshot(z);
-
-            var width=wasm_auto_snapshot_width(z);
-            var height=wasm_auto_snapshot_height(z);
-            
-            copy_snapshot_to_canvas(snapshot_ptr, c, width, height);
-        }
-
-    }
+    setup_browser_interface();
 
     v_joystick=null;
     v_fire=null;
@@ -1288,11 +1177,7 @@ wide_screen_switch.change( function() {
     bindROMUI('rom_disk_drive', 'button_delete_disk_drive_rom', "vc1541_rom.bin");
    
 
-
-
 //---- rom dialog end
-
-
 
     document.addEventListener('keyup', keyup, false);
     document.addEventListener('keydown', keydown, false);

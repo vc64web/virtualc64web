@@ -180,3 +180,15 @@ color: #aaa !important;
     margin-left: 0.5rem !important;
     font-size: 1rem !important;
 }
+
+.alert-darkest {
+    color: var(--light);
+    background-color: var(--gray);
+    border-color: #c6c8ca;
+}
+
+#no_disk_rom_msg {
+    color: var(--light);
+    background-color: var(--danger);
+    border-color: #c6c8ca;
+}

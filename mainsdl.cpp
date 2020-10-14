@@ -746,6 +746,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
   return "";
 }
 
+
 extern "C" void wasm_reset()
 {
   wrapper->c64->expansionport.detachCartridge();

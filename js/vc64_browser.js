@@ -68,6 +68,15 @@ function load_browser(datasource_name)
         {
             the_html += '<button id="delete_snap_'+the_id+'" type="button" style="position:absolute;top:0;right:0;padding:0;" class="btn btn-sm icon">'+x_icon+'</button>';
         }
+
+       //the_html +='<div class="card-body"><p class="card-text">Some quick example</p></div>';
+        
+        var label = collector.get_label(app_title, the_id);
+        if(label != null)
+        {
+            the_html +='<p class="card-text browser-item-text">'+ $('<span>').text(label).html()+'</p>';
+        }
+
         the_html +=
             '</div>'
         +'</div>';
@@ -206,6 +215,9 @@ var collectors = {
         can_delete: function(app_title, the_id){
             return app_title == 'auto_save' ? false: true;
         },
+        get_label: function(app_title, the_id) {
+            return null;
+        },
         //helper method...
         copy_snapshot_to_canvas: function(snapshot_ptr, canvas, width, height){ 
             var ctx = canvas.getContext("2d");
@@ -240,7 +252,9 @@ var collectors = {
                 var xmlDoc = parser.parseFromString(text,"text/xml");
 
                 var releases = xmlDoc.getElementsByTagName("Release");
-                
+
+                this.labels = []; 
+
                 for(var xml_item of releases)
                 {
                     var id = xml_item.getElementsByTagName("ID")[0].textContent;
@@ -253,17 +267,22 @@ var collectors = {
                     new_item.name=name;
                     new_item.screen_shot=screen_shot;
                     
+                    this.labels[id] = name;
+
                     items.push(new_item);
                 }
-                row_renderer('latest releases',items);
+                row_renderer(this.row_name,items);
             }
 
             var top_one_file_demo_csdb_url = 'https://csdb.dk/webservice/?type=chart&ctype=release&subtype=2';
             var top_demo_csdb_url = 'https://csdb.dk/webservice/?type=chart&ctype=release&subtype=1';
             var latest_rel_csdb_url = 'https://csdb.dk/webservice/?type=latestrel';
 
+            this.row_name='top one file demos';
             await fetch(top_one_file_demo_csdb_url).then( webservice_loader );
+            this.row_name='top demos';
             await fetch(top_demo_csdb_url).then( webservice_loader );
+            this.row_name='latest releases';
             await fetch(latest_rel_csdb_url).then( webservice_loader );
  
         },
@@ -278,7 +297,6 @@ var collectors = {
         },
         run: function (app_title, id){
             //alert(`run ${app_title} with ${id}`);
-            //wasm_reset();
 
             var csdb_url = 'https://csdb.dk/release/?id='+id;
 
@@ -294,29 +312,7 @@ var collectors = {
                     file_slot_file = new Uint8Array( await response.arrayBuffer());                    
                     configure_file_dialog(mount_button_delay=1200);
                 });
-
-/* DOM Parser does not work ... maybe HTML of csdb is broken ...
-                var parser = new DOMParser();
-                var xmlDoc = parser.parseFromString(text,"text/xml");
-
-                var anchors = xmlDoc.getElementsByTagName("a");
-                
-                for(var xml_item of anchors)
-                {
-                    //which URL should we use ?
-                    //<a href="download.php?id=153691">http://csdb.dk/getinternalfile.php/122087/Blood.d64</a>
-                    //the body of he anchor or the href? 
-                    if(xml_item.href.startWith("download.php"))
-                    {
-                        var download_url = xml_item.body.textContent;
-                        alert(`download_url=${download_url}`);
-                    }        
-                }
-*/
              });
-
-
-
 
 
             $('#snapshotModal').modal('hide');
@@ -324,6 +320,9 @@ var collectors = {
         },
         can_delete: function(app_title, the_id){
             return false;
+        },
+         get_label: function(app_title, the_id) {
+            return this.labels[the_id];
         }
     }
 

@@ -192,3 +192,7 @@ color: #aaa !important;
     background-color: var(--danger);
     border-color: #c6c8ca;
 }
+
+.browser-item-text {
+    font-size: small;
+}

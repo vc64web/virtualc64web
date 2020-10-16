@@ -60,24 +60,24 @@ function load_browser(datasource_name)
     //empty all feeds
     $('#container_snapshots').empty();
 
-    var render_persistent_snapshot=function(app_title, the_id){
+    var render_persistent_snapshot=function(app_title, item){
         var x_icon = '<svg width="1.8em" height="auto" viewBox="0 0 16 16" class="bi bi-x" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M11.854 4.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708-.708l7-7a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M4.146 4.146a.5.5 0 0 0 0 .708l7 7a.5.5 0 0 0 .708-.708l-7-7a.5.5 0 0 0-.708 0z"/></svg>';
         var scaled_width= datasource_name == 'csdb' ? 20:15;
         var canvas_width = 384;
         var canvas_height= 272;
         var the_html=
         '<div class="col-xs-4">'
-        +`<div id="card_snap_${the_id}" class="card" style="width: ${scaled_width}rem;">`
-            +`<canvas id="canvas_snap_${the_id}" width="${canvas_width}" height="${canvas_height}" class="card-img-top rounded"></canvas>`;
-        if(collector.can_delete(app_title, the_id))
+        +`<div id="card_snap_${item.id}" class="card" style="width: ${scaled_width}rem;">`
+            +`<canvas id="canvas_snap_${item.id}" width="${canvas_width}" height="${canvas_height}" class="card-img-top rounded"></canvas>`;
+        if(collector.can_delete(app_title, item.id))
         {
-            the_html += '<button id="delete_snap_'+the_id+'" type="button" style="position:absolute;top:0;right:0;padding:0;" class="btn btn-sm icon">'+x_icon+'</button>';
+            the_html += '<button id="delete_snap_'+item.id+'" type="button" style="position:absolute;top:0;right:0;padding:0;" class="btn btn-sm icon">'+x_icon+'</button>';
         }
 
        //the_html +='<div class="card-body"><p class="card-text">Some quick example</p></div>';
         
-        var label = collector.get_label(app_title, the_id);
-        if(label != null)
+        var label = item.name;
+        if(label !== undefined && label != null)
         {
             the_html +='<p class="card-text browser-item-text">'+ $('<span>').text(label).html()+'</p>';
         }
@@ -89,11 +89,17 @@ function load_browser(datasource_name)
     }
 
     var row_renderer = function(app_title, app_snaps) {
-        app_title=app_title.split(' ').join('_');
-        the_grid='<div class="row" data-toggle="tooltip" data-placement="left" title="'+app_title+'">';
+        //app_title=app_title.split(' ').join('_');
+        var the_grid ="";
+        if(app_snaps.length>0)
+        {
+            the_grid+='<div class="row mt-2" style="color: var(--gray)">'+app_title+'</div>';
+        }
+        the_grid+='<div class="row" data-toggle="tooltip" data-placement="left" title="'+app_title+'">';
+
         for(var z=0; z<app_snaps.length; z++)
         {
-            the_grid += render_persistent_snapshot(app_title, app_snaps[z].id);
+            the_grid += render_persistent_snapshot(app_title, app_snaps[z]);
         }
         the_grid+='</div>';
         $('#container_snapshots').append(the_grid);
@@ -222,9 +228,6 @@ var collectors = {
         can_delete: function(app_title, the_id){
             return app_title == 'auto_save' ? false: true;
         },
-        get_label: function(app_title, the_id) {
-            return null;
-        },
         //helper method...
         copy_snapshot_to_canvas: function(snapshot_ptr, canvas, width, height){ 
             var ctx = canvas.getContext("2d");
@@ -275,8 +278,6 @@ var collectors = {
 
                 var releases = xmlDoc.getElementsByTagName("Release");
 
-                this.labels = []; 
-
                 for(var xml_item of releases)
                 {
                     var id = xml_item.getElementsByTagName("ID")[0].textContent;
@@ -289,8 +290,6 @@ var collectors = {
                     new_item.name=name;
                     new_item.screen_shot=screen_shot;
                     
-                    this.labels[id] = name;
-
                     items.push(new_item);
                 }
                 this.loaded_feeds[this.row_name] = items;
@@ -343,9 +342,6 @@ var collectors = {
         },
         can_delete: function(app_title, the_id){
             return false;
-        },
-         get_label: function(app_title, the_id) {
-            return this.labels[the_id];
         }
     }
 

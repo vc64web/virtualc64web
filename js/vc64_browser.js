@@ -1,5 +1,6 @@
 
 var current_browser_datasource='snapshots';
+var already_loaded_collector = null;
 function setup_browser_interface()
 {
 
@@ -49,11 +50,15 @@ function load_browser(datasource_name)
 
     wasm_suspend_auto_snapshots();
 
-    //empty all feeds
-    $('#container_snapshots').empty();
-
     //-- build snapshot feed
     var collector=get_data_collector(datasource_name);
+
+    if(collector.needs_reload() == false)
+    {
+        return;
+    }
+    //empty all feeds
+    $('#container_snapshots').empty();
 
     var render_persistent_snapshot=function(app_title, the_id){
         var x_icon = '<svg width="1.8em" height="auto" viewBox="0 0 16 16" class="bi bi-x" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M11.854 4.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708-.708l7-7a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M4.146 4.146a.5.5 0 0 0 0 .708l7 7a.5.5 0 0 0 .708-.708l-7-7a.5.5 0 0 0-.708 0z"/></svg>';
@@ -117,7 +122,8 @@ function load_browser(datasource_name)
     }
 
     //start the loading process
-    collector.load(row_renderer); 
+    collector.load(row_renderer);
+    already_loaded_collector=collector; 
 }
 
 
@@ -125,6 +131,7 @@ function load_browser(datasource_name)
 
 var collectors = {
     snapshots: {
+        needs_reload: () => true,
         load: function (row_renderer){
             //first load autosave snapshots
 
@@ -242,7 +249,12 @@ var collectors = {
 
     csdb: {
         loaded_feeds: null,
+        needs_reload: function ()
+        { 
+            return already_loaded_collector != this || this.loaded_feeds == null;
+        },
         load: async function (row_renderer){
+            
             //this.loaded_feeds = null; //force reload
             if(this.loaded_feeds!=null)
             {

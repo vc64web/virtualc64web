@@ -1,4 +1,4 @@
-const cache_name = 'vc64_app_cache_v2020_10_15';
+const cache_name = 'vc64_app_cache_v2020_10_16';
 
 // install event
 self.addEventListener('install', evt => {
@@ -25,8 +25,15 @@ self.addEventListener('fetch', evt => {
     caches.match(evt.request).then(cache_res => {
       return cache_res || fetch(evt.request).then(fetch_res => {
         return caches.open(cache_name).then(cache => {
-          console.log('into '+cache_name+' putting fetched resource: '+evt.request.url);
-          cache.put(evt.request.url, fetch_res.clone());
+          if(evt.request.url.startsWith('https://csdb.dk/webservice/'))
+          {
+            console.log('do not cache fetched resource: '+evt.request.url);
+          }
+          else
+          {
+            console.log('into '+cache_name+' putting fetched resource: '+evt.request.url);
+            cache.put(evt.request.url, fetch_res.clone());
+          }
           return fetch_res;
         })
       });

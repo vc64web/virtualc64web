@@ -318,7 +318,7 @@ function configure_file_dialog(mount_button_delay=0)
                         $(this).parent().find('li').removeClass('active');
                         $(this).addClass('active');
 
-                        var path = $(this).html();
+                        var path = $(this).text();
                         zip.file(path).async("uint8array", 
                             function updateCallback(metadata) {
                                 console.log("progression: " + metadata.percent.toFixed(2) + " %");
@@ -1657,7 +1657,7 @@ wide_screen_switch.change( function() {
 //---- end custom key ----
 
 function loadTheme() {
-  const dark_theme_selected = load_setting('dark_switch', false);
+  const dark_theme_selected = load_setting('dark_switch', true);
   dark_switch.checked = dark_theme_selected;
   dark_theme_selected ? document.body.setAttribute('data-theme', 'dark') :
     document.body.removeAttribute('data-theme');
@@ -1669,7 +1669,7 @@ function setTheme() {
     save_setting('dark_switch', true);
   } else {
     document.body.removeAttribute('data-theme');
-    save_setting('dark_switch', null);
+    save_setting('dark_switch', false);
   }
 }
   

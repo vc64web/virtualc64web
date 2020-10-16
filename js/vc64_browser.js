@@ -241,8 +241,18 @@ var collectors = {
     },
 
     csdb: {
+        loaded_feeds: null,
         load: async function (row_renderer){
- 
+            //this.loaded_feeds = null; //force reload
+            if(this.loaded_feeds!=null)
+            {
+                for(var row_key in this.loaded_feeds)
+                {
+                    row_renderer(row_key, this.loaded_feeds[row_key]);
+                }
+                return;
+            }
+            this.loaded_feeds = [];
             var webservice_loader = async response => {
                 var items=[];
 
@@ -271,6 +281,7 @@ var collectors = {
 
                     items.push(new_item);
                 }
+                this.loaded_feeds[this.row_name] = items;
                 row_renderer(this.row_name,items);
             }
 
@@ -308,7 +319,7 @@ var collectors = {
                 //alert(download_url);
 
                 fetch(download_url).then( async response => {
-                    file_slot_file_name = response.url.match(".*/(.*)$")[1];
+                    file_slot_file_name = decodeURI(response.url.match(".*/(.*)$")[1]);
                     file_slot_file = new Uint8Array( await response.arrayBuffer());                    
                     configure_file_dialog(mount_button_delay=1200);
                 });

@@ -251,6 +251,7 @@ var collectors = {
     },
 
     csdb: {
+        all_ids: [],
         loaded_feeds: null,
         needs_reload: function ()
         { 
@@ -267,33 +268,50 @@ var collectors = {
                 }
                 return;
             }
+            this.all_ids= [];
             this.loaded_feeds = [];
             var webservice_loader = async response => {
-                var items=[];
+                try{
+                    var items=[];
 
-                var text = await response.text();
-                //alert(text);
-                var parser = new DOMParser();
-                var xmlDoc = parser.parseFromString(text,"text/xml");
+                    var text = await response.text();
+                    //alert(text);
+                    var parser = new DOMParser();
+                    var xmlDoc = parser.parseFromString(text,"text/xml");
 
-                var releases = xmlDoc.getElementsByTagName("Release");
+                    var releases = xmlDoc.getElementsByTagName("Release");
 
-                for(var xml_item of releases)
-                {
-                    var id = xml_item.getElementsByTagName("ID")[0].textContent;
-                    var name = xml_item.getElementsByTagName("Name")[0].textContent;
-                    var screen_shot = xml_item.getElementsByTagName("ScreenShot")[0].textContent;
-                    //alert(`id=${id}, name=${name}, screen_shot=${screen_shot}`);
-                    
-                    var new_item = new Object();
-                    new_item.id=id;
-                    new_item.name=name;
-                    new_item.screen_shot=screen_shot;
-                    
-                    items.push(new_item);
+                    for(var xml_item of releases)
+                    {
+                        var id = xml_item.getElementsByTagName("ID")[0].textContent;
+
+                        if(this.all_ids.includes(id))
+                        {//this entry was already in another feed, skip it
+                            continue;
+                        }
+                        this.all_ids.push(id);
+
+                        var name = xml_item.getElementsByTagName("Name")[0].textContent;
+                        var screen_shot = null;
+                        try
+                        {
+                            screen_shot = xml_item.getElementsByTagName("ScreenShot")[0].textContent;
+                        } catch {}
+                        //alert(`id=${id}, name=${name}, screen_shot=${screen_shot}`);
+                        
+                        var new_item = new Object();
+                        new_item.id=id;
+                        new_item.name=name;
+                        new_item.screen_shot=screen_shot;
+                        if(screen_shot!= null)
+                        {
+                            items.push(new_item);
+                        }
+                    }
+                    this.loaded_feeds[this.row_name] = items;
+                    row_renderer(this.row_name,items);
                 }
-                this.loaded_feeds[this.row_name] = items;
-                row_renderer(this.row_name,items);
+                catch {}
             }
 
             var top_one_file_demo_csdb_url = 'https://csdb.dk/webservice/?type=chart&ctype=release&subtype=2';
@@ -302,11 +320,32 @@ var collectors = {
 
             this.row_name='top one file demos';
             await fetch(top_one_file_demo_csdb_url).then( webservice_loader );
+          
             this.row_name='top demos';
             await fetch(top_demo_csdb_url).then( webservice_loader );
+            
             this.row_name='latest releases';
-            await fetch(latest_rel_csdb_url).then( webservice_loader );
- 
+            await fetch(latest_rel_csdb_url).then( webservice_loader );        
+
+            this.row_name='latest additions';
+            await fetch("https://csdb.dk/webservice/?type=latestadd&addtype=release").then( webservice_loader );
+            
+            this.row_name='top music';
+            await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=7").then( webservice_loader );
+            
+            this.row_name='top music - part2';
+            await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=8").then( webservice_loader );
+
+            this.row_name='top graphics';
+            await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=9").then( webservice_loader );
+
+            this.row_name='top graphics - part2';
+            await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=10").then( webservice_loader );
+
+            this.row_name='top games';
+            await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=11").then( webservice_loader );
+
+
         },
         draw_item_into_canvas: function (app_title, teaser_canvas, item){
             var ctx = teaser_canvas.getContext('2d');
@@ -314,7 +353,10 @@ var collectors = {
             img.onload = function(){
                 ctx.drawImage(img,0,0); // Or at whatever offset you like
             };
-            img.src=item.screen_shot;
+            if(item.screen_shot != null)
+            {
+                img.src=item.screen_shot;
+            }
             return; 
         },
         run: function (app_title, id){

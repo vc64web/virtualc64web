@@ -196,3 +196,55 @@ color: #aaa !important;
 .browser-item-text {
     font-size: small;
 }
+
+#view_detail {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2000;
+    background-color: var(--dark);
+    outline: none;
+    overflow-y: auto;
+    opacity: 1.0;
+}
+
+#detail_content{
+    margin-top:45px;
+}
+
+.detail_screenshot {
+    width: 100%;
+}
+
+#detail_back {
+    position: fixed;
+    z-index: 1000;
+    width: 100%;
+    height: 45px;
+    text-align: left;
+    background-color: var(--dark);
+    opacity: 0.6;
+    font-size: larger;
+    border: none;
+    color: var(--light);
+}
+#detail_run {
+    width: 100%;
+    font-size: xx-large;
+}
+
+/*
+@media (max-width: 767px) {
+    .detail_screenshot {
+        width: 100%;
+    }
+}
+
+@media (min-width: 767px) {
+    .detail_screenshot {
+        width: 70%;
+    }
+}
+*/

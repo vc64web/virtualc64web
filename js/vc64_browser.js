@@ -3,7 +3,6 @@ var current_browser_datasource='snapshots';
 var already_loaded_collector = null;
 function setup_browser_interface()
 {
-
     document.getElementById('sel_browser_snapshots').onclick = function(){
         $('#sel_browser_snapshots').parent().removeClass('btn-secondary').removeClass('btn-primary')
         .addClass('btn-primary');
@@ -34,6 +33,11 @@ function setup_browser_interface()
     document.getElementById('button_snapshots').onclick = function() 
     {
         load_browser(current_browser_datasource);
+    
+        setTimeout(() => {
+            var view_detail=$("#view_detail");
+            if(view_detail.is(":visible")) view_detail.focus();
+        }, 500);    
     }
 }
 
@@ -62,11 +66,11 @@ function load_browser(datasource_name)
 
     var render_persistent_snapshot=function(app_title, item){
         var x_icon = '<svg width="1.8em" height="auto" viewBox="0 0 16 16" class="bi bi-x" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M11.854 4.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708-.708l7-7a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M4.146 4.146a.5.5 0 0 0 0 .708l7 7a.5.5 0 0 0 .708-.708l-7-7a.5.5 0 0 0-.708 0z"/></svg>';
-        var scaled_width= datasource_name == 'csdb' ? 20:15;
+        var scaled_width= datasource_name == 'csdb' ? 15:15;
         var canvas_width = 384;
         var canvas_height= 272;
         var the_html=
-        '<div class="col-xs-4">'
+        '<div class="col-xs-4 mr-2">'
         +`<div id="card_snap_${item.id}" class="card" style="width: ${scaled_width}rem;">`
             +`<canvas id="canvas_snap_${item.id}" width="${canvas_width}" height="${canvas_height}" class="card-img-top rounded"></canvas>`;
         if(collector.can_delete(app_title, item.id))
@@ -252,6 +256,7 @@ var collectors = {
 
     csdb: {
         all_ids: [],
+        all_items: [],
         loaded_feeds: null,
         needs_reload: function ()
         { 
@@ -269,6 +274,7 @@ var collectors = {
                 return;
             }
             this.all_ids= [];
+            this.all_items= [];
             this.loaded_feeds = [];
             var webservice_loader = async response => {
                 try{
@@ -291,20 +297,34 @@ var collectors = {
                         }
                         this.all_ids.push(id);
 
-                        var name = xml_item.getElementsByTagName("Name")[0].textContent;
-                        var screen_shot = null;
-                        try
-                        {
-                            screen_shot = xml_item.getElementsByTagName("ScreenShot")[0].textContent;
-                        } catch {}
-                        //alert(`id=${id}, name=${name}, screen_shot=${screen_shot}`);
-                        
+
+                        function property(property_name) {
+                            var val=null;
+                            try{
+                                val=xml_item.getElementsByTagName(property_name)[0].textContent;
+                            } catch {}
+                            return val;
+                        }
+
                         var new_item = new Object();
                         new_item.id=id;
-                        new_item.name=name;
-                        new_item.screen_shot=screen_shot;
-                        if(screen_shot!= null)
+                        new_item.name = property("Name");
+                        new_item.type = property("Type");
+                        new_item.date = new Date(
+                            property("ReleaseYear")+'-'+
+                            property("ReleaseMonth")+'-'+
+                            property("ReleaseDay")
+                        ).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+                    
+                        new_item.screen_shot = null;
+                        try
                         {
+                            new_item.screen_shot = xml_item.getElementsByTagName("ScreenShot")[0].textContent;
+                        } catch {}
+                        //alert(`id=${id}, name=${name}, screen_shot=${screen_shot}`);
+                        if(new_item.screen_shot!= null)
+                        {
+                            this.all_items[id] = new_item;
                             items.push(new_item);
                         }
                     }
@@ -345,7 +365,6 @@ var collectors = {
             this.row_name='top games';
             await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=11").then( webservice_loader );
 
-
         },
         draw_item_into_canvas: function (app_title, teaser_canvas, item){
             var ctx = teaser_canvas.getContext('2d');
@@ -360,6 +379,67 @@ var collectors = {
             return; 
         },
         run: function (app_title, id){
+            $("#view_detail").show().focus();
+
+            $("#detail_back").click(function(){
+                $("#view_detail").hide();
+            });
+
+            var item = this.all_items[id];
+//            $("#detail_content").empty();
+            var content = '<div class="container-xl">';
+
+            content += '<div class="row justify-content-md-center">';
+            content += '<div class="col col-md-12">';
+                content += `<image src="${item.screen_shot}" class="detail_screenshot"/>`;
+            content += '</div>';
+            content += '</div>'; //row
+            
+            content += '<div class="row justify-content-md-center mt-4">';
+            content += '<div class="col col-md-12">';
+    
+                content += `<h2>${item.name}</h2>`;
+                content += `<h4>${item.type} | ${item.date}</h4>`;
+        
+            content += '</div>'; //col
+
+            content += '</div>'; //row
+
+            content += '<div class="row justify-content-md-center mt-4 pb-4">';
+            content += '<div class="col col-md-12">';
+    
+                content += '<button type="button" id="detail_run" class="btn btn-primary">start</button>';
+        
+            content += '</div>'; //col
+
+
+            content += '</div>'; //row
+
+            content += '</div>'; //container
+
+            $("#detail_content").html(content);
+            
+            
+            $("#detail_run").click(function (){ 
+                already_loaded_collector.run2(app_title, id);
+            });
+            var esc_on_detail=function( event ) {
+                event.stopPropagation();
+                if(event.key === "Escape")
+                {
+                    $("#view_detail").hide();
+                    $('#snapshotModal').focus();
+                }
+                return false;
+            }
+
+            $( "#view_detail" ).keyup(esc_on_detail)
+            .keydown(function( event ) {
+                event.stopPropagation();
+                return false;
+            });
+        },
+        run2: function (app_title, id){
             //alert(`run ${app_title} with ${id}`);
 
             var csdb_url = 'https://csdb.dk/release/?id='+id;
@@ -376,10 +456,10 @@ var collectors = {
                     file_slot_file = new Uint8Array( await response.arrayBuffer());                    
                     configure_file_dialog(mount_button_delay=1200);
                 });
-             });
-
+            });
 
             $('#snapshotModal').modal('hide');
+
             return; 
         },
         can_delete: function(app_title, the_id){

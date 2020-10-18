@@ -957,7 +957,7 @@ wide_screen_switch.change( function() {
 
                     if(do_auto_run)
                     {
-                        emit_string(['Enter','r','u','n','Enter'], 3000, 800);
+                        emit_string(['Enter','r','u','n','Enter'], 3300, 800);
                     }
                 }
                 else
@@ -966,7 +966,7 @@ wide_screen_switch.change( function() {
                     
                     if(do_auto_run)
                     {
-                        emit_string(['Enter','r','u','n','Enter'], 3000, 800);
+                        emit_string(['Enter','r','u','n','Enter'], 3300, 800);
                     }
                 }
             }

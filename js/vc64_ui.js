@@ -768,7 +768,7 @@ function InitWrappers() {
 
 //----
     webgl_switch = $('#webgl_switch');
-    var use_webgl=load_setting('use_webgl', true);
+    var use_webgl=load_setting('use_webgl', false);
     webgl_switch.prop('checked', use_webgl);
     if(use_webgl)
     {
@@ -806,7 +806,7 @@ function InitWrappers() {
         }
         $('#pixel_art_switch').prop('checked', value);
     }    
-    set_pixel_art(load_setting('pixel_art', false));
+    set_pixel_art(load_setting('pixel_art', true));
     pixel_art_switch.change( function() {
         pixel_art=this.checked;
         save_setting('pixel_art', this.checked);
@@ -826,7 +826,7 @@ borderless_switch.change( function() {
 //------
 
 auto_snapshot_switch = $('#auto_snapshot_switch');
-var take_auto_snapshots=load_setting('auto_snapshot_switch', true);
+var take_auto_snapshots=load_setting('auto_snapshot_switch', false);
 auto_snapshot_switch.prop('checked', take_auto_snapshots);
 wasm_set_take_auto_snapshots(take_auto_snapshots ? 1:0);
 auto_snapshot_switch.change( function() {

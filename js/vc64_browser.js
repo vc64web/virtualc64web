@@ -54,13 +54,17 @@ function setup_browser_interface()
     });
 
 
-    document.getElementById('button_snapshots').onclick = function() 
+    document.getElementById('button_snapshots').onclick = async function() 
     {
         load_browser(current_browser_datasource);
         if(snapshot_browser_first_click)
         {
             snapshot_browser_first_click=false;
 
+            while(get_data_collector("snapshots").busy)
+            {
+                await sleep(200);
+            }
             if(get_data_collector("snapshots").total_count==0)
             {
                 $('#sel_browser_csdb').click();   
@@ -175,7 +179,7 @@ var collectors = {
         total_count: 0,
         busy: false,
         needs_reload: () => true,
-        load: function (row_renderer){
+        load: async function (row_renderer){
             this.busy = true;
             try
             {
@@ -196,14 +200,14 @@ var collectors = {
                 //now the user snapshots
                 var store_renderer = function(app_titles)
                 {
-                    this.total_count+=app_titles.length;
+                    get_data_collector('snapshots').total_count+=app_titles.length;
                     for(var t=0; t<app_titles.length;t++)
                     {
                         var app_title=app_titles[t];
                         get_snapshots_for_app_title(app_title, row_renderer); 
                     }
                 }
-                get_stored_app_titles(store_renderer);
+                await get_stored_app_titles(store_renderer);
             }
             finally
             {

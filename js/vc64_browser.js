@@ -21,6 +21,14 @@ function setup_browser_interface()
     }
 
 
+    $('#snapshotModal').on('shown.bs.modal', function () {
+        hide_all_tooltips();
+
+        var view_detail=$("#view_detail");
+        if(view_detail.is(":visible")) 
+            view_detail.focus();
+    });
+
 
     $('#snapshotModal').on('hidden.bs.modal', function () {
         wasm_resume_auto_snapshots();
@@ -33,11 +41,6 @@ function setup_browser_interface()
     document.getElementById('button_snapshots').onclick = function() 
     {
         load_browser(current_browser_datasource);
-    
-        setTimeout(() => {
-            var view_detail=$("#view_detail");
-            if(view_detail.is(":visible")) view_detail.focus();
-        }, 500);    
     }
 }
 
@@ -120,6 +123,7 @@ function load_browser(datasource_name)
                     //alert('delete id='+id);
                     delete_snapshot_per_id(id);
                     $("#card_snap_"+id).remove();
+                    hide_all_tooltips();
                 };
             }
 
@@ -380,13 +384,14 @@ var collectors = {
         },
         run: function (app_title, id){
             $("#view_detail").show().focus();
+            hide_all_tooltips();
 
             $("#detail_back").click(function(){
                 $("#view_detail").hide();
             });
 
             var item = this.all_items[id];
-//            $("#detail_content").empty();
+
             var content = '<div class="container-xl">';
 
             content += '<div class="row justify-content-md-center">';

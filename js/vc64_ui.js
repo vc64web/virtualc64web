@@ -725,7 +725,7 @@ function InitWrappers() {
     
     $('#navbar').on('hide.bs.collapse', function () {
         //close all open tooltips on hiding navbar
-        $('[data-toggle="tooltip"]').tooltip('hide');
+        hide_all_tooltips();
     });
 
     $('#navbar').on('shown.bs.collapse', function () { 
@@ -1796,5 +1796,11 @@ function emit_string(keys_to_emit_array, type_first_key_time=200, next_key_time=
              }
         }
     );
+}
+
+function hide_all_tooltips()
+{
+    //close all open tooltips
+    $('[data-toggle="tooltip"]').tooltip('hide');
 }
     

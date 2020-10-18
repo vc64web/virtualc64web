@@ -3,7 +3,13 @@ var current_browser_datasource='snapshots';
 var already_loaded_collector = null;
 function setup_browser_interface()
 {
-    document.getElementById('sel_browser_snapshots').onclick = function(){
+    document.getElementById('sel_browser_snapshots').onclick = async function(){
+        while(get_data_collector('csdb').busy)
+        {
+            console.log('collector is busy ...');
+            await sleep(250);
+        }
+
         $('#sel_browser_snapshots').parent().removeClass('btn-secondary').removeClass('btn-primary')
         .addClass('btn-primary');
         $('#sel_browser_csdb').parent().removeClass('btn-secondary').removeClass('btn-primary')
@@ -12,7 +18,13 @@ function setup_browser_interface()
         load_browser('snapshots');
     }
 
-    document.getElementById('sel_browser_csdb').onclick = function(){
+    document.getElementById('sel_browser_csdb').onclick = async function(){
+        while(get_data_collector('snapshots').busy)
+        {
+            console.log('collector is busy ...');
+            await sleep(250);
+        }
+
         $('#sel_browser_csdb').parent().removeClass('btn-secondary').removeClass('btn-primary')
         .addClass('btn-primary');
         $('#sel_browser_snapshots').parent().removeClass('btn-secondary').removeClass('btn-primary')
@@ -25,8 +37,10 @@ function setup_browser_interface()
         hide_all_tooltips();
 
         var view_detail=$("#view_detail");
-        if(view_detail.is(":visible")) 
+        if(view_detail.is(":visible"))
+        {
             view_detail.focus();
+        }
     });
 
 
@@ -145,31 +159,39 @@ function load_browser(datasource_name)
 
 var collectors = {
     snapshots: {
+        busy: false,
         needs_reload: () => true,
         load: function (row_renderer){
-            //first load autosave snapshots
-
-            var auto_save_count=wasm_auto_snapshots_count();
-            var auto_save_items=[];
-            for(var z=0; z<auto_save_count; z++)
+            this.busy = true;
+            try
             {
-                var new_item = new Object();
-                new_item.id='a'+z;
-                new_item.internal_id=z;
-                auto_save_items.push(new_item);
-            }
-            row_renderer('auto_save',auto_save_items);
-
-            //now the user snapshots
-            var store_renderer = function(app_titles)
-            {
-                for(var t=0; t<app_titles.length;t++)
+                //first load autosave snapshots
+                var auto_save_count=wasm_auto_snapshots_count();
+                var auto_save_items=[];
+                for(var z=0; z<auto_save_count; z++)
                 {
-                    var app_title=app_titles[t];
-                    get_snapshots_for_app_title(app_title, row_renderer); 
+                    var new_item = new Object();
+                    new_item.id='a'+z;
+                    new_item.internal_id=z;
+                    auto_save_items.push(new_item);
                 }
+                row_renderer('auto_save',auto_save_items);
+
+                //now the user snapshots
+                var store_renderer = function(app_titles)
+                {
+                    for(var t=0; t<app_titles.length;t++)
+                    {
+                        var app_title=app_titles[t];
+                        get_snapshots_for_app_title(app_title, row_renderer); 
+                    }
+                }
+                get_stored_app_titles(store_renderer);
             }
-            get_stored_app_titles(store_renderer);
+            finally
+            {
+                this.busy=false;
+            }
         },
         draw_item_into_canvas: function (app_title, teaser_canvas, item){
             if(app_title == 'auto_save')
@@ -259,6 +281,7 @@ var collectors = {
     },
 
     csdb: {
+        busy: false,
         all_ids: [],
         all_items: [],
         loaded_feeds: null,
@@ -267,108 +290,115 @@ var collectors = {
             return already_loaded_collector != this || this.loaded_feeds == null;
         },
         load: async function (row_renderer){
-            
-            //this.loaded_feeds = null; //force reload
-            if(this.loaded_feeds!=null)
+            this.busy = true;
+            try
             {
-                for(var row_key in this.loaded_feeds)
+                //this.loaded_feeds = null; //force reload
+                if(this.loaded_feeds!=null)
                 {
-                    row_renderer(row_key, this.loaded_feeds[row_key]);
-                }
-                return;
-            }
-            this.all_ids= [];
-            this.all_items= [];
-            this.loaded_feeds = [];
-            var webservice_loader = async response => {
-                try{
-                    var items=[];
-
-                    var text = await response.text();
-                    //alert(text);
-                    var parser = new DOMParser();
-                    var xmlDoc = parser.parseFromString(text,"text/xml");
-
-                    var releases = xmlDoc.getElementsByTagName("Release");
-
-                    for(var xml_item of releases)
+                    for(var row_key in this.loaded_feeds)
                     {
-                        var id = xml_item.getElementsByTagName("ID")[0].textContent;
-
-                        if(this.all_ids.includes(id))
-                        {//this entry was already in another feed, skip it
-                            continue;
-                        }
-                        this.all_ids.push(id);
-
-
-                        function property(property_name) {
-                            var val=null;
-                            try{
-                                val=xml_item.getElementsByTagName(property_name)[0].textContent;
-                            } catch {}
-                            return val;
-                        }
-
-                        var new_item = new Object();
-                        new_item.id=id;
-                        new_item.name = property("Name");
-                        new_item.type = property("Type");
-                        new_item.date = new Date(
-                            property("ReleaseYear")+'-'+
-                            property("ReleaseMonth")+'-'+
-                            property("ReleaseDay")
-                        ).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-                    
-                        new_item.screen_shot = null;
-                        try
-                        {
-                            new_item.screen_shot = xml_item.getElementsByTagName("ScreenShot")[0].textContent;
-                        } catch {}
-                        //alert(`id=${id}, name=${name}, screen_shot=${screen_shot}`);
-                        if(new_item.screen_shot!= null)
-                        {
-                            this.all_items[id] = new_item;
-                            items.push(new_item);
-                        }
+                        row_renderer(row_key, this.loaded_feeds[row_key]);
                     }
-                    this.loaded_feeds[this.row_name] = items;
-                    row_renderer(this.row_name,items);
+                    return;
                 }
-                catch {}
+                this.all_ids= [];
+                this.all_items= [];
+                this.loaded_feeds = [];
+                var webservice_loader = async response => {
+                    try{
+                        var items=[];
+
+                        var text = await response.text();
+                        //alert(text);
+                        var parser = new DOMParser();
+                        var xmlDoc = parser.parseFromString(text,"text/xml");
+
+                        var releases = xmlDoc.getElementsByTagName("Release");
+
+                        for(var xml_item of releases)
+                        {
+                            var id = xml_item.getElementsByTagName("ID")[0].textContent;
+
+                            if(this.all_ids.includes(id))
+                            {//this entry was already in another feed, skip it
+                                continue;
+                            }
+                            this.all_ids.push(id);
+
+
+                            function property(property_name) {
+                                var val=null;
+                                try{
+                                    val=xml_item.getElementsByTagName(property_name)[0].textContent;
+                                } catch {}
+                                return val;
+                            }
+
+                            var new_item = new Object();
+                            new_item.id=id;
+                            new_item.name = property("Name");
+                            new_item.type = property("Type");
+                            new_item.date = new Date(
+                                property("ReleaseYear"),
+                                property("ReleaseMonth")-1,  //month is 0 indexed
+                                property("ReleaseDay")
+                            ).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+                        
+                            new_item.screen_shot = null;
+                            try
+                            {
+                                new_item.screen_shot = xml_item.getElementsByTagName("ScreenShot")[0].textContent;
+                            } catch {}
+                            //alert(`id=${id}, name=${name}, screen_shot=${screen_shot}`);
+                            if(new_item.screen_shot!= null)
+                            {
+                                this.all_items[id] = new_item;
+                                items.push(new_item);
+                            }
+                        }
+                        this.loaded_feeds[this.row_name] = items;
+                        row_renderer(this.row_name,items);
+                    }
+                    catch {}
+                }
+
+                var top_one_file_demo_csdb_url = 'https://csdb.dk/webservice/?type=chart&ctype=release&subtype=2';
+                var top_demo_csdb_url = 'https://csdb.dk/webservice/?type=chart&ctype=release&subtype=1';
+                var latest_rel_csdb_url = 'https://csdb.dk/webservice/?type=latestrel';
+
+                this.row_name='top one file demos';
+                await fetch(top_one_file_demo_csdb_url).then( webservice_loader );
+            
+                this.row_name='top demos';
+                await fetch(top_demo_csdb_url).then( webservice_loader );
+                
+                this.row_name='latest releases';
+                await fetch(latest_rel_csdb_url).then( webservice_loader );        
+
+                this.row_name='latest additions';
+                await fetch("https://csdb.dk/webservice/?type=latestadd&addtype=release").then( webservice_loader );
+                
+                this.row_name='top music';
+                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=7").then( webservice_loader );
+                
+                this.row_name='top music - part2';
+                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=8").then( webservice_loader );
+
+                this.row_name='top graphics';
+                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=9").then( webservice_loader );
+
+                this.row_name='top graphics - part2';
+                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=10").then( webservice_loader );
+
+                this.row_name='top games';
+                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=11").then( webservice_loader );
+
             }
-
-            var top_one_file_demo_csdb_url = 'https://csdb.dk/webservice/?type=chart&ctype=release&subtype=2';
-            var top_demo_csdb_url = 'https://csdb.dk/webservice/?type=chart&ctype=release&subtype=1';
-            var latest_rel_csdb_url = 'https://csdb.dk/webservice/?type=latestrel';
-
-            this.row_name='top one file demos';
-            await fetch(top_one_file_demo_csdb_url).then( webservice_loader );
-          
-            this.row_name='top demos';
-            await fetch(top_demo_csdb_url).then( webservice_loader );
-            
-            this.row_name='latest releases';
-            await fetch(latest_rel_csdb_url).then( webservice_loader );        
-
-            this.row_name='latest additions';
-            await fetch("https://csdb.dk/webservice/?type=latestadd&addtype=release").then( webservice_loader );
-            
-            this.row_name='top music';
-            await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=7").then( webservice_loader );
-            
-            this.row_name='top music - part2';
-            await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=8").then( webservice_loader );
-
-            this.row_name='top graphics';
-            await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=9").then( webservice_loader );
-
-            this.row_name='top graphics - part2';
-            await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=10").then( webservice_loader );
-
-            this.row_name='top games';
-            await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=11").then( webservice_loader );
-
+            finally
+            {
+                this.busy=false;
+            }
         },
         draw_item_into_canvas: function (app_title, teaser_canvas, item){
             var ctx = teaser_canvas.getContext('2d');
@@ -383,11 +413,12 @@ var collectors = {
             return; 
         },
         run: function (app_title, id){
-            $("#view_detail").show().focus();
             hide_all_tooltips();
+            $("#view_detail").show().focus();
 
             $("#detail_back").click(function(){
                 $("#view_detail").hide();
+                $('#snapshotModal').focus();
             });
 
             var item = this.all_items[id];

@@ -230,7 +230,8 @@ color: #aaa !important;
     border: none;
     color: var(--light);
 }
-#detail_run {
+
+button[id^="detail_run"] {
     width: 100%;
     font-size: xx-large;
 }

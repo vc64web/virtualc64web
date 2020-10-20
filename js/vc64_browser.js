@@ -58,7 +58,7 @@ function setup_browser_interface()
     {
         load_browser(current_browser_datasource);
         if(snapshot_browser_first_click)
-        {
+        {//if there are no taken snapshots -> select csdb
             snapshot_browser_first_click=false;
 
             while(get_data_collector("snapshots").busy)
@@ -100,7 +100,7 @@ function load_browser(datasource_name)
 
     var render_persistent_snapshot=function(app_title, item){
         var x_icon = '<svg width="1.8em" height="auto" viewBox="0 0 16 16" class="bi bi-x" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M11.854 4.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708-.708l7-7a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M4.146 4.146a.5.5 0 0 0 0 .708l7 7a.5.5 0 0 0 .708-.708l-7-7a.5.5 0 0 0-.708 0z"/></svg>';
-        var scaled_width= datasource_name == 'csdb' ? 15:15;
+        var scaled_width= 15;
         var canvas_width = 384;
         var canvas_height= 272;
         var the_html=
@@ -355,6 +355,19 @@ var collectors = {
                                 } catch {}
                                 return val;
                             }
+                            function property_list(property_name, matches=null) {
+                                var list=[];
+                                try{
+                                    for(var element of xml_item.getElementsByTagName(property_name))
+                                    {
+                                        if(matches==null || element.textContent.match(matches)!=null)
+                                        {
+                                            list.push(element.textContent);
+                                        }
+                                    }
+                                } catch {}
+                                return list;
+                            }
 
                             var new_item = new Object();
                             new_item.id=id;
@@ -365,12 +378,9 @@ var collectors = {
                                 property("ReleaseMonth")-1,  //month is 0 indexed
                                 property("ReleaseDay")
                             ).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-                        
-                            new_item.screen_shot = null;
-                            try
-                            {
-                                new_item.screen_shot = xml_item.getElementsByTagName("ScreenShot")[0].textContent;
-                            } catch {}
+                            new_item.screen_shot = property("ScreenShot");
+                            new_item.links = property_list("Link", matches=/http.*?[.](zip|prg|t64|d64|g64|tap|crt)$/i);
+
                             //alert(`id=${id}, name=${name}, screen_shot=${screen_shot}`);
                             if(new_item.screen_shot!= null)
                             {
@@ -384,36 +394,32 @@ var collectors = {
                     catch {}
                 }
 
-                var top_one_file_demo_csdb_url = 'https://csdb.dk/webservice/?type=chart&ctype=release&subtype=2';
-                var top_demo_csdb_url = 'https://csdb.dk/webservice/?type=chart&ctype=release&subtype=1';
-                var latest_rel_csdb_url = 'https://csdb.dk/webservice/?type=latestrel';
-
                 this.row_name='top one file demos';
-                await fetch(top_one_file_demo_csdb_url).then( webservice_loader );
+                await fetch('https://csdb.dk/webservice/?type=chart&ctype=release&subtype=2&depth=1.5').then( webservice_loader );
             
                 this.row_name='top demos';
-                await fetch(top_demo_csdb_url).then( webservice_loader );
+                await fetch('https://csdb.dk/webservice/?type=chart&ctype=release&subtype=1&depth=1.5').then( webservice_loader );
                 
                 this.row_name='latest releases';
-                await fetch(latest_rel_csdb_url).then( webservice_loader );        
+                await fetch('https://csdb.dk/webservice/?type=latestrel&depth=1.5').then( webservice_loader );        
 
                 this.row_name='latest additions';
-                await fetch("https://csdb.dk/webservice/?type=latestadd&addtype=release").then( webservice_loader );
+                await fetch("https://csdb.dk/webservice/?type=latestadd&addtype=release&depth=1.5").then( webservice_loader );
                 
                 this.row_name='top music';
-                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=7").then( webservice_loader );
+                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=7&depth=1.5").then( webservice_loader );
                 
                 this.row_name='top music - part2';
-                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=8").then( webservice_loader );
+                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=8&depth=1.5").then( webservice_loader );
 
                 this.row_name='top graphics';
-                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=9").then( webservice_loader );
+                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=9&depth=1.5").then( webservice_loader );
 
                 this.row_name='top graphics - part2';
-                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=10").then( webservice_loader );
+                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=10&depth=1.5").then( webservice_loader );
 
                 this.row_name='top games';
-                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=11").then( webservice_loader );
+                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=11&depth=1.5").then( webservice_loader );
 
             }
             finally
@@ -464,22 +470,41 @@ var collectors = {
 
             content += '<div class="row justify-content-md-center mt-4 pb-4">';
             content += '<div class="col col-md-12">';
-    
-                content += '<button type="button" id="detail_run" class="btn btn-primary">start</button>';
-        
+            var link_id=0;
+            for(var link of item.links)
+            {
+                var link_path = link.split('/');
+                var link_name = decodeURI(link_path[link_path.length-1]).replaceAll('%2B','+');
+                content += `<button type="button" id="detail_run${link_id}" class="btn btn-primary my-2">
+                ${link_name}
+                <svg width="1.8em" height="1.8em" viewBox="0 0 16 16" class="bi bi-play-fill" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>
+                </button>`;
+                link_id++;
+            }
             content += '</div>'; //col
-
-
+            content += '</div>'; //row
+            content += '<div class="row justify-content-md-center mt-4 pb-4">';
+            content += '<div class="col col-md-12">';
+                content += `<a style="color: var(--secondary);font-size: x-large;" href="https://csdb.dk/release/?id=${id}" target="_blank"><svg width="1.8em" height="1.8em" viewBox="0 0 16 16" class="bi bi-box-arrow-up" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" d="M3.5 6a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 1 0-1h2A1.5 1.5 0 0 1 14 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-8A1.5 1.5 0 0 1 3.5 5h2a.5.5 0 0 1 0 1h-2z"/>
+  <path fill-rule="evenodd" d="M7.646.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 1.707V10.5a.5.5 0 0 1-1 0V1.707L5.354 3.854a.5.5 0 1 1-.708-.708l3-3z"/>
+</svg> open in csdb.dk</a>`;
+            content += '</div>'; //col
             content += '</div>'; //row
 
             content += '</div>'; //container
 
             $("#detail_content").html(content);
             
-            
-            $("#detail_run").click(function (){ 
-                already_loaded_collector.run2(app_title, id);
-            });
+            link_id=0;
+            for(var link of item.links)
+            {
+                $(`#detail_run${link_id}`).click(function (){ 
+                    already_loaded_collector.run_link(app_title, id, link);
+                });
+                link_id++;
+            }
+
             var esc_on_detail=function( event ) {
                 event.stopPropagation();
                 if(event.key === "Escape")
@@ -496,9 +521,23 @@ var collectors = {
                 return false;
             });
         },
-        run2: function (app_title, id){
+        run_link: function (app_title, id, link){
             //alert(`run ${app_title} with ${id}`);
+            var download_url = link.replace('http://', 'https://')
+            //alert(download_url);
 
+            fetch(download_url).then( async response => {
+                file_slot_file_name = decodeURI(response.url.match(".*/(.*)$")[1]).replaceAll('%2B','+');
+                file_slot_file = new Uint8Array( await response.arrayBuffer());                    
+                configure_file_dialog(mount_button_delay=1200);
+            });
+
+            $('#snapshotModal').modal('hide');
+
+            return; 
+        },
+        run_via_html_service: function (app_title, id){
+            //alert(`run ${app_title} with ${id}`);
             var csdb_url = 'https://csdb.dk/release/?id='+id;
 
             fetch(csdb_url).then( async response => {

@@ -528,8 +528,15 @@ var collectors = {
 
             fetch(download_url).then( async response => {
                 file_slot_file_name = decodeURI(response.url.match(".*/(.*)$")[1]).replaceAll('%2B','+');
-                file_slot_file = new Uint8Array( await response.arrayBuffer());                    
-                configure_file_dialog(mount_button_delay=1200);
+                file_slot_file = new Uint8Array( await response.arrayBuffer());
+                if(app_title == "call_parameter" && id == 0)
+                {
+                    configure_file_dialog();
+                }   
+                else
+                {               
+                    configure_file_dialog(mount_button_delay=1200);
+                }
             });
 
             $('#snapshotModal').modal('hide');

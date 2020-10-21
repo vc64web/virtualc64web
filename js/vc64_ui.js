@@ -952,21 +952,21 @@ wide_screen_switch.change( function() {
                     if(do_auto_press_play)
                     {
                         //press play on tape shortly after emitting load command
-                        setTimeout(function() {wasm_press_play(); },420);
+                        setTimeout(function() {wasm_press_play(); },650);
                     }
 
                     if(do_auto_run)
                     {
-                        emit_string(['Enter','r','u','n','Enter'], 3300, 800);
+                        emit_string(['Enter','r','u','n','Enter'], 4500, 1000);
                     }
                 }
                 else
                 {
-                    emit_string(['Enter','l','o','a', 'd','"','*','"',',','8',',', '1', 'Enter']);
+                    emit_string(['Enter','l','o','a','d','"','*','"',',','8',',', '1', 'Enter']);
                     
                     if(do_auto_run)
                     {
-                        emit_string(['Enter','r','u','n','Enter'], 3300, 800);
+                        emit_string(['Enter','r','u','n','Enter'], 4500, 1000);
                     }
                 }
             }
@@ -1776,7 +1776,7 @@ function scaleVMCanvas() {
         
     
 
-function emit_string(keys_to_emit_array, type_first_key_time=200, next_key_time=200)
+function emit_string(keys_to_emit_array, type_first_key_time=200, next_key_time=300)
 {  
     time_in_future=type_first_key_time;
     keys_to_emit_array.forEach(function (the_key, i) {
@@ -1787,11 +1787,11 @@ function emit_string(keys_to_emit_array, type_first_key_time=200, next_key_time=
                 if(c64code.modifier != null)
                 {
                     setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 1);}, time_in_future);
-                    setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 0);}, time_in_future+next_key_time-10);
+                    setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 0);}, time_in_future+next_key_time-20);
                 }
 
-                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 1);}, time_in_future+10);
-                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 0);}, time_in_future+next_key_time-10);
+                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 1);}, time_in_future+20);
+                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 0);}, time_in_future+next_key_time-20);
                 time_in_future +=next_key_time;
              }
         }

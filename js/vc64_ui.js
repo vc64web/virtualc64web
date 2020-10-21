@@ -10,6 +10,29 @@ function FromBase64(str) {
 }
     
 
+var parameter_link__already_checked=false;
+
+function load_parameter_link()
+{
+    if($('#modal_roms').is(":visible"))
+    {
+        return;
+    }
+
+    if(parameter_link__already_checked)
+      return;
+    
+    parameter_link__already_checked=true;
+    var call_parameter = window.location.href.split('#');
+    if(call_parameter.length>1)
+    {
+        var parameter_link= call_parameter[1];
+        setTimeout(() => {
+            get_data_collector("csdb").run_link("call_parameter", 0,parameter_link);            
+        }, 200);
+    }
+}
+
 function message_handler(cores_msg)
 {
     var msg = UTF8ToString(cores_msg);
@@ -17,13 +40,16 @@ function message_handler(cores_msg)
     {
         //start it async
         setTimeout(function() { try{wasm_run();}catch(e){}},10);
+        setTimeout(function() { try{load_parameter_link();}catch(e){}},250);
     }
     else if(msg == "MSG_ROM_MISSING")
     {        
         //try to load roms from local storage
         setTimeout(function() {
             if(load_roms(true) == false)
+            {
                 $('#modal_roms').modal();
+            }
         },0);
  
     }
@@ -31,9 +57,6 @@ function message_handler(cores_msg)
 
 
 function fetchOpenROMS(){
-
-
-
     install = function (rom_url){
         var oReq = new XMLHttpRequest();
         oReq.open("GET", rom_url, true);
@@ -706,6 +729,13 @@ function InitWrappers() {
     wasm_sprite_info = Module.cwrap('wasm_sprite_info', 'string');
 
     dark_switch = document.getElementById('dark_switch');
+
+
+    $('#modal_roms').on('hidden.bs.modal', function () {
+        load_parameter_link();
+    });
+
+
 
     loadTheme();
     dark_switch.addEventListener('change', () => {

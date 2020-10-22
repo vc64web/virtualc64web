@@ -499,8 +499,9 @@ var collectors = {
             link_id=0;
             for(var link of item.links)
             {
-                $(`#detail_run${link_id}`).click(function (){ 
-                    already_loaded_collector.run_link(app_title, id, link);
+                $(`#detail_run${link_id}`).click(function (){
+                    var clicked_link_id=this.id.match("detail_run(.*)")[1];
+                    already_loaded_collector.run_link(app_title, id, item.links[clicked_link_id]);
                 });
                 link_id++;
             }
@@ -531,11 +532,11 @@ var collectors = {
                 file_slot_file = new Uint8Array( await response.arrayBuffer());
                 if(app_title == "call_parameter" && id == 0)
                 {
-                    configure_file_dialog();
+                    configure_file_dialog(reset=false);
                 }   
                 else
                 {               
-                    configure_file_dialog(mount_button_delay=1200);
+                    configure_file_dialog(reset=true);
                 }
             });
 

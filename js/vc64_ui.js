@@ -33,13 +33,14 @@ function load_parameter_link()
     }
 }
 
+var wasm_first_run=null;
 function message_handler(cores_msg)
 {
     var msg = UTF8ToString(cores_msg);
     if(msg == "MSG_READY_TO_RUN")
     {
         //start it async
-        setTimeout(function() { try{wasm_run();}catch(e){}},10);
+        setTimeout(function() { try{wasm_first_run=Date.now(); wasm_run();}catch(e){}},10);
         setTimeout(function() { try{load_parameter_link();}catch(e){}},250);
     }
     else if(msg == "MSG_ROM_MISSING")
@@ -235,10 +236,9 @@ function pushFile(file) {
     fileReader.readAsArrayBuffer(file);
 }
 
-function configure_file_dialog(mount_button_delay=0)
+function configure_file_dialog(reset=false)
 {
-    if(mount_button_delay>0)
-        reset_before_load=true;
+    reset_before_load=reset;
 
     try{
         if($("#modal_roms").is(":visible"))
@@ -941,7 +941,7 @@ wide_screen_switch.change( function() {
     {   
         if($('#div_zip_content').is(':visible'))
         {
-            configure_file_dialog();
+            configure_file_dialog(reset_before_load);
             return;
         }
         
@@ -1009,7 +1009,17 @@ wide_screen_switch.change( function() {
 
         if(reset_before_load == false)
         {
-            execute_load();
+            var time_since_start=Date.now()-wasm_first_run;
+            if(time_since_start>3300)
+            {
+                execute_load();
+            }
+            else
+            {
+                setTimeout(() => {  
+                    execute_load();
+                }, 3300 - time_since_start);
+            }            
         }
         else
         {

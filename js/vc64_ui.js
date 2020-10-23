@@ -263,27 +263,28 @@ function configure_file_dialog(reset=false)
             $("#button_eject_zip").hide();
             $("#no_disk_rom_msg").hide();
 
+            var return_icon=`&nbsp;<svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-arrow-return-left" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M14.5 1.5a.5.5 0 0 1 .5.5v4.8a2.5 2.5 0 0 1-2.5 2.5H2.707l3.347 3.346a.5.5 0 0 1-.708.708l-4.2-4.2a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 8.3H12.5A1.5 1.5 0 0 0 14 6.8V2a.5.5 0 0 1 .5-.5z"/></svg>`;
 
             if(file_slot_file_name.match(/[.](prg|t64)$/i)) 
             {
                 $("#div_auto_load").hide();
                 $("#div_auto_press_play").hide();
                 $("#div_auto_run").show();
-                $("#button_insert_file").html("flash program");
+                $("#button_insert_file").html("flash program "+return_icon);
             }
             else if(file_slot_file_name.match(/[.]tap$/i)) 
             {
                 $("#div_auto_load").show();
                 $("#div_auto_press_play").show();
                 $("#div_auto_run").show();
-                $("#button_insert_file").html("insert tape");
+                $("#button_insert_file").html("insert tape"+return_icon);
             }
             else if(file_slot_file_name.match(/[.](d64|g64)$/i)) 
             {
                 $("#div_auto_load").show();
                 $("#div_auto_press_play").hide();
                 $("#div_auto_run").show();
-                $("#button_insert_file").html("insert disk");
+                $("#button_insert_file").html("insert disk"+return_icon);
                 
                 if (localStorage.getItem('vc1541_rom.bin')==null)
                 {
@@ -295,7 +296,7 @@ function configure_file_dialog(reset=false)
                 $("#div_auto_load").hide();
                 $("#div_auto_press_play").hide();
                 $("#div_auto_run").hide();
-                $("#button_insert_file").html("insert cartridge");
+                $("#button_insert_file").html("insert cartridge"+return_icon);
             }
             else if(file_slot_file_name.match(/[.](zip)$/i)) 
             {
@@ -374,9 +375,10 @@ function configure_file_dialog(reset=false)
                     }
                 });
 
-                $("#button_insert_file").html("mount file");
+                $("#button_insert_file").html("mount file"+return_icon);
                 $("#button_insert_file").attr("disabled", true);
             }
+
             $("#modal_file_slot").modal();
         }    
 
@@ -410,8 +412,8 @@ joystick_keyup_map = {
 }
 
 function keydown(e) {
-    if($('input').is(":focus") == false && $('textarea').is(":focus") == false )
-    {//incase any html5 input control has the focus, we should let it get the keyup 
+    if($('input, textarea').is(":focus") == false && $('modal_file_slot').is(":visible") == false)
+    {//incase any html5 input control has the focus, we should let it get the keydown 
         event.preventDefault();
     }
 
@@ -430,7 +432,7 @@ function keydown(e) {
 }
 
 function keyup(e) {
-    if($('input').is(":focus") == false && $('textarea').is(":focus") == false)
+    if($('input, textarea').is(":focus") == false)
     {//incase any html5 input control has the focus, we should let it get the keyup 
         event.preventDefault();
 
@@ -735,8 +737,6 @@ function InitWrappers() {
         load_parameter_link();
     });
 
-
-
     loadTheme();
     dark_switch.addEventListener('change', () => {
         setTheme();
@@ -932,9 +932,20 @@ wide_screen_switch.change( function() {
         //document.getElementById('canvas').focus();
     });
 
+
     $('#modal_file_slot').on('hidden.bs.modal', function () {
         $("#filedialog").val(''); //clear file slot after file has been loaded
     });
+
+
+    $( "#modal_file_slot" ).keydown(event => {
+            if(event.key === "Enter" && $("#button_insert_file").attr("disabled")!=true)
+            {
+                $( "#button_insert_file" ).click();                        
+            }
+            return false;
+        }
+    );
 
     reset_before_load=false;
     $("#button_insert_file").click(function() 

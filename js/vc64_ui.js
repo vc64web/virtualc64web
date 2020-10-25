@@ -729,6 +729,7 @@ function InitWrappers() {
     wasm_set_borderless = Module.cwrap('wasm_set_borderless', 'undefined', ['number']);
     wasm_press_play = Module.cwrap('wasm_press_play', 'undefined');
     wasm_sprite_info = Module.cwrap('wasm_sprite_info', 'string');
+    wasm_set_sid_model = Module.cwrap('wasm_set_sid_model', 'undefined', ['number']);
 
     dark_switch = document.getElementById('dark_switch');
 
@@ -1102,6 +1103,18 @@ wide_screen_switch.change( function() {
     delete_cache();
 */    
 
+    set_sid_model(load_setting('sid_model', '8580'));
+    function set_sid_model(sid_model) {
+        $("#button_sid_model").text("sid model "+sid_model);
+        wasm_set_sid_model(parseInt(sid_model));
+    }
+    $('#choose_sid_model a').click(function () 
+    {
+        var sid_model=$(this).text();
+        set_sid_model(sid_model);
+        save_setting('sid_model',sid_model)
+    });
+
     document.getElementById('button_update').onclick = function() 
     {
         caches.keys().then(keys => {
@@ -1188,7 +1201,6 @@ wide_screen_switch.change( function() {
     }, false);
 
 //---- rom dialog start
-    
    document.getElementById('button_rom_dialog').addEventListener("click", function(e) {
      $('#modal_settings').modal('hide');
      setTimeout(function() { $('#modal_roms').modal('show');}, 500);

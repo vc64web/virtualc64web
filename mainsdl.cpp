@@ -872,3 +872,15 @@ extern "C" char* wasm_sprite_info()
      );  
    return buffer;
 }
+
+extern "C" void wasm_set_sid_model(unsigned SID_Model)
+{
+  if(SID_Model == 6581)
+  {
+    wrapper->c64->sid.setModel(MOS_6581);
+  }
+  else if(SID_Model == 8580)
+  {
+    wrapper->c64->sid.setModel(MOS_8580);  
+  }
+}

@@ -236,16 +236,12 @@ button[id^="detail_run"] {
     font-size: xx-large;
 }
 
-/*
-@media (max-width: 767px) {
-    .detail_screenshot {
-        width: 100%;
-    }
-}
 
-@media (min-width: 767px) {
-    .detail_screenshot {
-        width: 70%;
-    }
+.copy_run_link {
+    width: 100%;
+    font-size: xx-small;
+    background-color: var(--dark);
+    color: var(--secondary);
+    border: none;
 }
-*/
+}

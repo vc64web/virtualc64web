@@ -476,6 +476,13 @@ var collectors = {
             {
                 var link_path = link.split('/');
                 var link_name = decodeURIComponent(link_path[link_path.length-1]);
+                var encoded_link = '';
+                for(var i=0; i<link_path.length-1;i++)
+                {
+                    encoded_link += link_path[i] + '/'; 
+                }
+                encoded_link += encodeURIComponent(link_name);
+
                 content += `<button type="button" id="detail_run${link_id}" class="btn btn-primary my-2">
                 ${link_name}
                 <svg width="1.8em" height="1.8em" viewBox="0 0 16 16" class="bi bi-play-fill" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>
@@ -492,7 +499,7 @@ var collectors = {
               </svg></button>
                 </div>
                 <div class="col-11 px-0 mx-0">
-                <input class="copy_run_link" type="text" value="${vc64web_URL}#${encodeURI(decodeURI(link))}" id="detail_link${link_id}"></input>
+                <input class="copy_run_link" type="text" value="${vc64web_URL}#${encoded_link}" id="detail_link${link_id}"></input>
                 </div>
                 </div>`;
 

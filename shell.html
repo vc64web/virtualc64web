@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta name="description" content="cycle exact c64 emulator in html5 / javascript with scene-browser csdb interface. This c64 emulator is compatible to the progressive-web-app (PWA) standard.">
     <title>vc64web</title>
   
   <link rel="icon" href="img/favicon.ico">
@@ -137,7 +138,7 @@
         </svg>
       </button>
       <span data-toggle="modal" data-target="#snapshotModal">
-        <button type="button" id="button_snapshots" class="btn btn-sm icon" data-toggle="tooltip" data-placement="top" title="snapshot browser">
+        <button type="button" id="button_snapshots" class="btn btn-sm icon" data-toggle="tooltip" data-placement="top" title="snapshot / scene browser">
           <svg class="bi bi-collection-fill" width="1.6em" height="auto" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
             <rect width="16" height="10" rx="1.5" transform="matrix(1 0 0 -1 0 14.5)"/>
             <path fill-rule="evenodd" d="M2 3a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 0-1h-11A.5.5 0 0 0 2 3zm2-2a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 0-1h-7A.5.5 0 0 0 4 1z"/>
@@ -151,11 +152,11 @@
           </svg>
         </button></span>
       <button id="button_settings" class="btn btn-sm icon" type="button" data-toggle="modal" data-target="#modal_settings">
-        <svg class="bi bi-gear-fill" width="1.6em" height="auto" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <svg class="bi bi-gear-fill" width="1.6em" height="auto" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg" data-toggle="tooltip" data-placement="top" title="settings">
           <path fill-rule="evenodd" d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 0 0-5.86 2.929 2.929 0 0 0 0 5.858z"/>
         </svg>
       </button>
-      <button id="button_custom_key" class="btn btn-sm icon" type="button">
+      <button id="button_custom_key" class="btn btn-sm icon" type="button" data-toggle="tooltip" data-placement="top" title="action buttons">
         <svg width="1.6em" height="auto" viewBox="0 0 16 16" class="bi bi-plus" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
           <path fill-rule="evenodd" d="M8 3.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5H4a.5.5 0 0 1 0-1h3.5V4a.5.5 0 0 1 .5-.5z"/>
           <path fill-rule="evenodd" d="M7.5 8a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1H8.5V12a.5.5 0 0 1-1 0V8z"/>
@@ -197,6 +198,14 @@
 
     <!-- Modal snapshot-->
     <div class="modal fade" id="snapshotModal" tabindex="-1" role="dialog"  aria-hidden="true">
+      <div id="view_detail" style="display: none;" tabindex="-1" >
+        <button type="button" id="detail_back">
+<svg width="1.6em" height="1.6em" viewBox="0 0 16 16" class="bi bi-arrow-left" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+</svg>
+        </button>
+        <div id="detail_content"></div>
+      </div>
       <div class="modal-dialog modal-xl" role="document">
         <div class="modal-content">
           <div class="modal-header">           
@@ -398,6 +407,16 @@
             <div class="custom-control custom-switch mt-1">
               <input type="checkbox" class="custom-control-input" id="auto_snapshot_switch" />
               <label class="custom-control-label" for="auto_snapshot_switch" data-toggle="tooltip" data-placement="top" title="you find auto snapshots in the first row of the snapshot browser">save auto snapshots</label>
+            </div>
+
+            <div class="dropdown mt-3">
+              <button id="button_sid_model" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                sid model 6581
+              </button>
+              <div id="choose_sid_model" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+                <a class="dropdown-item" href="#">6581</a>
+                <a class="dropdown-item" href="#">8580</a>
+              </div>
             </div>
 
             <button id="button_rom_dialog" type="button" class="btn btn-primary mt-4">system roms ...</button>
@@ -609,7 +628,7 @@ goes into edit mode which takes you right back to here ...
             
             <div id="div_zip_content"></div>
 
-            <div id="no_disk_rom_msg" class="rounded my-2 px-2 py-2" style="display: none">Warning: no rom-chip in floppy drive installed. Floppy loading will only work with floppy rom installed. Head over to roms setting and provide the rom first.</div>
+            <div id="no_disk_rom_msg" class="rounded my-2 px-2 py-2" style="display: none">Warning: no rom-chip in floppy drive installed. D64 and G64 files are floppy images ... loading of files with these extensions will require a floppy rom. Head over to roms setting and provide the rom first. Or try to load a file with a different extension.</div>
 
           </div>
           <div class="modal-footer">

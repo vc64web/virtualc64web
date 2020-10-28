@@ -10,20 +10,47 @@ function FromBase64(str) {
 }
     
 
+var parameter_link__already_checked=false;
+
+function load_parameter_link()
+{
+    if($('#modal_roms').is(":visible"))
+    {
+        return;
+    }
+
+    if(parameter_link__already_checked)
+      return;
+    
+    parameter_link__already_checked=true;
+    var call_parameter = window.location.href.split('#');
+    if(call_parameter.length>1)
+    {
+        var parameter_link= call_parameter[1];
+        setTimeout(() => {
+            get_data_collector("csdb").run_link("call_parameter", 0,parameter_link);            
+        }, 200);
+    }
+}
+
+var wasm_first_run=null;
 function message_handler(cores_msg)
 {
     var msg = UTF8ToString(cores_msg);
     if(msg == "MSG_READY_TO_RUN")
     {
         //start it async
-        setTimeout(function() { try{wasm_run();}catch(e){}},10);
+        setTimeout(function() { try{wasm_first_run=Date.now(); wasm_run();}catch(e){}},10);
+        setTimeout(function() { try{load_parameter_link();}catch(e){}},250);
     }
     else if(msg == "MSG_ROM_MISSING")
     {        
         //try to load roms from local storage
         setTimeout(function() {
             if(load_roms(true) == false)
+            {
                 $('#modal_roms').modal();
+            }
         },0);
  
     }
@@ -31,9 +58,6 @@ function message_handler(cores_msg)
 
 
 function fetchOpenROMS(){
-
-
-
     install = function (rom_url){
         var oReq = new XMLHttpRequest();
         oReq.open("GET", rom_url, true);
@@ -212,10 +236,9 @@ function pushFile(file) {
     fileReader.readAsArrayBuffer(file);
 }
 
-function configure_file_dialog(mount_button_delay=0)
+function configure_file_dialog(reset=false)
 {
-    if(mount_button_delay>0)
-        reset_before_load=true;
+    reset_before_load=reset;
 
     try{
         if($("#modal_roms").is(":visible"))
@@ -240,27 +263,28 @@ function configure_file_dialog(mount_button_delay=0)
             $("#button_eject_zip").hide();
             $("#no_disk_rom_msg").hide();
 
+            var return_icon=`&nbsp;<svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-arrow-return-left" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M14.5 1.5a.5.5 0 0 1 .5.5v4.8a2.5 2.5 0 0 1-2.5 2.5H2.707l3.347 3.346a.5.5 0 0 1-.708.708l-4.2-4.2a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 8.3H12.5A1.5 1.5 0 0 0 14 6.8V2a.5.5 0 0 1 .5-.5z"/></svg>`;
 
             if(file_slot_file_name.match(/[.](prg|t64)$/i)) 
             {
                 $("#div_auto_load").hide();
                 $("#div_auto_press_play").hide();
                 $("#div_auto_run").show();
-                $("#button_insert_file").html("flash program");
+                $("#button_insert_file").html("flash program "+return_icon);
             }
             else if(file_slot_file_name.match(/[.]tap$/i)) 
             {
                 $("#div_auto_load").show();
                 $("#div_auto_press_play").show();
                 $("#div_auto_run").show();
-                $("#button_insert_file").html("insert tape");
+                $("#button_insert_file").html("insert tape"+return_icon);
             }
             else if(file_slot_file_name.match(/[.](d64|g64)$/i)) 
             {
                 $("#div_auto_load").show();
                 $("#div_auto_press_play").hide();
                 $("#div_auto_run").show();
-                $("#button_insert_file").html("insert disk");
+                $("#button_insert_file").html("insert disk"+return_icon);
                 
                 if (localStorage.getItem('vc1541_rom.bin')==null)
                 {
@@ -272,7 +296,7 @@ function configure_file_dialog(mount_button_delay=0)
                 $("#div_auto_load").hide();
                 $("#div_auto_press_play").hide();
                 $("#div_auto_run").hide();
-                $("#button_insert_file").html("insert cartridge");
+                $("#button_insert_file").html("insert cartridge"+return_icon);
             }
             else if(file_slot_file_name.match(/[.](zip)$/i)) 
             {
@@ -318,7 +342,7 @@ function configure_file_dialog(mount_button_delay=0)
                         $(this).parent().find('li').removeClass('active');
                         $(this).addClass('active');
 
-                        var path = $(this).html();
+                        var path = $(this).text();
                         zip.file(path).async("uint8array", 
                             function updateCallback(metadata) {
                                 console.log("progression: " + metadata.percent.toFixed(2) + " %");
@@ -351,9 +375,10 @@ function configure_file_dialog(mount_button_delay=0)
                     }
                 });
 
-                $("#button_insert_file").html("mount file");
+                $("#button_insert_file").html("mount file"+return_icon);
                 $("#button_insert_file").attr("disabled", true);
             }
+
             $("#modal_file_slot").modal();
         }    
 
@@ -387,8 +412,8 @@ joystick_keyup_map = {
 }
 
 function keydown(e) {
-    if($('input').is(":focus") == false && $('textarea').is(":focus") == false )
-    {//incase any html5 input control has the focus, we should let it get the keyup 
+    if($('input, textarea').is(":focus") == false && $('modal_file_slot').is(":visible") == false)
+    {//incase any html5 input control has the focus, we should let it get the keydown 
         event.preventDefault();
     }
 
@@ -407,7 +432,7 @@ function keydown(e) {
 }
 
 function keyup(e) {
-    if($('input').is(":focus") == false && $('textarea').is(":focus") == false)
+    if($('input, textarea').is(":focus") == false)
     {//incase any html5 input control has the focus, we should let it get the keyup 
         event.preventDefault();
 
@@ -704,8 +729,14 @@ function InitWrappers() {
     wasm_set_borderless = Module.cwrap('wasm_set_borderless', 'undefined', ['number']);
     wasm_press_play = Module.cwrap('wasm_press_play', 'undefined');
     wasm_sprite_info = Module.cwrap('wasm_sprite_info', 'string');
+    wasm_set_sid_model = Module.cwrap('wasm_set_sid_model', 'undefined', ['number']);
 
     dark_switch = document.getElementById('dark_switch');
+
+
+    $('#modal_roms').on('hidden.bs.modal', function () {
+        load_parameter_link();
+    });
 
     loadTheme();
     dark_switch.addEventListener('change', () => {
@@ -725,7 +756,7 @@ function InitWrappers() {
     
     $('#navbar').on('hide.bs.collapse', function () {
         //close all open tooltips on hiding navbar
-        $('[data-toggle="tooltip"]').tooltip('hide');
+        hide_all_tooltips();
     });
 
     $('#navbar').on('shown.bs.collapse', function () { 
@@ -768,7 +799,7 @@ function InitWrappers() {
 
 //----
     webgl_switch = $('#webgl_switch');
-    var use_webgl=load_setting('use_webgl', true);
+    var use_webgl=load_setting('use_webgl', false);
     webgl_switch.prop('checked', use_webgl);
     if(use_webgl)
     {
@@ -806,7 +837,7 @@ function InitWrappers() {
         }
         $('#pixel_art_switch').prop('checked', value);
     }    
-    set_pixel_art(load_setting('pixel_art', false));
+    set_pixel_art(load_setting('pixel_art', true));
     pixel_art_switch.change( function() {
         pixel_art=this.checked;
         save_setting('pixel_art', this.checked);
@@ -826,7 +857,7 @@ borderless_switch.change( function() {
 //------
 
 auto_snapshot_switch = $('#auto_snapshot_switch');
-var take_auto_snapshots=load_setting('auto_snapshot_switch', true);
+var take_auto_snapshots=load_setting('auto_snapshot_switch', false);
 auto_snapshot_switch.prop('checked', take_auto_snapshots);
 wasm_set_take_auto_snapshots(take_auto_snapshots ? 1:0);
 auto_snapshot_switch.change( function() {
@@ -902,16 +933,27 @@ wide_screen_switch.change( function() {
         //document.getElementById('canvas').focus();
     });
 
+
     $('#modal_file_slot').on('hidden.bs.modal', function () {
         $("#filedialog").val(''); //clear file slot after file has been loaded
     });
+
+
+    $( "#modal_file_slot" ).keydown(event => {
+            if(event.key === "Enter" && $("#button_insert_file").attr("disabled")!=true)
+            {
+                $( "#button_insert_file" ).click();                        
+            }
+            return false;
+        }
+    );
 
     reset_before_load=false;
     $("#button_insert_file").click(function() 
     {   
         if($('#div_zip_content').is(':visible'))
         {
-            configure_file_dialog();
+            configure_file_dialog(reset_before_load);
             return;
         }
         
@@ -952,21 +994,21 @@ wide_screen_switch.change( function() {
                     if(do_auto_press_play)
                     {
                         //press play on tape shortly after emitting load command
-                        setTimeout(function() {wasm_press_play(); },420);
+                        setTimeout(function() {wasm_press_play(); },650);
                     }
 
                     if(do_auto_run)
                     {
-                        emit_string(['Enter','r','u','n','Enter'], 3000, 800);
+                        emit_string(['Enter','r','u','n','Enter'], 4500, 1000);
                     }
                 }
                 else
                 {
-                    emit_string(['Enter','l','o','a', 'd','"','*','"',',','8',',', '1', 'Enter']);
+                    emit_string(['Enter','l','o','a','d','"','*','"',',','8',',', '1', 'Enter']);
                     
                     if(do_auto_run)
                     {
-                        emit_string(['Enter','r','u','n','Enter'], 3000, 800);
+                        emit_string(['Enter','r','u','n','Enter'], 4500, 1000);
                     }
                 }
             }
@@ -976,10 +1018,24 @@ wide_screen_switch.change( function() {
             }
         };
 
-
+        if(!is_running())
+        {
+            $("#button_run").click();
+        }
+        
         if(reset_before_load == false)
         {
-            execute_load();
+            var time_since_start=Date.now()-wasm_first_run;
+            if(time_since_start>3300)
+            {
+                execute_load();
+            }
+            else
+            {
+                setTimeout(() => {  
+                    execute_load();
+                }, 3300 - time_since_start);
+            }            
         }
         else
         {
@@ -1050,6 +1106,18 @@ wide_screen_switch.change( function() {
     }
     delete_cache();
 */    
+
+    set_sid_model(load_setting('sid_model', '8580'));
+    function set_sid_model(sid_model) {
+        $("#button_sid_model").text("sid model "+sid_model);
+        wasm_set_sid_model(parseInt(sid_model));
+    }
+    $('#choose_sid_model a').click(function () 
+    {
+        var sid_model=$(this).text();
+        set_sid_model(sid_model);
+        save_setting('sid_model',sid_model)
+    });
 
     document.getElementById('button_update').onclick = function() 
     {
@@ -1137,7 +1205,6 @@ wide_screen_switch.change( function() {
     }, false);
 
 //---- rom dialog start
-    
    document.getElementById('button_rom_dialog').addEventListener("click", function(e) {
      $('#modal_settings').modal('hide');
      setTimeout(function() { $('#modal_roms').modal('show');}, 500);
@@ -1657,7 +1724,7 @@ wide_screen_switch.change( function() {
 //---- end custom key ----
 
 function loadTheme() {
-  const dark_theme_selected = load_setting('dark_switch', false);
+  const dark_theme_selected = load_setting('dark_switch', true);
   dark_switch.checked = dark_theme_selected;
   dark_theme_selected ? document.body.setAttribute('data-theme', 'dark') :
     document.body.removeAttribute('data-theme');
@@ -1669,7 +1736,7 @@ function setTheme() {
     save_setting('dark_switch', true);
   } else {
     document.body.removeAttribute('data-theme');
-    save_setting('dark_switch', null);
+    save_setting('dark_switch', false);
   }
 }
   
@@ -1776,7 +1843,7 @@ function scaleVMCanvas() {
         
     
 
-function emit_string(keys_to_emit_array, type_first_key_time=200, next_key_time=200)
+function emit_string(keys_to_emit_array, type_first_key_time=200, next_key_time=300)
 {  
     time_in_future=type_first_key_time;
     keys_to_emit_array.forEach(function (the_key, i) {
@@ -1787,14 +1854,20 @@ function emit_string(keys_to_emit_array, type_first_key_time=200, next_key_time=
                 if(c64code.modifier != null)
                 {
                     setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 1);}, time_in_future);
-                    setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 0);}, time_in_future+next_key_time-10);
+                    setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 0);}, time_in_future+next_key_time-20);
                 }
 
-                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 1);}, time_in_future+10);
-                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 0);}, time_in_future+next_key_time-10);
+                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 1);}, time_in_future+20);
+                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 0);}, time_in_future+next_key_time-20);
                 time_in_future +=next_key_time;
              }
         }
     );
+}
+
+function hide_all_tooltips()
+{
+    //close all open tooltips
+    $('[data-toggle="tooltip"]').tooltip('hide');
 }
     

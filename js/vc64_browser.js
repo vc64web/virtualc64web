@@ -274,6 +274,11 @@ var collectors = {
                     }
                 );
             }
+
+            if(!is_running())
+            {
+                $("#button_run").click();
+            }
             return; 
         },
         can_delete: function(app_title, the_id){

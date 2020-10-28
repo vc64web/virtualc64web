@@ -1018,7 +1018,11 @@ wide_screen_switch.change( function() {
             }
         };
 
-
+        if(!is_running())
+        {
+            $("#button_run").click();
+        }
+        
         if(reset_before_load == false)
         {
             var time_since_start=Date.now()-wasm_first_run;

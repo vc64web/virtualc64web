@@ -8,7 +8,18 @@ function ToBase64(u8)
 function FromBase64(str) {
     return atob(str).split('').map(function (c) { return c.charCodeAt(0); });
 }
-    
+
+function get_parameter_link()
+{
+    var call_parameter = window.location.href.split('#');
+    var parameter_link=null;
+    if(call_parameter.length>1)
+    {
+        parameter_link= call_parameter[1];
+    }
+    return parameter_link;
+}
+
 
 var parameter_link__already_checked=false;
 
@@ -23,10 +34,9 @@ function load_parameter_link()
       return;
     
     parameter_link__already_checked=true;
-    var call_parameter = window.location.href.split('#');
-    if(call_parameter.length>1)
+    var parameter_link = get_parameter_link();
+    if(parameter_link != null)
     {
-        var parameter_link= call_parameter[1];
         setTimeout(() => {
             get_data_collector("csdb").run_link("call_parameter", 0,parameter_link);            
         }, 200);
@@ -165,7 +175,14 @@ function load_roms(install_to_core){
 
         var the_rom=loadStoredItem('vc1541_rom.bin'); 
         if (the_rom==null){
-            all_fine=false;
+            var param_link=get_parameter_link();
+            if( 
+                param_link == null ||
+                param_link.match(/[.](d64|g64)$/i) != null 
+            )
+            {
+                all_fine=false;
+            }            
             $("#rom_disk_drive").attr("src", "img/rom_empty.png");
             $("#button_delete_disk_drive_rom").hide();
         }

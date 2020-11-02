@@ -509,12 +509,21 @@ var collectors = {
             content += '</div>'; //row
             
             content += '<div class="row justify-content-md-center mt-4">';
-            content += '<div class="col col-md-12">';
+            content += '<div class="col col-xs-11">';
     
                 content += `<h2>${item.name}</h2>`;
                 content += `<h4>${item.type} | ${item.date}</h4>`;
         
             content += '</div>'; //col
+
+
+            content += '<div class="col text-right col-xs-1 px-0 mr-3">';
+                content += `<a style="color: var(--secondary);font-size: large;" href="https://csdb.dk/release/?id=${id}" target="_blank"><svg class="mr-3" width="1.8em" height="1.8em" viewBox="0 0 16 16" class="bi bi-box-arrow-up" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" d="M3.5 6a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 1 0-1h2A1.5 1.5 0 0 1 14 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-8A1.5 1.5 0 0 1 3.5 5h2a.5.5 0 0 1 0 1h-2z"/>
+  <path fill-rule="evenodd" d="M7.646.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 1.707V10.5a.5.5 0 0 1-1 0V1.707L5.354 3.854a.5.5 0 1 1-.708-.708l3-3z"/>
+</svg><br><span class="mr-1">open in</span><br><span class="mr-0">csdb.dk</span></a>`;
+            content += '</div>'; //col
+
 
             content += '</div>'; //row
 
@@ -557,21 +566,7 @@ var collectors = {
             }
             content += '</div>'; //col
             content += '</div>'; //row
-
-
-
-            content += '<div class="row justify-content-md-center mt-4 pb-4">';
-            content += '<div class="col col-md-12">';
-                content += `<a style="color: var(--secondary);font-size: x-large;" href="https://csdb.dk/release/?id=${id}" target="_blank"><svg width="1.8em" height="1.8em" viewBox="0 0 16 16" class="bi bi-box-arrow-up" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-  <path fill-rule="evenodd" d="M3.5 6a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 1 0-1h2A1.5 1.5 0 0 1 14 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-8A1.5 1.5 0 0 1 3.5 5h2a.5.5 0 0 1 0 1h-2z"/>
-  <path fill-rule="evenodd" d="M7.646.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 1.707V10.5a.5.5 0 0 1-1 0V1.707L5.354 3.854a.5.5 0 1 1-.708-.708l3-3z"/>
-</svg> open in csdb.dk</a>`;
-            content += '</div>'; //col
-            content += '</div>'; //row
-
             content += '</div>'; //container
-
-
 
             $("#detail_content").html(content);
 

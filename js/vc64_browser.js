@@ -160,7 +160,7 @@ function load_browser(datasource_name)
 
             canvas.onclick = function() {
                 let id = this.id.match(/canvas_snap_(.*)/)[1];
-                collector.run(app_title, id);
+                collector.show_detail(app_title, id);
             };
             collector.draw_item_into_canvas(app_title, canvas, app_snaps[z]);  
         }
@@ -248,7 +248,7 @@ var collectors = {
             }
             return; 
         },
-        run: function (app_title, id){
+        show_detail: function (app_title, id){
             if(app_title == 'auto_save')
             {
                 var _id=id.substring(1);
@@ -352,39 +352,17 @@ var collectors = {
                             }
                             this.all_ids.push(id);
 
-
-                            function property(property_name) {
-                                var val=null;
-                                try{
-                                    val=xml_item.getElementsByTagName(property_name)[0].textContent;
-                                } catch {}
-                                return val;
-                            }
-                            function property_list(property_name, matches=null) {
-                                var list=[];
-                                try{
-                                    for(var element of xml_item.getElementsByTagName(property_name))
-                                    {
-                                        if(matches==null || element.textContent.match(matches)!=null)
-                                        {
-                                            list.push(element.textContent);
-                                        }
-                                    }
-                                } catch {}
-                                return list;
-                            }
-
                             var new_item = new Object();
                             new_item.id=id;
-                            new_item.name = property("Name");
-                            new_item.type = property("Type");
+                            new_item.name = property(xml_item,"Name");
+                            new_item.type = property(xml_item,"Type");
                             new_item.date = new Date(
-                                property("ReleaseYear"),
-                                property("ReleaseMonth")-1,  //month is 0 indexed
-                                property("ReleaseDay")
+                                property(xml_item,"ReleaseYear"),
+                                property(xml_item,"ReleaseMonth")-1,  //month is 0 indexed
+                                property(xml_item,"ReleaseDay")
                             ).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-                            new_item.screen_shot = property("ScreenShot");
-                            new_item.links = property_list("Link", matches=/http.*?[.](zip|prg|t64|d64|g64|tap|crt)$/i);
+                            new_item.screen_shot = property(xml_item,"ScreenShot");
+                            new_item.links = property_list(xml_item,"Link", matches=/http.*?[.](zip|prg|t64|d64|g64|tap|crt)$/i);
 
                             //alert(`id=${id}, name=${name}, screen_shot=${screen_shot}`);
                             if(new_item.screen_shot!= null)
@@ -444,9 +422,76 @@ var collectors = {
             }
             return; 
         },
-        run: function (app_title, id){
+        show_detail:function (app_title, id){
+            var item = this.all_items[id];
+            //fetching details
+            var csdb_detail_url = `https://csdb.dk/webservice/?type=release&id=${id}&depth=2`;
+
+            if(item.details_already_fetched !== undefined )
+            {
+                this.render_detail(app_title, id);
+                this.render_detail2(app_title, id);
+            }
+            else
+            {
+                //show already loaded content
+                this.render_detail(app_title, id);
+
+                //fetch more details about the entry
+                fetch(csdb_detail_url).then( async response => {
+                    var text = await response.text();
+                    //alert(text);
+                    var parser = new DOMParser();
+                    var xmlDoc = parser.parseFromString(text,"text/xml");
+
+                    //already loaded with depth=1.5
+/*                  
+                    //getting links <Release><DownloadLinks><DownloadLink><Link>
+                    var dl_links = property_path(xmlDoc, "Release/DownloadLinks");
+                    item.links = [];
+                    for(var dl_link of dl_links)
+                    {
+                        item.links.push.apply(item.links, 
+                            property_list(dl_link,"Link", matches=/http.*?[.](zip|prg|t64|d64|g64|tap|crt)$/i)
+                            );
+                    }
+*/
+                    //getting user comments
+                    item.comments = [];
+                    var user_comments= property_path(xmlDoc,"Release/Comments/UserComment");
+                    if(user_comments != null)
+                    {
+                        for(var user_comment of user_comments)
+                        {
+                            var new_user_comment = new Object();
+                            new_user_comment.text= property(user_comment, "Text");
+                            new_user_comment.date= property(user_comment, "Date");
+                            new_user_comment.user= property(user_comment, "CSDbUser/Login");
+                            
+                            item.comments.push(new_user_comment);
+                        }
+                    }
+
+                    //getting summary                   
+                    var summary= property_path(xmlDoc,"Release/Comments/Summary");
+                    if(summary != null && summary.length>0)
+                    {
+                        var new_summary = new Object();
+                        new_summary.text= property(user_comment, "Text");
+                        new_summary.date= property(user_comment, "Date");
+                        new_summary.user= property(user_comment, "CSDbUser/Login");
+
+                        item.summary=new_summary;
+                    }
+
+                    item.details_already_fetched=true;
+                    this.render_detail2(app_title, id);
+                });
+            }
+        },
+        render_detail: function (app_title, id){
             hide_all_tooltips();
-            $("#view_detail").show().focus();
+            $("#view_detail").show().scrollTop(0).focus();
 
             $("#detail_back").click(function(){
                 $("#view_detail").hide();
@@ -464,14 +509,25 @@ var collectors = {
             content += '</div>'; //row
             
             content += '<div class="row justify-content-md-center mt-4">';
-            content += '<div class="col col-md-12">';
+            content += '<div class="col col-xs-auto">';
     
                 content += `<h2>${item.name}</h2>`;
                 content += `<h4>${item.type} | ${item.date}</h4>`;
         
             content += '</div>'; //col
 
+
+            content += '<div class="col-xs text-right px-0 mr-3">';
+                content += `<a style="color: var(--secondary);font-size: large;" href="https://csdb.dk/release/?id=${id}" target="_blank"><svg class="mr-3" width="1.8em" height="1.8em" viewBox="0 0 16 16" class="bi bi-box-arrow-up" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" d="M3.5 6a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 1 0-1h2A1.5 1.5 0 0 1 14 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-8A1.5 1.5 0 0 1 3.5 5h2a.5.5 0 0 1 0 1h-2z"/>
+  <path fill-rule="evenodd" d="M7.646.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 1.707V10.5a.5.5 0 0 1-1 0V1.707L5.354 3.854a.5.5 0 1 1-.708-.708l3-3z"/>
+</svg><br><span class="mr-1">open in</span><br><span class="mr-0">csdb.dk</span></a>`;
+            content += '</div>'; //col
+
+
             content += '</div>'; //row
+
+
 
             content += '<div class="row justify-content-md-center mt-4 pb-4">';
             content += '<div class="col col-md-12">';
@@ -510,19 +566,11 @@ var collectors = {
             }
             content += '</div>'; //col
             content += '</div>'; //row
-            content += '<div class="row justify-content-md-center mt-4 pb-4">';
-            content += '<div class="col col-md-12">';
-                content += `<a style="color: var(--secondary);font-size: x-large;" href="https://csdb.dk/release/?id=${id}" target="_blank"><svg width="1.8em" height="1.8em" viewBox="0 0 16 16" class="bi bi-box-arrow-up" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-  <path fill-rule="evenodd" d="M3.5 6a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 1 0-1h2A1.5 1.5 0 0 1 14 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-8A1.5 1.5 0 0 1 3.5 5h2a.5.5 0 0 1 0 1h-2z"/>
-  <path fill-rule="evenodd" d="M7.646.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 1.707V10.5a.5.5 0 0 1-1 0V1.707L5.354 3.854a.5.5 0 1 1-.708-.708l3-3z"/>
-</svg> open in csdb.dk</a>`;
-            content += '</div>'; //col
-            content += '</div>'; //row
-
             content += '</div>'; //container
 
             $("#detail_content").html(content);
-            
+
+
             link_id=0;
             for(var link of item.links)
             {
@@ -532,6 +580,7 @@ var collectors = {
                 });
                 link_id++;
             }
+
 
             var esc_on_detail=function( event ) {
                 event.stopPropagation();
@@ -548,6 +597,47 @@ var collectors = {
                 event.stopPropagation();
                 return false;
             });
+
+        },
+        render_detail2: function (app_title, id){
+            var item = this.all_items[id];
+
+            var content = '<div class="container">';
+            var the_date= null;
+            if(item.summary !== undefined )
+            {
+                the_date=item.summary.date;
+                content+=`<h4 class="mx-1">summary</h4>
+                <p class="px-2 mb-0 font-weight-light" style="color:darkgoldenrod">${item.summary.date}</p>
+                <p class="px-4 mx-1 mb-0 font-weight-light">${item.summary.user == null ? "": item.summary.user}</p>
+                <p class="font-italic mx-4 px-4">${item.summary.text}</p>
+                `;
+            }
+
+            if(item.comments.length>0)
+            {
+                content += `<h4 class="mx-1">comments</h4>`;
+            }
+
+            for(var comment of item.comments)
+            {
+                if(comment.date != the_date)
+                {
+                    content+=`
+                    <p class="px-2 mb-0 font-weight-light" style="color:darkgoldenrod">${comment.date}</p>`;
+                    the_date=comment.date;
+                }
+                content+=`
+                    <p class="px-4 mx-1 mb-0 font-weight-light">${comment.user==null?"":comment.user}  </p>
+                    <p class="font-italic mx-4 px-4">${comment.text}</p>
+                `;
+            }
+            content += '</div>';
+
+          
+
+            $("#detail_content").append(content);
+            
         },
         run_link: function (app_title, id, link){
             //alert(`run ${app_title} with ${id}`);
@@ -571,28 +661,6 @@ var collectors = {
 
             return; 
         },
-        run_via_html_service: function (app_title, id){
-            //alert(`run ${app_title} with ${id}`);
-            var csdb_url = 'https://csdb.dk/release/?id='+id;
-
-            fetch(csdb_url).then( async response => {
-                var text = await response.text();
-                
-                var download_url = text.match('>(https?://csdb.dk/getinternalfile.php.*?)<')[1];
-                download_url = download_url.replace('http://', 'https://')
-                //alert(download_url);
-
-                fetch(download_url).then( async response => {
-                    file_slot_file_name = decodeURI(response.url.match(".*/(.*)$")[1]);
-                    file_slot_file = new Uint8Array( await response.arrayBuffer());                    
-                    configure_file_dialog(mount_button_delay=1200);
-                });
-            });
-
-            $('#snapshotModal').modal('hide');
-
-            return; 
-        },
         can_delete: function(app_title, the_id){
             return false;
         }
@@ -604,4 +672,51 @@ var collectors = {
 function get_data_collector(collector_name)
 {
     return collectors[collector_name];
+}
+
+
+
+function property(xml_root_item, property_name) {
+    var val=null;
+    var xml_item=property_path(xml_root_item, property_name);
+    try{
+        val=xml_item[0].textContent;
+    } catch {}
+    return val;
+}
+function property_list(xml_root_item, property_name, matches=null) {
+    var list=[];
+    var xml_item=property_path(xml_root_item, property_name);
+    try{
+        for(var element of xml_item)
+        {
+            if(matches==null || element.textContent.match(matches)!=null)
+            {
+                list.push(element.textContent);
+            }
+        }
+    } catch {}
+    return list;
+}
+function property_path(xml_root_item, property_path) {
+    var xml_element=xml_root_item;
+    var path = property_path.split('/');
+    try{
+        for(var element_name of path)
+        {
+            if(xml_element instanceof HTMLCollection)
+            {
+              if(xml_element.length==0)
+              {
+                  return null;
+              }
+              xml_element = xml_element[0];
+
+            }
+            xml_element=xml_element.getElementsByTagName(element_name);
+        }
+    } catch(e) {
+        console.error(e);
+    }
+    return xml_element;
 }

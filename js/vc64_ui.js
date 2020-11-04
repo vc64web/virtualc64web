@@ -72,16 +72,12 @@ function message_handler(cores_msg)
 }
 
 
-function fetchOpenROMS(){
-    install = function (rom_url){
-        var oReq = new XMLHttpRequest();
-        oReq.open("GET", rom_url, true);
-        oReq.responseType = "arraybuffer";
-
-        oReq.onload = function(oEvent) {
-            var arrayBuffer = oReq.response;
+async function fetchOpenROMS(){
+    var installer = async response => {
+        try{
+            var arrayBuffer = await response.arrayBuffer();
             var byteArray = new Uint8Array(arrayBuffer);
-            var rom_url_path = rom_url.split('/');
+            var rom_url_path = response.url.split('/');
             var rom_name = rom_url_path[rom_url_path.length-1];
 
             var romtype = wasm_loadfile(rom_name, byteArray, byteArray.byteLength);
@@ -90,13 +86,14 @@ function fetchOpenROMS(){
                 localStorage.setItem(romtype+".bin", ToBase64(byteArray));
                 load_roms(false);
             }
-        };
-        oReq.send();  
+        } catch {
+            console.log ("could not install system rom file");
+        }  
     }
     
-    install("https://mega65.github.io/open-roms/bin/basic_generic.rom");
-    install("https://mega65.github.io/open-roms/bin/kernal_generic.rom");
-    install("https://mega65.github.io/open-roms/bin/chargen_openroms.rom");
+    fetch("https://mega65.github.io/open-roms/bin/basic_generic.rom").then( installer );
+    fetch("https://mega65.github.io/open-roms/bin/kernal_generic.rom").then( installer );
+    fetch("https://mega65.github.io/open-roms/bin/chargen_openroms.rom").then( installer );
 }
 
 
@@ -770,12 +767,12 @@ function InitWrappers() {
     dark_switch = document.getElementById('dark_switch');
 
 
-    $('#modal_roms').on('hidden.bs.modal', function () {
+    $('#modal_roms').on('hidden.bs.modal', async function () {
         //check again if required roms are there when user decides to exit rom-dialog 
         if(required_roms_loaded == false)
         {//if they are still missing ... we make the decision for the user and 
          //just load the open roms for him instead ...
-            fetchOpenROMS();
+            await fetchOpenROMS();
         }
         load_parameter_link();
     });
@@ -1083,7 +1080,7 @@ wide_screen_switch.change( function() {
         }
         else
         {
-            var time_reset_to_ready_prompt = faster_open_roms_installed ? 300:2600;
+            var time_reset_to_ready_prompt = faster_open_roms_installed ? 600:2700;
             
             $('#alert_reset').show();
             wasm_reset();

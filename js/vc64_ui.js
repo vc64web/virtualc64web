@@ -44,6 +44,7 @@ function load_parameter_link()
 }
 
 var wasm_first_run=null;
+var required_roms_loaded =false;
 function message_handler(cores_msg)
 {
     var msg = UTF8ToString(cores_msg);
@@ -63,6 +64,10 @@ function message_handler(cores_msg)
             }
         },0);
  
+    }
+    else if(msg == "MSG_RUN")
+    {
+        required_roms_loaded=true;
     }
 }
 
@@ -272,9 +277,10 @@ function configure_file_dialog(reset=false)
             $("#file_slot_dialog_label").html(" "+file_slot_file_name);
             //configure file_slot
 
-            $("#auto_load").prop('checked', true);
-            $("#auto_press_play").prop('checked', true);
-            $("#auto_run").prop('checked', true);
+            var auto_load = false;
+            var auto_press_play = false;
+            var auto_run = false;
+            
             $("#button_insert_file").removeAttr("disabled");
             $("#div_zip_content").hide();
             $("#button_eject_zip").hide();
@@ -286,21 +292,22 @@ function configure_file_dialog(reset=false)
             {
                 $("#div_auto_load").hide();
                 $("#div_auto_press_play").hide();
-                $("#div_auto_run").show();
+                $("#div_auto_run").show(); 
+                auto_run = true;
                 $("#button_insert_file").html("flash program "+return_icon);
             }
             else if(file_slot_file_name.match(/[.]tap$/i)) 
             {
-                $("#div_auto_load").show();
-                $("#div_auto_press_play").show();
-                $("#div_auto_run").show();
+                $("#div_auto_load").show(); auto_load = true;
+                $("#div_auto_press_play").show(); auto_press_play = true;
+                $("#div_auto_run").show(); auto_run = true;
                 $("#button_insert_file").html("insert tape"+return_icon);
             }
             else if(file_slot_file_name.match(/[.](d64|g64)$/i)) 
             {
-                $("#div_auto_load").show();
+                $("#div_auto_load").show();  auto_load = true;
                 $("#div_auto_press_play").hide();
-                $("#div_auto_run").show();
+                $("#div_auto_run").show(); auto_run = true;
                 $("#button_insert_file").html("insert disk"+return_icon);
                 
                 if (localStorage.getItem('vc1541_rom.bin')==null)
@@ -396,7 +403,19 @@ function configure_file_dialog(reset=false)
                 $("#button_insert_file").attr("disabled", true);
             }
 
-            $("#modal_file_slot").modal();
+            $("#auto_load").prop('checked', auto_load);
+            $("#auto_press_play").prop('checked', auto_press_play);
+            $("#auto_run").prop('checked', auto_run);
+
+
+            if(file_slot_file_name.match(/[.](prg|t64|crt)$/i))
+            {
+                insert_file();
+            }
+            else
+            { //when tap,g64,d64 or zip show file options dialog
+                $("#modal_file_slot").modal();
+            }
         }    
 
     } catch(e) {
@@ -752,6 +771,12 @@ function InitWrappers() {
 
 
     $('#modal_roms').on('hidden.bs.modal', function () {
+        //check again if required roms are there when user decides to exit rom-dialog 
+        if(required_roms_loaded == false)
+        {//if they are still missing ... we make the decision for the user and 
+         //just load the open roms for him instead ...
+            fetchOpenROMS();
+        }
         load_parameter_link();
     });
 
@@ -955,7 +980,6 @@ wide_screen_switch.change( function() {
         $("#filedialog").val(''); //clear file slot after file has been loaded
     });
 
-
     $( "#modal_file_slot" ).keydown(event => {
             if(event.key === "Enter" && $("#button_insert_file").attr("disabled")!=true)
             {
@@ -966,7 +990,7 @@ wide_screen_switch.change( function() {
     );
 
     reset_before_load=false;
-    $("#button_insert_file").click(function() 
+    insert_file = function() 
     {   
         if($('#div_zip_content').is(':visible'))
         {
@@ -974,9 +998,9 @@ wide_screen_switch.change( function() {
             return;
         }
         
-        do_auto_load = $("#auto_load").is(":visible") && $("#auto_load").prop('checked')
-        do_auto_run = $("#auto_run").is(":visible") && $("#auto_run").prop('checked');
-        do_auto_press_play=$("#auto_press_play").is(":visible") && $("#auto_press_play").prop('checked');
+        do_auto_load = $("#auto_load").prop('checked')
+        do_auto_run =  $("#auto_run").prop('checked');
+        do_auto_press_play= $("#auto_press_play").prop('checked');
 
         $('#modal_file_slot').modal('hide');
 
@@ -1039,11 +1063,14 @@ wide_screen_switch.change( function() {
         {
             $("#button_run").click();
         }
-        
+        var faster_open_roms_installed = $("#rom_basic").attr("src").match("mega65") != null;
         if(reset_before_load == false)
         {
+            //the roms differ from cold-start to ready prompt, orig-roms 3300ms and open-roms 250ms   
             var time_since_start=Date.now()-wasm_first_run;
-            if(time_since_start>3300)
+            var time_coldstart_to_ready_prompt = faster_open_roms_installed ? 300:3300;
+            
+            if(time_since_start>time_coldstart_to_ready_prompt)
             {
                 execute_load();
             }
@@ -1051,21 +1078,23 @@ wide_screen_switch.change( function() {
             {
                 setTimeout(() => {  
                     execute_load();
-                }, 3300 - time_since_start);
-            }            
+                }, time_coldstart_to_ready_prompt - time_since_start);
+            }
         }
         else
         {
+            var time_reset_to_ready_prompt = faster_open_roms_installed ? 300:2600;
+            
             $('#alert_reset').show();
             wasm_reset();
             setTimeout(() => {
                 execute_load();
                 $('#alert_reset').hide();
                 reset_before_load=false;
-            }, 2600);
+            }, time_reset_to_ready_prompt);
         }
     }
-    );
+    $("#button_insert_file").click(insert_file);
     
 
     $('#modal_take_snapshot').on('hidden.bs.modal', function () {

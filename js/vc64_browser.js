@@ -12,33 +12,25 @@ function setup_browser_interface()
     }
 
     document.getElementById('sel_browser_snapshots').onclick = async function(){
-        while(get_data_collector('csdb').busy)
-        {
-            console.log('collector is busy ...');
-            await sleep(250);
-        }
-
+        await get_data_collector('csdb').wait_until_finish();
+ 
         $('#sel_browser_snapshots').parent().removeClass('btn-secondary').removeClass('btn-primary')
         .addClass('btn-primary');
         $('#sel_browser_csdb').parent().removeClass('btn-secondary').removeClass('btn-primary')
         .addClass('btn-secondary');
         browser_datasource='snapshots';
-        search_term=''; $('#search').val('');
+        search_term=''; $('#search').val('').attr("placeholder", "search snapshots (local browser storage)");
         load_browser('snapshots');
     }
 
     document.getElementById('sel_browser_csdb').onclick = async function(){
-        while(get_data_collector('snapshots').busy)
-        {
-            console.log('collector is busy ...');
-            await sleep(250);
-        }
+        await get_data_collector('snapshots').wait_until_finish();
 
         $('#sel_browser_csdb').parent().removeClass('btn-secondary').removeClass('btn-primary')
         .addClass('btn-primary');
         $('#sel_browser_snapshots').parent().removeClass('btn-secondary').removeClass('btn-primary')
         .addClass('btn-secondary');
-        search_term=''; $('#search').val('');
+        search_term=''; $('#search').val('').attr("placeholder", "search inside csdb.dk");
         load_browser('csdb');
     }
 
@@ -65,26 +57,23 @@ function setup_browser_interface()
     //button in navbar menu
     document.getElementById('button_snapshots').onclick = async function() 
     {
-        load_browser(current_browser_datasource);
+        await load_browser(current_browser_datasource);
         if(snapshot_browser_first_click)
         {//if there are no taken snapshots -> select csdb
             snapshot_browser_first_click=false;
-
-            while(get_data_collector("snapshots").busy)
-            {
-                await sleep(200);
-            }
-            if(get_data_collector("snapshots").total_count==0)
-            {
+            var snapshot_collector=get_data_collector("snapshots");
+            //wait until snapshots are a loaded
+            await snapshot_collector.wait_until_finish();
+            //and now look into snapshots
+            if(snapshot_collector.total_count==0)
+            { 
                 $('#sel_browser_csdb').click();   
             }
-        }
-
-        
+        }   
     }
 }
 
-function load_browser(datasource_name)
+async function load_browser(datasource_name)
 {
     current_browser_datasource=datasource_name;
 
@@ -193,11 +182,32 @@ function load_browser(datasource_name)
 var collectors = {
     snapshots: {
         total_count: 0,
+        set_busy: function (busy_value) 
+        { 
+            console.log("snapshot.busy="+busy_value);
+            this.busy = busy_value;
+        },
         busy: false,
+        wait_until_finish: async function() {
+            var i=0;
+            console.log(`snapshot.check on busy in waituntil busy=`+this.busy);
+            while(this.busy)
+            {
+                console.log(`snapshots collector is busy since ${i*10}ms`);
+                await sleep(100);
+                i++;
+            }
+        },
         needs_reload: () => true,
-        search: async function (row_renderer){ this.load(row_renderer);},
+        search: async function (row_renderer){
+            console.log("snapshot search");  
+            await this.wait_until_finish(); 
+            this.load(row_renderer);
+        },
         load: async function (row_renderer){
-            this.busy = true;
+            console.log("snapshot load");
+            await this.wait_until_finish(); 
+            this.set_busy(true);
             try
             {
                 //first load autosave snapshots
@@ -221,14 +231,17 @@ var collectors = {
                     for(var t=0; t<app_titles.length;t++)
                     {
                         var app_title=app_titles[t];
-                        get_snapshots_for_app_title(app_title, row_renderer); 
+                        if(search_term == '' || app_title.match(search_term) != null)
+                        {
+                            get_snapshots_for_app_title(app_title, row_renderer);
+                        }
                     }
+                    get_data_collector('snapshots').set_busy(false);
                 }
                 await get_stored_app_titles(store_renderer);
             }
             finally
             {
-                this.busy=false;
             }
         },
         draw_item_into_canvas: function (app_title, teaser_canvas, item){
@@ -325,6 +338,21 @@ var collectors = {
 
     csdb: {
         busy: false,
+        set_busy: function (busy_value) 
+        { 
+            console.log("csdb.busy="+busy_value);
+            this.busy = busy_value;
+        },
+        wait_until_finish: async function() {
+            var i=0;
+            console.log(`csdb.check on busy in waituntil busy=`+this.busy);
+            while(this.busy)
+            {
+                console.log(`csdb collector is busy since ${i*10}ms`);
+                await sleep(100);
+                i++;
+            }
+        },
         all_ids: [],
         all_items: [],
         loaded_feeds: null,
@@ -335,7 +363,8 @@ var collectors = {
             return already_loaded_collector != this || this.loaded_feeds == null || last_load_was_a_search;
         },
         search: async function (row_renderer){
-            this.busy = true;
+            await this.wait_until_finish();
+            this.set_busy(true);
             last_load_was_a_search=true;
             try
             {
@@ -393,7 +422,21 @@ var collectors = {
                             }
                         }
                         this.loaded_search[this.row_name] = items;
-                        row_renderer(this.row_name,items);
+                        
+                        var row_items = [];
+                        for(item of items)
+                        {
+                            row_items.push(item);
+                            if(row_items.length == 3)
+                            {
+                                row_renderer("",row_items);
+                                row_items=[];
+                            }
+                        }
+                        if(row_items.length > 0)
+                        {
+                            row_renderer("",row_items);
+                        }
                     }
                     catch {}
                 }
@@ -404,19 +447,25 @@ var collectors = {
             }
             finally
             {
-                this.busy=false;
+                this.set_busy(false);
             }
         },
         load: async function (row_renderer){
-            this.busy = true;
+            await this.wait_until_finish();
+            this.set_busy(true);
             last_load_was_a_search=false;
             try
             {
                 //this.loaded_feeds = null; //force reload
                 if(this.loaded_feeds!=null)
                 {
+                    this.all_items=[];
                     for(var row_key in this.loaded_feeds)
                     {
+                        for(feed_item of this.loaded_feeds[row_key])
+                        {
+                            this.all_items[feed_item.id]=feed_item;
+                        }
                         row_renderer(row_key, this.loaded_feeds[row_key]);
                     }
                     return;
@@ -466,6 +515,7 @@ var collectors = {
                         }
                         this.loaded_feeds[this.row_name] = items;
                         row_renderer(this.row_name,items);
+                        //await sleep(200);
                     }
                     catch {}
                 }
@@ -496,14 +546,10 @@ var collectors = {
 
                 this.row_name='top games';
                 await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=11&depth=1.5").then( webservice_loader );
-
-//                this.row_name='suche';
-//                await fetch("https://csdb.dk/webservice/?type=search&stype=release&q=mail%20order&depth=1.5").then( webservice_loader );
-
             }
             finally
             {
-                this.busy=false;
+                this.set_busy(false);
             }
         },
         draw_item_into_canvas: function (app_title, teaser_canvas, item){

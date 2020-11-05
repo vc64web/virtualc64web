@@ -2,8 +2,15 @@
 var current_browser_datasource='snapshots';
 var already_loaded_collector = null;
 var snapshot_browser_first_click=true;
+var search_term='';
 function setup_browser_interface()
 {
+    document.getElementById('search').onchange = async function(){
+        //window.alert('suche:'+ $('#search').val());
+        search_term=$('#search').val();
+        load_browser(current_browser_datasource);
+    }
+
     document.getElementById('sel_browser_snapshots').onclick = async function(){
         while(get_data_collector('csdb').busy)
         {
@@ -16,6 +23,7 @@ function setup_browser_interface()
         $('#sel_browser_csdb').parent().removeClass('btn-secondary').removeClass('btn-primary')
         .addClass('btn-secondary');
         browser_datasource='snapshots';
+        search_term=''; $('#search').val('');
         load_browser('snapshots');
     }
 
@@ -30,6 +38,7 @@ function setup_browser_interface()
         .addClass('btn-primary');
         $('#sel_browser_snapshots').parent().removeClass('btn-secondary').removeClass('btn-primary')
         .addClass('btn-secondary');
+        search_term=''; $('#search').val('');
         load_browser('csdb');
     }
 
@@ -53,7 +62,7 @@ function setup_browser_interface()
         }
     });
 
-
+    //button in navbar menu
     document.getElementById('button_snapshots').onclick = async function() 
     {
         load_browser(current_browser_datasource);
@@ -91,7 +100,7 @@ function load_browser(datasource_name)
     //-- build snapshot feed
     var collector=get_data_collector(datasource_name);
 
-    if(collector.needs_reload() == false)
+    if(collector.needs_reload() == false && search_term=='')
     {
         return;
     }
@@ -167,7 +176,14 @@ function load_browser(datasource_name)
     }
 
     //start the loading process
-    collector.load(row_renderer);
+    if(search_term=='')
+    {
+        collector.load(row_renderer);
+    }
+    else
+    {
+        collector.search(row_renderer);
+    }
     already_loaded_collector=collector; 
 }
 
@@ -179,6 +195,7 @@ var collectors = {
         total_count: 0,
         busy: false,
         needs_reload: () => true,
+        search: async function (row_renderer){ this.load(row_renderer);},
         load: async function (row_renderer){
             this.busy = true;
             try
@@ -311,12 +328,88 @@ var collectors = {
         all_ids: [],
         all_items: [],
         loaded_feeds: null,
+        loaded_search: null,
+        last_load_was_a_search: false,
         needs_reload: function ()
         { 
-            return already_loaded_collector != this || this.loaded_feeds == null;
+            return already_loaded_collector != this || this.loaded_feeds == null || last_load_was_a_search;
+        },
+        search: async function (row_renderer){
+            this.busy = true;
+            last_load_was_a_search=true;
+            try
+            {
+                //this.loaded_feeds = null; //force reload
+/*                if(this.loaded_feeds!=null)
+                {
+                    for(var row_key in this.loaded_feeds)
+                    {
+                        row_renderer(row_key, this.loaded_feeds[row_key]);
+                    }
+                    return;
+                }
+*/
+                this.all_ids= [];
+                this.all_items= [];
+                this.loaded_search = [];
+                var webservice_loader = async response => {
+                    try{
+                        var items=[];
+
+                        var text = await response.text();
+                        //alert(text);
+                        var parser = new DOMParser();
+                        var xmlDoc = parser.parseFromString(text,"text/xml");
+
+                        var releases = xmlDoc.getElementsByTagName("Release");
+
+                        for(var xml_item of releases)
+                        {
+                            var id = xml_item.getElementsByTagName("ID")[0].textContent;
+
+                            if(this.all_ids.includes(id))
+                            {//this entry was already in another feed, skip it
+                                continue;
+                            }
+                            this.all_ids.push(id);
+
+                            var new_item = new Object();
+                            new_item.id=id;
+                            new_item.name = property(xml_item,"Name");
+                            new_item.type = property(xml_item,"Type");
+                            new_item.date = new Date(
+                                property(xml_item,"ReleaseYear"),
+                                property(xml_item,"ReleaseMonth")-1,  //month is 0 indexed
+                                property(xml_item,"ReleaseDay")
+                            ).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+                            new_item.screen_shot = property(xml_item,"ScreenShot");
+                            new_item.links = property_list(xml_item,"Link", matches=/http.*?[.](zip|prg|t64|d64|g64|tap|crt)$/i);
+
+                            //alert(`id=${id}, name=${name}, screen_shot=${screen_shot}`);
+                            if(new_item.screen_shot!= null)
+                            {
+                                this.all_items[id] = new_item;
+                                items.push(new_item);
+                            }
+                        }
+                        this.loaded_search[this.row_name] = items;
+                        row_renderer(this.row_name,items);
+                    }
+                    catch {}
+                }
+
+                this.row_name='suche';
+                await fetch(`https://csdb.dk/webservice/?type=search&stype=release&q=${search_term}&depth=1.5`).then( webservice_loader );
+
+            }
+            finally
+            {
+                this.busy=false;
+            }
         },
         load: async function (row_renderer){
             this.busy = true;
+            last_load_was_a_search=false;
             try
             {
                 //this.loaded_feeds = null; //force reload
@@ -403,6 +496,9 @@ var collectors = {
 
                 this.row_name='top games';
                 await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=11&depth=1.5").then( webservice_loader );
+
+//                this.row_name='suche';
+//                await fetch("https://csdb.dk/webservice/?type=search&stype=release&q=mail%20order&depth=1.5").then( webservice_loader );
 
             }
             finally

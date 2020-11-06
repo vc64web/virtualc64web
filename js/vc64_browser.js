@@ -231,7 +231,7 @@ var collectors = {
                     for(var t=0; t<app_titles.length;t++)
                     {
                         var app_title=app_titles[t];
-                        if(search_term == '' || app_title.match(search_term) != null)
+                        if(search_term == '' || app_title.toLowerCase().indexOf(search_term.toLowerCase()) >= 0)
                         {
                             get_snapshots_for_app_title(app_title, row_renderer);
                         }

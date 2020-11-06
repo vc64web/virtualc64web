@@ -953,6 +953,11 @@ wide_screen_switch.change( function() {
     */
     document.getElementById('button_reset').onclick = function() {
         wasm_reset();
+
+        if(!is_running())
+        {
+            $("#button_run").click();
+        }
         //document.getElementById('canvas').focus();
         //alert('reset');
     }

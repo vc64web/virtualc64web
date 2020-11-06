@@ -73,6 +73,16 @@ function setup_browser_interface()
     }
 }
 
+
+
+var like_icon_filled = `<svg style="color:var(--red)" width="1.6em" height="1.6em" viewBox="0 0 16 16" class="bi bi-heart-fill" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/>
+</svg>`; 
+var like_icon_empty = `<svg style="color:var(--gray)" width="1.5em" height="1.5em" viewBox="0 0 16 16" class="bi bi-heart" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" d="M8 2.748l-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143c.06.055.119.112.176.171a3.12 3.12 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15z"/>
+</svg>`;
+
+
 async function load_browser(datasource_name)
 {
     current_browser_datasource=datasource_name;
@@ -89,10 +99,17 @@ async function load_browser(datasource_name)
     //-- build snapshot feed
     var collector=get_data_collector(datasource_name);
 
+    if(collector.can_like("",null))
+    {
+        $("#div_like").html(`<button id="like_filter" class="btn btn-sm icon">${like_icon_empty}</button>`);
+    }
+
+
     if(collector.needs_reload() == false && search_term=='')
     {
         return;
     }
+
     //empty all feeds
     $('#container_snapshots').empty();
 
@@ -110,8 +127,14 @@ async function load_browser(datasource_name)
             the_html += '<button id="delete_snap_'+item.id+'" type="button" style="position:absolute;top:0;right:0;padding:0;" class="btn btn-sm icon">'+x_icon+'</button>';
         }
 
-       //the_html +='<div class="card-body"><p class="card-text">Some quick example</p></div>';
-        
+        if(collector.can_like(app_title, item))
+        {
+            var like_icon = collector.is_like(app_title, item) ? like_icon_filled : like_icon_empty;
+            the_html += '<button id="like_snap_'+item.id+'" type="button" style="position:absolute;top:0;right:0;padding:0;" class="btn btn-sm icon">'+like_icon+'</button>';
+        }
+
+
+
         var label = item.name;
         if(label !== undefined && label != null)
         {
@@ -143,8 +166,11 @@ async function load_browser(datasource_name)
         {
             var canvas_id= "canvas_snap_"+app_snaps[z].id;
             var delete_id= "delete_snap_"+app_snaps[z].id;
+            var like_id= "like_snap_"+app_snaps[z].id;
             var canvas = document.getElementById(canvas_id);
             var delete_btn = document.getElementById(delete_id);
+            var like_btn = document.getElementById(like_id);
+
             if(delete_btn != null)
             {
                 delete_btn.onclick = function() {
@@ -153,6 +179,15 @@ async function load_browser(datasource_name)
                     delete_snapshot_per_id(id);
                     $("#card_snap_"+id).remove();
                     hide_all_tooltips();
+                };
+            }
+
+            if(like_btn != null)
+            {
+                like_btn.onclick = function() {
+                    let id = this.id.match(/like_snap_(.*)/)[1];
+                    var like_val = collector.set_like(app_title, id);
+                    $(this).html(like_val ? like_icon_filled : like_icon_empty);
                 };
             }
 
@@ -313,6 +348,9 @@ var collectors = {
         },
         can_delete: function(app_title, the_id){
             return app_title == 'auto_save' ? false: true;
+        },
+        can_like: function(app_title, item){
+            return false;
         },
         //helper method...
         copy_snapshot_to_canvas: function(snapshot_ptr, canvas, width, height){ 
@@ -800,11 +838,35 @@ var collectors = {
             });
 
             $('#snapshotModal').modal('hide');
-
             return; 
         },
         can_delete: function(app_title, the_id){
             return false;
+        },
+        can_like: function(app_title, item){
+            if(this.like_values == null)
+            {
+               this.like_values = JSON.parse(load_setting('likes', '{}'));
+            }
+            return true;
+        },
+        is_like: function(app_title, item){
+            return this.like_values[item.id] === undefined || this.like_values[item.id] == false ? false:true;
+        },
+        like_values: null,  
+        set_like: function(app_title, id){
+            if(this.like_values[id] === undefined)
+            {
+                this.like_values[id]= true;
+            }
+            else
+            {
+                this.like_values[id] = this.like_values[id] == true ? false:true;
+            }
+
+            //hier die positiven werte abspeichern z.b. in 
+            save_setting('likes', JSON.stringify(this.like_values));
+            return this.like_values[id];
         }
     }
 

@@ -943,7 +943,6 @@ wide_screen_switch.change( function() {
         }
     });
     
-
     /*document.getElementById('button_fullscreen').onclick = function() {
         if (wasm_toggleFullscreen != null) {
             wasm_toggleFullscreen();

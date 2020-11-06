@@ -249,4 +249,16 @@ button[id^="detail_run"] {
     color: var(--secondary);
     border: none;
 }
+
+[data-theme="dark"] #search {
+    background-color: var(--dark);
+    color: var(--light);
+    border-color: var(--blue);
+    border-left: none;
+}
+
+[data-theme="dark"] #search_symbol {
+    background-color: #0062cc;
+    border: none;
+    color: var(--light);
 }

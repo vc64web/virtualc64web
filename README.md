@@ -1,11 +1,21 @@
-# virtualC64 web edition
+# virtualC64 web edition ( vc64web )
 
 ![alt Logo](http://www.dirkwhoffmann.de/software/images/banner-vcweb3.jpg)
 
 ## info
-this project aims to build a fancy, cool and stylish version of dirks VirtualC64 emulator with pure HTML5 techniques for desktop browsers and touch devices like phones and tablets ... 
+vc64web uses pure HTML5 techniques and is runnable on modern desktop browsers and also on web browsers for touch devices like phones and tablets ... 
 
-The base is a copy of virtualC64 without its usual mac GUI in v3.4b1 master branch March 3 2020 latest commit point fe1629c
+it supports PWA standard which gives it the appearance of an nearly native app e.g. runs offline, no browser addressbar and so on  ... to install it nativley as a PWA on iOS devices for example -> save it to homescreen 
+
+The emulation core is a copy of virtualC64 without its usual mac GUI in v3.4b1 master branch March 3 2020 latest commit point fe1629c
+
+some highlighted features: 
+* supports external gamecontroller
+* supports touch device as joystick
+* free definable action buttons with own javascript action scripts for creating bot controller support (e.g. aimbots, auto defense bot, etc...)   
+* snaphot saving to the local browser web storage ...
+* supports an online interface to the csdb.dk
+* supports multivolumne titles in zip archives
 
 
 ## start up VirtualC64Web right now in your browser
@@ -45,9 +55,11 @@ _note_: start.sh starts an webserver with URL base path pointing to the folder w
 * action script for the self composed action sequence overlay buttons 
 * self designed editable javascript miniprograms which for example are able to control a game ... yes ... bots
 * Demo-Scene-Browser: v64web implements an easy browsable online interface to the CSDb scene db with lots of the cool demos 
+* polishing of the scene browser UI component ... show more infos about each entry
+* added search to the collector interface for local stored snapshots and csdb
 
 ## next goals
-* polishing of the scene browser UI component ... show more infos about each entry
+* adding favourites feature to the collector interface, to be able to like entries and easily filter them 
 * new  modern boot sequence/animation  replacing the standard emscripten visual boot code 
 * javascript interface for more settings of the emulation like (greydotbugemulation) 
 * export/import of a complete snapshot library as one big zip file 

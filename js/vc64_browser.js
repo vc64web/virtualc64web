@@ -422,21 +422,21 @@ var collectors = {
                             }
                         }
                         this.loaded_search[this.row_name] = items;
-                        
-                        var row_items = [];
+
+                        var type_rows = [];
                         for(item of items)
                         {
-                            row_items.push(item);
-                            if(row_items.length == 3)
+                            if(type_rows[item.type]==null)
                             {
-                                row_renderer("",row_items);
-                                row_items=[];
+                                type_rows[item.type] = [];
                             }
+                            type_rows[item.type].push(item);
                         }
-                        if(row_items.length > 0)
+                        for(row_type in type_rows)
                         {
-                            row_renderer("",row_items);
+                            row_renderer(row_type,type_rows[row_type]);
                         }
+
                     }
                     catch {}
                 }

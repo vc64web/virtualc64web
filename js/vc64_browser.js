@@ -1,4 +1,3 @@
-
 var current_browser_datasource='snapshots';
 var already_loaded_collector = null;
 var snapshot_browser_first_click=true;
@@ -8,7 +7,7 @@ function setup_browser_interface()
     document.getElementById('search').onchange = async function(){
         //window.alert('suche:'+ $('#search').val());
         search_term=$('#search').val();
-        load_browser(current_browser_datasource);
+        load_browser(current_browser_datasource, search_term.length>0 ? 'search':'feeds');
     }
 
     document.getElementById('sel_browser_snapshots').onclick = async function(){
@@ -83,7 +82,7 @@ var like_icon_empty = `<svg style="color:var(--gray)" width="1.5em" height="1.5e
 </svg>`;
 
 
-async function load_browser(datasource_name)
+async function load_browser(datasource_name, command="feeds")
 {
     current_browser_datasource=datasource_name;
 
@@ -102,10 +101,14 @@ async function load_browser(datasource_name)
     if(collector.can_like("",null))
     {
         $("#div_like").html(`<button id="like_filter" class="btn btn-sm icon">${like_icon_empty}</button>`);
+    
+        document.getElementById('like_filter').onclick= async function(){
+            load_browser(current_browser_datasource, "favourites");
+        }
     }
 
 
-    if(collector.needs_reload() == false && search_term=='')
+    if(collector.needs_reload() == false && command=="feeds")
     {
         return;
     }
@@ -130,7 +133,7 @@ async function load_browser(datasource_name)
         if(collector.can_like(app_title, item))
         {
             var like_icon = collector.is_like(app_title, item) ? like_icon_filled : like_icon_empty;
-            the_html += '<button id="like_snap_'+item.id+'" type="button" style="position:absolute;top:0;right:0;padding:0;" class="btn btn-sm icon">'+like_icon+'</button>';
+            the_html += '<button id="like_snap_'+item.id+'" type="button" style="position:absolute;top:3px;right:3px;padding:0;" class="btn btn-sm icon">'+like_icon+'</button>';
         }
 
 
@@ -200,14 +203,19 @@ async function load_browser(datasource_name)
     }
 
     //start the loading process
-    if(search_term=='')
+    if(command=="feeds")
     {
         collector.load(row_renderer);
     }
-    else
+    else if(command == "search")
     {
         collector.search(row_renderer);
     }
+    else if(command == "favourites")
+    {
+        collector.favourites(row_renderer);
+    }
+
     already_loaded_collector=collector; 
 }
 
@@ -400,22 +408,27 @@ var collectors = {
         { 
             return already_loaded_collector != this || this.loaded_feeds == null || last_load_was_a_search;
         },
-        search: async function (row_renderer){
+        map_xml_to_item: function (xml_item)
+        {
+            var new_item = new Object();
+            new_item.id=xml_item.getElementsByTagName("ID")[0].textContent;
+            new_item.name = property(xml_item,"Name");
+            new_item.type = property(xml_item,"Type");
+            new_item.date = new Date(
+                property(xml_item,"ReleaseYear"),
+                property(xml_item,"ReleaseMonth")-1,  //month is 0 indexed
+                property(xml_item,"ReleaseDay")
+            ).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+            new_item.screen_shot = property(xml_item,"ScreenShot");
+            new_item.links = property_list(xml_item,"Link", matches=/http.*?[.](zip|prg|t64|d64|g64|tap|crt)$/i);
+            return new_item;
+        },
+        favourites: async function (row_renderer){
             await this.wait_until_finish();
             this.set_busy(true);
             last_load_was_a_search=true;
             try
             {
-                //this.loaded_feeds = null; //force reload
-/*                if(this.loaded_feeds!=null)
-                {
-                    for(var row_key in this.loaded_feeds)
-                    {
-                        row_renderer(row_key, this.loaded_feeds[row_key]);
-                    }
-                    return;
-                }
-*/
                 this.all_ids= [];
                 this.all_items= [];
                 this.loaded_search = [];
@@ -440,18 +453,80 @@ var collectors = {
                             }
                             this.all_ids.push(id);
 
-                            var new_item = new Object();
-                            new_item.id=id;
-                            new_item.name = property(xml_item,"Name");
-                            new_item.type = property(xml_item,"Type");
-                            new_item.date = new Date(
-                                property(xml_item,"ReleaseYear"),
-                                property(xml_item,"ReleaseMonth")-1,  //month is 0 indexed
-                                property(xml_item,"ReleaseDay")
-                            ).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-                            new_item.screen_shot = property(xml_item,"ScreenShot");
-                            new_item.links = property_list(xml_item,"Link", matches=/http.*?[.](zip|prg|t64|d64|g64|tap|crt)$/i);
+                            var new_item = this.map_xml_to_item(xml_item);
+  
+                            //alert(`id=${id}, name=${name}, screen_shot=${screen_shot}`);
+                            if(new_item.screen_shot!= null)
+                            {
+                                this.all_items[id] = new_item;
+                                items.push(new_item);
+                            }
+                        }
+                        this.loaded_search[this.row_name] = items;
 
+                        var type_rows = [];
+                        for(item of items)
+                        {
+                            if(type_rows[item.type]==null)
+                            {
+                                type_rows[item.type] = [];
+                            }
+                            type_rows[item.type].push(item);
+                        }
+                        for(row_type in type_rows)
+                        {
+                            row_renderer(row_type,type_rows[row_type]);
+                        }
+
+                    }
+                    catch {}
+                }
+
+                
+                for(id in this.like_values)
+                {
+                    this.row_name='suche';
+                    var csdb_detail_url = `https://csdb.dk/webservice/?type=release&id=${id}&depth=1.5`;
+                    await fetch(csdb_detail_url).then( webservice_loader );
+                }
+            }
+            finally
+            {
+                this.set_busy(false);
+            }
+        },
+        search: async function (row_renderer){
+            await this.wait_until_finish();
+            this.set_busy(true);
+            last_load_was_a_search=true;
+            try
+            {
+                this.all_ids= [];
+                this.all_items= [];
+                this.loaded_search = [];
+                var webservice_loader = async response => {
+                    try{
+                        var items=[];
+
+                        var text = await response.text();
+                        //alert(text);
+                        var parser = new DOMParser();
+                        var xmlDoc = parser.parseFromString(text,"text/xml");
+
+                        var releases = xmlDoc.getElementsByTagName("Release");
+
+                        for(var xml_item of releases)
+                        {
+                            var id = xml_item.getElementsByTagName("ID")[0].textContent;
+
+                            if(this.all_ids.includes(id))
+                            {//this entry was already in another feed, skip it
+                                continue;
+                            }
+                            this.all_ids.push(id);
+
+                            var new_item = this.map_xml_to_item(xml_item);
+  
                             //alert(`id=${id}, name=${name}, screen_shot=${screen_shot}`);
                             if(new_item.screen_shot!= null)
                             {
@@ -532,18 +607,8 @@ var collectors = {
                             }
                             this.all_ids.push(id);
 
-                            var new_item = new Object();
-                            new_item.id=id;
-                            new_item.name = property(xml_item,"Name");
-                            new_item.type = property(xml_item,"Type");
-                            new_item.date = new Date(
-                                property(xml_item,"ReleaseYear"),
-                                property(xml_item,"ReleaseMonth")-1,  //month is 0 indexed
-                                property(xml_item,"ReleaseDay")
-                            ).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-                            new_item.screen_shot = property(xml_item,"ScreenShot");
-                            new_item.links = property_list(xml_item,"Link", matches=/http.*?[.](zip|prg|t64|d64|g64|tap|crt)$/i);
-
+                            var new_item = this.map_xml_to_item(xml_item);
+  
                             //alert(`id=${id}, name=${name}, screen_shot=${screen_shot}`);
                             if(new_item.screen_shot!= null)
                             {
@@ -862,6 +927,10 @@ var collectors = {
             else
             {
                 this.like_values[id] = this.like_values[id] == true ? false:true;
+                if(this.like_values[id] == false)
+                {
+                    delete this.like_values[id];
+                }
             }
 
             //hier die positiven werte abspeichern z.b. in 

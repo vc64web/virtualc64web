@@ -213,14 +213,17 @@ async function load_browser(datasource_name, command="feeds")
     //start the loading process
     if(command=="feeds")
     {
+        $("#like_filter").html(`${like_icon_empty}`);
         collector.load(row_renderer);
     }
     else if(command == "search")
     {
+        $("#like_filter").html(`${like_icon_empty}`);
         collector.search(row_renderer);
     }
     else if(command == "favourites")
     {
+        $("#like_filter").html(`${like_icon_filled}`);
         collector.favourites(row_renderer);
     }
 

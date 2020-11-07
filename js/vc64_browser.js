@@ -84,6 +84,7 @@ var like_icon_empty = `<svg style="color:var(--gray)" width="1.5em" height="1.5e
 
 async function load_browser(datasource_name, command="feeds")
 {
+    hide_all_tooltips();
     var collector_in_duty=get_data_collector(datasource_name);    
     await collector_in_duty.wait_until_finish();
 

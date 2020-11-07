@@ -103,7 +103,8 @@ async function load_browser(datasource_name, command="feeds")
 
     if(collector.can_like("",null))
     {
-        $("#div_like").html(`<button id="like_filter" class="btn btn-sm icon mt-1">${like_icon_empty}</button>`);
+        $("#div_like").html(`<button id="like_filter" class="btn btn-sm icon mt-1"
+        data-toggle="tooltip" data-placement="top" title="show favourites only">${like_icon_empty}</button>`);
     
         document.getElementById('like_filter').onclick= async function(){
             load_browser(current_browser_datasource, "favourites");

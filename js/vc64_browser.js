@@ -483,7 +483,7 @@ var collectors = {
                 for(id in this.like_values)
                 {
                     this.row_name='suche';
-                    var csdb_detail_url = `https://csdb.dk/webservice/?type=release&id=${id}&depth=1.5`;
+                    var csdb_detail_url = `https://csdb.dk/webservice/?type=release&id=${id}&depth=1.5&cache_me=true`;
                     await fetch(csdb_detail_url).then( webservice_loader );
                 }
 
@@ -500,9 +500,6 @@ var collectors = {
                 {
                     row_renderer(row_type,type_rows[row_type]);
                 }
-
-
-
 
             }
             finally

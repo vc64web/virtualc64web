@@ -26,7 +26,9 @@ self.addEventListener('fetch', evt => {
       return cache_res || fetch(evt.request).then(fetch_res => {
         return caches.open(cache_name).then(cache => {
           if(
-            evt.request.url.startsWith('https://csdb.dk/webservice/') ||
+            evt.request.url.startsWith('https://csdb.dk/webservice/') && 
+            !evt.request.url.endsWith('cache_me=true')
+            ||
             evt.request.url.startsWith('https://mega65.github.io/')
           )
           {

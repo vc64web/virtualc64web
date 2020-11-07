@@ -84,6 +84,9 @@ var like_icon_empty = `<svg style="color:var(--gray)" width="1.5em" height="1.5e
 
 async function load_browser(datasource_name, command="feeds")
 {
+    var collector_in_duty=get_data_collector(datasource_name);    
+    await collector_in_duty.wait_until_finish();
+
     current_browser_datasource=datasource_name;
 
     internal_usersnapshots_enabled=false;
@@ -100,11 +103,15 @@ async function load_browser(datasource_name, command="feeds")
 
     if(collector.can_like("",null))
     {
-        $("#div_like").html(`<button id="like_filter" class="btn btn-sm icon">${like_icon_empty}</button>`);
+        $("#div_like").html(`<button id="like_filter" class="btn btn-sm icon mt-1">${like_icon_empty}</button>`);
     
         document.getElementById('like_filter').onclick= async function(){
             load_browser(current_browser_datasource, "favourites");
         }
+    }
+    else
+    {
+        $("#div_like").empty();
     }
 
 
@@ -403,6 +410,7 @@ var collectors = {
         all_items: [],
         loaded_feeds: null,
         loaded_search: null,
+        loaded_favourites: null,
         last_load_was_a_search: false,
         needs_reload: function ()
         { 
@@ -431,7 +439,7 @@ var collectors = {
             {
                 this.all_ids= [];
                 this.all_items= [];
-                this.loaded_search = [];
+                this.loaded_favourites = [];
                 var webservice_loader = async response => {
                     try{
                         var items=[];
@@ -462,22 +470,11 @@ var collectors = {
                                 items.push(new_item);
                             }
                         }
-                        this.loaded_search[this.row_name] = items;
-
-                        var type_rows = [];
                         for(item of items)
                         {
-                            if(type_rows[item.type]==null)
-                            {
-                                type_rows[item.type] = [];
-                            }
-                            type_rows[item.type].push(item);
+                            this.loaded_favourites.push(item);
                         }
-                        for(row_type in type_rows)
-                        {
-                            row_renderer(row_type,type_rows[row_type]);
-                        }
-
+ 
                     }
                     catch {}
                 }
@@ -489,6 +486,24 @@ var collectors = {
                     var csdb_detail_url = `https://csdb.dk/webservice/?type=release&id=${id}&depth=1.5`;
                     await fetch(csdb_detail_url).then( webservice_loader );
                 }
+
+                var type_rows = [];
+                for(item of this.loaded_favourites)
+                {
+                    if(type_rows[item.type]==null)
+                    {
+                        type_rows[item.type] = [];
+                    }
+                    type_rows[item.type].push(item);
+                }
+                for(row_type in type_rows)
+                {
+                    row_renderer(row_type,type_rows[row_type]);
+                }
+
+
+
+
             }
             finally
             {

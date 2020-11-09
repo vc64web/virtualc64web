@@ -237,7 +237,7 @@ async function load_browser(datasource_name, command="feeds")
 var collectors = {
     snapshots: {
         total_count: 0,
-        set_busy: async function (busy_value) 
+        set_busy: function (busy_value) 
         { 
             console.log("snapshot.busy="+busy_value);
             this.busy = busy_value;
@@ -405,7 +405,7 @@ var collectors = {
 
     csdb: {
         busy: false,
-        set_busy: async function (busy_value) 
+        set_busy: function (busy_value) 
         { 
             console.log("csdb.busy="+busy_value);
             this.busy = busy_value;

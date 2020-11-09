@@ -93,7 +93,9 @@ async function fetchOpenROMS(){
     
     fetch("https://mega65.github.io/open-roms/bin/basic_generic.rom").then( installer );
     fetch("https://mega65.github.io/open-roms/bin/kernal_generic.rom").then( installer );
-    fetch("https://mega65.github.io/open-roms/bin/chargen_openroms.rom").then( installer );
+//    fetch("https://mega65.github.io/open-roms/bin/chargen_openroms.rom").then( installer );
+    fetch("https://mega65.github.io/open-roms/bin/chargen_pxlfont_2.3.rom").then( installer );
+
 }
 
 
@@ -170,7 +172,10 @@ function load_roms(install_to_core){
         }
         else
         {
-            $("#rom_charset").attr("src", compare_header([0x3c, 0x66, 0x6e, 110, 96, 102], the_rom) ?
+            $("#rom_charset").attr("src", 
+            compare_header([0x3c, 0x66, 0x6e, 110, 96, 102], the_rom) ||
+            compare_header([0, 60, 102, 110,110, 96, 60], the_rom)
+            ?
             "img/rom_mega65.png":"img/rom.png");
             $("#button_delete_char_rom").show();
         }
@@ -310,6 +315,7 @@ function configure_file_dialog(reset=false)
                 if (localStorage.getItem('vc1541_rom.bin')==null)
                 {
                     $("#no_disk_rom_msg").show();
+                    $("#button_insert_file").attr("disabled", true);
                 }
             }
             else if(file_slot_file_name.match(/[.](crt)$/i)) 

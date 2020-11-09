@@ -51,8 +51,8 @@ color: var(--light) !important;
 }
 
 [data-theme="dark"] .custom-control-input:checked ~ .custom-control-label::before {
-border-color: var(--secondary) !important;
-background-color: var(--secondary) !important;
+border-color: var(--green) !important;
+background-color: var(--green) !important;
 }
 
 #port1, #port2 {

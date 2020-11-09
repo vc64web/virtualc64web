@@ -1075,7 +1075,7 @@ wide_screen_switch.change( function() {
         {
             //the roms differ from cold-start to ready prompt, orig-roms 3300ms and open-roms 250ms   
             var time_since_start=Date.now()-wasm_first_run;
-            var time_coldstart_to_ready_prompt = faster_open_roms_installed ? 300:3300;
+            var time_coldstart_to_ready_prompt = faster_open_roms_installed ? 400:3400;
             
             if(time_since_start>time_coldstart_to_ready_prompt)
             {
@@ -1090,7 +1090,7 @@ wide_screen_switch.change( function() {
         }
         else
         {
-            var time_reset_to_ready_prompt = faster_open_roms_installed ? 600:2700;
+            var time_reset_to_ready_prompt = faster_open_roms_installed ? 650:2800;
             
             $('#alert_reset').show();
             wasm_reset();

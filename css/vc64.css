@@ -262,3 +262,12 @@ button[id^="detail_run"] {
     border: none;
     color: var(--light);
 }
+
+#alert_wait {
+    z-index: 2000;
+    top: 40%;
+    left: 15%;
+    position: absolute;
+    width: 70%;
+    opacity: 0.83;
+}

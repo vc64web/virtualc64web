@@ -237,10 +237,19 @@ async function load_browser(datasource_name, command="feeds")
 var collectors = {
     snapshots: {
         total_count: 0,
-        set_busy: function (busy_value) 
+        set_busy: async function (busy_value) 
         { 
             console.log("snapshot.busy="+busy_value);
             this.busy = busy_value;
+
+            if(busy_value)
+            {
+                $('#alert_wait').show();
+            }
+            else
+            {
+                $('#alert_wait').hide();
+            }
         },
         busy: false,
         wait_until_finish: async function() {
@@ -396,10 +405,19 @@ var collectors = {
 
     csdb: {
         busy: false,
-        set_busy: function (busy_value) 
+        set_busy: async function (busy_value) 
         { 
             console.log("csdb.busy="+busy_value);
             this.busy = busy_value;
+
+            if(busy_value)
+            {
+                $('#alert_wait').show();
+            }
+            else
+            {
+                $('#alert_wait').hide();
+            }
         },
         wait_until_finish: async function() {
             var i=0;
@@ -635,7 +653,6 @@ var collectors = {
                         }
                         this.loaded_feeds[this.row_name] = items;
                         row_renderer(this.row_name,items);
-                        //await sleep(200);
                     }
                     catch {}
                 }

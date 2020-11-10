@@ -324,21 +324,23 @@ var collectors = {
                 var ctx = teaser_canvas.getContext("2d");
                 teaser_canvas.width = width;
                 teaser_canvas.height = height;
+                if(ctx!=null)
+                {
+                    imgData=ctx.createImageData(width,height);
+                
+                    var data = imgData.data;
+                    var src_data = item.data;
+                    snapshot_data = new Uint8Array(src_data, 40/* offset .. this number was a guess... */, data.length);
 
-                imgData=ctx.createImageData(width,height);
-            
-                var data = imgData.data;
-                var src_data = item.data;
-                snapshot_data = new Uint8Array(src_data, 40/* offset .. this number was a guess... */, data.length);
+                    for (var i = 0; i < data.length; i += 4) {
+                        data[i]     = snapshot_data[i+0]; // red
+                        data[i + 1] = snapshot_data[i+1]; // green
+                        data[i + 2] = snapshot_data[i+2]; // blue
+                        data[i + 3] = snapshot_data[i+3];
 
-                for (var i = 0; i < data.length; i += 4) {
-                    data[i]     = snapshot_data[i+0]; // red
-                    data[i + 1] = snapshot_data[i+1]; // green
-                    data[i + 2] = snapshot_data[i+2]; // blue
-                    data[i + 3] = snapshot_data[i+3];
-
+                    }
+                    ctx.putImageData(imgData,0,0); 
                 }
-                ctx.putImageData(imgData,0,0); 
             }
             return; 
         },
@@ -693,7 +695,10 @@ var collectors = {
             var ctx = teaser_canvas.getContext('2d');
             var img = new Image;
             img.onload = function(){
-                ctx.drawImage(img,0,0); // Or at whatever offset you like
+                if(ctx!=null && img != null)
+                {
+                    ctx.drawImage(img,0,0); // Or at whatever offset you like
+                }
             };
             if(item.screen_shot != null)
             {

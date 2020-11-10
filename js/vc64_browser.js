@@ -81,7 +81,6 @@ var like_icon_empty = `<svg style="color:var(--gray)" width="1.5em" height="1.5e
   <path fill-rule="evenodd" d="M8 2.748l-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143c.06.055.119.112.176.171a3.12 3.12 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15z"/>
 </svg>`;
 
-
 async function load_browser(datasource_name, command="feeds")
 {
     hide_all_tooltips();
@@ -144,8 +143,6 @@ async function load_browser(datasource_name, command="feeds")
             var like_icon = collector.is_like(app_title, item) ? like_icon_filled : like_icon_empty;
             the_html += '<button id="like_snap_'+item.id+'" type="button" style="position:absolute;top:3px;right:3px;padding:0;" class="btn btn-sm icon">'+like_icon+'</button>';
         }
-
-
 
         var label = item.name;
         if(label !== undefined && label != null)
@@ -784,8 +781,13 @@ var collectors = {
 
             var item = this.all_items[id];
 
+
+            
             var content = '<div class="container-xl">';
 
+            var like_icon = this.is_like(app_title, item) ? like_icon_filled : like_icon_empty;
+            content += `<button id="like_detail_${item.id}" type="button" style="position:absolute;top:10%;right:10%;padding:0;z-index:3000" class="btn btn-sm icon">${like_icon}</button>`;
+            
             content += '<div class="row justify-content-md-center">';
             content += '<div class="col col-md-12">';
                 content += `<image src="${item.screen_shot}" class="detail_screenshot"/>`;
@@ -855,6 +857,13 @@ var collectors = {
             $("#detail_content").html(content);
 
 
+            document.getElementById(`like_detail_${item.id}`).onclick = function() {
+                let id = this.id.match(/like_detail_(.*)/)[1];
+                var like_val = get_data_collector("csdb").set_like(app_title, id);
+                $(this).html(like_val ? like_icon_filled : like_icon_empty);
+                $(`#like_snap_${id}`).html(like_val ? like_icon_filled : like_icon_empty);
+            };
+
             link_id=0;
             for(var link of item.links)
             {
@@ -864,7 +873,6 @@ var collectors = {
                 });
                 link_id++;
             }
-
 
             var esc_on_detail=function( event ) {
                 event.stopPropagation();

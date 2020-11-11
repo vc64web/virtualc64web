@@ -6,11 +6,14 @@ var snapshot_browser_first_click=true;
 var search_term='';
 function setup_browser_interface()
 {
-    document.getElementById('search').onchange = async function(){
+
+    var search_func= async function(){
         //window.alert('suche:'+ $('#search').val());
         search_term=$('#search').val();
         load_browser(current_browser_datasource, search_term.length>0 ? 'search':'feeds');
     }
+    document.getElementById('search').onchange = search_func;
+    document.getElementById('search_symbol').onclick= search_func;
 
     document.getElementById('sel_browser_snapshots').onclick = async function(){
         await get_data_collector('csdb').wait_until_finish();

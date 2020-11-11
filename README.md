@@ -16,7 +16,7 @@ some highlighted features:
 * snaphot saving to the local browser web storage ...
 * includes an online interface to the csdb.dk named scene browser (powered by CSDb web service https://csdb.dk/webservice/)
 * supports multivolumne titles in zip archives
-* supports a link to a C64 files as an parameter (e.g.  https://dirkwhoffmann.github.io/virtualc64web/#http://csdb.dk/getinternalfile.php/205771/CopperBooze.prg )
+* supports direct start ... a link to a C64 file (zip, d64, ...) as an call parameter (e.g.  https://dirkwhoffmann.github.io/virtualc64web/#http://csdb.dk/getinternalfile.php/205771/CopperBooze.prg ) 
 
 
 ## start up VirtualC64Web right now in your browser

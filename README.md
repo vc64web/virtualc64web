@@ -14,8 +14,9 @@ some highlighted features:
 * supports touch device as joystick
 * free definable action buttons with own javascript action scripts for creating bot controller support (e.g. aimbots, auto defense bot, etc...)   
 * snaphot saving to the local browser web storage ...
-* supports an online interface to the csdb.dk (powered by CSDb web service https://csdb.dk/webservice/)
+* includes an online interface to the csdb.dk named scene browser (powered by CSDb web service https://csdb.dk/webservice/)
 * supports multivolumne titles in zip archives
+* supports a link to a C64 files as an parameter (e.g.  https://dirkwhoffmann.github.io/virtualc64web/#http://csdb.dk/getinternalfile.php/205771/CopperBooze.prg )
 
 
 ## start up VirtualC64Web right now in your browser

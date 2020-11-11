@@ -14,7 +14,7 @@ some highlighted features:
 * supports touch device as joystick
 * free definable action buttons with own javascript action scripts for creating bot controller support (e.g. aimbots, auto defense bot, etc...)   
 * snaphot saving to the local browser web storage ...
-* supports an online interface to the csdb.dk
+* supports an online interface to the csdb.dk (powered by CSDb web service https://csdb.dk/webservice/)
 * supports multivolumne titles in zip archives
 
 
@@ -57,9 +57,9 @@ _note_: start.sh starts an webserver with URL base path pointing to the folder w
 * Demo-Scene-Browser: v64web implements an easy browsable online interface to the CSDb scene db with lots of the cool demos 
 * polishing of the scene browser UI component ... show more infos about each entry
 * added search to the collector interface for local stored snapshots and csdb
+* adding favourites feature to the collector interface, to be able to 💖 entries and easily filter them 
 
 ## next goals
-* adding favourites feature to the collector interface, to be able to like entries and easily filter them 
 * new  modern boot sequence/animation  replacing the standard emscripten visual boot code 
 * javascript interface for more settings of the emulation like (greydotbugemulation) 
 * export/import of a complete snapshot library as one big zip file 

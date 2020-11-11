@@ -51,8 +51,8 @@ color: var(--light) !important;
 }
 
 [data-theme="dark"] .custom-control-input:checked ~ .custom-control-label::before {
-border-color: var(--secondary) !important;
-background-color: var(--secondary) !important;
+border-color: var(--green) !important;
+background-color: var(--green) !important;
 }
 
 #port1, #port2 {
@@ -261,4 +261,13 @@ button[id^="detail_run"] {
     background-color: #0062cc;
     border: none;
     color: var(--light);
+}
+
+#alert_wait {
+    z-index: 2000;
+    top: 40%;
+    left: 15%;
+    position: absolute;
+    width: 70%;
+    opacity: 0.83;
 }

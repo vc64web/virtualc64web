@@ -1,5 +1,6 @@
-
 var current_browser_datasource='snapshots';
+var current_browser_command=null;
+
 var already_loaded_collector = null;
 var snapshot_browser_first_click=true;
 var search_term='';
@@ -8,7 +9,7 @@ function setup_browser_interface()
     document.getElementById('search').onchange = async function(){
         //window.alert('suche:'+ $('#search').val());
         search_term=$('#search').val();
-        load_browser(current_browser_datasource);
+        load_browser(current_browser_datasource, search_term.length>0 ? 'search':'feeds');
     }
 
     document.getElementById('sel_browser_snapshots').onclick = async function(){
@@ -73,9 +74,23 @@ function setup_browser_interface()
     }
 }
 
-async function load_browser(datasource_name)
+
+
+var like_icon_filled = `<svg style="color:var(--red)" width="1.6em" height="1.6em" viewBox="0 0 16 16" class="bi bi-heart-fill" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/>
+</svg>`; 
+var like_icon_empty = `<svg style="color:var(--gray)" width="1.5em" height="1.5em" viewBox="0 0 16 16" class="bi bi-heart" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" d="M8 2.748l-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143c.06.055.119.112.176.171a3.12 3.12 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15z"/>
+</svg>`;
+
+async function load_browser(datasource_name, command="feeds")
 {
+    hide_all_tooltips();
+    var collector_in_duty=get_data_collector(datasource_name);    
+    await collector_in_duty.wait_until_finish();
+
     current_browser_datasource=datasource_name;
+    current_browser_command = command;
 
     internal_usersnapshots_enabled=false;
 
@@ -89,10 +104,29 @@ async function load_browser(datasource_name)
     //-- build snapshot feed
     var collector=get_data_collector(datasource_name);
 
-    if(collector.needs_reload() == false && search_term=='')
+    if(collector.can_like("",null))
+    {
+        $("#div_like").html(`<button id="like_filter" class="btn btn-sm icon mt-1"
+        data-toggle="tooltip" data-placement="top" title="show favourites only">${like_icon_empty}</button>`);
+    
+        document.getElementById('like_filter').onclick= async function(){
+            if(current_browser_command == "favourites")
+                load_browser(current_browser_datasource);
+            else
+                load_browser(current_browser_datasource, "favourites");
+        }
+    }
+    else
+    {
+        $("#div_like").empty();
+    }
+
+
+    if(collector.needs_reload() == false && command=="feeds")
     {
         return;
     }
+
     //empty all feeds
     $('#container_snapshots').empty();
 
@@ -110,8 +144,12 @@ async function load_browser(datasource_name)
             the_html += '<button id="delete_snap_'+item.id+'" type="button" style="position:absolute;top:0;right:0;padding:0;" class="btn btn-sm icon">'+x_icon+'</button>';
         }
 
-       //the_html +='<div class="card-body"><p class="card-text">Some quick example</p></div>';
-        
+        if(collector.can_like(app_title, item))
+        {
+            var like_icon = collector.is_like(app_title, item) ? like_icon_filled : like_icon_empty;
+            the_html += '<button id="like_snap_'+item.id+'" type="button" style="position:absolute;top:3px;right:3px;padding:0;" class="btn btn-sm icon">'+like_icon+'</button>';
+        }
+
         var label = item.name;
         if(label !== undefined && label != null)
         {
@@ -143,8 +181,11 @@ async function load_browser(datasource_name)
         {
             var canvas_id= "canvas_snap_"+app_snaps[z].id;
             var delete_id= "delete_snap_"+app_snaps[z].id;
+            var like_id= "like_snap_"+app_snaps[z].id;
             var canvas = document.getElementById(canvas_id);
             var delete_btn = document.getElementById(delete_id);
+            var like_btn = document.getElementById(like_id);
+
             if(delete_btn != null)
             {
                 delete_btn.onclick = function() {
@@ -153,6 +194,15 @@ async function load_browser(datasource_name)
                     delete_snapshot_per_id(id);
                     $("#card_snap_"+id).remove();
                     hide_all_tooltips();
+                };
+            }
+
+            if(like_btn != null)
+            {
+                like_btn.onclick = function() {
+                    let id = this.id.match(/like_snap_(.*)/)[1];
+                    var like_val = collector.set_like(app_title, id);
+                    $(this).html(like_val ? like_icon_filled : like_icon_empty);
                 };
             }
 
@@ -165,14 +215,22 @@ async function load_browser(datasource_name)
     }
 
     //start the loading process
-    if(search_term=='')
+    if(command=="feeds")
     {
-        collector.load(row_renderer);
+        $("#like_filter").html(`${like_icon_empty}`);
+        await collector.load(row_renderer);
     }
-    else
+    else if(command == "search")
     {
-        collector.search(row_renderer);
+        $("#like_filter").html(`${like_icon_empty}`);
+        await collector.search(row_renderer);
     }
+    else if(command == "favourites")
+    {
+        $("#like_filter").html(`${like_icon_filled}`);
+        await collector.favourites(row_renderer);
+    }
+
     already_loaded_collector=collector; 
 }
 
@@ -186,6 +244,15 @@ var collectors = {
         { 
             console.log("snapshot.busy="+busy_value);
             this.busy = busy_value;
+
+            if(busy_value)
+            {
+                $('#alert_wait').show();
+            }
+            else
+            {
+                $('#alert_wait').hide();
+            }
         },
         busy: false,
         wait_until_finish: async function() {
@@ -231,7 +298,7 @@ var collectors = {
                     for(var t=0; t<app_titles.length;t++)
                     {
                         var app_title=app_titles[t];
-                        if(search_term == '' || app_title.match(search_term) != null)
+                        if(search_term == '' || app_title.toLowerCase().indexOf(search_term.toLowerCase()) >= 0)
                         {
                             get_snapshots_for_app_title(app_title, row_renderer);
                         }
@@ -260,21 +327,23 @@ var collectors = {
                 var ctx = teaser_canvas.getContext("2d");
                 teaser_canvas.width = width;
                 teaser_canvas.height = height;
+                if(ctx!=null)
+                {
+                    imgData=ctx.createImageData(width,height);
+                
+                    var data = imgData.data;
+                    var src_data = item.data;
+                    snapshot_data = new Uint8Array(src_data, 40/* offset .. this number was a guess... */, data.length);
 
-                imgData=ctx.createImageData(width,height);
-            
-                var data = imgData.data;
-                var src_data = item.data;
-                snapshot_data = new Uint8Array(src_data, 40/* offset .. this number was a guess... */, data.length);
+                    for (var i = 0; i < data.length; i += 4) {
+                        data[i]     = snapshot_data[i+0]; // red
+                        data[i + 1] = snapshot_data[i+1]; // green
+                        data[i + 2] = snapshot_data[i+2]; // blue
+                        data[i + 3] = snapshot_data[i+3];
 
-                for (var i = 0; i < data.length; i += 4) {
-                    data[i]     = snapshot_data[i+0]; // red
-                    data[i + 1] = snapshot_data[i+1]; // green
-                    data[i + 2] = snapshot_data[i+2]; // blue
-                    data[i + 3] = snapshot_data[i+3];
-
+                    }
+                    ctx.putImageData(imgData,0,0); 
                 }
-                ctx.putImageData(imgData,0,0); 
             }
             return; 
         },
@@ -314,6 +383,9 @@ var collectors = {
         can_delete: function(app_title, the_id){
             return app_title == 'auto_save' ? false: true;
         },
+        can_like: function(app_title, item){
+            return false;
+        },
         //helper method...
         copy_snapshot_to_canvas: function(snapshot_ptr, canvas, width, height){ 
             var ctx = canvas.getContext("2d");
@@ -342,6 +414,15 @@ var collectors = {
         { 
             console.log("csdb.busy="+busy_value);
             this.busy = busy_value;
+
+            if(busy_value)
+            {
+                $('#alert_wait').show();
+            }
+            else
+            {
+                $('#alert_wait').hide();
+            }
         },
         wait_until_finish: async function() {
             var i=0;
@@ -357,10 +438,102 @@ var collectors = {
         all_items: [],
         loaded_feeds: null,
         loaded_search: null,
+        loaded_favourites: null,
         last_load_was_a_search: false,
         needs_reload: function ()
         { 
             return already_loaded_collector != this || this.loaded_feeds == null || last_load_was_a_search;
+        },
+        map_xml_to_item: function (xml_item)
+        {
+            var new_item = new Object();
+            new_item.id=xml_item.getElementsByTagName("ID")[0].textContent;
+            new_item.name = property(xml_item,"Name");
+            new_item.type = property(xml_item,"Type");
+            new_item.date = new Date(
+                property(xml_item,"ReleaseYear"),
+                property(xml_item,"ReleaseMonth")-1,  //month is 0 indexed
+                property(xml_item,"ReleaseDay")
+            ).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+            new_item.screen_shot = property(xml_item,"ScreenShot");
+            new_item.links = property_list(xml_item,"Link", matches=/http.*?[.](zip|prg|t64|d64|g64|tap|crt)$/i);
+            return new_item;
+        },
+        favourites: async function (row_renderer){
+            await this.wait_until_finish();
+            this.set_busy(true);
+            last_load_was_a_search=true;
+            try
+            {
+                this.all_ids= [];
+                this.all_items= [];
+                this.loaded_favourites = [];
+                var webservice_loader = async response => {
+                    try{
+                        var items=[];
+
+                        var text = await response.text();
+                        //alert(text);
+                        var parser = new DOMParser();
+                        var xmlDoc = parser.parseFromString(text,"text/xml");
+
+                        var releases = xmlDoc.getElementsByTagName("Release");
+
+                        for(var xml_item of releases)
+                        {
+                            var id = xml_item.getElementsByTagName("ID")[0].textContent;
+
+                            if(this.all_ids.includes(id))
+                            {//this entry was already in another feed, skip it
+                                continue;
+                            }
+                            this.all_ids.push(id);
+
+                            var new_item = this.map_xml_to_item(xml_item);
+  
+                            //alert(`id=${id}, name=${name}, screen_shot=${screen_shot}`);
+                            if(new_item.screen_shot!= null)
+                            {
+                                this.all_items[id] = new_item;
+                                items.push(new_item);
+                            }
+                        }
+                        for(item of items)
+                        {
+                            this.loaded_favourites.push(item);
+                        }
+ 
+                    }
+                    catch {}
+                }
+
+                
+                for(id in this.like_values)
+                {
+                    this.row_name='suche';
+                    var csdb_detail_url = `https://csdb.dk/webservice/?type=release&id=${id}&depth=1.5&cache_me=true`;
+                    await fetch(csdb_detail_url).then( webservice_loader );
+                }
+
+                var type_rows = [];
+                for(item of this.loaded_favourites)
+                {
+                    if(type_rows[item.type]==null)
+                    {
+                        type_rows[item.type] = [];
+                    }
+                    type_rows[item.type].push(item);
+                }
+                for(row_type in type_rows)
+                {
+                    row_renderer(row_type,type_rows[row_type]);
+                }
+
+            }
+            finally
+            {
+                this.set_busy(false);
+            }
         },
         search: async function (row_renderer){
             await this.wait_until_finish();
@@ -368,16 +541,6 @@ var collectors = {
             last_load_was_a_search=true;
             try
             {
-                //this.loaded_feeds = null; //force reload
-/*                if(this.loaded_feeds!=null)
-                {
-                    for(var row_key in this.loaded_feeds)
-                    {
-                        row_renderer(row_key, this.loaded_feeds[row_key]);
-                    }
-                    return;
-                }
-*/
                 this.all_ids= [];
                 this.all_items= [];
                 this.loaded_search = [];
@@ -402,18 +565,8 @@ var collectors = {
                             }
                             this.all_ids.push(id);
 
-                            var new_item = new Object();
-                            new_item.id=id;
-                            new_item.name = property(xml_item,"Name");
-                            new_item.type = property(xml_item,"Type");
-                            new_item.date = new Date(
-                                property(xml_item,"ReleaseYear"),
-                                property(xml_item,"ReleaseMonth")-1,  //month is 0 indexed
-                                property(xml_item,"ReleaseDay")
-                            ).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-                            new_item.screen_shot = property(xml_item,"ScreenShot");
-                            new_item.links = property_list(xml_item,"Link", matches=/http.*?[.](zip|prg|t64|d64|g64|tap|crt)$/i);
-
+                            var new_item = this.map_xml_to_item(xml_item);
+  
                             //alert(`id=${id}, name=${name}, screen_shot=${screen_shot}`);
                             if(new_item.screen_shot!= null)
                             {
@@ -494,18 +647,8 @@ var collectors = {
                             }
                             this.all_ids.push(id);
 
-                            var new_item = new Object();
-                            new_item.id=id;
-                            new_item.name = property(xml_item,"Name");
-                            new_item.type = property(xml_item,"Type");
-                            new_item.date = new Date(
-                                property(xml_item,"ReleaseYear"),
-                                property(xml_item,"ReleaseMonth")-1,  //month is 0 indexed
-                                property(xml_item,"ReleaseDay")
-                            ).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-                            new_item.screen_shot = property(xml_item,"ScreenShot");
-                            new_item.links = property_list(xml_item,"Link", matches=/http.*?[.](zip|prg|t64|d64|g64|tap|crt)$/i);
-
+                            var new_item = this.map_xml_to_item(xml_item);
+  
                             //alert(`id=${id}, name=${name}, screen_shot=${screen_shot}`);
                             if(new_item.screen_shot!= null)
                             {
@@ -515,7 +658,6 @@ var collectors = {
                         }
                         this.loaded_feeds[this.row_name] = items;
                         row_renderer(this.row_name,items);
-                        //await sleep(200);
                     }
                     catch {}
                 }
@@ -556,7 +698,10 @@ var collectors = {
             var ctx = teaser_canvas.getContext('2d');
             var img = new Image;
             img.onload = function(){
-                ctx.drawImage(img,0,0); // Or at whatever offset you like
+                if(ctx!=null && img != null)
+                {
+                    ctx.drawImage(img,0,0); // Or at whatever offset you like
+                }
             };
             if(item.screen_shot != null)
             {
@@ -642,8 +787,13 @@ var collectors = {
 
             var item = this.all_items[id];
 
+
+            
             var content = '<div class="container-xl">';
 
+            var like_icon = this.is_like(app_title, item) ? like_icon_filled : like_icon_empty;
+            content += `<button id="like_detail_${item.id}" type="button" style="position:absolute;top:10%;right:10%;padding:0;z-index:3000" class="btn btn-sm icon">${like_icon}</button>`;
+            
             content += '<div class="row justify-content-md-center">';
             content += '<div class="col col-md-12">';
                 content += `<image src="${item.screen_shot}" class="detail_screenshot"/>`;
@@ -713,6 +863,13 @@ var collectors = {
             $("#detail_content").html(content);
 
 
+            document.getElementById(`like_detail_${item.id}`).onclick = function() {
+                let id = this.id.match(/like_detail_(.*)/)[1];
+                var like_val = get_data_collector("csdb").set_like(app_title, id);
+                $(this).html(like_val ? like_icon_filled : like_icon_empty);
+                $(`#like_snap_${id}`).html(like_val ? like_icon_filled : like_icon_empty);
+            };
+
             link_id=0;
             for(var link of item.links)
             {
@@ -722,7 +879,6 @@ var collectors = {
                 });
                 link_id++;
             }
-
 
             var esc_on_detail=function( event ) {
                 event.stopPropagation();
@@ -800,11 +956,39 @@ var collectors = {
             });
 
             $('#snapshotModal').modal('hide');
-
             return; 
         },
         can_delete: function(app_title, the_id){
             return false;
+        },
+        can_like: function(app_title, item){
+            if(this.like_values == null)
+            {
+               this.like_values = JSON.parse(load_setting('likes', '{}'));
+            }
+            return true;
+        },
+        is_like: function(app_title, item){
+            return this.like_values[item.id] === undefined || this.like_values[item.id] == false ? false:true;
+        },
+        like_values: null,  
+        set_like: function(app_title, id){
+            if(this.like_values[id] === undefined)
+            {
+                this.like_values[id]= true;
+            }
+            else
+            {
+                this.like_values[id] = this.like_values[id] == true ? false:true;
+                if(this.like_values[id] == false)
+                {
+                    delete this.like_values[id];
+                }
+            }
+
+            //hier die positiven werte abspeichern z.b. in 
+            save_setting('likes', JSON.stringify(this.like_values));
+            return this.like_values[id];
         }
     }
 

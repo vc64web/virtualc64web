@@ -1,4 +1,4 @@
-const cache_name = 'vc64_app_cache_v2020_11_06a';
+const cache_name = 'vc64_app_cache_v2020_11_11';
 
 // install event
 self.addEventListener('install', evt => {
@@ -26,7 +26,9 @@ self.addEventListener('fetch', evt => {
       return cache_res || fetch(evt.request).then(fetch_res => {
         return caches.open(cache_name).then(cache => {
           if(
-            evt.request.url.startsWith('https://csdb.dk/webservice/') ||
+            evt.request.url.startsWith('https://csdb.dk/webservice/') && 
+            !evt.request.url.endsWith('cache_me=true')
+            ||
             evt.request.url.startsWith('https://mega65.github.io/')
           )
           {

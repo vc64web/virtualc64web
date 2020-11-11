@@ -1,4 +1,6 @@
 var current_browser_datasource='snapshots';
+var current_browser_command=null;
+
 var already_loaded_collector = null;
 var snapshot_browser_first_click=true;
 var search_term='';
@@ -88,6 +90,7 @@ async function load_browser(datasource_name, command="feeds")
     await collector_in_duty.wait_until_finish();
 
     current_browser_datasource=datasource_name;
+    current_browser_command = command;
 
     internal_usersnapshots_enabled=false;
 
@@ -107,7 +110,10 @@ async function load_browser(datasource_name, command="feeds")
         data-toggle="tooltip" data-placement="top" title="show favourites only">${like_icon_empty}</button>`);
     
         document.getElementById('like_filter').onclick= async function(){
-            load_browser(current_browser_datasource, "favourites");
+            if(current_browser_command == "favourites")
+                load_browser(current_browser_datasource);
+            else
+                load_browser(current_browser_datasource, "favourites");
         }
     }
     else

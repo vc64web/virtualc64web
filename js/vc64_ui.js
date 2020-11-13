@@ -590,6 +590,26 @@ function handle_touch(portnr)
 
 function handleGamePad(portnr, gamepad)
 {
+    if(live_debug_output)
+    {
+        var axes_output="";
+        for(var axe of gamepad.axes)
+        {
+            axes_output += axe.toFixed(2)+", ";
+        }
+        
+        var btns_output = "";
+        for(var btn of gamepad.buttons)
+        {
+            btns_output += (btn.pressed ? "1":"0")+ ", ";
+        }
+
+        Module.print(`controller ${gamepad.id}, mapping= ${gamepad.mapping}`);
+        Module.print(`${gamepad.axes.length} axes= ${axes_output}`);
+        Module.print(`${gamepad.buttons.length} btns= ${btns_output}`);
+    }
+
+
     var bReleaseX=false;
     var bReleaseY=false;
     if(0.8<gamepad.axes[0])

@@ -609,14 +609,16 @@ function handleGamePad(portnr, gamepad)
         Module.print(`${gamepad.buttons.length} btns= ${btns_output}`);
     }
 
+    var horizontal_axis = 0;
+    var vertical_axis = 1;
 
     var bReleaseX=false;
     var bReleaseY=false;
-    if(0.8<gamepad.axes[0])
+    if(0.8<gamepad.axes[horizontal_axis])
     {
         emit_joystick_cmd(portnr+"PULL_RIGHT");   
     }
-    else if(-0.8>gamepad.axes[0])
+    else if(-0.8>gamepad.axes[horizontal_axis])
     {
         emit_joystick_cmd(portnr+"PULL_LEFT");
     }
@@ -625,11 +627,11 @@ function handleGamePad(portnr, gamepad)
         bReleaseX=true;
     }
 
-    if(0.8<gamepad.axes[1])
+    if(0.8<gamepad.axes[vertical_axis])
     {
         emit_joystick_cmd(portnr+"PULL_DOWN");   
     }
-    else if(-0.8>gamepad.axes[1])
+    else if(-0.8>gamepad.axes[vertical_axis])
     {
         emit_joystick_cmd(portnr+"PULL_UP");
     }
@@ -637,6 +639,36 @@ function handleGamePad(portnr, gamepad)
     {
         bReleaseY=true;
     }
+
+
+    if(gamepad.buttons.length >= 15 && bReleaseY && bReleaseX)
+    {
+        if(gamepad.buttons[12].pressed)
+        {bReleaseY=false;
+            emit_joystick_cmd(portnr+"PULL_UP");   
+        }
+        else if(gamepad.buttons[13].pressed)
+        {bReleaseY=false;
+            emit_joystick_cmd(portnr+"PULL_DOWN");   
+        }
+        else
+        {
+            bReleaseY=true;
+        }
+        if(gamepad.buttons[14].pressed)
+        {bReleaseX=false;
+            emit_joystick_cmd(portnr+"PULL_LEFT");   
+        }
+        else if(gamepad.buttons[15].pressed)
+        {bReleaseX=false;
+            emit_joystick_cmd(portnr+"PULL_RIGHT");   
+        }
+        else
+        {
+            bReleaseX=true;
+        }
+    }
+
 
     if(bReleaseX && bReleaseY)
     {
@@ -654,13 +686,14 @@ function handleGamePad(portnr, gamepad)
 
 
     var bFirePressed=false;
-    for(var i=0; i<gamepad.buttons.length;i++)
+    for(var i=0; i<gamepad.buttons.length && i<12;i++)
     {
         if(gamepad.buttons[i].pressed)
         {
             bFirePressed=true;
         }
     }
+
     emit_joystick_cmd(portnr + (bFirePressed?"PRESS_FIRE":"RELEASE_FIRE"));
 }
 

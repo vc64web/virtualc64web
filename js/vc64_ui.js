@@ -1019,19 +1019,34 @@ wide_screen_switch.change( function() {
         //document.getElementById('canvas').focus();
         //alert('reset');
     }
-    $("#button_halt").click(function() {
-        wasm_halt();
-        $('#button_halt').prop('disabled', 'true');
-        $('#button_run').removeAttr('disabled');
-        //document.getElementById('canvas').focus();
-    });
+
+    running=true;
     $("#button_run").click(function() {
-        //have to catch an intentional "unwind" exception here, which is thrown
-        //by emscripten_set_main_loop() after emscripten_cancel_main_loop();
-        //to simulate infinity gamelloop see emscripten API for more info ... 
-        try{wasm_run();} catch(e) {}
-        $('#button_run').prop('disabled', 'true');
-        $('#button_halt').removeAttr('disabled');
+        hide_all_tooltips();
+        if(running)
+        {        
+            wasm_halt();
+            running = false;
+            //set run icon
+            $('#button_run').html(`<svg class="bi bi-play-fill" width="1.6em" height="auto" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+          </svg>`).parent().attr("title", "run").attr("data-original-title", "run");
+        }
+        else
+        {
+            //set pause icon
+            $('#button_run').html(`<svg class="bi bi-pause-fill" width="1.6em" height="auto" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+          </svg>`).parent().attr("title", "pause").attr("data-original-title", "pause");
+
+            //have to catch an intentional "unwind" exception here, which is thrown
+            //by emscripten_set_main_loop() after emscripten_cancel_main_loop();
+            //to simulate infinity gamelloop see emscripten API for more info ... 
+            try{wasm_run();} catch(e) {}
+            running = true;
+
+        }
+        
         //document.getElementById('canvas').focus();
     });
 
@@ -1533,7 +1548,7 @@ wide_screen_switch.change( function() {
             $('#add_timer_action a').click(on_add_action);
             
             //system action
-            var list_actions=['pause', 'run', 'take_snapshot', 'restore_last_snapshot', 'swap_joystick', 'keyboard'];
+            var list_actions=['toggle_run', 'take_snapshot', 'restore_last_snapshot', 'swap_joystick', 'keyboard', 'pause', 'run'];
             html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
@@ -1542,8 +1557,6 @@ wide_screen_switch.change( function() {
             $('#add_system_action a').click(on_add_action);
 
             //script action
-            
-            //system action
             var list_actions=['simple while', 'API example', 'aimbot'];
             html_action_list='';
             list_actions.forEach(element => {
@@ -1944,7 +1957,8 @@ function scaleVMCanvas() {
 
     function is_running()
     {
-        return $('#button_run').attr('disabled')=='disabled';
+        return running;
+        //return $('#button_run').attr('disabled')=='disabled';
     }
         
     

@@ -215,10 +215,38 @@ function drop_handler(ev) {
     var dt = ev.dataTransfer;
  
     if( dt.items ) {
-        for (var i=0; i < dt.items.length; i++) {
-            if (dt.items[i].kind == "file") {
-                var f = dt.items[i].getAsFile();
+        for (item of dt.items) {
+            if (item.kind == "file") 
+            {
+                var f = item.getAsFile();
                 pushFile(f);
+                break;
+            }
+            else if (item.kind == "string") 
+            {
+                var dropped_uri = dt.getData("text"); //dt.getData("text/uri-list");
+                //e.g. dropped_uri=https://csdb.dk/release/download.php?id=244060"
+
+                var dropped_html = dt.getData("text/html");
+/*              e.g. dropped_html =
+                "<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+                <a href="https://csdb.dk/release/download.php?id=244060">http://csdb.dk/getinternalfile.php/205910/joyride.prg</a>"
+*/
+                var dropped_id_and_name = dropped_html.match(`id=([0-9]+)">(http://csdb.dk/getinternalfile.php/.*?)</a>`); 
+                if(dropped_id_and_name != null && dropped_id_and_name.length>1)
+                {
+                    var id = dropped_id_and_name[1];
+                    var title_name = dropped_id_and_name[2].split("/");
+                    title_name = title_name[title_name.length-1];
+                    var parameter_link = dropped_id_and_name[2];
+                    setTimeout(() => {
+                        get_data_collector("csdb").run_link(title_name, id ,parameter_link);            
+                    }, 200);
+                }
+                else
+                {
+                    alert("Sorry only C64-Files and CSDb-release-DOWNLOAD-links accepted..., Hint: you can drop CSDB-release-links into scene-browser search field ...");
+                }
                 break;
             }
         }

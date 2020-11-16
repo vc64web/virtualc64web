@@ -1353,6 +1353,14 @@ wide_screen_switch.change( function() {
           handleFileInput();
     }, false);
 
+    $("html").on('dragover', function(e) {dragover_handler(e.originalEvent); return false;}) 
+    .on('drop', function (e) {
+        drop_handler( e.originalEvent );
+        return false;
+    });
+
+
+
 //---- rom dialog start
    document.getElementById('button_rom_dialog').addEventListener("click", function(e) {
      $('#modal_settings').modal('hide');

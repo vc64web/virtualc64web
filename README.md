@@ -24,7 +24,7 @@ https://dirkwhoffmann.github.io/virtualc64web/
 
 on a touch screen device, don't forget to save it to homescreen as it fully supports the PWA standard and for that will behave like a real app and not just like a browser app (with save to homescreen you will get rid of all those unwanted browser gestures like adressbar swipe back and swipe forward, etc...)  
 
-## what happened so far ...
+## the roots ... or how and when did the development begin ...
 https://github.com/dirkwhoffmann/vAmiga/issues/291
 
 ## how to build and run it in a web browser 

@@ -10,7 +10,7 @@ it supports PWA standard which gives it the appearance of an nearly native app e
 The emulation core is a copy of virtualC64 without its usual mac GUI in v3.4b1 master branch March 3 2020 latest commit point fe1629c
 
 some highlighted features: 
-* includes an online interface to the csdb.dk named scene browser (powered by CSDb web service https://csdb.dk/webservice/)
+* includes an online interface to the csdb.dk named scene browser (powered by CSDb web service https://csdb.dk/webservice/ and inspired by Mr.SIDs Scene-Browser https://csdb.dk/release/?id=171112) 
 * supports external gamecontroller
 * supports touch device as joystick
 * free definable action buttons with own javascript action scripts for creating bot controller support (e.g. aimbots, auto defense bot, etc...)   

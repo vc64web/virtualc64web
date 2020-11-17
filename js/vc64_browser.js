@@ -6,11 +6,42 @@ var snapshot_browser_first_click=true;
 var search_term='';
 function setup_browser_interface()
 {
-    document.getElementById('search').onchange = async function(){
+
+    document.getElementById('search').addEventListener("drop", function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if(current_browser_datasource == "csdb")
+        {
+
+            var dt = e.dataTransfer;
+            var dropped_text=dt.getData("text")
+
+
+            if(dropped_text.startsWith("https://csdb.dk/release/download.php?id="))
+            {
+                alert("you just dropped a download link ... here only release links are accepted ... but you can put the same download link into the file slot ... ;-)")
+                return;
+            }
+
+            $('#search').val(dropped_text);
+            document.getElementById('search_symbol').click();
+        }
+        else
+        {
+            alert("you are on "+current_browser_datasource+" browser, drag and drop support for release-links is only on CSDb.dk browser accepted, please switch first to CSDb.dk browser before you drop a release link ...");
+        }
+    }, false);
+
+
+
+    var search_func= async function(){
         //window.alert('suche:'+ $('#search').val());
         search_term=$('#search').val();
         load_browser(current_browser_datasource, search_term.length>0 ? 'search':'feeds');
     }
+    document.getElementById('search').onchange = search_func;
+    document.getElementById('search_symbol').onclick= search_func;
 
     document.getElementById('sel_browser_snapshots').onclick = async function(){
         await get_data_collector('csdb').wait_until_finish();
@@ -31,7 +62,7 @@ function setup_browser_interface()
         .addClass('btn-primary');
         $('#sel_browser_snapshots').parent().removeClass('btn-secondary').removeClass('btn-primary')
         .addClass('btn-secondary');
-        search_term=''; $('#search').val('').attr("placeholder", "search inside csdb.dk");
+        search_term=''; $('#search').val('').attr("placeholder", "search inside csdb.dk (or drop a release-link)");
         load_browser('csdb');
     }
 
@@ -594,9 +625,19 @@ var collectors = {
                     catch {}
                 }
 
-                this.row_name='suche';
-                await fetch(`https://csdb.dk/webservice/?type=search&stype=release&q=${search_term}&depth=1.5`).then( webservice_loader );
+                if(search_term.startsWith("https://csdb.dk/release/?id="))
+                {
 
+                    var dropped_id = search_term.match(`id=([0-9]+)`)[1]; 
+                    var csdb_detail_url = `https://csdb.dk/webservice/?type=release&id=${dropped_id}&depth=1.5`;
+                    await fetch(csdb_detail_url).then( webservice_loader );        
+                    await this.show_detail("csdblink", dropped_id);
+                }
+                else
+                {
+                    this.row_name='suche';
+                    await fetch(`https://csdb.dk/webservice/?type=search&stype=release&q=${search_term}&depth=1.5`).then( webservice_loader );
+                }
             }
             finally
             {
@@ -714,7 +755,7 @@ var collectors = {
             //fetching details
             var csdb_detail_url = `https://csdb.dk/webservice/?type=release&id=${id}&depth=2`;
 
-            if(item.details_already_fetched !== undefined )
+            if(item == null || item.details_already_fetched !== undefined )
             {
                 this.render_detail(app_title, id);
                 this.render_detail2(app_title, id);

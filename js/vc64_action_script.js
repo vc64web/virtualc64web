@@ -179,11 +179,9 @@ async function execute_single_action(cmd, execute=true)
     {
         if(execute)
         {
-            //if(is_running())
+            if(is_running())
             {
-                wasm_halt();
-                $('#button_halt').prop('disabled', 'true');
-                $('#button_run').removeAttr('disabled');
+                $('#button_run').click();   
             } 
         }
     
@@ -192,12 +190,17 @@ async function execute_single_action(cmd, execute=true)
     {
         if(execute)
         {
-            //if(is_running())
+            if(!is_running())
             {
-                wasm_run();
-                $('#button_run').prop('disabled', 'true');
-                $('#button_halt').removeAttr('disabled');
+                $('#button_run').click();   
             } 
+        }
+    }
+    else if(cmd == 'toggle_run')
+    {
+        if(execute)
+        {
+            $('#button_run').click();   
         }
     }
     else if(cmd.match(/^[0-9]+ms$/) != null)

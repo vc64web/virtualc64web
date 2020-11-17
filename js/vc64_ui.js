@@ -215,10 +215,38 @@ function drop_handler(ev) {
     var dt = ev.dataTransfer;
  
     if( dt.items ) {
-        for (var i=0; i < dt.items.length; i++) {
-            if (dt.items[i].kind == "file") {
-                var f = dt.items[i].getAsFile();
+        for (item of dt.items) {
+            if (item.kind == "file") 
+            {
+                var f = item.getAsFile();
                 pushFile(f);
+                break;
+            }
+            else if (item.kind == "string") 
+            {
+                var dropped_uri = dt.getData("text"); //dt.getData("text/uri-list");
+                //e.g. dropped_uri=https://csdb.dk/release/download.php?id=244060"
+
+                var dropped_html = dt.getData("text/html");
+/*              e.g. dropped_html =
+                "<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+                <a href="https://csdb.dk/release/download.php?id=244060">http://csdb.dk/getinternalfile.php/205910/joyride.prg</a>"
+*/
+                var dropped_id_and_name = dropped_html.match(`id=([0-9]+)">(http://csdb.dk/getinternalfile.php/.*?)</a>`); 
+                if(dropped_id_and_name != null && dropped_id_and_name.length>1)
+                {
+                    var id = dropped_id_and_name[1];
+                    var title_name = dropped_id_and_name[2].split("/");
+                    title_name = title_name[title_name.length-1];
+                    var parameter_link = dropped_id_and_name[2];
+                    setTimeout(() => {
+                        get_data_collector("csdb").run_link(title_name, id ,parameter_link);            
+                    }, 200);
+                }
+                else
+                {
+                    alert("Sorry only C64-Files and CSDb-release-DOWNLOAD-links accepted..., Hint: you can drop CSDB-release-links into scene-browser search field ...");
+                }
                 break;
             }
         }
@@ -590,13 +618,35 @@ function handle_touch(portnr)
 
 function handleGamePad(portnr, gamepad)
 {
+    if(live_debug_output)
+    {
+        var axes_output="";
+        for(var axe of gamepad.axes)
+        {
+            axes_output += axe.toFixed(2)+", ";
+        }
+        
+        var btns_output = "";
+        for(var btn of gamepad.buttons)
+        {
+            btns_output += (btn.pressed ? "1":"0")+ ", ";
+        }
+
+        Module.print(`controller ${gamepad.id}, mapping= ${gamepad.mapping}`);
+        Module.print(`${gamepad.axes.length} axes= ${axes_output}`);
+        Module.print(`${gamepad.buttons.length} btns= ${btns_output}`);
+    }
+
+    var horizontal_axis = 0;
+    var vertical_axis = 1;
+
     var bReleaseX=false;
     var bReleaseY=false;
-    if(0.8<gamepad.axes[0])
+    if(0.8<gamepad.axes[horizontal_axis])
     {
         emit_joystick_cmd(portnr+"PULL_RIGHT");   
     }
-    else if(-0.8>gamepad.axes[0])
+    else if(-0.8>gamepad.axes[horizontal_axis])
     {
         emit_joystick_cmd(portnr+"PULL_LEFT");
     }
@@ -605,11 +655,11 @@ function handleGamePad(portnr, gamepad)
         bReleaseX=true;
     }
 
-    if(0.8<gamepad.axes[1])
+    if(0.8<gamepad.axes[vertical_axis])
     {
         emit_joystick_cmd(portnr+"PULL_DOWN");   
     }
-    else if(-0.8>gamepad.axes[1])
+    else if(-0.8>gamepad.axes[vertical_axis])
     {
         emit_joystick_cmd(portnr+"PULL_UP");
     }
@@ -617,6 +667,36 @@ function handleGamePad(portnr, gamepad)
     {
         bReleaseY=true;
     }
+
+
+    if(gamepad.buttons.length >= 15 && bReleaseY && bReleaseX)
+    {
+        if(gamepad.buttons[12].pressed)
+        {bReleaseY=false;
+            emit_joystick_cmd(portnr+"PULL_UP");   
+        }
+        else if(gamepad.buttons[13].pressed)
+        {bReleaseY=false;
+            emit_joystick_cmd(portnr+"PULL_DOWN");   
+        }
+        else
+        {
+            bReleaseY=true;
+        }
+        if(gamepad.buttons[14].pressed)
+        {bReleaseX=false;
+            emit_joystick_cmd(portnr+"PULL_LEFT");   
+        }
+        else if(gamepad.buttons[15].pressed)
+        {bReleaseX=false;
+            emit_joystick_cmd(portnr+"PULL_RIGHT");   
+        }
+        else
+        {
+            bReleaseX=true;
+        }
+    }
+
 
     if(bReleaseX && bReleaseY)
     {
@@ -634,13 +714,14 @@ function handleGamePad(portnr, gamepad)
 
 
     var bFirePressed=false;
-    for(var i=0; i<gamepad.buttons.length;i++)
+    for(var i=0; i<gamepad.buttons.length && i<12;i++)
     {
         if(gamepad.buttons[i].pressed)
         {
             bFirePressed=true;
         }
     }
+
     emit_joystick_cmd(portnr + (bFirePressed?"PRESS_FIRE":"RELEASE_FIRE"));
 }
 
@@ -966,19 +1047,34 @@ wide_screen_switch.change( function() {
         //document.getElementById('canvas').focus();
         //alert('reset');
     }
-    $("#button_halt").click(function() {
-        wasm_halt();
-        $('#button_halt').prop('disabled', 'true');
-        $('#button_run').removeAttr('disabled');
-        //document.getElementById('canvas').focus();
-    });
+
+    running=true;
     $("#button_run").click(function() {
-        //have to catch an intentional "unwind" exception here, which is thrown
-        //by emscripten_set_main_loop() after emscripten_cancel_main_loop();
-        //to simulate infinity gamelloop see emscripten API for more info ... 
-        try{wasm_run();} catch(e) {}
-        $('#button_run').prop('disabled', 'true');
-        $('#button_halt').removeAttr('disabled');
+        hide_all_tooltips();
+        if(running)
+        {        
+            wasm_halt();
+            running = false;
+            //set run icon
+            $('#button_run').html(`<svg class="bi bi-play-fill" width="1.6em" height="auto" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <path d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+          </svg>`).parent().attr("title", "run").attr("data-original-title", "run");
+        }
+        else
+        {
+            //set pause icon
+            $('#button_run').html(`<svg class="bi bi-pause-fill" width="1.6em" height="auto" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+          </svg>`).parent().attr("title", "pause").attr("data-original-title", "pause");
+
+            //have to catch an intentional "unwind" exception here, which is thrown
+            //by emscripten_set_main_loop() after emscripten_cancel_main_loop();
+            //to simulate infinity gamelloop see emscripten API for more info ... 
+            try{wasm_run();} catch(e) {}
+            running = true;
+
+        }
+        
         //document.getElementById('canvas').focus();
     });
 
@@ -1257,6 +1353,14 @@ wide_screen_switch.change( function() {
           handleFileInput();
     }, false);
 
+    $("html").on('dragover', function(e) {dragover_handler(e.originalEvent); return false;}) 
+    .on('drop', function (e) {
+        drop_handler( e.originalEvent );
+        return false;
+    });
+
+
+
 //---- rom dialog start
    document.getElementById('button_rom_dialog').addEventListener("click", function(e) {
      $('#modal_settings').modal('hide');
@@ -1480,7 +1584,7 @@ wide_screen_switch.change( function() {
             $('#add_timer_action a').click(on_add_action);
             
             //system action
-            var list_actions=['pause', 'run', 'take_snapshot', 'restore_last_snapshot', 'swap_joystick', 'keyboard'];
+            var list_actions=['toggle_run', 'take_snapshot', 'restore_last_snapshot', 'swap_joystick', 'keyboard', 'pause', 'run'];
             html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
@@ -1489,8 +1593,6 @@ wide_screen_switch.change( function() {
             $('#add_system_action a').click(on_add_action);
 
             //script action
-            
-            //system action
             var list_actions=['simple while', 'API example', 'aimbot'];
             html_action_list='';
             list_actions.forEach(element => {
@@ -1891,7 +1993,8 @@ function scaleVMCanvas() {
 
     function is_running()
     {
-        return $('#button_run').attr('disabled')=='disabled';
+        return running;
+        //return $('#button_run').attr('disabled')=='disabled';
     }
         
     

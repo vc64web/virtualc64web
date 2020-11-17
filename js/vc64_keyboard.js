@@ -298,14 +298,44 @@ function installKeyboard() {
                 if(c64code !== undefined){
                     wasm_key(c64code[0], c64code[1], 1);
                     
-                    if(keydef.c == 'ShiftLeft' ||keydef.c == 'ShiftRight')
+                    if(keydef.c == 'ShiftLeft' ||keydef.c == 'rightShift')
                     {
                         $("#button_"+keydef.c).attr("style", "background-color: var(--green) !important");
                     
                         setTimeout(() => {
                             wasm_key(c64code[0], c64code[1], 0);
                             $("#button_"+keydef.c).attr("style", "");
-                        }, 1000*3);
+                        }, 1000*4);
+                    
+                    }
+                    else if(keydef.c == 'commodore')
+                    {
+                        $("#button_"+keydef.c).attr("style", "background-color: var(--blue) !important");
+                    
+                        setTimeout(() => {
+                            wasm_key(c64code[0], c64code[1], 0);
+                            $("#button_"+keydef.c).attr("style", "");
+                        }, 1000*4);
+                    
+                    }
+                    else if(keydef.c == 'ControlLeft')
+                    {
+                        $("#button_"+keydef.c).attr("style", "background-color: var(--blue) !important");
+                    
+                        setTimeout(() => {
+                            wasm_key(c64code[0], c64code[1], 0);
+                            $("#button_"+keydef.c).attr("style", "");
+                        }, 1000*4);
+                    
+                    }
+                    else if(keydef.c == 'runStop')
+                    {
+                        $("#button_"+keydef.c).attr("style", "background-color: var(--red) !important");
+                    
+                        setTimeout(() => {
+                            wasm_key(c64code[0], c64code[1], 0);
+                            $("#button_"+keydef.c).attr("style", "");
+                        }, 1000*4);
                     
                     }
                     else

@@ -6,35 +6,6 @@ var snapshot_browser_first_click=true;
 var search_term='';
 function setup_browser_interface()
 {
-
-    document.getElementById('search').addEventListener("drop", function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        if(current_browser_datasource == "csdb")
-        {
-
-            var dt = e.dataTransfer;
-            var dropped_text=dt.getData("text")
-
-
-            if(dropped_text.startsWith("https://csdb.dk/release/download.php?id="))
-            {
-                alert("you just dropped a download link ... here only release links are accepted ... but you can put the same download link into the file slot ... ;-)")
-                return;
-            }
-
-            $('#search').val(dropped_text);
-            document.getElementById('search_symbol').click();
-        }
-        else
-        {
-            alert("you are on "+current_browser_datasource+" browser, drag and drop support for release-links is only on CSDb.dk browser accepted, please switch first to CSDb.dk browser before you drop a release link ...");
-        }
-    }, false);
-
-
-
     var search_func= async function(){
         //window.alert('suche:'+ $('#search').val());
         search_term=$('#search').val();
@@ -43,26 +14,44 @@ function setup_browser_interface()
     document.getElementById('search').onchange = search_func;
     document.getElementById('search_symbol').onclick= search_func;
 
+
+    switch_collector = async function (collector_name)
+    {
+        for(current_col_name in collectors)
+        {
+            await get_data_collector(current_col_name).wait_until_finish();
+        }
+
+        if(collector_name== 'snapshots')
+        {
+            $('#sel_browser_snapshots').parent().removeClass('btn-secondary').removeClass('btn-primary')
+            .addClass('btn-primary');
+            $('#sel_browser_csdb').parent().removeClass('btn-secondary').removeClass('btn-primary')
+            .addClass('btn-secondary');
+            search_term=''; $('#search').val('').attr("placeholder", "search snapshots (local browser storage)");
+
+        }
+        else
+        {
+            $('#sel_browser_csdb').parent().removeClass('btn-secondary').removeClass('btn-primary')
+            .addClass('btn-primary');
+            $('#sel_browser_snapshots').parent().removeClass('btn-secondary').removeClass('btn-primary')
+            .addClass('btn-secondary');
+
+            search_term=''; $('#search').val('').attr("placeholder", "search inside csdb.dk");
+        }
+        browser_datasource=collector_name;
+
+    }    
+
+
     document.getElementById('sel_browser_snapshots').onclick = async function(){
-        await get_data_collector('csdb').wait_until_finish();
- 
-        $('#sel_browser_snapshots').parent().removeClass('btn-secondary').removeClass('btn-primary')
-        .addClass('btn-primary');
-        $('#sel_browser_csdb').parent().removeClass('btn-secondary').removeClass('btn-primary')
-        .addClass('btn-secondary');
-        browser_datasource='snapshots';
-        search_term=''; $('#search').val('').attr("placeholder", "search snapshots (local browser storage)");
+        await switch_collector('snapshots');
         load_browser('snapshots');
     }
 
     document.getElementById('sel_browser_csdb').onclick = async function(){
-        await get_data_collector('snapshots').wait_until_finish();
-
-        $('#sel_browser_csdb').parent().removeClass('btn-secondary').removeClass('btn-primary')
-        .addClass('btn-primary');
-        $('#sel_browser_snapshots').parent().removeClass('btn-secondary').removeClass('btn-primary')
-        .addClass('btn-secondary');
-        search_term=''; $('#search').val('').attr("placeholder", "search inside csdb.dk (or drop a release-link)");
+        await switch_collector('csdb');
         load_browser('csdb');
     }
 

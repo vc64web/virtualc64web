@@ -208,7 +208,7 @@ function dragover_handler(ev) {
     ev.dataTransfer.dropEffect = 'copy';
 }
 
-function drop_handler(ev) {
+async function drop_handler(ev) {
     ev.preventDefault();
     ev.stopPropagation();
 
@@ -243,9 +243,20 @@ function drop_handler(ev) {
                         get_data_collector("csdb").run_link(title_name, id ,parameter_link);            
                     }, 200);
                 }
+                else if(dropped_uri.startsWith("https://csdb.dk/release/?id="))
+                {
+                    $('#snapshotModal').modal('show');                    
+
+                    //current_browser_datasource
+                    await switch_collector("csdb");
+                    current_browser_datasource="csdb";
+
+                    $('#search').val(dropped_uri);
+                    document.getElementById('search_symbol').click();
+                }
                 else
                 {
-                    alert("Sorry only C64-Files and CSDb-release-DOWNLOAD-links accepted..., Hint: you can drop CSDB-release-links into scene-browser search field ...");
+                    alert("Sorry only C64-Files, CSDb-release-links or CSDb-download-links are currently supported by vc64web ...");
                 }
                 break;
             }

@@ -3,7 +3,7 @@
 ![alt Logo](http://www.dirkwhoffmann.de/software/images/banner-vcweb3.jpg)
 
 ## info
-vc64web uses pure HTML5 techniques and is runnable on modern desktop browsers and also on web browsers for touch devices like phones and tablets ... 
+vc64web is a C64 emulator that uses javascript and pure HTML5 techniques and is runnable on modern desktop browsers and also on web browsers for touch devices like phones and tablets ... 
 
 it supports PWA standard which gives it the appearance of an nearly native app e.g. runs offline, no browser addressbar and so on  ... to install it nativley as a PWA on iOS devices for example -> save it to homescreen 
 
@@ -59,8 +59,12 @@ _note_: start.sh starts an webserver with URL base path pointing to the folder w
 * polishing of the scene browser UI component ... show more infos about each entry
 * added search to the collector interface for local stored snapshots and csdb
 * adding favourites feature to the collector interface, to be able to 💖 entries and easily filter them 
+* drag and drop for CSDb-download-links into the fileslot or emulator window and CSDb-release-links into search field of scene browser
+* XBoxController standard digipad and analog stick mapping supported
 
 ## next goals
+* scrollable navbar for very tiny phones
+* XBoxController should trigger rumble/vibration if VIC is detecting sprite collisions
 * new  modern boot sequence/animation  replacing the standard emscripten visual boot code 
 * javascript interface for more settings of the emulation like (greydotbugemulation) 
 * export/import of a complete snapshot library as one big zip file 

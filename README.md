@@ -3,18 +3,18 @@
 ![alt Logo](http://www.dirkwhoffmann.de/software/images/banner-vcweb3.jpg)
 
 ## info
-vc64web is a C64 emulator that uses javascript and pure HTML5 techniques and is runnable on modern desktop browsers and also on web browsers for touch devices like phones and tablets ... 
+vc64web is a C64 emulator that is based solely on HTML5 techniques e.g. javascript and WASM. VC64web is therefore runnable on modern desktop browsers and also on web browsers for touch devices like phones and tablets ... 
 
 it supports PWA standard which gives it the appearance of an nearly native app e.g. runs offline, no browser addressbar and so on  ... to install it nativley as a PWA on iOS devices for example -> save it to homescreen 
 
 The emulation core is a copy of virtualC64 without its usual mac GUI in v3.4b1 master branch March 3 2020 latest commit point fe1629c
 
 some highlighted features: 
+* includes an online interface to the csdb.dk named scene browser (powered by CSDb web service https://csdb.dk/webservice/)
 * supports external gamecontroller
 * supports touch device as joystick
 * free definable action buttons with own javascript action scripts for creating bot controller support (e.g. aimbots, auto defense bot, etc...)   
 * snaphot saving to the local browser web storage ...
-* includes an online interface to the csdb.dk named scene browser (powered by CSDb web service https://csdb.dk/webservice/)
 * supports multivolumne titles in zip archives
 * supports direct start ... a link to a C64 file (zip, d64, ...) as an call parameter (e.g.  https://dirkwhoffmann.github.io/virtualc64web/#http://csdb.dk/getinternalfile.php/205771/CopperBooze.prg ) 
 

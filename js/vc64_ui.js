@@ -227,21 +227,11 @@ async function drop_handler(ev) {
                 var dropped_uri = dt.getData("text"); //dt.getData("text/uri-list");
                 //e.g. dropped_uri=https://csdb.dk/release/download.php?id=244060"
 
-                var dropped_html = dt.getData("text/html");
-/*              e.g. dropped_html =
-                "<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
-                <a href="https://csdb.dk/release/download.php?id=244060">http://csdb.dk/getinternalfile.php/205910/joyride.prg</a>"
-*/
-                var dropped_id_and_name = dropped_html.match(`id=([0-9]+)">(http://csdb.dk/getinternalfile.php/.*?)</a>`); 
-                if(dropped_id_and_name != null && dropped_id_and_name.length>1)
+                if(dropped_uri.startsWith("https://csdb.dk/release/download.php?id="))
                 {
-                    var id = dropped_id_and_name[1];
-                    var title_name = dropped_id_and_name[2].split("/");
-                    title_name = title_name[title_name.length-1];
-                    var parameter_link = dropped_id_and_name[2];
                     setTimeout(() => {
-                        get_data_collector("csdb").run_link(title_name, id ,parameter_link);            
-                    }, 200);
+                        get_data_collector("csdb").run_link("call_parameter", -1 /* with reset */,dropped_uri);            
+                    }, 150);
                 }
                 else if(dropped_uri.startsWith("https://csdb.dk/release/?id="))
                 {

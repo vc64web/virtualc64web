@@ -2,6 +2,12 @@
 
 ![alt Logo](http://www.dirkwhoffmann.de/software/images/banner-vcweb3.jpg)
 
+## run it in your browser
+https://dirkwhoffmann.github.io/virtualc64web/
+
+on a touch screen device, don't forget to save it to homescreen as it fully supports the PWA standard and for that will behave like a real app and not just like a browser app (with save to homescreen you will get rid of all those unwanted browser gestures like adressbar swipe back and swipe forward, etc...)  
+
+
 ## info
 vc64web is a C64 emulator that is based solely on HTML5 techniques e.g. javascript and WASM. It is therefore runnable on modern desktop browsers and also on web browsers for touch devices like phones and tablets ... 
 
@@ -17,12 +23,8 @@ some highlighted features:
 * snaphot saving to the local browser web storage ...
 * supports multivolumne titles in zip archives
 * supports direct start ... a link to a C64 file (zip, d64, ...) as an call parameter (e.g.  https://dirkwhoffmann.github.io/virtualc64web/#http://csdb.dk/getinternalfile.php/205771/CopperBooze.prg ) 
+* supports dragging of CSDB-Download and Release-Links from the CSDb.dk website into the vc64web window ...
 
-
-## start up VirtualC64Web right now in your browser
-https://dirkwhoffmann.github.io/virtualc64web/
-
-on a touch screen device, don't forget to save it to homescreen as it fully supports the PWA standard and for that will behave like a real app and not just like a browser app (with save to homescreen you will get rid of all those unwanted browser gestures like adressbar swipe back and swipe forward, etc...)  
 
 ## the roots ... or how and when did the development begin ...
 https://github.com/dirkwhoffmann/vAmiga/issues/291
@@ -59,7 +61,7 @@ _note_: start.sh starts an webserver with URL base path pointing to the folder w
 * polishing of the scene browser UI component ... show more infos about each entry
 * added search to the collector interface for local stored snapshots and csdb
 * adding favourites feature to the collector interface, to be able to 💖 entries and easily filter them 
-* drag and drop for CSDb-download-links into the fileslot or emulator window and CSDb-release-links into search field of scene browser
+* drag and drop for CSDb-download-links into the fileslot or emulator window and CSDb-release-links into search field of scene browser (in Safari currently only CSDb-release-links are working)
 * XBoxController standard digipad and analog stick mapping supported
 
 ## next goals

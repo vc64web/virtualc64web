@@ -208,7 +208,7 @@ function dragover_handler(ev) {
     ev.dataTransfer.dropEffect = 'copy';
 }
 
-function drop_handler(ev) {
+async function drop_handler(ev) {
     ev.preventDefault();
     ev.stopPropagation();
 
@@ -227,11 +227,19 @@ function drop_handler(ev) {
                 var dropped_uri = dt.getData("text"); //dt.getData("text/uri-list");
                 //e.g. dropped_uri=https://csdb.dk/release/download.php?id=244060"
 
-                var dropped_html = dt.getData("text/html");
-/*              e.g. dropped_html =
-                "<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
-                <a href="https://csdb.dk/release/download.php?id=244060">http://csdb.dk/getinternalfile.php/205910/joyride.prg</a>"
+/* is not working because of mixed content: https link redirects to http ...
+                if(dropped_uri.startsWith("https://csdb.dk/release/download.php?id="))
+                {
+                    setTimeout(() => {
+                        get_data_collector("csdb").run_link("call_parameter", -1,dropped_uri);            
+                    }, 150);
+                }
 */
+                var dropped_html = dt.getData("text/html");
+                /*              e.g. dropped_html =
+                                "<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+                                <a href="https://csdb.dk/release/download.php?id=244060">http://csdb.dk/getinternalfile.php/205910/joyride.prg</a>"
+                */
                 var dropped_id_and_name = dropped_html.match(`id=([0-9]+)">(http://csdb.dk/getinternalfile.php/.*?)</a>`); 
                 if(dropped_id_and_name != null && dropped_id_and_name.length>1)
                 {
@@ -243,9 +251,20 @@ function drop_handler(ev) {
                         get_data_collector("csdb").run_link(title_name, id ,parameter_link);            
                     }, 200);
                 }
+                else if(dropped_uri.startsWith("https://csdb.dk/release/?id="))
+                {
+                    $('#snapshotModal').modal('show');                    
+
+                    //current_browser_datasource
+                    await switch_collector("csdb");
+                    current_browser_datasource="csdb";
+
+                    $('#search').val(dropped_uri);
+                    document.getElementById('search_symbol').click();
+                }
                 else
                 {
-                    alert("Sorry only C64-Files and CSDb-release-DOWNLOAD-links accepted..., Hint: you can drop CSDB-release-links into scene-browser search field ...");
+                    alert("Sorry only C64-Files, CSDb-release-links or CSDb-download-links are currently supported by vc64web ...");
                 }
                 break;
             }
@@ -1171,7 +1190,7 @@ wide_screen_switch.change( function() {
         {
             //the roms differ from cold-start to ready prompt, orig-roms 3300ms and open-roms 250ms   
             var time_since_start=Date.now()-wasm_first_run;
-            var time_coldstart_to_ready_prompt = faster_open_roms_installed ? 400:3400;
+            var time_coldstart_to_ready_prompt = faster_open_roms_installed ? 500:3400;
             
             if(time_since_start>time_coldstart_to_ready_prompt)
             {
@@ -1186,7 +1205,7 @@ wide_screen_switch.change( function() {
         }
         else
         {
-            var time_reset_to_ready_prompt = faster_open_roms_installed ? 650:2800;
+            var time_reset_to_ready_prompt = faster_open_roms_installed ? 800:2800;
             
             $('#alert_reset').show();
             wasm_reset();

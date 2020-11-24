@@ -61,10 +61,11 @@ _note_: start.sh starts an webserver with URL base path pointing to the folder w
 * polishing of the scene browser UI component ... show more infos about each entry
 * added search to the collector interface for local stored snapshots and csdb
 * adding favourites feature to the collector interface, to be able to 💖 entries and easily filter them 
-* drag and drop for CSDb-download-links into the fileslot or emulator window and CSDb-release-links into search field of scene browser (in Safari currently only CSDb-release-links are working)
+* drag and drop for CSDb-download-links into the fileslot or emulator window and CSDb-release-links into search field of scene browser
 * XBoxController standard digipad and analog stick mapping supported
 
 ## next goals
+* migration to dirks new (still unreleased) v4 Core ... paves the way for a later vAmigaWeb project
 * scrollable navbar for very tiny phones
 * XBoxController should trigger rumble/vibration if VIC is detecting sprite collisions
 * new  modern boot sequence/animation  replacing the standard emscripten visual boot code 

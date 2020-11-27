@@ -8,10 +8,17 @@
 // -----------------------------------------------------------------------------
 
 #include "C64.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 //
 // Emulator thread
 //
+
+#ifdef __EMSCRIPTEN__
+bool paused_the_emscripten_main_loop=false;
+#endif
 
 void 
 threadTerminated(void* thisC64)
@@ -23,6 +30,8 @@ threadTerminated(void* thisC64)
     c64->threadDidTerminate();
 }
 
+extern void draw_one_frame_into_SDL(void *thisC64);
+
 void 
 *threadMain(void *thisC64) {
     
@@ -32,10 +41,27 @@ void
     C64 *c64 = (C64 *)thisC64;
     c64->threadWillStart();
     
+#ifdef __EMSCRIPTEN__
+#else
     // Configure thread properties...
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, nullptr);
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, nullptr);
     pthread_cleanup_push(threadTerminated, thisC64);
+#endif
+#ifdef __EMSCRIPTEN__
+    
+    if(paused_the_emscripten_main_loop)
+    {
+        c64->debug("emscripten_resume_main_loop()\n");
+        emscripten_resume_main_loop();
+    }
+    else
+    {
+        c64->debug("emscripten_set_main_loop_arg()\n");
+        emscripten_set_main_loop_arg(draw_one_frame_into_SDL, thisC64, 0, 1);
+    }
+    return NULL;
+#else
     
     // Enter the run loop
     c64->runLoop();
@@ -43,6 +69,8 @@ void
     // Clean up and exit
     pthread_cleanup_pop(1);
     pthread_exit(nullptr);
+#endif
+
 }
 
 
@@ -78,9 +106,11 @@ C64::C64()
     initialize();
     _reset();
         
+#ifndef __EMSCRIPTEN__
     // Initialize mutexes
     pthread_mutex_init(&threadLock, nullptr);
     pthread_mutex_init(&stateChangeLock, nullptr);
+#endif
 }
 
 C64::~C64()
@@ -579,26 +609,46 @@ void
 C64::run()
 {
     debug(RUN_DEBUG, "run()\n");
-    
+#ifndef __EMSCRIPTEN__   
     pthread_mutex_lock(&stateChangeLock);
+#endif
     
     if (!isRunning() && isReady()) {
-        
+#ifndef __EMSCRIPTEN__   
         acquireThreadLock();
+#endif
         HardwareComponent::run();
+
+#ifdef __EMSCRIPTEN__
+
+        if(paused_the_emscripten_main_loop)
+        {
+            debug("emscripten_resume_main_loop\n");
+            emscripten_resume_main_loop();
+        }
+        else
+        {
+            p=1; //<--------- use p here only as a flag
+
+            debug("emscripten_set_main_loop_arg()\n");
+            emscripten_set_main_loop_arg(draw_one_frame_into_SDL, (void *)this, 0, 1);
+        }
+#endif
+
     }
-    
+#ifndef __EMSCRIPTEN__   
     pthread_mutex_unlock(&stateChangeLock);
+#endif
 }
 
 void
 C64::_run()
 {
     debug(RUN_DEBUG, "_run()\n");
-    
+#ifndef __EMSCRIPTEN__    
     // Start the emulator thread
     pthread_create(&p, nullptr, threadMain, (void *)this);
-    
+#endif
     // Inform the GUI
     putMessage(MSG_RUN);
 }
@@ -608,15 +658,27 @@ C64::pause()
 {
     debug(RUN_DEBUG, "pause()\n");
     
+#ifndef __EMSCRIPTEN__
     pthread_mutex_lock(&stateChangeLock);
-    
+#endif
     if (!isPaused()) {
-        
+#ifdef __EMSCRIPTEN__        
+        paused_the_emscripten_main_loop=true;
+
+        ::threadTerminated(this);    
+
+        HardwareComponent::pause()
+
+        //emscripten_cancel_main_loop();
+        emscripten_pause_main_loop(); 
+#else
         acquireThreadLock();
         HardwareComponent::pause();
+#endif
     }
-    
+#ifndef __EMSCRIPTEN__ 
     pthread_mutex_unlock(&stateChangeLock);
+#endif
 }
 
 void
@@ -693,6 +755,9 @@ C64::_setDebug(bool enable)
 void
 C64::suspend()
 {
+#ifdef __EMSCRIPTEN__
+    //no need to suspend /resume, because there is only one single execution thread in WASM 
+#else
     pthread_mutex_lock(&stateChangeLock);
     
     debug(RUN_DEBUG, "Suspending (%d)...\n", suspendCounter);
@@ -706,11 +771,15 @@ C64::suspend()
     }
     
     pthread_mutex_unlock(&stateChangeLock);
+#endif
 }
 
 void
 C64::resume()
 {
+#ifdef __EMSCRIPTEN__
+    //no need to suspend /resume, because there is only one single execution thread in WASM 
+#else
     pthread_mutex_lock(&stateChangeLock);
     
     debug(RUN_DEBUG, "Resuming (%d)...\n", suspendCounter);
@@ -722,6 +791,7 @@ C64::resume()
     }
     
     pthread_mutex_unlock(&stateChangeLock);
+#endif
 }
 
 void
@@ -1036,6 +1106,10 @@ C64::endFrame()
     // Check if the run loop is requested to stop
     if (stopFlag) { stopFlag = false; signalStop(); }
     
+#ifdef __EMSCRIPTEN__
+    //no need to synchronize as we are called by the 60hz SDL render thread ...
+#else
+
     // Count some sheep (zzzzzz) ...
     oscillator.synchronize();
     /*
@@ -1043,6 +1117,7 @@ C64::endFrame()
         synchronizeTiming();
     }
     */
+#endif
 }
 
 void

@@ -6,12 +6,14 @@
 
 #include <stdio.h>
 #include "C64.h"
-#include "C64_types.h"
+#include "C64Types.h"
 #include "msg_codes.h"
 
 #include <emscripten.h>
 #include <SDL2/SDL.h>
 #include <emscripten/html5.h>
+
+//#define WITH_SNAPSHOTS = 1
 
 /* SDL2 start*/
 SDL_Window * window = NULL;
@@ -95,14 +97,14 @@ void PrintEvent(const SDL_Event * event)
     }
 }
 
-int emu_width  = NTSC_PIXELS; //428
-int emu_height = PAL_RASTERLINES; //284
+int emu_width  = TEX_WIDTH; //NTSC_PIXELS; //428
+int emu_height = TEX_HEIGHT; //PAL_RASTERLINES; //284
 int eat_border_width = 0;
 int eat_border_height = 0;
 int xOff = 12 + eat_border_width;
 int yOff = 12 + eat_border_height;
-int clipped_width  = NTSC_PIXELS -12 -24 -2*eat_border_width; //392
-int clipped_height = PAL_RASTERLINES -12 -24 -2*eat_border_height; //248
+int clipped_width  = TEX_WIDTH -12 -24 -2*eat_border_width; //392
+int clipped_height = TEX_HEIGHT -12 -24 -2*eat_border_height; //248
 
 int bFullscreen = false;
 
@@ -225,11 +227,11 @@ void draw_one_frame_into_SDL(void *thisC64)
 
   C64 *c64 = (C64 *)thisC64;
 
-  if(c64->getWarp() == true)
+  if(c64->inWarpMode() == true)
   {
     printf("warping at least 25 cycles at once ...\n");
     int i=25;
-    while(c64->getWarp() == true && i>0)
+    while(c64->inWarpMode() == true && i>0)
     {
       c64->executeOneFrame();
       i--;
@@ -275,7 +277,7 @@ void draw_one_frame_into_SDL(void *thisC64)
       draw_one_frame(); // to gather joystick information for example 
   });
  
-  Uint8 *texture = (Uint8 *)c64->vic.screenBuffer();
+  Uint8 *texture = (Uint8 *)c64->vic.stableEmuTexture(); //screenBuffer();
 
   int surface_width = window_surface->w;
   int surface_height = window_surface->h;
@@ -437,24 +439,41 @@ class C64Wrapper {
 
   void run()
   {
-    printf("wrapper calls 4x c64->loadRom(...) method\n");
-    c64->loadRom("roms/kernal.901227-03.bin");
-    c64->loadRom("roms/basic.901226-01.bin");
-    c64->loadRom("roms/characters.901225-01.bin");
-    c64->loadRom("roms/1541-II.251968-03.bin");
-    printf("wrapper calls run on c64->run() method\n");
+/*    printf("wrapper calls 4x c64->loadRom(...) method\n");
+    c64->loadRom(ROM_KERNAL ,"roms/kernal.901227-03.bin");
+    c64->loadRom(ROM_BASIC, "roms/basic.901226-01.bin");
+    c64->loadRom(ROM_CHAR, "roms/characters.901225-01.bin");
+    c64->loadRom(ROM_VC1541, "roms/1541-II.251968-03.bin");
+*/
+    if(!c64->isReady())
+    {
+      c64->putMessage(MSG_ROM_MISSING);
+    }
+    /*
+    EM_ASM({
+      setTimeout(function() {message_handler( $0 );}, 0);
+    }, msg_code[MSG_ROM_MISSING].c_str() );
+*/
+
+    printf("v4 wrapper calls run on c64->run() method\n");
 
     //c64->setTakeAutoSnapshots(false);
     //c64->setWarpLoad(true);
-    c64->vic.emulateGrayDotBug=false;
+    c64->configure(OPT_GRAY_DOT_BUG, false);
+    c64->configure(OPT_VIC_REVISION, PAL_6569_R1);
+
+
+    c64->dump();
+    printf("is running = %u\n",c64->isRunning()); 
  //   c64->dump();
  //   c64->drive1.dump();
-    //c64->setDebugLevel(2);
+    //c64->setDebugLevel(2);also 
     //c64->sid.setDebugLevel(4);
  //   c64->drive1.setDebugLevel(3);
  //   c64->sid.dump();
-    c64->run();
-    printf("after run ...\n");
+
+    printf("waiting on emulator ready in javascript ...\n");
+ 
   }
 };
 
@@ -483,20 +502,20 @@ extern "C" void wasm_key(int code1, int code2, int pressed)
   {
     if(pressed == 1)
     {
-      wrapper->c64->keyboard.pressRestoreKey();
+      wrapper->c64->keyboard.pressRestore();
     }
     else
     {
-      wrapper->c64->keyboard.releaseRestoreKey();
+      wrapper->c64->keyboard.releaseRestore();
     }
   }
   else if(pressed==1)
   {
-    wrapper->c64->keyboard.pressKey(code1, code2);
+    wrapper->c64->keyboard.pressRowCol(code1, code2);
   }
   else
   {
-    wrapper->c64->keyboard.releaseKey(code1, code2);
+    wrapper->c64->keyboard.releaseRowCol(code1, code2);
   }
 }
 
@@ -505,50 +524,50 @@ extern "C" void wasm_key(int code1, int code2, int pressed)
 
 
 
-VC1541 *selected_drive = NULL;
+Drive *selected_drive = NULL;
 AnyArchive *selected_archive = NULL;
 void insertDisk(void *c64) 
 {
 //  printf("time[ms]=%lf insert disk\n",emscripten_get_now());
   selected_drive->insertDisk(selected_archive);
 }
-void prepareToInsert(void *c64) 
+/*void prepareToInsert(void *c64) 
 {
 //  printf("time[ms]=%lf prepare to insert\n",emscripten_get_now());
-  selected_drive->prepareToInsert();
+  //selected_drive->prepareToInsert();
   emscripten_async_call(insertDisk, c64, 300);
-}
+}*/
 void ejectDisk(void *c64) 
 {
 //  printf("time[ms]=%lf eject disk\n",emscripten_get_now());
   selected_drive->ejectDisk();
-  emscripten_async_call(prepareToInsert, c64, 300);
+  emscripten_async_call(insertDisk, c64, 300);
 }
 
 void changeDisk(AnyArchive *a, int iDriveNumber)
 {
-  VC1541 *drive = NULL;
+  Drive *drive = NULL;
   
   if(iDriveNumber == 8)
   {
-    drive = &(wrapper->c64->drive1);
+    drive = &(wrapper->c64->drive8);
   }
   else if(iDriveNumber == 9)
   {
-    drive = &(wrapper->c64->drive2);
+    drive = &(wrapper->c64->drive9);
   }
   selected_drive = drive;
   selected_archive = a;
  
   if( drive->hasDisk() ) {
 //    printf("time[ms]=%lf prepared to eject\n",emscripten_get_now());
-    drive->prepareToEject();
+  //  drive->prepareToEject();
     emscripten_async_call(ejectDisk, wrapper->c64, 300);
   }
   else
   {
 //    printf("time[ms]=%lf prepare to insert\n",emscripten_get_now());
-    drive->prepareToInsert();
+  //  drive->prepareToInsert();
     emscripten_async_call(insertDisk, wrapper->c64, 300);
   }
 }
@@ -556,8 +575,10 @@ void changeDisk(AnyArchive *a, int iDriveNumber)
 extern "C" Uint8 *wasm_pull_user_snapshot_file(unsigned nr)
 {
   printf("wasm_pull_user_snapshot_file nr=%u\n", nr);
-  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
   
+  Snapshot *snapshot = wrapper->c64->latestUserSnapshot(); //wrapper->c64->userSnapshot(nr);
+  
+
   size_t size = snapshot->writeToBuffer(NULL);
   uint8_t *buffer = new uint8_t[size];
   snapshot->writeToBuffer(buffer);
@@ -566,7 +587,7 @@ extern "C" Uint8 *wasm_pull_user_snapshot_file(unsigned nr)
 extern "C" size_t wasm_pull_user_snapshot_file_size(unsigned nr)
 {
   printf("wasm_pull_user_snapshot_file_size nr=%u\n", nr);
-  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
+  Snapshot *snapshot =  wrapper->c64->latestUserSnapshot();//wrapper->c64->userSnapshot(nr);
   size_t size = snapshot->writeToBuffer(NULL);
   return size;
 }
@@ -574,60 +595,92 @@ extern "C" size_t wasm_pull_user_snapshot_file_size(unsigned nr)
 
 extern "C" void wasm_take_user_snapshot()
 {
-  wrapper->c64->takeUserSnapshot();
+  wrapper->c64->requestUserSnapshot();
 }
 
 
 
 extern "C" void wasm_set_take_auto_snapshots(unsigned enable)
 {
+  #ifdef WITH_SNAPSHOTS
   wrapper->c64->setTakeAutoSnapshots(enable == 1);
+  #endif
 }
 
 extern "C" void wasm_restore_auto_snapshot(unsigned nr)
 {
+  #ifdef WITH_SNAPSHOTS
   wrapper->c64->restoreAutoSnapshot(nr);
+  #endif
 }
 
 
 extern "C" Uint8 *wasm_pull_auto_snapshot(unsigned nr)
 {
   printf("wasm_pull_user_snapshot nr=%u\n", nr);
+  #ifdef WITH_SNAPSHOTS
+
   Snapshot *snapshot = wrapper->c64->autoSnapshot(nr);
   return snapshot->getImageData();
+  #else
+  return NULL;
+  #endif
 }
 
 extern "C" unsigned wasm_auto_snapshot_width(unsigned nr)
 {
+  #ifdef WITH_SNAPSHOTS
+
   Snapshot *snapshot = wrapper->c64->autoSnapshot(nr);
   return snapshot->getImageWidth();
+  #else
+  return 0;
+  #endif
 }
 extern "C" unsigned wasm_auto_snapshot_height(unsigned nr)
 {
+  #ifdef WITH_SNAPSHOTS
+
   Snapshot *snapshot = wrapper->c64->autoSnapshot(nr);
   return snapshot->getImageHeight();
+  #else
+  return 0;
+  #endif
+
 }
 
 extern "C" size_t wasm_auto_snapshots_count()
 {
+  #ifdef WITH_SNAPSHOTS
   return wrapper->c64->numAutoSnapshots();
+  #else
+  return 0;
+  #endif
 }
 
 extern "C" void wasm_suspend_auto_snapshots()
 {
+  #ifdef WITH_SNAPSHOTS
   return wrapper->c64->suspendAutoSnapshots();
+  #else
+  return;
+  #endif
 }
 
 extern "C" void wasm_resume_auto_snapshots()
 {
+  #ifdef WITH_SNAPSHOTS
   return wrapper->c64->resumeAutoSnapshots();
+  #else
+  return;
+  #endif
 }
 
 
 
 extern "C" void wasm_set_warp(unsigned on)
 {
-  wrapper->c64->setWarpLoad(on == 1);
+  wrapper->c64->setWarp(on == 1);
 }
 
 
@@ -637,13 +690,13 @@ extern "C" void wasm_set_borderless(unsigned on)
   //PAL_RASTERLINES=284 
 
   eat_border_width = on*35;
-  xOff = 12 + eat_border_width;
-  clipped_width  = NTSC_PIXELS -12 -24 -2*eat_border_width; //392
+  xOff = 12 + eat_border_width /*v4*/ +92;
+  clipped_width  = TEX_WIDTH -12 -24 -2*eat_border_width /*v4*/ -100; //392
 //428-12-24-2*33 =326
 
   eat_border_height = on*24;
-  yOff = 10 + eat_border_height;
-  clipped_height = PAL_RASTERLINES -10 -24 -2*eat_border_height; //248
+  yOff = 10 + eat_border_height /*v4*/ +5;
+  clipped_height = TEX_HEIGHT -10 -24 -2*eat_border_height  /*v4*/ +0; //248
 //284-11-24-2*22=205
  
   SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);
@@ -674,7 +727,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
   }
   else if (checkFileSuffix(name, ".CRT")|| checkFileSuffix(name, ".crt")) {
     printf("isCRT\n");
-    wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(wrapper->c64,(CRTFile::makeWithBuffer(blob, len))));
+    wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(*(wrapper->c64),(CRTFile::makeWithBuffer(blob, len))));
     wrapper->c64->reset();
   }
   else if (checkFileSuffix(name, ".TAP")|| checkFileSuffix(name, ".tap")) {
@@ -690,16 +743,17 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
   }
   else if (checkFileSuffix(name, ".vc64")|| checkFileSuffix(name, ".vc64")) {
     printf("isSnapshot\n");
-    wrapper->c64->loadFromSnapshotSafe(Snapshot::makeWithBuffer(blob, len));
+    wrapper->c64->loadFromSnapshot(Snapshot::makeWithBuffer(blob, len));
   }
   else /*if (checkFileSuffix(name, ".BIN")|| checkFileSuffix(name, ".bin"))*/ {
  //   printf("\n");
-    //wrapper->c64->flash(ROMFile::makeWithBuffer(blob, len),0);
+    //wrapper->c64->flash(RomFile::makeWithBuffer(blob, len),0);
 
     bool result;
-    bool wasRunnable = wrapper->c64->isRunnable();
-    //ROMFile *rom = ROMFile::makeWithFile(name);
-    ROMFile *rom = ROMFile::makeWithBuffer(blob, len);
+    ErrorCode error;
+    bool wasRunnable = wrapper->c64->isReady(&error);
+    //RomFile *rom = RomFile::makeWithFile(name);
+    RomFile *rom = RomFile::makeWithBuffer(blob, len);
 
     if (!rom) {
         printf("Failed to read ROM image file %s\n", name);
@@ -716,9 +770,9 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
         printf("Failed to flash ROM image %s.\n", name);
     }
     
-    if (!wasRunnable && wrapper->c64->isRunnable())
+    if (!wasRunnable && wrapper->c64->isReady(&error))
     {
-        wrapper->c64->putMessage(MSG_READY_TO_RUN);
+       wrapper->c64->putMessage(MSG_READY_TO_RUN);
     }
     
     const char *rom_type="";
@@ -729,6 +783,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     else if(rom->isVC1541RomBuffer(blob, len))
     {
       rom_type = "vc1541_rom";
+      wrapper->c64->configure(DRIVE8, OPT_DRIVE_CONNECT,1);
     }
     else if(rom->isCharRomBuffer(blob, len))
     {
@@ -756,7 +811,7 @@ extern "C" void wasm_reset()
 extern "C" void wasm_halt()
 {
   printf("wasm_halt\n");
-  wrapper->c64->halt();
+  wrapper->c64->pause();
 }
 extern "C" void wasm_run()
 {
@@ -794,7 +849,7 @@ RELEASE_FIRE
   char joyport = port_plus_event[0];
   char* event  = port_plus_event+1;
 
-  JoystickEvent code;
+  GamePadAction code;
   if( strcmp(event,"PULL_UP") == 0)
   {
     code = PULL_UP;
@@ -877,10 +932,10 @@ extern "C" void wasm_set_sid_model(unsigned SID_Model)
 {
   if(SID_Model == 6581)
   {
-    wrapper->c64->sid.setModel(MOS_6581);
+    wrapper->c64->configure(OPT_SID_REVISION, MOS_6581);
   }
   else if(SID_Model == 8580)
   {
-    wrapper->c64->sid.setModel(MOS_8580);  
+    wrapper->c64->configure(OPT_SID_REVISION, MOS_8580);  
   }
 }

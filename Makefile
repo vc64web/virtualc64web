@@ -1,10 +1,10 @@
 OBJDIR := obj
-SRC	  = $(wildcard C64/C64.cpp C64/*/*.cpp C64/*/*/*.cpp)
-SRC_CC	  = $(wildcard C64/SID/resid/*.cc)
+SRC	  = $(wildcard Emulator/C64.cpp Emulator/*/*.cpp Emulator/*/*/*.cpp)
+SRC_CC	  = $(wildcard Emulator/SID/resid/*.cc)
 OBJECTS	  = $(patsubst %.cpp,%.o,$(SRC))
 OBJECTS_CC = $(patsubst %.cc,%.o,$(SRC_CC))
-CC        = emcc 
-INCLUDE   = -I. -IC64 -IC64/Cartridges -IC64/Cartridges/CustomCartridges -IC64/CPU -IC64/CIA -IC64/Computer -IC64/Datasette -IC64/Drive -IC64/FileFormats -IC64/Memory -IC64/General -IC64/Mouse -IC64/SID -IC64/SID/fastsid -IC64/VICII
+CC        = emcc
+INCLUDE   = -I. -IEmulator -IEmulator/Foundation -IEmulator/LogicBoard -IEmulator/Ports -IEmulator/Cartridges -IEmulator/Cartridges/CustomCartridges -IEmulator/CPU -IEmulator/CIA -IEmulator/Computer -IEmulator/Datasette -IEmulator/Drive -IEmulator/Files -IEmulator/Memory -IEmulator/General -IEmulator/Peripherals -IEmulator/SID -IEmulator/SID/fastsid -IEmulator/SID/resid -IEmulator/VICII
 WARNINGS  = -Wall -Wno-unused-variable
 STD       = -std=c++17
 OPTIMIZE  = -O2
@@ -24,10 +24,11 @@ clean:
 	rm -f vC64.data
 
 main:
-	$(CC)  -c $(CFLAGS) mainsdl.cpp 
+	$(CC)  -c $(CFLAGS) Emulator/C64.cpp mainsdl.cpp
 	mv *.o obj
 	$(CC)  $(CFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB -s ALLOW_MEMORY_GROWTH=1 $(OBJDIR)/*.o 
 	#--preload-file roms
+	#-s TOTAL_STACK=512MB
 	mv vC64.html index.html
 
 publish:

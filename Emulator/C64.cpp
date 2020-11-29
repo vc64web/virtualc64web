@@ -667,7 +667,7 @@ C64::pause()
 
         ::threadTerminated(this);    
 
-        HardwareComponent::pause()
+        HardwareComponent::pause();
 
         //emscripten_cancel_main_loop();
         emscripten_pause_main_loop(); 
@@ -861,6 +861,7 @@ C64::threadDidTerminate()
     pthread_mutex_unlock(&threadLock);
 }
 
+#ifndef __EMSCRIPTEN__
 void
 C64::runLoop()
 {
@@ -935,7 +936,7 @@ C64::runLoop()
         }
     }
 }
-
+#endif
 void
 C64::stopAndGo()
 {

@@ -84,7 +84,8 @@ longenum(MessageType)
     // Snapshots
     MSG_AUTO_SNAPSHOT_TAKEN,
     MSG_USER_SNAPSHOT_TAKEN,
-    MSG_SNAPSHOT_RESTORED
+    MSG_SNAPSHOT_RESTORED,
+    MSG_READY_TO_RUN
 };
 
 typedef struct

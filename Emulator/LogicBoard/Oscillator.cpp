@@ -9,6 +9,11 @@
 
 #include "C64.h"
 
+
+#ifdef __EMSCRIPTEN__    
+#include <emscripten.h>
+#endif
+
 Oscillator::Oscillator(C64& ref) : C64Component(ref)
 {
     setDescription("Oscillator");
@@ -42,7 +47,9 @@ Oscillator::nanos()
 #ifdef __MACH__
     
     return abs_to_nanos(mach_absolute_time());
-    
+
+#elif __EMSCRIPTEN__
+    return (uint64_t)(emscripten_get_now()*1000000.0);
 #else
     
     struct timespec ts;

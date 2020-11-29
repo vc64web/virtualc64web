@@ -193,17 +193,19 @@ public:
     DESERIALIZE16(unsigned short)
     DESERIALIZE32(int)
     DESERIALIZE32(unsigned int)
+ #ifndef __EMSCRIPTEN__
     DESERIALIZE64(long)
     DESERIALIZE64(unsigned long)
+ #endif
     DESERIALIZE64(long long)
     DESERIALIZE64(unsigned long long)
     DESERIALIZED(double)
  
-    DESERIALIZE32(MemoryType)
+    DESERIALIZE64(MemoryType)
     DESERIALIZE64(CartridgeType)
     DESERIALIZE64(DriveType)
     DESERIALIZE64(InsertionStatus)
-    DESERIALIZE32(MicroInstruction)
+    DESERIALIZE64(MicroInstruction)
     DESERIALIZE64(CIARevision)
     DESERIALIZE64(VICRevision)
     DESERIALIZE64(SIDRevision)
@@ -270,17 +272,19 @@ public:
     SERIALIZE16(const unsigned short)
     SERIALIZE32(const int)
     SERIALIZE32(const unsigned int)
+#ifndef __EMSCRIPTEN__
     SERIALIZE64(const long)
     SERIALIZE64(const unsigned long)
+#endif
     SERIALIZE64(const long long)
     SERIALIZE64(const unsigned long long)
     SERIALIZED(const double)
  
-    SERIALIZE32(const MemoryType)
+    SERIALIZE64(const MemoryType)
     SERIALIZE64(const CartridgeType)
     SERIALIZE64(const DriveType)
     SERIALIZE64(const InsertionStatus)
-    SERIALIZE32(const MicroInstruction)
+    SERIALIZE64(const MicroInstruction)
     SERIALIZE64(const CIARevision)
     SERIALIZE64(const VICRevision)
     SERIALIZE64(const SIDRevision)

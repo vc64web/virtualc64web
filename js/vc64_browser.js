@@ -68,7 +68,7 @@ function setup_browser_interface()
 
 
     $('#snapshotModal').on('hidden.bs.modal', function () {
-        wasm_resume_auto_snapshots();
+      //  wasm_resume_auto_snapshots();
         if(is_running())
         {
             try{wasm_run();} catch(e) {}
@@ -119,7 +119,7 @@ async function load_browser(datasource_name, command="feeds")
         wasm_halt();
     }
 
-    wasm_suspend_auto_snapshots();
+  //  wasm_suspend_auto_snapshots();
 
     //-- build snapshot feed
     var collector=get_data_collector(datasource_name);
@@ -298,6 +298,7 @@ var collectors = {
             try
             {
                 //first load autosave snapshots
+/*
                 var auto_save_count=wasm_auto_snapshots_count();
                 var auto_save_items=[];
                 for(var z=0; z<auto_save_count; z++)
@@ -308,8 +309,8 @@ var collectors = {
                     auto_save_items.push(new_item);
                 }
                 row_renderer('auto_save',auto_save_items);
-
-                this.total_count=auto_save_count;
+*/
+                this.total_count=0; //auto_save_count;
 
                 //now the user snapshots
                 var store_renderer = function(app_titles)
@@ -334,16 +335,21 @@ var collectors = {
         draw_item_into_canvas: function (app_title, teaser_canvas, item){
             if(app_title == 'auto_save')
             {
-                var id = item.internal_id; 
+/*                var id = item.internal_id; 
                 snapshot_ptr = wasm_pull_auto_snapshot(id);
                 var width=wasm_auto_snapshot_width(id);
                 var height=wasm_auto_snapshot_height(id);
                 this.copy_snapshot_to_canvas(snapshot_ptr, teaser_canvas, width, height);
+*/
             }
             else
             {
                 width=392;
                 height=268;
+
+                width=384;
+                height=284;
+
                 var ctx = teaser_canvas.getContext("2d");
                 teaser_canvas.width = width;
                 teaser_canvas.height = height;
@@ -370,9 +376,10 @@ var collectors = {
         show_detail: function (app_title, id){
             if(app_title == 'auto_save')
             {
-                var _id=id.substring(1);
+/*                var _id=id.substring(1);
                 wasm_restore_auto_snapshot(_id);
                 $('#snapshotModal').modal('hide');
+*/
             }
             else
             {

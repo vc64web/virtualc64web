@@ -7,8 +7,8 @@ CC        = emcc
 INCLUDE   = -I. -IEmulator -IEmulator/Foundation -IEmulator/LogicBoard -IEmulator/Ports -IEmulator/Cartridges -IEmulator/Cartridges/CustomCartridges -IEmulator/CPU -IEmulator/CIA -IEmulator/Computer -IEmulator/Datasette -IEmulator/Drive -IEmulator/Files -IEmulator/Memory -IEmulator/General -IEmulator/Peripherals -IEmulator/SID -IEmulator/SID/fastsid -IEmulator/SID/resid -IEmulator/VICII
 WARNINGS  = -Wall -Wno-unused-variable
 STD       = -std=c++17
-OPTIMIZE  = -O2
-WASM_EXPORTS= -s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS="['_main', '_wasm_toggleFullscreen', '_wasm_loadFile', '_wasm_key', '_wasm_joystick', '_wasm_reset', '_wasm_halt', '_wasm_run', '_wasm_take_user_snapshot', '_wasm_pull_auto_snapshot','_wasm_auto_snapshot_width', '_wasm_auto_snapshot_height', '_wasm_auto_snapshots_count','_wasm_restore_auto_snapshot', '_wasm_suspend_auto_snapshots', '_wasm_resume_auto_snapshots', '_wasm_create_renderer', '_wasm_set_warp', '_wasm_pull_user_snapshot_file','_wasm_pull_user_snapshot_file_size','_wasm_set_borderless', '_wasm_set_take_auto_snapshots', '_wasm_press_play', '_wasm_sprite_info', '_wasm_set_sid_model']"
+OPTIMIZE  = -O3
+WASM_EXPORTS= -s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS="['_main', '_wasm_toggleFullscreen', '_wasm_loadFile', '_wasm_key', '_wasm_joystick', '_wasm_reset', '_wasm_halt', '_wasm_run', '_wasm_take_user_snapshot', '_wasm_create_renderer', '_wasm_set_warp', '_wasm_pull_user_snapshot_file','_wasm_set_borderless', '_wasm_press_play', '_wasm_sprite_info', '_wasm_set_sid_model']"
 CFLAGS    = $(INCLUDE) $(WARNINGS) $(STD) $(OPTIMIZE) -s USE_SDL=2 $(WASM_EXPORTS) 
 #-s ASSERTIONS=1
 

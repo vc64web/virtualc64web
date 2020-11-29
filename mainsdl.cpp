@@ -13,8 +13,6 @@
 #include <SDL2/SDL.h>
 #include <emscripten/html5.h>
 
-//#define WITH_SNAPSHOTS = 1
-
 /* SDL2 start*/
 SDL_Window * window = NULL;
 SDL_Surface * window_surface = NULL;
@@ -404,7 +402,7 @@ void initSDL(void *thisC64)
 
 
 
-void theListener(const void *, int type, long data){
+void theListener(const void *, long type, long data){
   if(0!=strcmp("MSG_CHARSET", msg_code[type].c_str()))
   {
     printf("vC64 message=%s, data=%ld\n", msg_code[type].c_str(), data);
@@ -572,111 +570,33 @@ void changeDisk(AnyArchive *a, int iDriveNumber)
   }
 }
 
-extern "C" Uint8 *wasm_pull_user_snapshot_file(unsigned nr)
+
+char wasm_pull_user_snapshot_file_json_result[255];
+//extern "C" Uint8 *wasm_pull_user_snapshot_file()
+extern "C" char* wasm_pull_user_snapshot_file()
 {
-  printf("wasm_pull_user_snapshot_file nr=%u\n", nr);
-  
+  printf("wasm_pull_user_snapshot_file\n");
+
   Snapshot *snapshot = wrapper->c64->latestUserSnapshot(); //wrapper->c64->userSnapshot(nr);
-  
 
   size_t size = snapshot->writeToBuffer(NULL);
   uint8_t *buffer = new uint8_t[size];
   snapshot->writeToBuffer(buffer);
-  return buffer;
-}
-extern "C" size_t wasm_pull_user_snapshot_file_size(unsigned nr)
-{
-  printf("wasm_pull_user_snapshot_file_size nr=%u\n", nr);
-  Snapshot *snapshot =  wrapper->c64->latestUserSnapshot();//wrapper->c64->userSnapshot(nr);
-  size_t size = snapshot->writeToBuffer(NULL);
-  return size;
-}
 
+  sprintf(wasm_pull_user_snapshot_file_json_result, "{\"address\":%lu, \"size\": %lu, \"width\": %u, \"height\":%u }",
+  (unsigned long)buffer, 
+  size,
+  snapshot->getHeader()->screenshot.width,
+  snapshot->getHeader()->screenshot.height
+  );
+  printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
+  return wasm_pull_user_snapshot_file_json_result;
+}
 
 extern "C" void wasm_take_user_snapshot()
 {
   wrapper->c64->requestUserSnapshot();
 }
-
-
-
-extern "C" void wasm_set_take_auto_snapshots(unsigned enable)
-{
-  #ifdef WITH_SNAPSHOTS
-  wrapper->c64->setTakeAutoSnapshots(enable == 1);
-  #endif
-}
-
-extern "C" void wasm_restore_auto_snapshot(unsigned nr)
-{
-  #ifdef WITH_SNAPSHOTS
-  wrapper->c64->restoreAutoSnapshot(nr);
-  #endif
-}
-
-
-extern "C" Uint8 *wasm_pull_auto_snapshot(unsigned nr)
-{
-  printf("wasm_pull_user_snapshot nr=%u\n", nr);
-  #ifdef WITH_SNAPSHOTS
-
-  Snapshot *snapshot = wrapper->c64->autoSnapshot(nr);
-  return snapshot->getImageData();
-  #else
-  return NULL;
-  #endif
-}
-
-extern "C" unsigned wasm_auto_snapshot_width(unsigned nr)
-{
-  #ifdef WITH_SNAPSHOTS
-
-  Snapshot *snapshot = wrapper->c64->autoSnapshot(nr);
-  return snapshot->getImageWidth();
-  #else
-  return 0;
-  #endif
-}
-extern "C" unsigned wasm_auto_snapshot_height(unsigned nr)
-{
-  #ifdef WITH_SNAPSHOTS
-
-  Snapshot *snapshot = wrapper->c64->autoSnapshot(nr);
-  return snapshot->getImageHeight();
-  #else
-  return 0;
-  #endif
-
-}
-
-extern "C" size_t wasm_auto_snapshots_count()
-{
-  #ifdef WITH_SNAPSHOTS
-  return wrapper->c64->numAutoSnapshots();
-  #else
-  return 0;
-  #endif
-}
-
-extern "C" void wasm_suspend_auto_snapshots()
-{
-  #ifdef WITH_SNAPSHOTS
-  return wrapper->c64->suspendAutoSnapshots();
-  #else
-  return;
-  #endif
-}
-
-extern "C" void wasm_resume_auto_snapshots()
-{
-  #ifdef WITH_SNAPSHOTS
-  return wrapper->c64->resumeAutoSnapshots();
-  #else
-  return;
-  #endif
-}
-
-
 
 extern "C" void wasm_set_warp(unsigned on)
 {

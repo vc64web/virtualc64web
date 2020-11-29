@@ -850,10 +850,10 @@ function InitWrappers() {
     wasm_halt = Module.cwrap('wasm_halt', 'undefined');
     wasm_run = Module.cwrap('wasm_run', 'undefined');
     wasm_take_user_snapshot = Module.cwrap('wasm_take_user_snapshot', 'undefined');
-    wasm_pull_user_snapshot_file = Module.cwrap('wasm_pull_user_snapshot_file', 'number', ['number']);
-    wasm_pull_user_snapshot_file_size = Module.cwrap('wasm_pull_user_snapshot_file_size', 'number', ['number']);
+    wasm_pull_user_snapshot_file = Module.cwrap('wasm_pull_user_snapshot_file', 'string');
+//    wasm_pull_user_snapshot_file_size = Module.cwrap('wasm_pull_user_snapshot_file_size', 'number');
 
-    wasm_pull_auto_snapshot = Module.cwrap('wasm_pull_auto_snapshot', 'number', ['number']);
+ /*   wasm_pull_auto_snapshot = Module.cwrap('wasm_pull_auto_snapshot', 'number', ['number']);
     wasm_auto_snapshot_width = Module.cwrap('wasm_auto_snapshot_width', 'number', ['number']);
     wasm_auto_snapshot_height = Module.cwrap('wasm_auto_snapshot_height', 'number', ['number']);
     wasm_auto_snapshots_count = Module.cwrap('wasm_auto_snapshots_count', 'number');
@@ -861,7 +861,7 @@ function InitWrappers() {
     wasm_suspend_auto_snapshots = Module.cwrap('wasm_suspend_auto_snapshots', 'undefined');
     wasm_resume_auto_snapshots = Module.cwrap('wasm_resume_auto_snapshots', 'undefined');
     wasm_set_take_auto_snapshots = Module.cwrap('wasm_set_take_auto_snapshots', 'undefined', ['number']);
-
+*/
     wasm_create_renderer =  Module.cwrap('wasm_create_renderer', 'undefined', ['string']);
     wasm_set_warp = Module.cwrap('wasm_set_warp', 'undefined', ['number']);
     wasm_set_borderless = Module.cwrap('wasm_set_borderless', 'undefined', ['number']);
@@ -999,16 +999,16 @@ borderless_switch.change( function() {
 });
 
 //------
-
+/*
 auto_snapshot_switch = $('#auto_snapshot_switch');
 var take_auto_snapshots=load_setting('auto_snapshot_switch', false);
 auto_snapshot_switch.prop('checked', take_auto_snapshots);
-wasm_set_take_auto_snapshots(take_auto_snapshots ? 1:0);
+//wasm_set_take_auto_snapshots(take_auto_snapshots ? 1:0);
 auto_snapshot_switch.change( function() {
     wasm_set_take_auto_snapshots(this.checked ? 1:0);
     save_setting('auto_snapshot_switch', this.checked);
 });
-
+*/
 //------
 
 wide_screen_switch = $('#wide_screen_switch');
@@ -1237,12 +1237,14 @@ wide_screen_switch.change( function() {
     {       
         var app_name = $("#input_app_title").val();
         wasm_take_user_snapshot();
-        var ptr=wasm_pull_user_snapshot_file(0);
-        var size = wasm_pull_user_snapshot_file_size(0);
-        var snapshot_buffer = new Uint8Array(Module.HEAPU8.buffer, ptr, size);
+        var snapshot_json= wasm_pull_user_snapshot_file();
+        var snap_obj = JSON.parse(snapshot_json);
+//        var ptr=wasm_pull_user_snapshot_file();
+//        var size = wasm_pull_user_snapshot_file_size();
+        var snapshot_buffer = new Uint8Array(Module.HEAPU8.buffer, snap_obj.address, snap_obj.size);
    
         //snapshot_buffer is only a typed array view therefore slice, which creates a new array with byteposition 0 ...
-        save_snapshot(app_name, snapshot_buffer.slice(0,size));
+        save_snapshot(app_name, snapshot_buffer.slice(0,snap_obj.size));
    
         $("#modal_take_snapshot").modal('hide');
         //document.getElementById('canvas').focus();

@@ -29,7 +29,7 @@ class VICII : public C64Component {
     // I/O space (CPU accessible)
     //
     
-private:
+public:
     
     /* Piped I/O register state. When an I/O register is written to, the
      * corresponding value in variable current is changed and a flag is set in
@@ -40,6 +40,8 @@ private:
         VICIIRegisters current;
         VICIIRegisters delayed;
     } reg;
+
+private:
     
     // Raster interrupt line ($D012)
     u8 rasterIrqLine;
@@ -1349,14 +1351,14 @@ public:
 
     // Returns the current screen geometry
     ScreenGeometry getScreenGeometry(void);
-
-    /* Draw a horizontal colored line into the screen buffer. This method is
-     * utilized for debugging purposes, only.
-     */
-    // void markLine(u8 color, unsigned start = 0, unsigned end = TEX_WIDTH - 1);
     
-    /* Cuts out certain graphics layers
-     */
+    // Returns the coordinates of a certain sprite
+    u16 getSpriteX(int nr) { assert(nr < 8); return reg.current.sprX[nr]; }
+    u8 getSpriteY(int nr) { assert(nr < 8); return reg.current.sprY[nr]; }
+
+    // Cuts out certain graphics layers
+
+    // Cuts out certain graphics layers
     void cutLayers();
     
     // Initializes the DMA debugger textures

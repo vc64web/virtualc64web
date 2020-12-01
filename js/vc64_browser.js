@@ -344,12 +344,18 @@ var collectors = {
             }
             else
             {
-                width=392;
-                height=268;
-
-                width=384;
-                height=284;
-
+                var src_data = item.data;
+                var version = src_data[4] +'.'+src_data[5];
+                if(version.startsWith("3.3"))
+                { 
+                    width=392;
+                    height=268;
+                }
+                else //v4.0
+                {
+                    width=384;
+                    height=284;
+                }
                 var ctx = teaser_canvas.getContext("2d");
                 teaser_canvas.width = width;
                 teaser_canvas.height = height;
@@ -358,7 +364,6 @@ var collectors = {
                     imgData=ctx.createImageData(width,height);
                 
                     var data = imgData.data;
-                    var src_data = item.data;
                     snapshot_data = new Uint8Array(src_data, 40/* offset .. this number was a guess... */, data.length);
 
                     for (var i = 0; i < data.length; i += 4) {
@@ -369,6 +374,15 @@ var collectors = {
 
                     }
                     ctx.putImageData(imgData,0,0); 
+                
+                    if(version.startsWith("3.3"))
+                    {
+                        ctx.translate(50, 0); // translate to rectangle center 
+                        ctx.rotate((Math.PI / 180) * 27); // rotate
+                        ctx.font = '48px serif';
+                        ctx.fillStyle = '#DD0000';
+                        ctx.fillText('V'+version+' please delete', 10, 50);
+                    }
                 }
             }
             return; 
@@ -385,6 +399,12 @@ var collectors = {
             {
                 get_snapshot_per_id(id,
                     function (snapshot) {
+                        var version = snapshot.data[4] +'.'+snapshot.data[5];
+                        if(version.startsWith("3.3"))
+                        {
+                            alert('sorry, this snapshot has been taken with the older virtual C64 version 3.3 and can not be loaded with version 4 ...')
+                            return;
+                        }
                         wasm_loadfile(
                             snapshot.title+".vc64",
                             snapshot.data, 

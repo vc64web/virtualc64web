@@ -203,6 +203,7 @@ unsigned int executed_frame_count=0;
 int64_t total_executed_frame_count=0;
 double start_time=emscripten_get_now();
 unsigned int rendered_frame_count=0;
+unsigned int frames=0, seconds=0;
 // The emscripten "main loop" replacement function.
 void draw_one_frame_into_SDL(void *thisC64) 
 {
@@ -254,8 +255,12 @@ void draw_one_frame_into_SDL(void *thisC64)
   { 
     double passed_time= now - last_time;
     last_time = now;
-    printf("time[ms]=%lf, audio_samples=%d, frames [executed=%u, rendered=%u]\n", passed_time, sum_samples, executed_frame_count, rendered_frame_count);
-    sum_samples=0;
+
+    seconds += 1; 
+    frames += rendered_frame_count;
+    printf("time[ms]=%lf, audio_samples=%d, frames [executed=%u, rendered=%u] avg_fps=%u\n", 
+    passed_time, sum_samples, executed_frame_count, rendered_frame_count, frames/seconds);
+    sum_samples=0; 
     rendered_frame_count=0;
     executed_frame_count=0;
   }
@@ -609,14 +614,14 @@ extern "C" void wasm_set_borderless(unsigned on)
   //NTSC_PIXEL=428
   //PAL_RASTERLINES=284 
 
-  eat_border_width = on*35;
+  eat_border_width = on*(35 /* v4 */ -4);
   xOff = 12 + eat_border_width /*v4*/ +92;
   clipped_width  = TEX_WIDTH -12 -24 -2*eat_border_width /*v4*/ -100; //392
 //428-12-24-2*33 =326
 
-  eat_border_height = on*24;
+  eat_border_height = on*(24 /*v4*/ + 10);
   yOff = 10 + eat_border_height /*v4*/ +5;
-  clipped_height = TEX_HEIGHT -10 -24 -2*eat_border_height  /*v4*/ +0; //248
+  clipped_height = TEX_HEIGHT -10 -24 -2*eat_border_height  /*v4*/ -8; //248
 //284-11-24-2*22=205
  
   SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);

@@ -7,7 +7,7 @@ CC        = emcc
 INCLUDE   = -I. -IEmulator -IEmulator/Foundation -IEmulator/LogicBoard -IEmulator/Ports -IEmulator/Cartridges -IEmulator/Cartridges/CustomCartridges -IEmulator/CPU -IEmulator/CIA -IEmulator/Computer -IEmulator/Datasette -IEmulator/Drive -IEmulator/Files -IEmulator/Memory -IEmulator/General -IEmulator/Peripherals -IEmulator/SID -IEmulator/SID/fastsid -IEmulator/SID/resid -IEmulator/VICII
 WARNINGS  = -Wall -Wno-unused-variable
 STD       = -std=c++17
-OPTIMIZE  = -O3
+OPTIMIZE  = -O2
 WASM_EXPORTS= -s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS="['_main', '_wasm_toggleFullscreen', '_wasm_loadFile', '_wasm_key', '_wasm_joystick', '_wasm_reset', '_wasm_halt', '_wasm_run', '_wasm_take_user_snapshot', '_wasm_create_renderer', '_wasm_set_warp', '_wasm_pull_user_snapshot_file','_wasm_set_borderless', '_wasm_press_play', '_wasm_sprite_info', '_wasm_set_sid_model']"
 CFLAGS    = $(INCLUDE) $(WARNINGS) $(STD) $(OPTIMIZE) -s USE_SDL=2 $(WASM_EXPORTS) 
 #-s ASSERTIONS=1
@@ -24,7 +24,7 @@ clean:
 	rm -f vC64.data
 
 main:
-	$(CC)  -c $(CFLAGS) Emulator/C64.cpp mainsdl.cpp
+	$(CC)  -c $(CFLAGS) mainsdl.cpp
 	mv *.o obj
 	$(CC)  $(CFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB -s ALLOW_MEMORY_GROWTH=1 $(OBJDIR)/*.o 
 	#--preload-file roms

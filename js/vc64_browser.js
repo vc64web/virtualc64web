@@ -298,8 +298,7 @@ var collectors = {
             try
             {
                 //first load autosave snapshots
-/*
-                var auto_save_count=wasm_auto_snapshots_count();
+                var auto_save_count=auto_snaps.length;
                 var auto_save_items=[];
                 for(var z=0; z<auto_save_count; z++)
                 {
@@ -309,8 +308,8 @@ var collectors = {
                     auto_save_items.push(new_item);
                 }
                 row_renderer('auto_save',auto_save_items);
-*/
-                this.total_count=0; //auto_save_count;
+
+                this.total_count=auto_save_count;
 
                 //now the user snapshots
                 var store_renderer = function(app_titles)
@@ -335,12 +334,10 @@ var collectors = {
         draw_item_into_canvas: function (app_title, teaser_canvas, item){
             if(app_title == 'auto_save')
             {
-/*                var id = item.internal_id; 
-                snapshot_ptr = wasm_pull_auto_snapshot(id);
-                var width=wasm_auto_snapshot_width(id);
-                var height=wasm_auto_snapshot_height(id);
-                this.copy_snapshot_to_canvas(snapshot_ptr, teaser_canvas, width, height);
-*/
+                var id = item.internal_id; 
+                var width=384;
+                var height=284;
+                this.copy_autosnapshot_to_canvas(auto_snaps[id], teaser_canvas, width, height);
             }
             else
             {
@@ -390,10 +387,17 @@ var collectors = {
         show_detail: function (app_title, id){
             if(app_title == 'auto_save')
             {
-/*                var _id=id.substring(1);
-                wasm_restore_auto_snapshot(_id);
+                var _id=id.substring(1);
+                var snapshot_data =auto_snaps[_id];
+                if(is_running())
+                {
+                    wasm_halt();
+                }
+                wasm_loadfile(
+                            global_apptitle /*snapshot.title*/+".vc64",
+                            snapshot_data, 
+                            snapshot_data.length);
                 $('#snapshotModal').modal('hide');
-*/
             }
             else
             {
@@ -452,7 +456,25 @@ var collectors = {
 
             }
             ctx.putImageData(imgData,0,0); 
+        },
+        copy_autosnapshot_to_canvas: function(snapshot_data, canvas, width, height){ 
+            var ctx = canvas.getContext("2d");
+            canvas.width = width;
+            canvas.height = height;
+            imgData=ctx.createImageData(width,height);
+
+            var data = imgData.data;
+
+            for (var i = 0; i < data.length; i += 4) {
+                data[i]     = snapshot_data[i+0]; // red
+                data[i + 1] = snapshot_data[i+1]; // green
+                data[i + 2] = snapshot_data[i+2]; // blue
+                data[i + 3] = snapshot_data[i+3];
+
+            }
+            ctx.putImageData(imgData,0,0); 
         }
+
     },
 
     csdb: {
@@ -1103,3 +1125,46 @@ function property_path(xml_root_item, property_path) {
     }
     return xml_element;
 }
+
+
+function RingBuffer(maxLength) {
+  this.maxLength = maxLength;
+}
+RingBuffer.prototype = Object.create(Array.prototype);
+RingBuffer.prototype.push = function(element) {
+  Array.prototype.push.call(this, element);
+  while (this.length > this.maxLength) {
+    this.shift();
+  }
+}
+
+var auto_snaps= new RingBuffer(5);
+var auto_snap_interval=null;
+function set_take_auto_snapshots(on) {
+    if(on == false && auto_snap_interval != null)
+    {
+        clearInterval(auto_snap_interval);
+        auto_snap_interval=null;
+    }
+    else if(on && auto_snap_interval == null)
+    {
+        auto_snap_interval=setInterval(() => {
+            if(is_running())
+            {
+                wasm_halt();
+                wasm_take_user_snapshot(); 
+                wasm_run();
+                var snapshot_json= wasm_pull_user_snapshot_file();
+
+                var snap_obj = JSON.parse(snapshot_json);
+                var snapshot_buffer = new Uint8Array(Module.HEAPU8.buffer, snap_obj.address, snap_obj.size);
+        
+                //snapshot_buffer is only a typed array view therefore slice, which creates a new array with byteposition 0 ...
+                auto_snaps.push(snapshot_buffer.slice(0,snap_obj.size));
+
+                console.log(`auto_snaps count = ${auto_snaps.length}`);
+            }
+        }, 5000);
+    }
+}
+

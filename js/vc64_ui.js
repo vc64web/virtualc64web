@@ -825,15 +825,15 @@ function send_joystick( accessor, port, command )
 
 function restore_manual_state(port)
 {
-    if(port_state[port+'x'] !== 'undefined') 
+    if(port_state[port+'x'] !== undefined && !port_state[port+'x'].includes("RELEASE")) 
     {
         wasm_joystick( port + port_state[port+'x'] );
     }
-    if(port_state[port+'y'] !== 'undefined') 
+    if(port_state[port+'y'] !== undefined && !port_state[port+'y'].includes("RELEASE")) 
     {
         wasm_joystick( port + port_state[port+'y'] );
     }
-    if(port_state[port+'fire'] !== 'undefined') 
+    if(port_state[port+'fire'] !== undefined && !port_state[port+'fire'].includes("RELEASE")) 
     {
         wasm_joystick( port + port_state[port+'fire'] );
     }

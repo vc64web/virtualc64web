@@ -398,6 +398,10 @@ var collectors = {
                             snapshot_data, 
                             snapshot_data.length);
                 $('#snapshotModal').modal('hide');
+                if(!is_running())
+                {
+                    $("#button_run").click();
+                }            
             }
             else
             {
@@ -421,13 +425,12 @@ var collectors = {
                                 install_custom_keys();
                             }
                         );
+                        if(!is_running())
+                        {
+                            $("#button_run").click();
+                        }            
                     }
                 );
-            }
-
-            if(!is_running())
-            {
-                $("#button_run").click();
             }
             return; 
         },

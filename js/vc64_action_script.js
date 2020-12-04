@@ -100,8 +100,6 @@ async function execute_action_sequence_script(action_script, execute=false, exec
     var lc=[];
     var loop_depth=0;
 
-    var joy_cmd_tokens=null;
-
     while (pc < cmd_sequence.length && not_stopped(execution_id)) {
         var cmd = cmd_sequence[pc].trim();
         pc++;
@@ -159,6 +157,7 @@ async function execute_single_action(cmd, execute=true)
 {
     cmd=cmd.trim();
     var valid = true;
+    var joy_cmd_tokens=null;
     if(cmd.match(/^'.+?'$/) != null)
     {
         var chars = cmd.substring(1,cmd.length-1).split("");
@@ -167,13 +166,6 @@ async function execute_single_action(cmd, execute=true)
 
         //blocking execution of action script and wait for all keys emitted
         await sleep(time_to_emit_next_char*chars.length);                  
-    }
-    else if(translateKey2(cmd,cmd.toLowerCase()).raw_key !== undefined)
-    {
-        if(execute)
-        {            
-            emit_string([cmd],0,100); 
-        }
     }
     else if(cmd == 'pause')
     {
@@ -255,6 +247,13 @@ async function execute_single_action(cmd, execute=true)
             execute_joystick_script(joy_cmd_tokens);
         }
     }
+    else if(translateKey2(cmd,cmd.toLowerCase()).raw_key !== undefined)
+    {
+        if(execute)
+        {            
+            emit_string([cmd],0,100); 
+        }
+    }
     else
     {
         valid=false;
@@ -328,14 +327,17 @@ function execute_joystick_script(cmd_tokens)
     var down_or_release = cmd_tokens[3];
 
     var previous_owner = set_port_owner(portnr,PORT_ACCESSOR.BOT);
+    var native_joy_cmd=null;
     if(dir == "FIRE")
     {
-        send_joystick(PORT_ACCESSOR.BOT,portnr, portnr+(down_or_release == 1 ?"PRESS_"+dir:"RELEASE_"+dir));
+        native_joy_cmd= portnr+(down_or_release == 1 ?"PRESS_"+dir:"RELEASE_"+dir);
     }
     else
     {
-        send_joystick(PORT_ACCESSOR.BOT,portnr, portnr+(down_or_release == 1 ?"PULL_"+dir:"RELEASE_"+((dir=="LEFT" || dir=="RIGHT")?"X":"Y")));
+       native_joy_cmd= portnr+(down_or_release == 1 ?"PULL_"+dir:"RELEASE_"+((dir=="LEFT" || dir=="RIGHT")?"X":"Y"));
     }
+    send_joystick(PORT_ACCESSOR.BOT,portnr,native_joy_cmd);
+
     set_port_owner(portnr,previous_owner);
  }
 

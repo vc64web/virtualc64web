@@ -466,8 +466,23 @@ class C64Wrapper {
     c64->configure(OPT_VIC_REVISION, PAL_6569_R1);
 
 
+/*
+#define SPR0 0x01
+#define SPR1 0x02
+#define SPR2 0x04
+#define SPR3 0x08
+#define SPR4 0x10
+#define SPR5 0x20
+#define SPR6 0x40
+#define SPR7 0x80
+*/
+
+//    printf("opt_cut_layers = %ld\n",c64->getConfigItem(OPT_CUT_LAYERS));
+//    c64->configure(OPT_CUT_OPACITY, (/*SPR0|SPR1|*/SPR2|SPR3|SPR4|SPR5|SPR6|SPR7) /*& c64->getConfigItem(OPT_CUT_LAYERS)*/); 
+
+    //c64->configure(OPT_HIDE_SPRITES, true); 
     c64->dump();
-    printf("is running = %u\n",c64->isRunning()); 
+//    printf("is running = %u\n",c64->isRunning()); 
  //   c64->dump();
  //   c64->drive1.dump();
     //c64->setDebugLevel(2);also 

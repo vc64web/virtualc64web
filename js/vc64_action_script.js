@@ -343,15 +343,27 @@ function execute_joystick_script(cmd_tokens)
 
  function load_last_snapshot()
  {
+
     get_snapshots_for_app_title(global_apptitle, 
         function(app_title, app_snaps) {
             if(app_snaps.length>0)
             {
                 var snapshot = app_snaps[app_snaps.length-1];
+                if(is_running())
+                {
+                    wasm_halt();
+                }
                 wasm_loadfile(
                     snapshot.title+".vc64",
                     snapshot.data, 
                     snapshot.data.length);
+                if(!is_running())
+                {
+                    $("#button_run").click();
+                }  
+                {
+                    wasm_run();
+                } 
             }
         }
     ); 

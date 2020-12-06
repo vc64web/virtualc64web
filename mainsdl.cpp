@@ -466,19 +466,6 @@ class C64Wrapper {
     c64->configure(OPT_VIC_REVISION, PAL_6569_R1);
 
 
-/*
-#define SPR0 0x01
-#define SPR1 0x02
-#define SPR2 0x04
-#define SPR3 0x08
-#define SPR4 0x10
-#define SPR5 0x20
-#define SPR6 0x40
-#define SPR7 0x80
-*/
-
-//    printf("opt_cut_layers = %ld\n",c64->getConfigItem(OPT_CUT_LAYERS));
-//    c64->configure(OPT_CUT_OPACITY, (/*SPR0|SPR1|*/SPR2|SPR3|SPR4|SPR5|SPR6|SPR7) /*& c64->getConfigItem(OPT_CUT_LAYERS)*/); 
 
     //c64->configure(OPT_HIDE_SPRITES, true); 
     c64->dump();
@@ -879,3 +866,10 @@ extern "C" void wasm_set_sid_model(unsigned SID_Model)
     wrapper->c64->configure(OPT_SID_REVISION, MOS_8580);  
   }
 }
+
+extern "C" void wasm_cut_layers(unsigned cut_layers)
+{
+//  wrapper->c64->configure(OPT_CUT_LAYERS, 0x100 | (SPR0|SPR1|SPR2|SPR3|SPR4|SPR5|SPR6|SPR7)); 
+  wrapper->c64->configure(OPT_CUT_LAYERS, cut_layers); 
+}
+

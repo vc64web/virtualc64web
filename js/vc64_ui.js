@@ -859,6 +859,8 @@ function InitWrappers() {
     wasm_sprite_info = Module.cwrap('wasm_sprite_info', 'string');
     wasm_set_sid_model = Module.cwrap('wasm_set_sid_model', 'undefined', ['number']);
 
+    wasm_cut_layers = Module.cwrap('wasm_cut_layers', 'undefined', ['number']);
+
     dark_switch = document.getElementById('dark_switch');
 
 
@@ -1010,6 +1012,37 @@ wide_screen_switch.change( function() {
     scaleVMCanvas();
 });
 
+//------
+
+$('.layer').change( function(event) {
+    //recompute stencil cut out layer value
+    const layers={
+        sprite0: 0x01,
+        sprite1: 0x02,
+        sprite2: 0x04,
+        sprite3: 0x08,
+        sprite4: 0x10,
+        sprite5: 0x20,
+        sprite6: 0x40,
+        sprite7: 0x80,        
+    };
+    const GLOBAL_SPRITE_BIT= 0x100;
+
+    var layer_value = 0;
+    for(var layer_id in layers)
+    {
+        if(document.getElementById(layer_id).checked)
+        {
+            layer_value |= layers[layer_id];
+        }
+    }
+    if((layer_value & 0xff) != 0)
+    {
+        layer_value |= GLOBAL_SPRITE_BIT;
+    }
+
+    wasm_cut_layers( layer_value );
+});
 
 //------
 

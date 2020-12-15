@@ -9,7 +9,7 @@
 
 #include "C64.h"
 
-ReSID::ReSID(C64 &ref, SIDBridge &bridgeref) : C64Component(ref), bridge(bridgeref)
+ReSID::ReSID(C64 &ref, short *buffer) : C64Component(ref), samples(buffer)
 {
 	setDescription("ReSID");
 
@@ -63,6 +63,8 @@ ReSID::setClockFrequency(u32 frequency)
     debug(SID_DEBUG, "Setting clock frequency to %d\n", frequency);
 
     clockFrequency = frequency;
+    cyclesPerSample = (u64)(clockFrequency / sampleRate);
+    
     sid->set_sampling_parameters((double)clockFrequency,
                                  (reSID::sampling_method)samplingMethod,
                                  (double)sampleRate);
@@ -127,6 +129,8 @@ ReSID::getRevision()
 void
 ReSID::setRevision(SIDRevision revision)
 {
+    assert(!isRunning());
+
     assert(revision == 0 || revision == 1);
     model = revision;
     
@@ -141,18 +145,23 @@ ReSID::setRevision(SIDRevision revision)
 void
 ReSID::setSampleRate(double value)
 {
+    // assert(!isRunning());
+
     sampleRate = value;
-    
+    cyclesPerSample = (u64)(clockFrequency / sampleRate);
+
     sid->set_sampling_parameters((double)clockFrequency,
                                  (reSID::sampling_method)samplingMethod,
                                  sampleRate);
     
-    debug(SID_DEBUG, "Setting sample rate to %d samples per second.\n", sampleRate);
+    debug(SID_DEBUG, "Setting sample rate to %f samples per second\n", sampleRate);
 }
 
 void 
 ReSID::setAudioFilter(bool value)
 {
+    assert(!isRunning());
+
     emulateFilter = value;
     
     suspend();
@@ -171,6 +180,8 @@ ReSID::getSamplingMethod() {
 void 
 ReSID::setSamplingMethod(SamplingMethod value)
 {
+    assert(!isRunning());
+    
     switch(value) {
         case SID_SAMPLE_FAST:
             debug(SID_DEBUG, "Using sampling method SAMPLE_FAST.\n");
@@ -212,27 +223,41 @@ ReSID::poke(u16 addr, u8 value)
     sid->write(addr, value);
 }
 
-void
-ReSID::execute(u64 elapsedCycles)
+/*
+i64
+ReSID::executeCycles(u64 numCycles, short *buffer)
 {
-    short buf[2049];
-    int buflength = 2048;
+    // Don't ask SID to compute samples for a time interval greater than 1 sec
+    assert(numCycles <= PAL_CYCLES_PER_SECOND);
     
-    if (elapsedCycles > PAL_CYCLES_PER_SECOND) {
-        warn("Number of missing SID cycles is far too large.\n");
-        elapsedCycles = PAL_CYCLES_PER_SECOND;
-    }
-
-    reSID::cycle_count delta_t = (reSID::cycle_count)elapsedCycles;
-    int bufindex = 0;
+    // debug("Executing ReSID %p for %lld cycles\n", this, cycles);
+    
+    reSID::cycle_count delta_t = (reSID::cycle_count)numCycles;
+    int numSamples = 0;
     
     // Let reSID compute some sound samples
     while (delta_t) {
-        bufindex += sid->clock(delta_t, buf + bufindex, buflength - bufindex);
+        numSamples += sid->clock(delta_t, buffer + numSamples, 1);
     }
     
-    // Write samples into ringbuffer
-    if (bufindex) {
-        bridge.writeData(buf, bufindex);
-    }
+    assert(numSamples >= 0);
+    return (u64)numSamples;
+}
+*/
+
+i64
+ReSID::executeSamples(u64 numSamples, short *buffer)
+{
+    reSID::cycle_count delta = 100000;
+
+    // Don't ask to compute more samples that fit into the buffer
+    assert(numSamples <= SIDBridge::sampleBufferSize);
+    
+    // debug("Executing ReSID %p for %lld samples\n", this, numSamples);
+
+    // Invoke reSID
+    int result = sid->clock(delta, buffer, (int)numSamples);
+    assert(result == (int)numSamples);
+        
+    return (i64)(100000 - delta);
 }

@@ -1357,8 +1357,6 @@ public:
     u8 getSpriteY(int nr) { assert(nr < 8); return reg.current.sprY[nr]; }
 
     // Cuts out certain graphics layers
-
-    // Cuts out certain graphics layers
     void cutLayers();
     
     // Initializes the DMA debugger textures

@@ -92,11 +92,23 @@ inline const char *sidSamplingMethodName(SamplingMethod method)
 
 typedef struct
 {
+    // Hardware settings
     SIDRevision revision;
+    u8 enabled;
+    u16 address[4];
     bool filter;
     
+    // Emlation engine settings
     SIDEngine engine;
     SamplingMethod sampling;
+    
+    // Input channel volumes and pan settings
+    i64 vol[4];
+    i64 pan[4];
+    
+    // Output channel volumes
+    i64 volL;
+    i64 volR;
 }
 SIDConfig;
 

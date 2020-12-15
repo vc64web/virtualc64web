@@ -7,13 +7,57 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _SIDBRIDGE_H
-#define _SIDBRIDGE_H
+#ifndef _SID_BRIDGE_H
+#define _SID_BRIDGE_H
 
 #include "C64Component.h"
+#include "SIDTypes.h"
+#include "SIDStream.h"
 #include "FastSID.h"
 #include "ReSID.h"
-#include "SIDTypes.h"
+
+/* Architecture of the audio pipeline
+ *
+ *           Mux class
+ *           -------------------------------------------------
+ *          |   --------  vol                                 |
+ *   SID 0 --->| Buffer |----->                               |
+ *          |   --------       |                              |
+ *          |                  |                              |
+ *          |   --------  vol  |             --------------   |
+ *   SID 1 --->| Buffer |----->|          ->| StereoStream |-----> Speaker
+ *          |   --------       |   pan   |   --------------   |
+ *          |                  |-------->|                    |
+ *          |   --------  vol  |  l vol  |   --------------
+ *   SID 2 --->| Buffer |----->|  r vol   ->| StereoStream |-----> Recorder
+ *          |   --------       |             --------------   |
+ *          |                  |                              |
+ *          |   --------  vol  |                              |
+ *   SID 3 --->| Buffer |----->                               |
+ *          |   --------                                      |
+ *           -------------------------------------------------
+ */
+
+struct Volume {
+
+    // Current volume (will eventually reach the target volume)
+    float current = 1.0;
+
+    // Target volume
+    float target = 1.0;
+
+    // Delta steps (added to volume until the target volume is reached)
+    float delta = 0.0;
+    
+    // Shifts the current volume towards the target volume
+    void shift() {
+        if (current < target) {
+            current = MIN(current + delta, target);
+        } else {
+            current = MAX(current - delta, target);
+        }
+    }
+};
 
 class SIDBridge : public C64Component {
 
@@ -22,72 +66,91 @@ class SIDBridge : public C64Component {
     // Current configuration
     SIDConfig config;
     
+    
     //
     // Sub components
     //
         
 private:
-
-    // FastSID (Adapted from VICE 3.1)
-    FastSID fastsid = FastSID(c64, *this);
-
-    // ReSID (Taken from VICE 3.1)
-    ReSID resid = ReSID(c64, *this);
-       
+    
+    FastSID fastsid[4] = {
+        
+        FastSID(c64, samples[0]),
+        FastSID(c64, samples[1]),
+        FastSID(c64, samples[2]),
+        FastSID(c64, samples[3])
+    };
+    
+    ReSID resid[4] = {
+        
+        ReSID(c64, samples[0]),
+        ReSID(c64, samples[1]),
+        ReSID(c64, samples[2]),
+        ReSID(c64, samples[3])
+    };
+        
     // CPU cycle at the last call to executeUntil()
-    u64 cycles;
+    u64 cycles = 0;
+    
+    // Current CPU frequency
+    u32 cpuFrequency = PAL_CLOCK_FREQUENCY;
+    
+    // Sample rate (44.1 kHz per default)
+    double sampleRate = 44100.0;
+    
+    // Ratio between sample rate and cpu frequency
+    double samplesPerCycle = sampleRate / cpuFrequency;
     
     // Time stamp of the last write pointer alignment
     u64 lastAlignment = 0;
-    
+
+    // Volume control
+    Volume volume;
+
+    // Volume scaling factors
+    float vol[4];
+    float volL;
+    float volR;
+
+    // Panning factors
+    float pan[4];
+        
 public:
     
     // Number of buffer underflows since power up
+    // TODO: MOVE TO SIDStats
     u64 bufferUnderflows;
 
     // Number of buffer overflows since power up
+    // TODO: MOVE TO SIDStats
     u64 bufferOverflows;
     
+    // Set to true to signal a buffer exception
+    bool signalUnderflow = false;
+
+    
     //
-    // Audio ringbuffer
+    // Inputs
     //
 
-private:
+    /* Sample buffers. There is a seperate buffer for each of the four SID
+     * channels. Every reSID or fastSID instance uses one of these buffers for
+     * storing the created sound samples.
+     */
+    static const size_t sampleBufferSize = 2048;
+    short samples[4][sampleBufferSize];
+    
+    
+    //
+    // Outputs
+    //
 
-    // Number of sound samples stored in ringbuffer
-    static constexpr size_t bufferSize = 12288;
+public:
     
-    /* The audio sample ringbuffer. This ringbuffer is used to transfer samples
-     * from the emulated SID to the native audio device (CoreAudio on macOS).
+    /* The mixed stereo stream. This stream contains the final audio stream
+     * ready to be handed over to the audio device of the host OS.
      */
-    float ringBuffer[bufferSize];
-    
-    /* Scaling value for sound samples. All sound samples produced by reSID are
-     * scaled by this value before they are written into the ringBuffer.
-     */
-    static constexpr float scale = 0.000005f;
-    
-    // Ring buffer pointers
-    u32 readPtr;
-    u32 writePtr;
-    
-    // Current volume (0 = silent)
-    i32 volume;
-    
-    /* Target volume. Whenever an audio sample is written, the volume is
-     * increased or decreased by volumeDelta steps to make it reach the target
-     * volume eventually. This feature simulates a fading effect.
-     */
-    i32 targetVolume;
-    
-    // Maximum volume
-    const static i32 maxVolume = 100000;
-    
-    /* Volume offset. If the current volume does not match the target volume,
-     * it is increased or decreased by the specified amount. The increase or
-     * decrease takes place whenever an audio sample is generated.
-     */
-    i32 volumeDelta;
+    StereoStream stream; //  = StereoStream(*this);
     
     
     //
@@ -112,12 +175,36 @@ public:
     SIDConfig getConfig() { return config; }
     
     long getConfigItem(ConfigOption option);
+    long getConfigItem(ConfigOption option, long id);
+
     bool setConfigItem(ConfigOption option, long value) override;
+    bool setConfigItem(ConfigOption option, long id, long value) override;
+
+    bool isEnabled(int nr) { return GET_BIT(config.enabled, nr); }
+    
+    bool isMuted();
+
+    u32 getClockFrequency();
+    void setClockFrequency(u32 frequency);
+
+    // DEPRECATED: Use OPT_xxx
+    SIDRevision getRevision();
+    void setRevision(SIDRevision revision);
     
     double getSampleRate();
     void setSampleRate(double rate);
     
-    u32 getClockFrequency();
+    // DEPRECATED: Use OPT_xxx
+    bool getAudioFilter();
+    void setAudioFilter(bool enable);
+
+    // DEPRECATED: Use OPT_xxx
+    SamplingMethod getSamplingMethod();
+    void setSamplingMethod(SamplingMethod method);
+
+private:
+    
+    void _dumpConfig() override;
     
     
     //
@@ -126,13 +213,14 @@ public:
 
 public:
     
-    SIDInfo getInfo();
-    VoiceInfo getVoiceInfo(unsigned voice);
+    SIDInfo getInfo(unsigned nr);
+    VoiceInfo getVoiceInfo(unsigned nr, unsigned voice);
     
-private:
+//private:
     
     void _dump() override;
-    void _dump(SIDInfo info);
+    void _dump(int nr);
+    void _dump(SIDInfo &info, VoiceInfo (&vinfo)[3]);
 
     
     //
@@ -146,8 +234,21 @@ private:
     {
         worker
         
+        & config.revision
+        & config.enabled
+        & config.address
+        & config.filter
         & config.engine
-        & config.filter;
+        & config.sampling
+        & config.pan
+        & config.vol
+        & config.volL
+        & config.volR
+        & samplesPerCycle
+        & pan
+        & vol
+        & volL
+        & volR;
     }
     
     template <class T>
@@ -173,67 +274,49 @@ private:
     
   
     //
-    // Volume control
+    // Controlling the volume
     //
     
 public:
-    
-    // Sets the current volume
-    void setVolume(i32 vol) { volume = vol; }
-    
-    /* Ramps the volume up. Configures volume and targetVolume to simulate a
-     * smooth audio fade in
+        
+    /* Starts to ramp up the volume. This function configures variables volume
+     * and targetVolume to simulate a smooth audio fade in.
      */
-    void rampUp() { targetVolume = maxVolume; volumeDelta = 3; ignoreNextUnderOrOverflow(); }
-    void rampUpFromZero() { volume = 0; rampUp(); }
+    void rampUp();
+    void rampUpFromZero();
     
-    /* Ramps the volume down. Configures volume and targetVolume to simulate a
-     * quick audio fade out
+    /* Starts to ramp down the volume. This function configures variables
+     * volume and targetVolume to simulate a quick audio fade out.
      */
-    void rampDown() { targetVolume = 0; volumeDelta = 50; ignoreNextUnderOrOverflow(); }
-    
-    
-    //
-    // Managing the ringbuffer
-    //
-    
-public:
-    
-    // Returns the size of the ringbuffer (constant value)
-    size_t ringbufferSize() { return bufferSize; }
-    
-    // Returns the position of the read or write pointer
-    u32 getReadPtr() { return readPtr; }
-    u32 getWritePtr() { return writePtr; }
+    void rampDown();
 
+    
+    //
+    // Managing the four sample buffers
+    //
+    
+public:
+
+    // Clears the SID sample buffers
+    void clearSampleBuffers();
+    void clearSampleBuffer(long nr);
+
+    
+    //
+    // Managing the ring buffer
+    //
+    
+public:
+    
     // Clears the ringbuffer and resets the read and write pointer
     void clearRingbuffer();
     
     // Reads a single audio sample from the ringbuffer
-    float readData();
+    // float readData();
     
-    // Reads a single audio sample without moving the read pointer
-    float ringbufferData(size_t offset);
-    
-    /* Reads a number of sound samples from ringbuffer.
-     * Samples are stored in a single mono stream.
-     */
-    void readMonoSamples(float *target, size_t n);
-    
-    /* Reads a number of sound samples from ringbuffer.
-     * Samples are stored in two seperate mono streams
-     */
-    void readStereoSamples(float *target1, float *target2, size_t n);
-    
-    /* Reads a certain amount of samples from ringbuffer.
-     * Samples are stored in an interleaved stereo stream.
-     */
-    void readStereoSamplesInterleaved(float *target, size_t n);
-    
-    /* Writes a certain number of audio samples into ringbuffer
-     */
-    void writeData(short *data, size_t count);
-    
+    // Reads a audio sample pair without moving the read pointer
+    void ringbufferData(size_t offset, float *left, float *right);
+            
     /* Handles a buffer underflow condition.
      * A buffer underflow occurs when the computer's audio device needs sound
      * samples than SID hasn't produced, yet.
@@ -248,41 +331,47 @@ public:
     
     // Signals to ignore the next underflow or overflow condition.
     void ignoreNextUnderOrOverflow();
-        
-    // Moves read or write pointer forwards or backwards
-    void advanceReadPtr() { readPtr = (readPtr + 1) % bufferSize; }
-    void advanceReadPtr(int steps) { readPtr = (readPtr + bufferSize + steps) % bufferSize; }
-    void advanceWritePtr() { writePtr = (writePtr + 1) % bufferSize; }
-    void advanceWritePtr(int steps) { writePtr = (writePtr + bufferSize + steps) % bufferSize; }
-    
-    // Returns number of stored samples in ringbuffer
-    unsigned samplesInBuffer() { return (writePtr + bufferSize - readPtr) % bufferSize; }
-    
-    // Returns remaining storage capacity of ringbuffer
-    unsigned bufferCapacity() { return (readPtr + bufferSize - writePtr) % bufferSize; }
-    
-    // Returns the fill level as a percentage value
-    double fillLevel() { return (double)samplesInBuffer() / (double)bufferSize; }
     
     /* Aligns the write pointer.
      * This function puts the write pointer somewhat ahead of the read pointer.
      * With a standard sample rate of 44100 Hz, 735 samples is 1/60 sec.
      */
     const u32 samplesAhead = 8 * 735;
-    void alignWritePtr() { writePtr = (readPtr  + samplesAhead) % bufferSize; }
+    void alignWritePtr() { stream.clear(SamplePair {0,0} ); stream.align(samplesAhead); }
     
     // Executes SID until a certain cycle is reached
     void executeUntil(u64 targetCycle);
 
-    // Executes SID for a certain number of cycles
-	void execute(u64 numCycles);
+    // Executes SID for a certain number of CPU cycles
+    // DEPRECATED
+	void executeCycles(u64 numCycles);
 
+    /* Executes SID for a certain number of audio samples. The function returns
+     * the number of consumed CPU cycles.
+     */
+    i64 execute(u64 numSamples);
+
+    
+    //
+    // Copying data from the ring buffer
+    //
+    
+public:
+    
+    void copyMono(float *buffer, size_t n);
+    void copyStereo(float *left, float *right, size_t n);
+    void copyInterleaved(float *buffer, size_t n);
+
+    
      
 	//
-	// Accessig device properties
+	// Accessig memory
 	//
     
 public:
+    
+    // Translates a memory address to the mapped in SID
+    int mappedSID(u16 addr); 
     
 	// Special peek function for the I/O memory range
 	u8 peek(u16 addr);

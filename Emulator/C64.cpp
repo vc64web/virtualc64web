@@ -228,6 +228,8 @@ C64::getConfigItem(ConfigOption option)
         case OPT_SID_FILTER:
         case OPT_SID_ENGINE:
         case OPT_SID_SAMPLING:
+        case OPT_AUDVOLL:
+        case OPT_AUDVOLR:
             return sid.getConfigItem(option);
 
         case OPT_RAM_PATTERN:
@@ -241,19 +243,26 @@ C64::getConfigItem(ConfigOption option)
 }
 
 long
-C64::getConfigItem(DriveID id, ConfigOption option)
+C64::getConfigItem(ConfigOption option, long id)
 {
-    assert(isDriveID(id));
-    
-    Drive &drive = id == DRIVE8 ? drive8 : drive9;
-    
     switch (option) {
             
+        case OPT_SID_ENABLE:
+        case OPT_SID_ADDRESS:
+        case OPT_AUDPAN:
+        case OPT_AUDVOL:
+        {
+            assert(id >= 0 && id <= 3);
+            return sid.getConfigItem(option, id);
+        }
         case OPT_DRIVE_TYPE:
         case OPT_DRIVE_CONNECT:
         case OPT_DRIVE_POWER_SWITCH:
+        {
+            assert(isDriveID(id));
+            Drive &drive = id == DRIVE8 ? drive8 : drive9;
             return drive.getConfigItem(option);
-            
+        }
         default:
             assert(false);
             return 0;
@@ -271,20 +280,26 @@ C64::configure(ConfigOption option, long value)
     // Inform the GUI if the configuration has changed
     if (changed) messageQueue.put(MSG_CONFIG);
     
+    // Dump the current configuration in debugging mode
+    if (changed && CNF_DEBUG) dumpConfig();
+
     return changed;
 }
 
 bool
-C64::configure(DriveID id, ConfigOption option, long value)
+C64::configure(ConfigOption option, long id, long value)
 {
-    debug(CNF_DEBUG, "configure(id: %d, option: %d, value: %d\n", id, option, value);
+    debug(CNF_DEBUG, "configure(option: %d, id: %d, value: %d\n", option, id, value);
     
     // Propagate configuration request to all components
-    bool changed = HardwareComponent::configure(id, option, value);
+    bool changed = HardwareComponent::configure(option, id, value);
     
     // Inform the GUI if the configuration has changed
     if (changed) messageQueue.put(MSG_CONFIG);
     
+    // Dump the current configuration in debugging mode
+    if (changed && CNF_DEBUG) dumpConfig();
+
     return changed;
 }
 
@@ -1111,7 +1126,7 @@ C64::endFrame()
     //no need to synchronize as we are called by the 60hz SDL render thread ...
 #else
 
-    // Count some sheep (zzzzzz) ...
+    // Count some sheep (talkzzzzzz) ...
     oscillator.synchronize();
     /*
     if (!inWarpMode()) {

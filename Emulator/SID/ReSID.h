@@ -7,12 +7,17 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-// This class is a wrapper around the third-party reSID library.
-//
-// List of modifications applied to reSID:
-// 1. Changed visibility of some objects from protected to public
-//
-// Good candidate for testing sound emulation: INTERNAT.P00
+/* This class is a wrapper around the third-party reSID library.
+ *
+ *   List of modifications applied to reSID:
+ *
+ *     - Changed visibility of some objects from protected to public
+ *
+ *   Good candidate for testing sound emulation:
+ *
+ *     - INTERNAT.P00
+ *     - DEFEND1.PRG  ("Das Boot" intro music)
+ */
 
 #ifndef _RESID_H
 #define _RESID_H
@@ -21,9 +26,9 @@
 #include "resid/sid.h"
 
 class ReSID : public C64Component {
-
-    // Reference to the connected bridge object
-     SIDBridge &bridge;
+    
+    // Target buffer for storing the produced audio samples
+    short *samples = nullptr;
     
     // Entry point to the reSID backend
     reSID::SID *sid;
@@ -47,9 +52,12 @@ private:
     // Clock frequency
     u32 clockFrequency;
     
-    // Sample rate (usually set to 44.1 kHz)
+    // Sample rate (usually set to 44.1 kHz or 48.0 kHz)
     double sampleRate;
     
+    // Approximate number of clock cycles per audio sample
+    u64 cyclesPerSample = 0;
+
     // Sampling method
     SamplingMethod samplingMethod;
     
@@ -63,7 +71,7 @@ private:
     
 public:
     
-	ReSID(C64 &ref, SIDBridge &bridgeref);
+	ReSID(C64 &ref, short *buffer);
 	~ReSID();
     
 private:
@@ -198,10 +206,19 @@ public:
     // Emulating
     //
     
-	/* Runs reSID for the specified amount of CPU cycles. The generated sound
-     * samples are written into the internal ring buffer.
+	/* Runs SID for the specified amount of CPU cycles. The generated sound
+     * samples are written into the provided buffer. The fuction returns the
+     * number of written audio samples.
      */
-    void execute(u64 cycles);
+    // i64 executeCycles(u64 numCycles, short *buffer);
+    // i64 executeCycles(u64 numCycles) { return executeCycles(numCycles, samples); }
+
+    /* Runs SID until a certain number of audio samples is produced. The
+     * generated sound samples are written into the provided buffer. The
+     * fuction returns the number of executed cycles.
+     */
+    i64 executeSamples(u64 numSamples, short *buffer);
+    i64 executeSamples(u64 numSamples) { return executeSamples(numSamples, samples); }
 };
 
 #endif

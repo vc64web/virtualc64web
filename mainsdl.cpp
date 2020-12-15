@@ -307,7 +307,14 @@ void MyAudioCallback(void*  thisC64,
     C64 *c64 = (C64 *)thisC64;
     
     int n = len /  sizeof(float);
-    c64->sid.readMonoSamples((float *)stream, n);
+    c64->sid.copyMono((float *)stream, n);
+/*    printf("copyMono[%d]: ", n);
+    for(int i=0; i<n; i++)
+    {
+      printf("%hhu,",stream[i]);
+    }
+    printf("\n");
+*/    
     sum_samples += n;
 }
 
@@ -395,6 +402,9 @@ void initSDL(void *thisC64)
 
     printf("set SID to freq= %d\n", have.freq);
     c64->sid.setSampleRate(have.freq);
+    printf("freq in SIDBridge= %f\n", c64->sid.getSampleRate());
+    c64->sid._dump(0);
+
 
     SDL_PauseAudioDevice(device_id, 0); //unpause the audio device
     
@@ -465,6 +475,27 @@ class C64Wrapper {
     c64->configure(OPT_GRAY_DOT_BUG, false);
     c64->configure(OPT_VIC_REVISION, PAL_6569_R1);
 
+
+    c64->configure(OPT_SID_ENGINE, ENGINE_RESID);
+ //   c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);
+
+
+
+
+    // master Volumne
+    c64->configure(OPT_AUDVOLL, 100); 
+    c64->configure(OPT_AUDVOLR, 100);
+
+    //SID0 Volumne
+    c64->configure(OPT_AUDVOL, 0, 100); 
+    c64->configure(OPT_AUDPAN, 0, 50);
+
+    //SID1 Volumne
+/*    c64->configure(OPT_AUDVOL, 1, 100);
+    c64->configure(OPT_AUDPAN, 1, 50);
+    c64->configure(OPT_SID_ENABLE, 1, true);
+    c64->configure(OPT_SID_ADDRESS, 1, 0xd420);
+*/
 
 
     //c64->configure(OPT_HIDE_SPRITES, true); 
@@ -710,7 +741,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     else if(rom->isVC1541RomBuffer(blob, len))
     {
       rom_type = "vc1541_rom";
-      wrapper->c64->configure(DRIVE8, OPT_DRIVE_CONNECT,1);
+      wrapper->c64->configure(OPT_DRIVE_CONNECT,DRIVE8,1);
     }
     else if(rom->isCharRomBuffer(blob, len))
     {
@@ -740,6 +771,7 @@ extern "C" void wasm_halt()
   printf("wasm_halt\n");
   wrapper->c64->pause();
 }
+
 extern "C" void wasm_run()
 {
   printf("wasm_run\n");
@@ -857,6 +889,11 @@ extern "C" char* wasm_sprite_info()
 
 extern "C" void wasm_set_sid_model(unsigned SID_Model)
 {
+  bool wasRunning=false;
+  if(wrapper->c64->isRunning()){
+    wasRunning= true;
+    wrapper->c64->pause();
+  }
   if(SID_Model == 6581)
   {
     wrapper->c64->configure(OPT_SID_REVISION, MOS_6581);
@@ -865,6 +902,15 @@ extern "C" void wasm_set_sid_model(unsigned SID_Model)
   {
     wrapper->c64->configure(OPT_SID_REVISION, MOS_8580);  
   }
+  if(wasRunning)
+  {
+    wrapper->c64->run();
+  }
+
+  wrapper->c64->sid._dump(0);
+  wrapper->c64->sid._dump(1);
+  wrapper->c64->sid._dump(2);
+  wrapper->c64->sid._dump(3);
 }
 
 extern "C" void wasm_cut_layers(unsigned cut_layers)

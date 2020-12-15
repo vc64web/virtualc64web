@@ -576,11 +576,6 @@ class FalconBot extends Bot {
                 console.log("no shoot");
             }
         }
-/*        if(event.other_sprite_direction == 'left' || event.other_sprite_direction == 'right')
-        {
-            move("down", 800); //move down 800ms
-        }
-*/
     }
 }
 

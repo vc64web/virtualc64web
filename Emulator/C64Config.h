@@ -23,17 +23,24 @@
 // #define RELEASEBUILD
 // #define NDEBUG
 
+//
+// Configuration overrides
+//
+
+// Uncomment to override a configuration setting
+// EMPTY LIST SO FAR
+
 
 //
 // Debug settings
 //
 
 // General
+static const int CNF_DEBUG       = 0; // Configuration
 static const int XFILES          = 0; // Report paranormal activity
 
 // Runloop
 static const int RUN_DEBUG       = 0; // Run loop, component states, timing
-static const int CNF_DEBUG       = 0; // Configuration
 static const int SNP_DEBUG       = 0; // Serializing (snapshots)
 static const int MSG_DEBUG       = 0; // Message queue
 
@@ -49,6 +56,7 @@ static const int CIA_ON_STEROIDS = 0; // Keep the CIAs awake all the time
 static const int VIA_DEBUG       = 0; // Versatile Interface Adapter
 static const int VIC_DEBUG       = 0; // Video Interface Controller
 static const int SID_DEBUG       = 0; // Sound Interface Device
+static const int SID_EXEC_DEBUG  = 0; // Sound Interface Device (execution)
 static const int IEC_DEBUG       = 0; // IEC bus
 
 // Ports

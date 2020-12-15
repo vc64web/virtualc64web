@@ -30,7 +30,7 @@
 
 #include "C64.h"
 
-FastSID::FastSID(C64 &ref, SIDBridge &bridgeref) : C64Component(ref), bridge(bridgeref)
+FastSID::FastSID(C64 &ref, short *buffer) : C64Component(ref), samples(buffer)
 {
 	setDescription("FastSID");
     
@@ -216,6 +216,8 @@ FastSID::getInfo()
 VoiceInfo
 FastSID::getVoiceInfo(unsigned i)
 {
+    assert(i < 3);
+    
     VoiceInfo info;
     for (unsigned j = 0; j < 7; j++) {
         info.reg[j] = sidreg[7*i+j];
@@ -342,13 +344,15 @@ FastSID::poke(u16 addr, u8 value)
     latchedDataBus = value;
 }
 
-void
-FastSID::execute(u64 cycles)
+u64
+FastSID::executeCycles(u64 numCycles, short *buffer)
 {
-    i16 buf[2049];
-    size_t buflength = 2048;
-
-    executedCycles += cycles;
+    // Don't ask SID to compute samples for a time interval greater than 1 sec
+    assert(numCycles <= PAL_CYCLES_PER_SECOND);
+    
+    // debug("Executing FastSID %p for %lld cycles\n", this, cycles);
+    
+    executedCycles += numCycles;
 
     // Compute how many sound samples should have been computed
     u64 shouldHave = (u64)(executedCycles * samplesPerCycle);
@@ -358,18 +362,32 @@ FastSID::execute(u64 cycles)
     computedSamples = shouldHave;
     
     // Do some consistency checking
-    if (numSamples > buflength) {
+    if (numSamples > SIDBridge::sampleBufferSize) {
         debug(SID_DEBUG, "Number of missing sound samples exceeds buffer size\n");
-        numSamples = buflength;
+        numSamples = SIDBridge::sampleBufferSize;
     }
     
     // Compute missing samples
     for (unsigned i = 0; i < numSamples; i++) {
-        buf[i] = calculateSingleSample();
+        buffer[i] = calculateSingleSample();
     }
+        
+    return numSamples;
+}
+
+u64
+FastSID::executeSamples(u64 numSamples, short *buffer)
+{
+    // Don't ask to compute more samples that fit into the buffer
+    assert(numSamples <= SIDBridge::sampleBufferSize);
     
-    // Write samples into ringbuffer
-    bridge.writeData(buf, numSamples);
+    // Compute samples
+    for (unsigned i = 0; i < numSamples; i++) {
+        samples[i] = calculateSingleSample();
+    }
+
+    // Return the estimated number of consumed cycles
+    return (u64)(numSamples / samplesPerCycle);
 }
 
 void

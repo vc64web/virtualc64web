@@ -1,6 +1,6 @@
 string msg_code[] {
     "MSG_NONE",
-    
+
     // Emulator state
     "MSG_CONFIG",
     "MSG_POWER_ON",
@@ -8,6 +8,10 @@ string msg_code[] {
     "MSG_RUN",
     "MSG_PAUSE",
     "MSG_RESET",
+    "MSG_WARP_ON",
+    "MSG_WARP_OFF",
+    "MSG_MUTE_ON",
+    "MSG_MUTE_OFF",
 
     // ROMs
     "MSG_BASIC_ROM_LOADED",
@@ -21,8 +25,6 @@ string msg_code[] {
     "MSG_CPU_JAMMED",
     "MSG_BREAKPOINT_REACHED",
     "MSG_WATCHPOINT_REACHED",
-    "MSG_WARP_ON",
-    "MSG_WARP_OFF",
 
     // VIC related messages
     "MSG_PAL",
@@ -70,6 +72,6 @@ string msg_code[] {
     "MSG_AUTO_SNAPSHOT_TAKEN",
     "MSG_USER_SNAPSHOT_TAKEN",
     "MSG_SNAPSHOT_RESTORED",
-    "MSG_READY_TO_RUN"
-
+    "MSG_READY_TO_RUN"  
+ 
 };

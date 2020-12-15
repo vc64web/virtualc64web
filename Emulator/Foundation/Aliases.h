@@ -10,6 +10,9 @@
 #ifndef _ALIASES_H
 #define _ALIASES_H
 
+#include <stdint.h>
+#include <stddef.h>
+#include <assert.h>
 
 //
 // Basic types
@@ -35,7 +38,14 @@ static_assert(sizeof(u64) == 8, "u64 size mismatch");
 
 
 //
-// Cycle counts
+// Syntactic sugar
+//
+
+#define fallthrough
+
+
+//
+// Cycles
 //
 
 typedef i64 Cycle;

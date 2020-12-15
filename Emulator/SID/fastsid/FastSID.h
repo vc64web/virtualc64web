@@ -34,9 +34,13 @@
 
 class FastSID : public C64Component {
     
-    // Reference to the connected bridge object
-    SIDBridge &bridge;
+    // Reference to the connected SID bridge
+    // SIDBridge &bridge;
 
+    // Target buffer for storing the produced audio samples
+    short *samples = nullptr;
+
+    
     //
     // Sub components
     //
@@ -67,7 +71,7 @@ private:
     u32 sampleRate = 44100;
     
     // Ratio between sample rate and cpu frequency
-    double   samplesPerCycle;
+    double samplesPerCycle;
     
     // Stores for how many cycles FastSID was executed so far
     u64 executedCycles;
@@ -106,7 +110,7 @@ private:
     
 public:
         
-	FastSID(C64 &ref, SIDBridge &bridgeref);
+	FastSID(C64 &ref, short *buffer);
 
 private:
     
@@ -163,6 +167,7 @@ private:
         & model
         & cpuFrequency
         & sampleRate
+        & samplesPerCycle
         & emulateFilter;
     }
     
@@ -202,9 +207,18 @@ public:
 public:
     
     /* Runs SID for the specified amount of CPU cycles. The generated sound
-     * samples are written into the internal ring buffer.
+     * samples are written into the provided buffer. The fuction returns the
+     * number of written audio samples.
      */
-    void execute(u64 cycles);
+    u64 executeCycles(u64 numCycles, short *buffer);
+    u64 executeCycles(u64 numCycles) { return executeCycles(numCycles, samples); }
+
+    /* Runs SID until a certain number of audio samples is produced. The
+     * generated sound samples are written into the provided buffer. The
+     * fuction returns the number of executed cycles.
+     */
+    u64 executeSamples(u64 numSamples, short *buffer);
+    u64 executeSamples(u64 numSamples) { return executeSamples(numSamples, samples); }
     
 private:
     

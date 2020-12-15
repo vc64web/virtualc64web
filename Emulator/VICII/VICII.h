@@ -575,7 +575,8 @@ private:
 public:
 	
     VICII(C64 &ref);
-    
+    const char *getDescription() override { return "VICII"; }
+
 private:
     
     void _initialize() override;

@@ -32,9 +32,9 @@ class MessageQueue : public C64Object {
     map <const void *, Callback *> listeners;
     
 public:
-    
-    MessageQueue();
-    
+        
+    const char *getDescription() override { return "MessageQueue"; }
+
     // Registers a listener together with it's callback function
     void addListener(const void *listener, Callback *func);
     

@@ -10,9 +10,7 @@
 #include "C64.h"
 
 SIDBridge::SIDBridge(C64 &ref) : C64Component(ref)
-{
-	setDescription("SIDBridge");
-        
+{        
     subComponents = vector<HardwareComponent *> {
         
         &resid[0],
@@ -259,7 +257,7 @@ SIDBridge::setConfigItem(ConfigOption option, long id, long value)
             assert(id >= 0 && id <= 3);
 
             config.vol[id] = MIN(100, MAX(0, value));
-            vol[id] = pow((double)config.vol[id] / 100, 1.4) * 0.0000025;
+            vol[id] = pow((double)config.vol[id] / 100, 1.4) * 0.00000025;
 
             if (wasMuted != isMuted()) {
                 messageQueue.put(isMuted() ? MSG_MUTE_ON : MSG_MUTE_OFF);
@@ -475,7 +473,7 @@ SIDBridge::_dump(int nr)
     
     msg("ReSID:\n");
     msg("------\n");
-    msg("    Chip model: %lld (%s)\n", residRev, sidRevisionName(residRev));
+    msg("    Chip model: %ld (%s)\n", residRev, sidRevisionName(residRev));
     msg(" Sampling rate: %f\n", resid[nr].getSampleRate());
     msg(" CPU frequency: %d\n", resid[nr].getClockFrequency());
     msg("Emulate filter: %s\n", resid[nr].getAudioFilter() ? "yes" : "no");
@@ -489,7 +487,7 @@ SIDBridge::_dump(int nr)
 
     msg("FastSID:\n");
     msg("--------\n");
-    msg("    Chip model: %lld (%s)\n", fastsidRev, sidRevisionName(fastsidRev));
+    msg("    Chip model: %ld (%s)\n", fastsidRev, sidRevisionName(fastsidRev));
     msg(" Sampling rate: %f\n", fastsid[nr].getSampleRate());
     msg(" CPU frequency: %d\n", fastsid[nr].getClockFrequency());
     msg("Emulate filter: %s\n", fastsid[nr].getAudioFilter() ? "yes" : "no");

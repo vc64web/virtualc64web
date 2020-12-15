@@ -26,10 +26,13 @@
 #include "resid/sid.h"
 
 class ReSID : public C64Component {
+        
+    // Reference to the SID bridge
+    SIDBridge &bridge;
     
-    // Target buffer for storing the produced audio samples
-    short *samples = nullptr;
-    
+    // Number of this SID (0 = primary SID)
+    int nr;
+
     // Entry point to the reSID backend
     reSID::SID *sid;
     
@@ -55,9 +58,6 @@ private:
     // Sample rate (usually set to 44.1 kHz or 48.0 kHz)
     double sampleRate;
     
-    // Approximate number of clock cycles per audio sample
-    u64 cyclesPerSample = 0;
-
     // Sampling method
     SamplingMethod samplingMethod;
     
@@ -71,9 +71,10 @@ private:
     
 public:
     
-	ReSID(C64 &ref, short *buffer);
+	ReSID(C64 &ref, SIDBridge &bridgeref, int n);
 	~ReSID();
-    
+    const char *getDescription() override { return "ReSID"; }
+
 private:
     
     void _reset() override;
@@ -125,10 +126,7 @@ private:
     void applyToPersistentItems(T& worker)
     {
         worker
-        
-        & sampleRate
-        & emulateFilter
-        
+                
         & st.sid_register
         & st.bus_value
         & st.bus_value_ttl
@@ -176,7 +174,13 @@ private:
         & st.hold_zero[2]
         & st.envelope_pipeline[0]
         & st.envelope_pipeline[1]
-        & st.envelope_pipeline[2];
+        & st.envelope_pipeline[2]
+        
+        & model
+        & clockFrequency
+        & sampleRate
+        & emulateFilter;
+
     }
     
     template <class T>
@@ -217,8 +221,8 @@ public:
      * generated sound samples are written into the provided buffer. The
      * fuction returns the number of executed cycles.
      */
+    i64 executeSamples(u64 numSamples);
     i64 executeSamples(u64 numSamples, short *buffer);
-    i64 executeSamples(u64 numSamples) { return executeSamples(numSamples, samples); }
 };
 
 #endif

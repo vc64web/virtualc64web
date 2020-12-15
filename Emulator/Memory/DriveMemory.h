@@ -33,7 +33,8 @@ public:
 public:
     
     DriveMemory(C64 &ref, Drive &drive);
-    
+    const char *getDescription() override { return "DriveMemory"; }
+
 private:
     
     void _reset() override;

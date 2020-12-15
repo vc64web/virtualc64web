@@ -12,10 +12,6 @@
 Drive::Drive(DriveID id, C64 &ref) : C64Component(ref), deviceNr(id)
 {
     assert(deviceNr == DRIVE8 || deviceNr == DRIVE9);
-
-    // deviceNr = id;
-    setDescription(deviceNr == DRIVE8 ? "Drive8" : "Drive9");
-    cpu.setDescription(deviceNr == DRIVE8 ? "Drive8CPU" : "Drive9CPU");
 	
     subComponents = vector <HardwareComponent *> {
         
@@ -32,6 +28,13 @@ Drive::Drive(DriveID id, C64 &ref) : C64Component(ref), deviceNr(id)
     
     insertionStatus = FULLY_EJECTED;
     disk.clearDisk();
+}
+
+const char *
+Drive::getDescription()
+{
+    assert(deviceNr == DRIVE8 || deviceNr == DRIVE9);
+    return deviceNr == DRIVE8 ? "Drive8" : "Drive9";
 }
 
 void

@@ -87,9 +87,10 @@ public:
     // Initializing
     //
         
-    Snapshot();
+    Snapshot() { };
     Snapshot(size_t capacity);
-    
+    const char *getDescription() override { return "Snapshot"; }
+
     void takeScreenshot(class C64 *c64);
 
 private:

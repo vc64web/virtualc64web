@@ -52,8 +52,9 @@ class ProcessorPort : public C64Component {
     
 public:
     
-    ProcessorPort(C64 &ref);
-    
+    ProcessorPort(C64 &ref) : C64Component(ref) { }
+    const char *getDescription() override { return "ProcessorPort"; }
+
 private:
     
     void _reset() override { RESET_SNAPSHOT_ITEMS };

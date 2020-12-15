@@ -77,9 +77,9 @@ public:
     //
 
     CRTFile();
-    
-    
-    
+    const char *getDescription() override { return "CRTFile"; }
+
+        
     //
     // Methods from AnyC64File
     //

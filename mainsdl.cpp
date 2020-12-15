@@ -403,8 +403,7 @@ void initSDL(void *thisC64)
     printf("set SID to freq= %d\n", have.freq);
     c64->sid.setSampleRate(have.freq);
     printf("freq in SIDBridge= %f\n", c64->sid.getSampleRate());
-    c64->sid._dump(0);
-
+ 
 
     SDL_PauseAudioDevice(device_id, 0); //unpause the audio device
     
@@ -906,11 +905,6 @@ extern "C" void wasm_set_sid_model(unsigned SID_Model)
   {
     wrapper->c64->run();
   }
-
-  wrapper->c64->sid._dump(0);
-  wrapper->c64->sid._dump(1);
-  wrapper->c64->sid._dump(2);
-  wrapper->c64->sid._dump(3);
 }
 
 extern "C" void wasm_cut_layers(unsigned cut_layers)

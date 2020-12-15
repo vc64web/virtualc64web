@@ -62,7 +62,8 @@ public:
     
     FlashRom(C64 &ref);
     ~FlashRom();
-    
+    const char *getDescription() override { return "FlashRom"; }
+
     /* Loads an 8 KB chunk of Rom data from a buffer. This method is used when
      * loading the contents from a CRT file.
      */

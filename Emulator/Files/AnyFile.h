@@ -37,7 +37,7 @@ protected:
     size_t size = 0;
 
     // The raw data of this file
-    u8 *data = NULL;
+    u8 *data = nullptr;
     
     // File pointer (an offset into the data array)
     long fp = -1;
@@ -54,6 +54,7 @@ public:
     
     AnyFile();
     virtual ~AnyFile();
+
     
     // Frees the memory allocated by this object
     virtual void dealloc();

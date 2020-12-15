@@ -16,7 +16,8 @@ class SimonsBasic : public Cartridge {
     
 public:
 
-    SimonsBasic(C64 &ref) : Cartridge(ref, "SimonsBasic") { };
+    SimonsBasic(C64 &ref) : Cartridge(ref) { };
+    const char *getDescription() override { return "SimonBasic"; }
     CartridgeType getCartridgeType() override { return CRT_SIMONS_BASIC; }
 
 private:

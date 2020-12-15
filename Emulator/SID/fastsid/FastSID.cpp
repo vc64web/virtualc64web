@@ -30,10 +30,8 @@
 
 #include "C64.h"
 
-FastSID::FastSID(C64 &ref, short *buffer) : C64Component(ref), samples(buffer)
-{
-	setDescription("FastSID");
-    
+FastSID::FastSID(C64 &ref, SIDBridge &bridgeref, int n) : C64Component(ref), bridge(bridgeref), nr(n)
+{    
     subComponents = vector<HardwareComponent *> {
         
         &voice[0],
@@ -344,6 +342,7 @@ FastSID::poke(u16 addr, u8 value)
     latchedDataBus = value;
 }
 
+/*
 u64
 FastSID::executeCycles(u64 numCycles, short *buffer)
 {
@@ -374,8 +373,15 @@ FastSID::executeCycles(u64 numCycles, short *buffer)
         
     return numSamples;
 }
+*/
 
-u64
+i64
+FastSID::executeSamples(u64 numSamples)
+{
+    return executeSamples(numSamples, bridge.samples[nr]);
+}
+
+i64
 FastSID::executeSamples(u64 numSamples, short *buffer)
 {
     // Don't ask to compute more samples that fit into the buffer

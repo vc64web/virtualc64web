@@ -200,7 +200,8 @@ public:
 public:
     
     Drive(DriveID id, C64 &ref);
-    
+    const char *getDescription() override;
+
 private:
 
     void _reset() override;

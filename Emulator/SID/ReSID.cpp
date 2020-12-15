@@ -9,10 +9,8 @@
 
 #include "C64.h"
 
-ReSID::ReSID(C64 &ref, short *buffer) : C64Component(ref), samples(buffer)
+ReSID::ReSID(C64 &ref, SIDBridge &bridgeref, int n) : C64Component(ref), bridge(bridgeref), nr(n)
 {
-	setDescription("ReSID");
-
     model = MOS_6581;
     emulateFilter = true;
     sampleRate = 44100;
@@ -63,7 +61,6 @@ ReSID::setClockFrequency(u32 frequency)
     debug(SID_DEBUG, "Setting clock frequency to %d\n", frequency);
 
     clockFrequency = frequency;
-    cyclesPerSample = (u64)(clockFrequency / sampleRate);
     
     sid->set_sampling_parameters((double)clockFrequency,
                                  (reSID::sampling_method)samplingMethod,
@@ -148,7 +145,6 @@ ReSID::setSampleRate(double value)
     // assert(!isRunning());
 
     sampleRate = value;
-    cyclesPerSample = (u64)(clockFrequency / sampleRate);
 
     sid->set_sampling_parameters((double)clockFrequency,
                                  (reSID::sampling_method)samplingMethod,
@@ -244,6 +240,12 @@ ReSID::executeCycles(u64 numCycles, short *buffer)
     return (u64)numSamples;
 }
 */
+
+i64
+ReSID::executeSamples(u64 numSamples)
+{
+    return executeSamples(numSamples, bridge.samples[nr]);
+}
 
 i64
 ReSID::executeSamples(u64 numSamples, short *buffer)

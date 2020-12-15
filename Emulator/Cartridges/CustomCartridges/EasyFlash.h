@@ -37,6 +37,7 @@ public:
     //
     
     EasyFlash(C64 &ref);
+    const char *getDescription() override { return "EasyFlash"; }
     CartridgeType getCartridgeType() override { return CRT_EASYFLASH; }
     
     void resetCartConfig() override;

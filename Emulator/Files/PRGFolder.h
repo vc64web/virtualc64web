@@ -53,8 +53,8 @@ public:
     // Initializing
     //
     
-    PRGFolder();
-    
+    PRGFolder() { };
+    const char *getDescription() override { return "PRGFolder"; }
     
     
     //

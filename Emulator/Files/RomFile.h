@@ -28,7 +28,7 @@ private:
     static const u8 magicVC1541RomBytes[vc1541RomSignatureCnt][3];
 
     // Rom type (Basic, Character, Kernal, or VC1541)
-    FileType romtype;
+    FileType romtype = FILETYPE_UNKNOWN;
         
 public:
     
@@ -68,8 +68,9 @@ public:
     // Creating and destructing
     //
     
-    RomFile();
-    
+    RomFile() { };
+    const char *getDescription() override { return "RomFile"; }
+
     // Factory methods
     static RomFile *makeWithBuffer(const u8 *buffer, size_t length);
     static RomFile *makeWithFile(const char *filename);
@@ -79,9 +80,9 @@ public:
     // Methods from AnyC64File
     //
     
-    FileType type() { return romtype; }
-    bool hasSameType(const char *filename) { return isRomFile(filename); }
-    bool readFromBuffer(const u8 *buffer, size_t length);
+    FileType type() override { return romtype; }
+    bool hasSameType(const char *filename) override { return isRomFile(filename); }
+    bool readFromBuffer(const u8 *buffer, size_t length) override;
     
 };
 #endif

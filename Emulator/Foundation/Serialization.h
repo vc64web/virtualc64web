@@ -14,6 +14,7 @@
 #include "C64PrivateTypes.h"
 #include "CPUInstructions.h"
 #include "TimeDelayed.h"
+#include "Volume.h"
 #include "envelope.h"
 
 #include <arpa/inet.h>
@@ -159,6 +160,7 @@ public:
     STRUCT(SpriteSR)
     STRUCT(DiskData)
     STRUCT(DiskLength)
+    STRUCT(Volume)
     template <class T, int capacity> STRUCT(TimeDelayed<T __ capacity>)
 
     template <class T, size_t N>
@@ -235,6 +237,7 @@ public:
     STRUCT(SpriteSR)
     STRUCT(DiskData)
     STRUCT(DiskLength)
+    STRUCT(Volume)
     template <class T, int capacity> STRUCT(TimeDelayed<T __ capacity>)
 
     template <class T, size_t N>
@@ -317,6 +320,7 @@ public:
     STRUCT(SpriteSR)
     STRUCT(DiskData)
     STRUCT(DiskLength)
+    STRUCT(Volume)
     template <class T, int capacity> STRUCT(TimeDelayed<T __ capacity>)
 
     template <class T, size_t N>
@@ -377,6 +381,7 @@ public:
     STRUCT(SpriteSR)
     STRUCT(DiskData)
     STRUCT(DiskLength)
+    STRUCT(Volume)
     template <class T, int capacity> STRUCT(TimeDelayed<T __ capacity>)
 
     template <class T, size_t N>

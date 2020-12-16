@@ -12,6 +12,7 @@
 
 #include "C64Component.h"
 #include "SIDTypes.h"
+#include "Volume.h"
 #include "SIDStream.h"
 #include "FastSID.h"
 #include "ReSID.h"
@@ -38,27 +39,6 @@
  *           -------------------------------------------------
  */
 
-struct Volume {
-
-    // Current volume (will eventually reach the target volume)
-    float current = 1.0;
-
-    // Target volume
-    float target = 1.0;
-
-    // Delta steps (added to volume until the target volume is reached)
-    float delta = 0.0;
-    
-    // Shifts the current volume towards the target volume
-    void shift() {
-        if (current < target) {
-            current = MIN(current + delta, target);
-        } else {
-            current = MAX(current - delta, target);
-        }
-    }
-};
-
 class SIDBridge : public C64Component {
 
     friend C64Memory;
@@ -66,9 +46,6 @@ class SIDBridge : public C64Component {
     // Current configuration
     SIDConfig config;
     
-    // Volume control
-    Volume volume;
-
     
     //
     // Sub components
@@ -100,17 +77,16 @@ private:
     
     // Sample rate (44.1 kHz per default)
     double sampleRate = 44100.0;
-    
-    // Ratio between sample rate and cpu frequency
-    double samplesPerCycle = sampleRate / cpuFrequency;
-    
+        
     // Time stamp of the last write pointer alignment
     u64 lastAlignment = 0;
 
-    // Volume scaling factors
+    // Master volumes (fadable)
+    Volume volL;
+    Volume volR;
+
+    // Channel volumes
     float vol[4];
-    float volL;
-    float volR;
 
     // Panning factors
     float pan[4];
@@ -241,19 +217,14 @@ private:
         & config.filter
         & config.engine
         & config.sampling
-        & config.pan
-        & config.vol
         & config.volL
         & config.volR
-        & volume.current
-        & volume.target
-        & volume.delta
+        & config.pan
+        & config.vol
         & cpuFrequency
-        & sampleRate
-        & samplesPerCycle
-        & vol
         & volL
         & volR
+        & vol
         & pan;
     }
     
@@ -271,7 +242,6 @@ private:
     size_t didLoadFromBuffer(u8 *buffer) override;
     
  
-
 private:
     
     void _run() override;
@@ -350,7 +320,7 @@ public:
 
     // Executes SID for a certain number of CPU cycles
     // DEPRECATED
-	void executeCycles(u64 numCycles);
+	// void executeCycles(u64 numCycles);
 
     /* Executes SID for a certain number of audio samples. The function returns
      * the number of consumed CPU cycles.

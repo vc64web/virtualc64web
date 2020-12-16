@@ -29,7 +29,7 @@ SIDBridge::SIDBridge(C64 &ref) : C64Component(ref)
     for (int i = 0; i < 4; i++) {
         resid[i].setClockFrequency(PAL_CLOCK_FREQUENCY);
         fastsid[i].setClockFrequency(PAL_CLOCK_FREQUENCY);
-    }
+    }    
 }
 
 void
@@ -173,7 +173,7 @@ SIDBridge::setConfigItem(ConfigOption option, long value)
         case OPT_AUDVOLL:
             
             config.volL = MIN(100, MAX(0, value));
-            volL = pow((double)config.volL / 50, 1.4);
+            volL.set(pow((double)config.volL / 50, 1.4));
 
             if (wasMuted != isMuted()) {
                 messageQueue.put(isMuted() ? MSG_MUTE_ON : MSG_MUTE_OFF);
@@ -183,7 +183,7 @@ SIDBridge::setConfigItem(ConfigOption option, long value)
         case OPT_AUDVOLR:
 
             config.volR = MIN(100, MAX(0, value));
-            volR = pow((double)config.volR / 50, 1.4);
+            volR.set(pow((double)config.volR / 100, 1.4));
 
             if (wasMuted != isMuted()) {
                 messageQueue.put(isMuted() ? MSG_MUTE_ON : MSG_MUTE_OFF);
@@ -257,7 +257,7 @@ SIDBridge::setConfigItem(ConfigOption option, long id, long value)
             assert(id >= 0 && id <= 3);
 
             config.vol[id] = MIN(100, MAX(0, value));
-            vol[id] = pow((double)config.vol[id] / 100, 1.4) * 0.00000025;
+            vol[id] = pow((double)config.vol[id] / 100, 1.4) * 0.0000125;
 
             if (wasMuted != isMuted()) {
                 messageQueue.put(isMuted() ? MSG_MUTE_ON : MSG_MUTE_OFF);
@@ -317,7 +317,6 @@ SIDBridge::setClockFrequency(u32 frequency)
     debug(SID_DEBUG, "Setting clock frequency to %d\n", frequency);
 
     cpuFrequency = frequency;
-    samplesPerCycle = sampleRate / cpuFrequency;
 
     for (int i = 0; i < 4; i++) {
         resid[i].setClockFrequency(frequency);
@@ -368,7 +367,6 @@ SIDBridge::setSampleRate(double rate)
     debug(SID_DEBUG, "Setting sample rate to %f\n", rate);
 
     sampleRate = rate;
-    samplesPerCycle = sampleRate / cpuFrequency;
     
     for (int i = 0; i < 4; i++) {
         resid[i].setSampleRate(rate);
@@ -589,8 +587,8 @@ SIDBridge::rampUp()
 {
     if (warpMode) return;
     
-    volume.target = 1.0;
-    volume.delta  = 1.0 / 30000;
+    volL.fadeIn(30000);
+    volR.fadeIn(30000);
     
     ignoreNextUnderOrOverflow();
 }
@@ -598,15 +596,17 @@ SIDBridge::rampUp()
 void
 SIDBridge::rampUpFromZero()
 {
-    volume.current = 0;
+    volL.current = 0;
+    volR.current = 0;
+
     rampUp();
 }
  
 void
 SIDBridge::rampDown()
 {
-    volume.target = 0.0;
-    volume.delta  = 1.0 / 2000;
+    volL.fadeOut(2000);
+    volR.fadeOut(2000);
     
     ignoreNextUnderOrOverflow();
 }
@@ -674,7 +674,7 @@ void
 SIDBridge::executeUntil(u64 targetCycle)
 {
     i64 missingCycles  = targetCycle - cycles;
-    i64 missingSamples = i64(missingCycles * samplesPerCycle);
+    i64 missingSamples = i64(missingCycles * sampleRate / cpuFrequency);
     i64 consumedCycles = execute(missingSamples);
 
     cycles += consumedCycles;
@@ -772,8 +772,8 @@ SIDBridge::execute(u64 numSamples)
         ch2 * pan[2] + ch3 * pan[3];
 
         // Apply master volume
-        l *= config.volL;
-        r *= config.volR;
+        l *= volL.current;
+        r *= volR.current;
 
         stream.write(SamplePair { l, r } );
     }
@@ -882,7 +882,7 @@ SIDBridge::copyMono(float *target, size_t n)
     if (stream.count() < n) handleBufferUnderflow();
 
     // Copy sound samples
-    stream.copyMono(target, n, volume);
+    stream.copyMono(target, n, volL, volR);
     
     stream.unlock();
 }
@@ -896,7 +896,7 @@ SIDBridge::copyStereo(float *target1, float *target2, size_t n)
     if (stream.count() < n) handleBufferUnderflow();
 
     // Copy sound samples
-    stream.copyStereo(target1, target2, n, volume);
+    stream.copyStereo(target1, target2, n, volL, volR);
     
     stream.unlock();
 }
@@ -910,7 +910,7 @@ SIDBridge::copyInterleaved(float *target, size_t n)
     if (stream.count() < n) handleBufferUnderflow();
 
     // Read sound samples
-    stream.copyInterleaved(target, n, volume);
+    stream.copyInterleaved(target, n, volL, volR);
     
     stream.unlock();
 }

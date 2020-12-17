@@ -35,7 +35,8 @@ const u8 RomFile::magicKernalRomBytes[kernalRomSignatureCnt][3] = {
 
     { 0x85, 0x56, 0x20 },       // Commodore ROM
     { 0xA9, 0x93, 0x20 },       // MEGA65 project
-    { 0x20, 0x02, 0xBE }
+    { 0x20, 0x2E, 0xBA },       // MEGA65 project
+    { 0x20, 0x02, 0xBE }        // MEGA65 project
 };
 
 const u8 RomFile::magicVC1541RomBytes[vc1541RomSignatureCnt][3] = {
@@ -152,7 +153,8 @@ RomFile::identifier(u64 fnv)
         case 0x211EAC45AB03A2CA: return KERNAL_EXOS_V3;
         case 0xF2A39FF166D338AE: return KERNAL_TURBO_TAPE;
         case 0x921c11f1c5ad1544: return KERNAL_MEGA65;
-            
+ 
+
         case 0x44BBA0EAC5898597: return VC1541_II_1987;
         case 0xA1D36980A17C8756: return VC1541_II_NEWTRONIC;
         case 0x361A1EC48F04F5A4: return VC1541_OLD_WHITE;

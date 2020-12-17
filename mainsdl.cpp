@@ -913,3 +913,40 @@ extern "C" void wasm_cut_layers(unsigned cut_layers)
   wrapper->c64->configure(OPT_CUT_LAYERS, cut_layers); 
 }
 
+
+
+char json_result[255];
+extern "C" const char* wasm_rom_info()
+{
+  sprintf(json_result, "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\"}",
+  wrapper->c64->hasMega65Rom(ROM_KERNAL) ? "mega" : wrapper->c64->hasRom(ROM_KERNAL) ? "commodore": "none", 
+  wrapper->c64->hasMega65Rom(ROM_BASIC) ? "mega" : wrapper->c64->hasRom(ROM_BASIC) ? "commodore": "none", 
+  wrapper->c64->hasMega65Rom(ROM_CHAR) ? "mega" : wrapper->c64->hasRom(ROM_CHAR) ? "commodore": "none"
+  );
+  return json_result;
+}
+
+
+/*
+extern "C" const char* wasm_rom_classifier(Uint8 *blob, long len)
+{
+  const char *rom_class = "unknown";
+ 
+   u64 _fnv = fnv_1a_64(blob, len);
+  RomIdentifier _identifier = RomFile::identifier(_fnv);
+  if(RomFile::isCommodoreRom(_identifier))
+  {
+    rom_class="commodore";
+  }
+  else if(RomFile::isMega65Rom(_identifier))
+  {
+    rom_class="mega";
+  }
+  printf("wasm_rom_classifier = %s, %s, %s, 0x%llx\n",
+              rom_class, 
+              RomFile::title(_identifier), 
+              RomFile::subTitle(_identifier), 
+              _fnv);
+  return rom_class;
+}
+*/

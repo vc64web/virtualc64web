@@ -99,8 +99,20 @@ async function fetchOpenROMS(){
 }
 
 
-
-
+/**
+* load_roms
+  if we open ROM-Dialog then we could 
+        A) show current roms in c64 instance,
+        or
+        B) saved roms in local storage ... 
+    
+        we choose A) because there is no method in the core for B) , 
+ *
+ * 
+ * @param {*} install_to_core true when we should load roms from local storage into the core. 
+ *
+ * TODO: maybe split up functionality into load_roms() and refresh_rom_dialog() 
+ */
 function load_roms(install_to_core){
     var loadStoredItem= function (item_name){
         var stored_item = localStorage.getItem(item_name); 
@@ -118,20 +130,7 @@ function load_roms(install_to_core){
             return null;
         }
     }
-
-    compare_header = function (header_array,file_array)
-    {
-        var matches = true;
-        header_array.forEach(function (element, i) {
-            if(file_array[i] != element)
-              matches=false;
-        }
-        );
-
-        return matches;
-
-    }
-
+    
     var all_fine = true;
     try{
         var the_rom=loadStoredItem('basic_rom.bin');
@@ -142,7 +141,7 @@ function load_roms(install_to_core){
         }
         else
         {
-            $("#rom_basic").attr("src", compare_header([0x94,0xe3, 0xb7], the_rom) ?
+            $("#rom_basic").attr("src", JSON.parse(wasm_rom_info()).basic.startsWith("mega") ?
             "img/rom_mega65.png":"img/rom.png");
         
             $("#button_delete_basic").show();
@@ -157,9 +156,7 @@ function load_roms(install_to_core){
         else
         {
             $("#rom_kernal").attr("src", 
-            compare_header([0x4c,0xb2, 0xa6], the_rom)||
-            compare_header([0xA9,0x01, 0x2C], the_rom)  //2020_09_22
-             ?
+            JSON.parse(wasm_rom_info()).kernal.startsWith("mega") ?
             "img/rom_mega65.png":"img/rom.png");
             $("#button_delete_kernal").show();
         }
@@ -173,9 +170,8 @@ function load_roms(install_to_core){
         else
         {
             $("#rom_charset").attr("src", 
-            compare_header([0x3c, 0x66, 0x6e, 110, 96, 102], the_rom) ||
-            compare_header([0, 60, 102, 110,110, 96, 60], the_rom)
-            ?
+            //wasm_rom_classifier(the_rom, the_rom.byteLength).startsWith("mega") ?
+            JSON.parse(wasm_rom_info()).charset.startsWith("mega") ?
             "img/rom_mega65.png":"img/rom.png");
             $("#button_delete_char_rom").show();
         }
@@ -861,6 +857,11 @@ function InitWrappers() {
 
     wasm_cut_layers = Module.cwrap('wasm_cut_layers', 'undefined', ['number']);
 
+//    wasm_rom_classifier = Module.cwrap('wasm_rom_classifier', 'string', ['array', 'number']);
+    wasm_rom_info = Module.cwrap('wasm_rom_info', 'string');
+
+    
+
     dark_switch = document.getElementById('dark_switch');
 
 
@@ -1207,7 +1208,7 @@ $('.layer').change( function(event) {
         {
             $("#button_run").click();
         }
-        var faster_open_roms_installed = $("#rom_basic").attr("src").match("mega65") != null;
+        var faster_open_roms_installed = JSON.parse(wasm_rom_info()).kernal.startsWith("mega");
         if(reset_before_load == false)
         {
             //the roms differ from cold-start to ready prompt, orig-roms 3300ms and open-roms 250ms   
@@ -1407,6 +1408,7 @@ $('.layer').change( function(event) {
 //---- rom dialog start
    document.getElementById('button_rom_dialog').addEventListener("click", function(e) {
      $('#modal_settings').modal('hide');
+     load_roms(false); //update to current roms
      setTimeout(function() { $('#modal_roms').modal('show');}, 500);
    }, false);
 

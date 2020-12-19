@@ -419,15 +419,30 @@
               <label class="custom-control-label" for="auto_snapshot_switch" data-toggle="tooltip" data-placement="top" title="you find auto snapshots in the first row of the snapshot browser">save auto snapshots</label>
             </div>
 
-            <div class="dropdown mt-3">
-              <button id="button_sid_model" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                sid model 6581
-              </button>
-              <div id="choose_sid_model" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
-                <a class="dropdown-item" href="#">6581</a>
-                <a class="dropdown-item" href="#">8580</a>
+            <div class="container row justify-content-start mt-3">
+              <div class="col-3 dropdown px-0 mx-0">
+                <button id="button_sid_model" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  sid model 6581
+                </button>
+                <div id="choose_sid_model" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+                  <a class="dropdown-item" href="#">6581</a>
+                  <a class="dropdown-item" href="#">8580</a>
+                </div>
+              </div>
+              <div class="col-3 dropdown px-0 mx-0">
+                <button id="button_2nd_sid" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  2nd sid disabled
+                </button>
+                <div id="choose_2nd_sid_addr" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+                  <a class="dropdown-item" href="#">disabled</a>
+                  <a class="dropdown-item" href="#">enabled at $d420</a>
+                  <a class="dropdown-item" href="#">enabled at $d440</a>
+                  <a class="dropdown-item" href="#">enabled at $d460</a>
+                  <a class="dropdown-item" href="#">enabled at $d500</a>
+                </div>
               </div>
             </div>
+
 
             <label class="mt-4">cut out sprite layers (stencil)</label>
             <div class="container row">

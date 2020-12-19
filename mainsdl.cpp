@@ -962,3 +962,21 @@ extern "C" const char* wasm_rom_classifier(Uint8 *blob, long len)
   return rom_class;
 }
 */
+
+extern "C" void wasm_set_2nd_sid(long address)
+{
+  if(address == 0)
+  {
+    wrapper->c64->configure(OPT_AUDVOL, 1, 0);
+    wrapper->c64->configure(OPT_SID_ENABLE, 1, false);
+  }
+  else
+  {
+    wrapper->c64->configure(OPT_AUDVOL, 1, 100);
+    wrapper->c64->configure(OPT_AUDPAN, 1, 50);
+    wrapper->c64->configure(OPT_SID_ENABLE, 1, true);
+    wrapper->c64->configure(OPT_SID_ADDRESS, 1, address);
+  }
+}
+
+

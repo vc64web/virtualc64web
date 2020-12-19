@@ -860,7 +860,7 @@ function InitWrappers() {
 //    wasm_rom_classifier = Module.cwrap('wasm_rom_classifier', 'string', ['array', 'number']);
     wasm_rom_info = Module.cwrap('wasm_rom_info', 'string');
 
-    
+    wasm_set_2nd_sid = Module.cwrap('wasm_set_2nd_sid', 'undefined', ['number']);
 
     dark_switch = document.getElementById('dark_switch');
 
@@ -1310,6 +1310,23 @@ $('.layer').change( function(event) {
         var sid_model=$(this).text();
         set_sid_model(sid_model);
         save_setting('sid_model',sid_model)
+    });
+
+    function set_2nd_sid(sid_addr) {
+        $("#button_2nd_sid").text("2nd sid "+sid_addr);
+        if(sid_addr == "disabled")
+        {
+            wasm_set_2nd_sid(0);
+        }
+        else
+        {
+            wasm_set_2nd_sid(parseInt(sid_addr.replace("enabled at $",""),16));
+        }
+    }
+    $('#choose_2nd_sid_addr a').click(function () 
+    {
+        var sid_addr=$(this).text();
+        set_2nd_sid(sid_addr);
     });
 
     document.getElementById('button_update').onclick = function() 

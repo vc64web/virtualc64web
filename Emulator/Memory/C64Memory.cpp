@@ -133,7 +133,7 @@ C64Memory::setConfigItem(ConfigOption option, long value)
         case OPT_RAM_PATTERN:
             
             if (!isRamPattern(value)) {
-                warn("Invalid RAM pattern: %d\n", value);
+                warn("Invalid RAM pattern: %ld\n", value);
                 return false;
             }
             if (config.ramPattern == value) {
@@ -542,7 +542,7 @@ C64Memory::pokeIO(u16 addr, u8 value)
 
             // Check the exit register (option -debugcart)
             if (addr == 0xD7FF && config.debugcart) {
-                debug("DEBUGCART: Terminating with exit code %x\n", value);
+                msg("DEBUGCART: Terminating with exit code %x\n", value);
                 exit(value);
             }
 

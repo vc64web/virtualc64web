@@ -179,7 +179,7 @@ VICII::setConfigItem(ConfigOption option, long value)
         case OPT_VIC_REVISION:
             
             if (!isVICRevision(value)) {
-                warn("Invalid VIC revision: %d\n", value);
+                warn("Invalid VIC revision: %ld\n", value);
                 return false;
             }
             if (config.revision == value) {
@@ -195,7 +195,7 @@ VICII::setConfigItem(ConfigOption option, long value)
         case OPT_PALETTE:
             
             if (!isPalette(value)) {
-                warn("Invalid color palette: %d\n", value);
+                warn("Invalid color palette: %ld\n", value);
                 return false;
             }
             if (config.palette == value) {
@@ -324,7 +324,7 @@ VICII::setConfigItem(ConfigOption option, long value)
         case OPT_GLUE_LOGIC:
             
             if (!isGlueLogic(value)) {
-                warn("Invalid glue logic type: %d\n", value);
+                warn("Invalid glue logic type: %ld\n", value);
                 return false;
             }
             if (config.glueLogic == value) {
@@ -342,7 +342,7 @@ VICII::setConfigItem(ConfigOption option, long value)
 void
 VICII::setRevision(VICRevision revision)
 {
-    debug(VIC_DEBUG, "setRevision(%d)\n", revision);
+    trace(VIC_DEBUG, "setRevision(%ld)\n", (long)revision);
     
     assert(isVICRevision(revision));
     config.revision = revision;
@@ -445,12 +445,12 @@ VICII::_inspect()
 void
 VICII::_dumpConfig()
 {
-    msg("    Chip model : %d (%s)\n", config.revision, vicRevisionName(config.revision));
+    msg("    Chip model : %ld (%s)\n", (long)config.revision, vicRevisionName(config.revision));
     msg("  Gray dot bug : %s\n", config.grayDotBug ? "yes" : "no");
     msg("           PAL : %s\n", isPAL() ? "yes" : "no");
     msg("          NTSC : %s\n", isNTSC() ? "yes" : "no");
     msg("is656x, is856x : %d %d\n", is656x(), is856x());
-    msg("    Glue logic : %d (%s)\n", config.glueLogic, glueLogicName(config.glueLogic));
+    msg("    Glue logic : %ld (%s)\n", (long)config.glueLogic, glueLogicName(config.glueLogic));
 }
 
 void 
@@ -462,7 +462,7 @@ VICII::_dump()
     int xscroll = ctrl2 & 0x07;
     DisplayMode mode = (DisplayMode)((ctrl1 & 0x60) | (ctrl2 & 0x10));
     
-	msg("     Bank address : %04X\n", bankAddr, bankAddr);
+	msg("     Bank address : %04X\n", bankAddr);
     msg("    Screen memory : %04X\n", VM13VM12VM11VM10() << 6);
 	msg(" Character memory : %04X\n", (CB13CB12CB11() << 10) % 0x4000);
 	msg("X/Y raster scroll : %d / %d\n", xscroll, yscroll);

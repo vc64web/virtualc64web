@@ -49,7 +49,7 @@ CIA::setConfigItem(ConfigOption option, long value)
         case OPT_CIA_REVISION:
             
             if (!isCIARevision(value)) {
-                warn("Invalid CIA revision: %d\n", value);
+                warn("Invalid CIA revision: %ld\n", value);
                 return false;
             }
             if (config.revision == value) {
@@ -122,7 +122,7 @@ CIA::_dump()
 {
     _inspect();
 
-    msg("                   Clock : %lld\n", clock);
+    msg("                   Clock : %lu\n", clock());
     msg("                Sleeping : %s\n", sleeping ? "yes" : "no");
     msg("               Tiredness : %d\n", tiredness);
     msg(" Most recent sleep cycle : %lld\n", sleepCycle);

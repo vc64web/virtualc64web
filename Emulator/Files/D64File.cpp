@@ -7,10 +7,14 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+/*
 #include "D64File.h"
 #include "T64File.h"
 #include "PRGFile.h"
 #include "P00File.h"
+#include "FSDevice.h"
+*/
+#include "C64.h"
 
 bool
 D64File::isD64Buffer(const u8 *buffer, size_t length)
@@ -108,12 +112,12 @@ D64File::makeWithFile(const char *path)
 D64File *
 D64File::makeWithAnyArchive(AnyArchive *otherArchive)
 {
-    assert(otherArchive != NULL);
+    assert(otherArchive);
     
     // Create a standard 35 track disk with no error checking codes
     D64File *archive = new D64File(35, false);
-    archive->debug(FILE_DEBUG, "Creating D64 archive from a %s archive...\n",
-                   otherArchive->typeString());
+    debug(FILE_DEBUG, "Creating D64 archive from a %s archive...\n",
+          otherArchive->typeString());
     
     // Copy file path
     archive->setPath(otherArchive->getPath());
@@ -145,7 +149,7 @@ D64File::makeWithAnyArchive(AnyArchive *otherArchive)
         int byte;
         unsigned num = 0;
         
-        archive->debug(FILE_DEBUG, "Will write %d bytes\n", otherArchive->getSizeOfItem());
+        debug(FILE_DEBUG, "Will write %zu bytes\n", otherArchive->getSizeOfItem());
         
         otherArchive->selectItem(i);
         while ((byte = otherArchive->readItem()) != EOF) {
@@ -153,12 +157,17 @@ D64File::makeWithAnyArchive(AnyArchive *otherArchive)
             num++;
         }
         
-        archive->debug(FILE_DEBUG, "D64 item %d: %d bytes written\n", i, num);
+        // Make sure the last block doesn't link to another block
+        int off = archive->offset(track, sector);
+        archive->data[off + 0] = 0;
+        archive->data[off + 1] = 0;
+
+        debug(FILE_DEBUG, "D64 item %d: %d bytes written\n", i, num);
         // Item i has been written. Goto next free sector and proceed with the next item
         (void)archive->nextTrackAndSector(track, sector, &track, &sector);
     }
     
-    archive->debug(FILE_DEBUG, "%s archive created.\n", archive->typeString());
+    debug(FILE_DEBUG, "%s archive created.\n", archive->typeString());
     
     return archive;
 }
@@ -182,6 +191,46 @@ D64File::makeWithDisk(Disk *disk)
     return makeWithBuffer(buffer, len);
 }
 
+D64File *
+D64File::makeWithDrive(Drive *drive)
+{
+    assert(drive);
+    return makeWithDisk(&drive->disk);
+}
+
+D64File *
+D64File::makeWithVolume(FSDevice &volume, FSError *error)
+{
+    D64File *d64 = nullptr;
+    
+    printf("numBlocks = %d\n", volume.getNumBlocks());
+    
+    switch (volume.getNumBlocks() * 256) {
+                        
+        case D64_683_SECTORS:
+            d64 = new D64File(35, false);
+            break;
+            
+        case D64_768_SECTORS:
+            d64 = new D64File(40, false);
+            break;
+
+        case D64_802_SECTORS:
+            d64 = new D64File(42, false);
+            break;
+
+        default:
+            assert(false);
+    }
+
+    if (!volume.exportVolume(d64->data, d64->size, error)) {
+        delete d64;
+        return nullptr;
+    }
+    
+    return d64;
+}
+
 const char *
 D64File::getName()
 {
@@ -196,6 +245,12 @@ D64File::getName()
     return name;
 }
 
+FSName
+D64File::getFSName()
+{
+    return FSName(data + offset(18,0) + 0x90);
+}
+
 bool 
 D64File::readFromBuffer(const u8 *buffer, size_t length)
 {
@@ -206,42 +261,42 @@ D64File::readFromBuffer(const u8 *buffer, size_t length)
     {
         case D64_683_SECTORS: // 35 tracks, no errors
             
-            debug(FILE_DEBUG, "D64 file contains 35 tracks, no EC bytes\n");
+            trace(FILE_DEBUG, "D64 file contains 35 tracks, no EC bytes\n");
             numSectors = 683;
             errorCodes = false;
             break;
             
         case D64_683_SECTORS_ECC: // 35 tracks, 683 error bytes
             
-            debug(FILE_DEBUG, "D64 file contains 35 tracks, 683 EC bytes\n");
+            trace(FILE_DEBUG, "D64 file contains 35 tracks, 683 EC bytes\n");
             numSectors = 683;
             errorCodes = true;
             break;
             
         case D64_768_SECTORS: // 40 tracks, no errors
             
-            debug(FILE_DEBUG, "D64 file contains 40 tracks, no EC bytes\n");
+            trace(FILE_DEBUG, "D64 file contains 40 tracks, no EC bytes\n");
             numSectors = 768;
             errorCodes = false;
             break;
             
         case D64_768_SECTORS_ECC: // 40 tracks, 768 error bytes
             
-            debug(FILE_DEBUG, "D64 file contains 40 tracks, 768 EC bytes\n");
+            trace(FILE_DEBUG, "D64 file contains 40 tracks, 768 EC bytes\n");
             numSectors = 768;
             errorCodes = true;
             break;
             
         case D64_802_SECTORS: // 42 tracks, no error bytes
             
-            debug(FILE_DEBUG, "D64 file contains 42 tracks, no EC bytes\n");
+            trace(FILE_DEBUG, "D64 file contains 42 tracks, no EC bytes\n");
             numSectors = 802;
             errorCodes = false;
             break;
             
         case D64_802_SECTORS_ECC: // 42 tracks, 802 error bytes
             
-            debug(FILE_DEBUG, "D64 file contains 42 tracks, 802 EC bytes\n");
+            trace(FILE_DEBUG, "D64 file contains 42 tracks, 802 EC bytes\n");
             numSectors = 802;
             errorCodes = true;
             break;
@@ -875,8 +930,8 @@ D64File::findDirectoryEntry(long item, bool skipInvisibleFiles)
 
 bool
 D64File::writeDirectoryEntry(unsigned nr, const char *name,
-                                Track startTrack, Sector startSector,
-                                size_t filesize)
+                             Track startTrack, Sector startSector,
+                             size_t filesize)
 {
     int pos;
     
@@ -954,4 +1009,3 @@ D64File::dump(Track track, Sector sector)
         msg("%02X ", data[pos++]);
     }
 }
-

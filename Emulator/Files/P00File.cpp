@@ -69,7 +69,7 @@ P00File::makeWithAnyArchive(AnyArchive *otherArchive)
     otherArchive->selectItem(0);
     
     P00File *archive = new P00File();
-    archive->debug(FILE_DEBUG, "Creating P00 archive from %s archive...\n", otherArchive->typeString());
+    debug(FILE_DEBUG, "Creating P00 archive from %s archive...\n", otherArchive->typeString());
     
     // Determine file size and allocate memory
     try {
@@ -79,7 +79,7 @@ P00File::makeWithAnyArchive(AnyArchive *otherArchive)
     }
     catch (std::bad_alloc&) {
         
-        archive->warn("Failed to allocate %d bytes of memory\n", archive->size);
+        warn("Failed to allocate %zu bytes of memory\n", archive->size);
         delete archive;
         return NULL;
     }

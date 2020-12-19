@@ -8,6 +8,7 @@
 // -----------------------------------------------------------------------------
 
 #include "AnyFile.h"
+#include "FSObjects.h"
 
 AnyFile::AnyFile()
 {
@@ -74,6 +75,12 @@ AnyFile::setPath(const char *str)
     strncpy(name, filename, sizeof(name) - 1);
     free(filename);
     ascii2petStr(name);
+}
+
+FSName
+AnyFile::getFSName()
+{
+    return FSName(getName());
 }
 
 const unsigned short *
@@ -211,7 +218,7 @@ AnyFile::readFromFile(const char *filename)
     setPath(filename);
     success = true;
     
-    debug(FILE_DEBUG, "File %s read successfully\n", path);
+    trace(FILE_DEBUG, "File %s read successfully\n", path);
 	
 exit:
 	

@@ -455,8 +455,7 @@ CPU<M>::executeOneCycle()
                     expansionport.nmiWillTrigger();
                 }
                 
-                debug(IRQ_DEBUG, "NMI (source = %02X)\n", nmiLine);
-                // if (tracingEnabled()) debug("NMI (source = %02X)\n", nmiLine);
+                trace(IRQ_DEBUG, "NMI (source = %02X)\n", nmiLine);
                 IDLE_FETCH
                 edgeDetector.clear();
                 next = nmi_2;
@@ -466,7 +465,7 @@ CPU<M>::executeOneCycle()
                 
             } else if (unlikely(doIrq)) {
                 
-                debug(IRQ_DEBUG, "IRQ (source = %02X)\n", irqLine);
+                trace(IRQ_DEBUG, "IRQ (source = %02X)\n", irqLine);
                 IDLE_FETCH
                 next = irq_2;
                 doIrq = false;
@@ -3172,7 +3171,7 @@ CPU<M>::executeOneCycle()
             
         default:
             
-            panic("UNIMPLEMENTED OPCODE: %d (%02X)\n", next, next);
+            warn("UNIMPLEMENTED OPCODE: %ld (%02lX)\n", (long)next, (long)next);
             assert(false);
     }
 }

@@ -112,7 +112,7 @@ SIDBridge::setConfigItem(ConfigOption option, long value)
         case OPT_SID_REVISION:
             
             if (!isSIDRevision(value)) {
-                warn("Invalid SID revision: %d\n", value);
+                warn("Invalid SID revision: %ld\n", value);
                 return false;
             }
             if (config.revision == value) {
@@ -142,7 +142,7 @@ SIDBridge::setConfigItem(ConfigOption option, long value)
         case OPT_SID_ENGINE:
             
             if (!isAudioEngine(value)) {
-                warn("Invalid SID engine: %d\n", value);
+                warn("Invalid SID engine: %ld\n", value);
                 return false;
             }
             if (config.engine == value) {
@@ -157,7 +157,7 @@ SIDBridge::setConfigItem(ConfigOption option, long value)
         case OPT_SID_SAMPLING:
             
             if (!isSamplingMethod(value)) {
-                warn("Invalid sampling method: %d\n", value);
+                warn("Invalid sampling method: %ld\n", value);
                 return false;
             }
             if (config.sampling == value) {
@@ -183,7 +183,7 @@ SIDBridge::setConfigItem(ConfigOption option, long value)
         case OPT_AUDVOLR:
 
             config.volR = MIN(100, MAX(0, value));
-            volR.set(pow((double)config.volR / 100, 1.4));
+            volR.set(pow((double)config.volR / 50, 1.4));
 
             if (wasMuted != isMuted()) {
                 messageQueue.put(isMuted() ? MSG_MUTE_ON : MSG_MUTE_OFF);
@@ -236,8 +236,8 @@ SIDBridge::setConfigItem(ConfigOption option, long id, long value)
             }
 
             if (value < 0xD400 || value > 0xD7E0 || (value & 0x1F)) {
-                warn("Invalid SID address: %x\n", value);
-                warn("       Valid values: D400, D420, ... D7E0\n");
+                warn("Invalid SID address: %lx\n", value);
+                warn("Valid values: D400, D420, ... D7E0\n");
                 return false;
             }
 
@@ -248,7 +248,6 @@ SIDBridge::setConfigItem(ConfigOption option, long id, long value)
             suspend();
             config.address[id] = value;
             clearSampleBuffer(id);
-            debug("config.address[%d] = %x\n", id, config.address[id]);
             resume();
             return true;
             
@@ -269,8 +268,8 @@ SIDBridge::setConfigItem(ConfigOption option, long id, long value)
             
             assert(id >= 0 && id <= 3);
             if (value < 0 || value > 200) {
-                warn("Invalid pan: %d\n", value);
-                warn("       Valid values: 0 ... 200\n");
+                warn("Invalid pan: %ld\n", value);
+                warn("Valid values: 0 ... 200\n");
                 return false;
             }
 
@@ -314,7 +313,7 @@ SIDBridge::getClockFrequency()
 void
 SIDBridge::setClockFrequency(u32 frequency)
 {
-    debug(SID_DEBUG, "Setting clock frequency to %d\n", frequency);
+    trace(SID_DEBUG, "Setting clock frequency to %d\n", frequency);
 
     cpuFrequency = frequency;
 
@@ -340,7 +339,7 @@ SIDBridge::getRevision()
 void
 SIDBridge::setRevision(SIDRevision revision)
 {
-    debug(SID_DEBUG, "Setting SID revision to %s\n", sidRevisionName(revision));
+    trace(SID_DEBUG, "Setting SID revision to %s\n", sidRevisionName(revision));
 
     for (int i = 0; i < 4; i++) {
         resid[i].setRevision(revision);
@@ -364,7 +363,7 @@ SIDBridge::getSampleRate()
 void
 SIDBridge::setSampleRate(double rate)
 {
-    debug(SID_DEBUG, "Setting sample rate to %f\n", rate);
+    trace(SID_DEBUG, "Setting sample rate to %f\n", rate);
 
     sampleRate = rate;
     
@@ -390,7 +389,7 @@ SIDBridge::getAudioFilter()
 void
 SIDBridge::setAudioFilter(bool enable)
 {
-    debug(SID_DEBUG, "%s audio filter\n", enable ? "Enabling" : "Disabling");
+    trace(SID_DEBUG, "%s audio filter\n", enable ? "Enabling" : "Disabling");
 
     for (int i = 0; i < 4; i++) {
         resid[i].setAudioFilter(enable);
@@ -414,7 +413,7 @@ SIDBridge::getSamplingMethod()
 void
 SIDBridge::setSamplingMethod(SamplingMethod method)
 {
-    debug(SID_DEBUG, "Setting sampling method to %s\n",sidSamplingMethodName(method));
+    trace(SID_DEBUG, "Setting sampling method to %s\n",sidSamplingMethodName(method));
 
     for (int i = 0; i < 4; i++) {
         resid[i].setSamplingMethod(method);
@@ -425,15 +424,15 @@ SIDBridge::setSamplingMethod(SamplingMethod method)
 void
 SIDBridge::_dumpConfig()
 {
-    msg(" Chip revision : %d (%s)\n", config.revision, sidRevisionName(config.revision));
+    msg(" Chip revision : %lld (%s)\n", config.revision, sidRevisionName(config.revision));
     msg("   Enable mask : %x\n", config.enabled);
     msg("       Address : %x %x %x\n", config.address[1], config.address[2], config.address[3]);
     msg("        Filter : %s\n", config.filter ? "yes" : "no");
-    msg("        Engine : %d (%s)\n", config.engine, sidEngineName(config.engine));
-    msg("      Sampling : %d (%s)\n", config.sampling, sidSamplingMethodName(config.sampling));
-    msg("Channel volume : %ld %ld %ld %ld\n",
+    msg("        Engine : %lld (%s)\n", config.engine, sidEngineName(config.engine));
+    msg("      Sampling : %lld (%s)\n", config.sampling, sidSamplingMethodName(config.sampling));
+    msg("Channel volume : %lld %lld %lld %lld\n",
         config.vol[0], config.vol[1], config.vol[2], config.vol[3]);
-    msg(" Master volume : %ld %ld\n", config.volL, config.volR);
+    msg(" Master volume : %lld %lld\n", config.volL, config.volR);
 }
 
 size_t
@@ -471,7 +470,7 @@ SIDBridge::_dump(int nr)
     
     msg("ReSID:\n");
     msg("------\n");
-    msg("    Chip model: %ld (%s)\n", residRev, sidRevisionName(residRev));
+    msg("    Chip model: %lld (%s)\n", residRev, sidRevisionName(residRev));
     msg(" Sampling rate: %f\n", resid[nr].getSampleRate());
     msg(" CPU frequency: %d\n", resid[nr].getClockFrequency());
     msg("Emulate filter: %s\n", resid[nr].getAudioFilter() ? "yes" : "no");
@@ -485,7 +484,7 @@ SIDBridge::_dump(int nr)
 
     msg("FastSID:\n");
     msg("--------\n");
-    msg("    Chip model: %ld (%s)\n", fastsidRev, sidRevisionName(fastsidRev));
+    msg("    Chip model: %lld (%s)\n", fastsidRev, sidRevisionName(fastsidRev));
     msg(" Sampling rate: %f\n", fastsid[nr].getSampleRate());
     msg(" CPU frequency: %d\n", fastsid[nr].getClockFrequency());
     msg("Emulate filter: %s\n", fastsid[nr].getAudioFilter() ? "yes" : "no");
@@ -538,12 +537,12 @@ SIDBridge::_setWarp(bool enable)
         // Warping has the unavoidable drawback that audio playback gets out of
         // sync. To cope with this issue, we ramp down the volume when warping
         // is switched on and fade in smoothly when it is switched off.
-        sid.rampDown();
+        rampDown();
         
     } else {
         
-        sid.rampUp();
-        sid.alignWritePtr();
+        rampUp();
+        alignWritePtr();
     }
 }
 
@@ -679,8 +678,8 @@ SIDBridge::executeUntil(u64 targetCycle)
 
     cycles += consumedCycles;
     
-    debug(SID_EXEC_DEBUG,
-          "target: %lld  missing: %lld consumed: %lld reached: %lld still missing: %lld\n",
+    debug(SID_EXEC,
+          "target: %lld missing: %lld consumed: %lld reached: %lld still missing: %lld\n",
           targetCycle, missingCycles, consumedCycles, cycles, targetCycle - cycles);
 }
 
@@ -692,7 +691,7 @@ SIDBridge::execute(u64 numSamples)
     // Run reSID for at least one cycle to make pipelined writes work
     if (numSamples == 0) {
 
-        debug(SID_EXEC_DEBUG, "Running SIDs for an extra cycle");
+        debug(SID_EXEC, "Running SIDs for an extra cycle");
 
         for (int i = 0; i < 4; i++) resid[i].clock();
         return 1;
@@ -750,6 +749,10 @@ SIDBridge::execute(u64 numSamples)
     if (stream.free() < numSamples) {
         handleBufferOverflow();
     }
+    
+    debug(SID_EXEC, "(%d,%d,%d...) vol0: %f pan0: %f volL: %f volR: %f\n",
+          samples[0][0], samples[0][1], samples[0][2],
+          vol[0], pan[0], volL.current, volR.current);
         
     // Convert sound samples to floating point values and write into ringbuffer
     for (unsigned i = 0; i < numSamples; i++) {
@@ -817,7 +820,7 @@ SIDBridge::handleBufferUnderflow()
     // (1) The consumer runs slightly faster than the producer.
     // (2) The producer is halted or not startet yet.
     
-    debug(SID_DEBUG, "BUFFER UNDERFLOW (r: %ld w: %ld)\n", stream.r, stream.w);
+    trace(SID_DEBUG, "BUFFER UNDERFLOW (r: %d w: %d)\n", stream.r, stream.w);
 
     // Determine the elapsed seconds since the last pointer adjustment.
     u64 now = Oscillator::nanos();
@@ -846,7 +849,7 @@ SIDBridge::handleBufferOverflow()
     // (1) The consumer runs slightly slower than the producer
     // (2) The consumer is halted or not startet yet
     
-    debug(SID_DEBUG, "BUFFER OVERFLOW (r: %ld w: %ld)\n", stream.r, stream.w);
+    trace(SID_DEBUG, "BUFFER OVERFLOW (r: %d w: %d)\n", stream.r, stream.w);
     
     // Determine the elapsed seconds since the last pointer adjustment
     u64 now = Oscillator::nanos();

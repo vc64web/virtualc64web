@@ -201,7 +201,7 @@ CRTFile::readFromBuffer(const u8 *buffer, size_t length)
     
     msg("Cartridge: %s\n", getName());
     msg("   Header: %08X bytes long (normally 0x40)\n", headerSize);
-    msg("   Type:   %d\n", cartridgeType());
+    msg("   Type:   %ld\n", (long)cartridgeType());
     msg("   Game:   %d\n", initialGameLine());
     msg("   Exrom:  %d\n", initialExromLine());
     
@@ -247,13 +247,13 @@ bool
 CRTFile::repair()
 {
     if ((data == NULL) != (size == 0)) {
-        warn("CRT file inconsistency: data = %p size = %d\n", data, size);
+        warn("CRT file inconsistency: data = %p size = %zu\n", data, size);
         return false;
     }
 
     // Compute a fingerprint for the CRT file
     u64 fingerprint = fnv_1a_64(data, size);
-    debug(CRT_DEBUG, "CRT fingerprint: %llx\n", fingerprint);
+    trace(CRT_DEBUG, "CRT fingerprint: %llx\n", fingerprint);
 
     // Check for known inconsistencies
     switch (fingerprint) {

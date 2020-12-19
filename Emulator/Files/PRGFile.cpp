@@ -64,15 +64,14 @@ PRGFile::makeWithAnyArchive(AnyArchive *other, int item)
         return NULL;
     
     PRGFile *archive = new PRGFile();
-    archive->debug(FILE_DEBUG, "Creating PRG archive from %s archive...\n",
-                   other->typeString());
+    debug(FILE_DEBUG, "Creating PRG archive from %s archive...\n", other->typeString());
     
     other->selectItem(item);
     
     // Determine file size and allocate memory
     archive->size = 2 + other->getSizeOfItem();
     if ((archive->data = new u8[archive->size]) == NULL) {
-        archive->warn("Failed to allocate %d bytes of memory\n", archive->size);
+        warn("Failed to allocate %zu bytes of memory\n", archive->size);
         delete archive;
         return NULL;
     }

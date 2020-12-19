@@ -58,7 +58,7 @@ ReSID::getClockFrequency()
 void
 ReSID::setClockFrequency(u32 frequency)
 {
-    debug(SID_DEBUG, "Setting clock frequency to %d\n", frequency);
+    trace(SID_DEBUG, "Setting clock frequency to %d\n", frequency);
 
     clockFrequency = frequency;
     
@@ -136,7 +136,7 @@ ReSID::setRevision(SIDRevision revision)
     resume();
         
     assert((SIDRevision)sid->sid_model == revision);
-    debug(SID_DEBUG, "Emulating SID revision %s.\n", sidRevisionName(revision));
+    trace(SID_DEBUG, "Emulating SID revision %s.\n", sidRevisionName(revision));
 }
 
 void
@@ -150,7 +150,7 @@ ReSID::setSampleRate(double value)
                                  (reSID::sampling_method)samplingMethod,
                                  sampleRate);
     
-    debug(SID_DEBUG, "Setting sample rate to %f samples per second\n", sampleRate);
+    trace(SID_DEBUG, "Setting sample rate to %f samples per second\n", sampleRate);
 }
 
 void 
@@ -164,7 +164,7 @@ ReSID::setAudioFilter(bool value)
     sid->enable_filter(value);
     resume();
     
-    debug(SID_DEBUG, "%s audio filter emulation.\n", value ? "Enabling" : "Disabling");
+    trace(SID_DEBUG, "%s audio filter emulation.\n", value ? "Enabling" : "Disabling");
 }
 
 SamplingMethod
@@ -180,20 +180,20 @@ ReSID::setSamplingMethod(SamplingMethod value)
     
     switch(value) {
         case SID_SAMPLE_FAST:
-            debug(SID_DEBUG, "Using sampling method SAMPLE_FAST.\n");
+            trace(SID_DEBUG, "Using sampling method SAMPLE_FAST.\n");
             break;
         case SID_SAMPLE_INTERPOLATE:
-            debug(SID_DEBUG, "Using sampling method SAMPLE_INTERPOLATE.\n");
+            trace(SID_DEBUG, "Using sampling method SAMPLE_INTERPOLATE.\n");
             break;
         case SID_SAMPLE_RESAMPLE:
-            debug(SID_DEBUG, "Using sampling method SAMPLE_RESAMPLE.\n");
+            trace(SID_DEBUG, "Using sampling method SAMPLE_RESAMPLE.\n");
             break;
         case SID_SAMPLE_RESAMPLE_FASTMEM:
             warn("SAMPLE_RESAMPLE_FASTMEM not supported. Using SAMPLE_INTERPOLATE.\n");
             value = SID_SAMPLE_INTERPOLATE;
             break;
         default:
-            warn("Unknown sampling method: %d\n", value);
+            warn("Unknown sampling method: %lld\n", value);
     }
 
     samplingMethod = value;
@@ -219,28 +219,6 @@ ReSID::poke(u16 addr, u8 value)
     sid->write(addr, value);
 }
 
-/*
-i64
-ReSID::executeCycles(u64 numCycles, short *buffer)
-{
-    // Don't ask SID to compute samples for a time interval greater than 1 sec
-    assert(numCycles <= PAL_CYCLES_PER_SECOND);
-    
-    // debug("Executing ReSID %p for %lld cycles\n", this, cycles);
-    
-    reSID::cycle_count delta_t = (reSID::cycle_count)numCycles;
-    int numSamples = 0;
-    
-    // Let reSID compute some sound samples
-    while (delta_t) {
-        numSamples += sid->clock(delta_t, buffer + numSamples, 1);
-    }
-    
-    assert(numSamples >= 0);
-    return (u64)numSamples;
-}
-*/
-
 i64
 ReSID::executeSamples(u64 numSamples)
 {
@@ -254,13 +232,13 @@ ReSID::executeSamples(u64 numSamples, short *buffer)
 
     // Don't ask to compute more samples that fit into the buffer
     if (numSamples > SIDBridge::sampleBufferSize) {
-        panic("numSamples = %lld (max: %lld)\n", numSamples, SIDBridge::sampleBufferSize);
+        warn("numSamples = %lld (max: %zu)\n", numSamples, SIDBridge::sampleBufferSize);
         bridge.dump();
         assert(false);
     }
     assert(numSamples <= SIDBridge::sampleBufferSize);
     
-    // debug("Executing ReSID %p for %lld samples\n", this, numSamples);
+    // debug(SID_EXEC, "Executing ReSID %p for %lld samples\n", this, numSamples);
 
     // Invoke reSID
     int result = sid->clock(delta, buffer, (int)numSamples);

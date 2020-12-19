@@ -314,7 +314,7 @@ void MyAudioCallback(void*  thisC64,
       printf("%hhu,",stream[i]);
     }
     printf("\n");
-*/    
+  */  
     sum_samples += n;
 }
 
@@ -415,8 +415,19 @@ void initSDL(void *thisC64)
 
 
 
+bool warp_mode=false;
+void theListener(const void * c64, long type, long data){
+  
+  if(warp_mode && type == MSG_IEC_BUS_BUSY && !((C64 *)c64)->inWarpMode())
+  {
+      ((C64 *)c64)->setWarp(true);
+  }
+  else if(type == MSG_IEC_BUS_IDLE && ((C64 *)c64)->inWarpMode())
+  {
+      ((C64 *)c64)->setWarp(false);
+  }
 
-void theListener(const void *, long type, long data){
+
   if(0!=strcmp("MSG_CHARSET", msg_code[type].c_str()))
   {
     printf("vC64 message=%s, data=%ld\n", msg_code[type].c_str(), data);
@@ -441,7 +452,7 @@ class C64Wrapper {
 
     printf("adding a listener to C64 message queue...\n");
 
-    c64->addListener(this, &theListener);
+    c64->addListener(this->c64, &theListener);
 
   }
   ~C64Wrapper()
@@ -476,7 +487,7 @@ class C64Wrapper {
 
 
     c64->configure(OPT_SID_ENGINE, ENGINE_RESID);
- //   c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);
+//    c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);
 
 
 
@@ -637,7 +648,7 @@ extern "C" void wasm_take_user_snapshot()
 
 extern "C" void wasm_set_warp(unsigned on)
 {
-  wrapper->c64->setWarp(on == 1);
+  warp_mode = (on == 1);
 }
 
 
@@ -701,6 +712,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
   else if (checkFileSuffix(name, ".vc64")|| checkFileSuffix(name, ".vc64")) {
     printf("isSnapshot\n");
     wrapper->c64->loadFromSnapshot(Snapshot::makeWithBuffer(blob, len));
+  
   }
   else /*if (checkFileSuffix(name, ".BIN")|| checkFileSuffix(name, ".bin"))*/ {
  //   printf("\n");

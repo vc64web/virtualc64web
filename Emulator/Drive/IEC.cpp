@@ -49,7 +49,7 @@ IEC::_dump()
 void 
 IEC::dumpTrace()
 {
-    debug(IEC_DEBUG, "ATN: %d CLK: %d DATA: %d\n", atnLine, clockLine, dataLine);
+    trace(IEC_DEBUG, "ATN: %d CLK: %d DATA: %d\n", atnLine, clockLine, dataLine);
 }
 
 bool IEC::_updateIecLines()
@@ -112,9 +112,7 @@ IEC::updateIecLines()
         drive8.via1.CA1action(!atnLine);
         drive9.via1.CA1action(!atnLine);
         
-        if (tracingEnabled()) {
-            dumpTrace();
-        }
+        // dumpTrace();
         
 		if (busActivity == 0) {
             

@@ -54,6 +54,8 @@ public:
     static D64File *makeWithFile(const char *path);
     static D64File *makeWithAnyArchive(AnyArchive *otherArchive);
     static D64File *makeWithDisk(Disk *disk);
+    static D64File *makeWithDrive(Drive *drive);
+    static D64File *makeWithVolume(class FSDevice &volume, FSError *error);
 
 
     //
@@ -71,6 +73,7 @@ public:
     
     FileType type() override { return FILETYPE_D64; }
     const char *getName() override;
+    struct FSName getFSName() override;
     bool hasSameType(const char *filename) override { return isD64File(filename); }
     bool readFromBuffer(const u8 *buffer, size_t length) override;
     
@@ -163,7 +166,7 @@ private:
     bool nextTrackAndSector(Track track, Sector sector,
                             Track *nextTrack, Sector *nextSector,
                             bool skipDirectory = true);
-    
+
     /* Jumps to the beginning of the next sector. The beginning of the next
      * sector is written into variable 'pos'. Returns true if the jump to the
      * next sector was successfull and false if the current sector points to an
@@ -237,7 +240,8 @@ private:
     
 private:
     
-    // Dumps the contents of a sector to stderr
+    // Dumps the contents of a sector
     void dump(Track track, Sector sector);
 };
+
 #endif

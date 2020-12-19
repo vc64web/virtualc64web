@@ -144,6 +144,46 @@ sprint16b(char *s, u16 value)
     s[16] = 0;
 }
 
+void hexdump(u8 *p, size_t size, size_t cols, size_t pad)
+{
+    while (size) {
+        
+        size_t cnt = MIN(size, cols);
+        for (size_t x = 0; x < cnt; x++) {
+            fprintf(stderr, "%02X %s", p[x], ((x + 1) % pad) == 0 ? " " : "");
+        }
+        
+        size -= cnt;
+        p += cnt;
+        
+        fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "\n");
+}
+
+void hexdump(u8 *p, size_t size, size_t cols)
+{
+    hexdump(p, size, cols, cols);
+}
+
+void hexdumpWords(u8 *p, size_t size, size_t cols)
+{
+    hexdump(p, size, cols, 2);
+}
+
+void hexdumpLongwords(u8 *p, size_t size, size_t cols)
+{
+    hexdump(p, size, cols, 4);
+}
+
+bool isZero(const u8 *ptr, size_t size)
+{
+    for (size_t i = 0; i < size; i++) {
+        if (ptr[i]) return false;
+    }
+    return true;
+}
+
 char *
 extractFilename(const char *path)
 {
@@ -195,6 +235,34 @@ checkFileSuffix(const char *filename, const char *suffix)
 		return true;
 	else
 		return false;
+}
+
+bool isDirectory(const char *path)
+{
+    struct stat fileProperties;
+    
+    if (path == nullptr)
+        return -1;
+        
+    if (stat(path, &fileProperties) != 0)
+        return -1;
+    
+    return S_ISDIR(fileProperties.st_mode);
+}
+
+long numDirectoryItems(const char *path)
+{
+    long count = 0;
+    
+    if (DIR *dir = opendir(path)) {
+        
+        struct dirent *dp;
+        while ((dp = readdir(dir))) {
+            if (dp->d_name[0] != '.') count++;
+        }
+    }
+    
+    return count;
 }
 
 long
@@ -264,6 +332,55 @@ matchingBufferHeader(const u8 *buffer, const u8 *header, size_t length)
     }
 
     return true;
+}
+
+bool
+loadFile(const char *path, u8 **buffer, long *size)
+{
+    assert(path != nullptr);
+    assert(buffer != nullptr);
+    assert(size != nullptr);
+
+    *buffer = nullptr;
+    *size = 0;
+    
+    // Get file size
+    long bytes = getSizeOfFile(path);
+    if (bytes == -1) return false;
+    
+    // Open file
+    FILE *file = fopen(path, "r");
+    if (file == nullptr) return false;
+     
+    // Allocate memory
+    u8 *data = new u8[bytes];
+    if (data == nullptr) { fclose(file); return false; }
+    
+    // Read data
+    for (unsigned i = 0; i < bytes; i++) {
+        int c = fgetc(file);
+        if (c == EOF) break;
+        data[i] = (u8)c;
+    }
+    
+    fclose(file);
+    *buffer = data;
+    *size = bytes;
+    return true;
+}
+
+bool
+loadFile(const char *path, const char *name, u8 **buffer, long *size)
+{
+    assert(path != nullptr);
+    assert(name != nullptr);
+
+    char *fullpath = new char[strlen(path) + strlen(name) + 2];
+    strcpy(fullpath, path);
+    strcat(fullpath, "/");
+    strcat(fullpath, name);
+    
+    return loadFile(fullpath, buffer, size);
 }
 
 u32

@@ -82,6 +82,8 @@ HardwareComponent::size()
 size_t
 HardwareComponent::load(u8 *buffer)
 {
+    assert(!isRunning());
+    
     u8 *ptr = buffer;
 
     // Call delegation method
@@ -99,7 +101,7 @@ HardwareComponent::load(u8 *buffer)
     ptr += didLoadFromBuffer(ptr);
 
     // Verify that the number of written bytes matches the snapshot size
-    debug(SNP_DEBUG, "Loaded %d bytes (expected %d)\n", ptr - buffer, size());
+    trace(SNP_DEBUG, "Loaded %ld bytes (expected %zu)\n", ptr - buffer, size());
     assert(ptr - buffer == (long)size());
 
     return ptr - buffer;
@@ -125,7 +127,7 @@ HardwareComponent::save(u8 *buffer)
     ptr += didSaveToBuffer(ptr);
 
     // Verify that the number of written bytes matches the snapshot size
-    debug(SNP_DEBUG, "Saved %d bytes (expected %d)\n", ptr - buffer, size());
+    trace(SNP_DEBUG, "Saved %ld bytes (expected %zu)\n", ptr - buffer, size());
     assert(ptr - buffer == (long)size());
 
     return ptr - buffer;
@@ -249,7 +251,7 @@ HardwareComponent::setWarp(bool enable)
 }
 
 void
-HardwareComponent::setDebug(bool enable)
+HardwareComponent::settrace(bool enable)
 {
     if (debugMode == enable) return;
     
@@ -257,9 +259,9 @@ HardwareComponent::setDebug(bool enable)
 
      // Enable or disable debug mode for all subcomponents
      for (HardwareComponent *c : subComponents) {
-         c->setDebug(enable);
+         c->settrace(enable);
      }
 
      // Enable debug mode for this component
-     _setDebug(enable);
+     _settrace(enable);
 }

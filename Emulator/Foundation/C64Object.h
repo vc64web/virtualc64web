@@ -31,13 +31,7 @@ for (AutoMutex _am(mutex); _am.active; _am.active = false)
  * warnings.
  */
 class C64Object {
-                 
-    /* Stores how many trace messages are left to be printed. If positive, this
-     * value is decremented in tracingEnabled(). A negative value indicates
-     * that tracing should continue forever.
-     */
-    int traceCounter = 0;
-    
+                     
 protected:
     
     /* Mutex for implementing the 'synchronized' macro. The macro can be used
@@ -58,50 +52,8 @@ public:
     // Returns the name for this component (e.g., "CPU" or "VICII")
     virtual const char *getDescription() = 0;
     
-        
-    //
-    // Debugging the component
-    //
-    
-public:
-    
-    /* There a four types of messages:
-     *
-     *   - msg     Debug messages   (Show up in debug and release builds)
-     *   - warn    Warning messages (Do not terminate the program)
-     *   - panic   Error messages   (Terminate the program)
-     *   - debug   Debug messages   (Show up in debug builds, only)
-     *
-     * Debug messages are prefixed by the string description produced by the
-     * prefix() function. To omit the prefix, use plaindebug(...). Some objects
-     * overwrite prefix() to output additional debug information.
-     */
+    // Called by debug() and trace() to produce a detailed debug output
     virtual void prefix();
-    
-    void msg(const char *fmt, ...);
-    void warn(const char *fmt, ...);
-    void panic(const char *fmt, ...);
-    
-    void debug(const char *fmt, ...);
-    void debug(int verbose, const char *fmt, ...);
-    void plaindebug(const char *fmt, ...);
-    void plaindebug(int verbose, const char *fmt, ...);
-    
-    
-    //
-    // Tracing
-    //
-    
-public:
-    
-    // Returns true iff trace mode is enabled
-    bool tracingEnabled();
-        
-    // Starts tracing
-    void startTracing(int counter = -1) { traceCounter = counter; }
-
-    // Stops tracing
-    void stopTracing() { traceCounter = 0; }
 };
 
 #endif

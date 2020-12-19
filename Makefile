@@ -4,7 +4,7 @@ SRC_CC	  = $(wildcard Emulator/SID/resid/*.cc)
 OBJECTS	  = $(patsubst %.cpp,%.o,$(SRC))
 OBJECTS_CC = $(patsubst %.cc,%.o,$(SRC_CC))
 CC        = emcc
-INCLUDE   = -I. -IEmulator -IEmulator/Foundation -IEmulator/LogicBoard -IEmulator/Ports -IEmulator/Cartridges -IEmulator/Cartridges/CustomCartridges -IEmulator/CPU -IEmulator/CIA -IEmulator/Computer -IEmulator/Datasette -IEmulator/Drive -IEmulator/Files -IEmulator/Memory -IEmulator/General -IEmulator/Peripherals -IEmulator/SID -IEmulator/SID/fastsid -IEmulator/SID/resid -IEmulator/VICII
+INCLUDE   = -I. -IEmulator -IEmulator/Foundation -IEmulator/LogicBoard -IEmulator/Ports -IEmulator/Cartridges -IEmulator/Cartridges/CustomCartridges -IEmulator/CPU -IEmulator/CIA -IEmulator/Computer -IEmulator/Datasette -IEmulator/Drive -IEmulator/Files -IEmulator/Memory -IEmulator/General -IEmulator/Peripherals -IEmulator/SID -IEmulator/SID/fastsid -IEmulator/SID/resid -IEmulator/VICII -IEmulator/FileSystems
 WARNINGS  = -Wall -Wno-unused-variable
 STD       = -std=c++17
 OPTIMIZE  = -O2
@@ -24,7 +24,7 @@ clean:
 	rm -f vC64.data
 
 main:
-	$(CC)  -c $(CFLAGS) mainsdl.cpp
+	$(CC)  -c $(CFLAGS) Emulator/SID/SIDStream.cpp Emulator/SID/ReSID.cpp Emulator/SID/SIDBridge.cpp mainsdl.cpp
 	mv *.o obj
 	$(CC)  $(CFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB -s ALLOW_MEMORY_GROWTH=1 $(OBJDIR)/*.o 
 	#--preload-file roms

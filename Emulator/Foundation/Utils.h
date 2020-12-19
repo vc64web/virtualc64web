@@ -22,7 +22,9 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <dirent.h>
 
+#include "Debug.h"
 #include "C64Config.h"
 #include "C64Constants.h"
 #include "C64Types.h"
@@ -65,9 +67,6 @@ bool releaseBuild();
 
 // Sets a single bit to 0 (value == 0) or 1 (value != 0)
 #define WRITE_BIT(x,nr,value) ((value) ? SET_BIT(x, nr) : CLR_BIT(x, nr))
-
-// Copies a single bit from x to y
-// #define COPY_BIT(x,y,nr) ((y) = (((y) & ~(1 << (nr))) | (((x) & (1 << (nr))))))
 
 // Replaces bits, bytes, and words
 #define REPLACE_BIT(x,nr,v) ((v) ? SET_BIT(x, nr) : CLR_BIT(x, nr))
@@ -136,7 +135,26 @@ void sprint16b(char *s, u16 value);
 
 
 //
-// Handling file and path names
+// Pretty printing
+//
+
+// Prints a hex dump of a buffer to the console (for debugging)
+void hexdump(u8 *p, size_t size, size_t cols, size_t pad);
+void hexdump(u8 *p, size_t size, size_t cols = 32);
+void hexdumpWords(u8 *p, size_t size, size_t cols = 32);
+void hexdumpLongwords(u8 *p, size_t size, size_t cols = 32);
+
+
+//
+// Accessing memory
+//
+
+// Checks if a certain memory area is all zero
+bool isZero(const u8 *ptr, size_t size); 
+
+
+//
+// Handling file
 //
 
 /* Extracts a certain component from a path. Every function returns a newly
@@ -152,12 +170,22 @@ bool checkFileSuffix(const char *filename, const char *suffix);
 // Returns the size of a file in bytes
 long getSizeOfFile(const char *filename);
 
+// Checks if a path points to a directory
+bool isDirectory(const char *path);
+
+// Returns the number of files in a directory
+long numDirectoryItems(const char *path);
+
 // Checks the size of a file
 bool checkFileSize(const char *filename, long min = -1, long max = -1);
 
 // Checks the header signature (magic bytes) of a file or buffer
 bool matchingFileHeader(const char *path, const u8 *header, size_t length);
 bool matchingBufferHeader(const u8 *buffer, const u8 *header, size_t length);
+
+// Loads a file from disk
+bool loadFile(const char *path, u8 **buffer, long *size);
+bool loadFile(const char *path, const char *name, u8 **buffer, long *size);
 
 
 //

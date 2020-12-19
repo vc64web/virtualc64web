@@ -41,12 +41,16 @@ static const int XFILES          = 0; // Report paranormal activity
 
 // Runloop
 static const int RUN_DEBUG       = 0; // Run loop, component states, timing
+static const int TIM_DEBUG       = 0; // Timing (thread synchronization)
 static const int SNP_DEBUG       = 0; // Serializing (snapshots)
 static const int MSG_DEBUG       = 0; // Message queue
 
 // CPU
 static const int CPU_DEBUG       = 0; // CPU
 static const int IRQ_DEBUG       = 0; // Interrupts
+
+// Memory
+static const int MEM_DEBUG       = 0; // RAM, ROM
 
 // CIAs
 static const int CIA_DEBUG       = 0; // Complex Interface Adapter
@@ -56,7 +60,7 @@ static const int CIA_ON_STEROIDS = 0; // Keep the CIAs awake all the time
 static const int VIA_DEBUG       = 0; // Versatile Interface Adapter
 static const int VIC_DEBUG       = 0; // Video Interface Controller
 static const int SID_DEBUG       = 0; // Sound Interface Device
-static const int SID_EXEC_DEBUG  = 0; // Sound Interface Device (execution)
+static const int SID_EXEC        = 0; // Sound Interface Device (execution)
 static const int IEC_DEBUG       = 0; // IEC bus
 
 // Ports
@@ -67,6 +71,7 @@ static const int EXP_DEBUG       = 0; // Expansion port
 static const int DSK_DEBUG       = 0; // Disk controller execution
 static const int DSKCHG_DEBUG    = 0; // Disk changing procedure
 static const int GCR_DEBUG       = 0; // Disk encoding / decoding
+static const int FS_DEBUG        = 0; // File System Classes
 
 // Media
 static const int CRT_DEBUG       = 0; // Cartridges

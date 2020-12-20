@@ -136,6 +136,18 @@ FSDevice::printDirectory()
     }
 }
 
+u32
+FSDevice::numFreeBlocks()
+{
+    u32 result = 0;
+    
+    for (size_t i = 0; i < blocks.size(); i++) {
+        if (isFree((Block)i)) result++;
+    }
+    
+    return result;
+}
+
 FSBlockType
 FSDevice::blockType(u32 nr)
 {
@@ -151,25 +163,19 @@ FSDevice::itemType(u32 nr, u32 pos)
 FSBlock *
 FSDevice::blockPtr(Block b)
 {
-    return b < blocks.size() ? blocks[b] : nullptr;
+    return (u64)b < (u64)blocks.size() ? blocks[b] : nullptr;
 }
 
 FSBlock *
-FSDevice::blockPtr(BlockRef ref)
+FSDevice::blockPtr(BlockRef ts)
 {
-    Block b;
-    layout.translateBlockNr(&b, ref.t, ref.s);
-    
-    return blockPtr(b);
+    return blockPtr(layout.blockNr(ts));
 }
 
 FSBlock *
 FSDevice::blockPtr(Track t, Sector s)
 {
-    Block b;
-    layout.translateBlockNr(&b, t, s);
-    
-    return blockPtr(b);
+    return blockPtr(layout.blockNr(t, s));
 }
 
 FSBlock *
@@ -201,45 +207,6 @@ FSDevice::nextBlockPtr(FSBlock *ptr)
 }
 
 bool
-FSDevice::writeByte(u8 byte, Track *pt, Sector *ps, u32 *pOffset)
-{
-    Track t = *pt;
-    Sector s = *ps;
-    u32 offset = *pOffset;
-    
-    assert(layout.isTrackSectorPair(t, s));
-    assert(offset >= 2 && offset <= 0x100);
-    
-    FSBlock *ptr = blockPtr(t, s);
-        
-    // No free slots in this sector, proceed to next one
-    if (offset == 0x100) {
-        
-        // Only proceed if there is space left on the disk
-        if (!layout.nextTrackAndSector(t, s, &t, &s)) return false;
-                
-        // Mark the new block as allocated
-        markAsAllocated(t, s);
-        
-        // Link previous sector with the new one
-        ptr->data[0] = (u8)t;
-        ptr->data[1] = (u8)s;
-        Track t2; Sector s2; layout.translateBlockNr(ptr->nr, &t2, &s2);
-
-        ptr = blockPtr(t, s);
-        offset = 2;
-    }
-    
-    // Write byte
-    ptr->data[offset] = byte;
-    
-    *pt = t;
-    *ps = s;
-    *pOffset = offset + 1;
-    return true;
-}
-
-bool
 FSDevice::isFree(Block b)
 {
     u32 byte, bit;
@@ -248,6 +215,7 @@ FSDevice::isFree(Block b)
     return GET_BIT(bam->data[byte], bit);
 }
 
+/*
 bool
 FSDevice::isFree(BlockRef ref)
 {
@@ -256,6 +224,7 @@ FSDevice::isFree(BlockRef ref)
     
     return GET_BIT(bam->data[byte], bit);
 }
+*/
 
 bool
 FSDevice::isFree(Track t, Sector s)

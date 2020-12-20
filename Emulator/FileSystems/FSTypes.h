@@ -12,7 +12,7 @@
 
 #include "Aliases.h"
 
-longenum(FSVolumeType)
+enum_long(FSVolumeType)
 {
     FS_NODOS = 0,
     FS_CBM_DOS = 1
@@ -32,7 +32,7 @@ inline const char *sFSVolumeType(FSVolumeType value)
     }
 }
 
-longenum(FSFileType)
+enum_long(FSFileType)
 {
     FS_PRG = 1,
     FS_SEQ,
@@ -57,7 +57,7 @@ inline const char *sFSFileType(FSFileType value)
     }
 }
 
-longenum(FSBlockType)
+enum_long(FSBlockType)
 {
     FS_UNKNOWN_BLOCK,
     FS_BAM_BLOCK,
@@ -85,14 +85,29 @@ sFSBlockType(FSBlockType type)
     }
 }
 
-longenum(FSItemType)
+enum_long(FSItemType)
 {
     FSI_UNKNOWN,
     FSI_UNUSED,
-    FSI_TRACK_REF,
-    FSI_SECTOR_REF,
-    FSI_BAM_BLOCK,
-    FSI_DIR_BLOCK,
+    FSI_DOS_VERSION,
+    FSI_DOS_TYPE,
+    FSI_ALLOCATION_BITS,
+    FSI_DISK_ID,
+    FSI_DISK_NAME,
+    FSI_TRACK_LINK,
+    FSI_SECTOR_LINK,
+    FSI_FIRST_FILE_TRACK,
+    FSI_FIRST_FILE_SECTOR,
+    FSI_FIRST_REL_TRACK,
+    FSI_FIRST_REL_SECTOR,
+    FSI_FIRST_DIR_TRACK,
+    FSI_FIRST_DIR_SECTOR,
+    FSI_FILE_TYPE,
+    FSI_FILE_NAME,
+    FSI_FILE_LENGTH_LO,
+    FSI_FILE_LENGTH_HI,
+    FSI_REL_RECORD_LENGTH,
+    FSI_GEOS,
     FSI_DATA
 };
 
@@ -102,7 +117,7 @@ isFSBlockItem(long value)
     return value >= 0 && value <= FSI_DATA;
 }
 
-longenum(FSError)
+enum_long(FSError)
 {
     FS_OK,
     
@@ -121,13 +136,14 @@ longenum(FSError)
     FS_CANNOT_CREATE_FILE,
 
     // Block errros
-    FS_EXPECTED_VALUE,
-    FS_EXPECTED_SMALLER_VALUE
+    FS_EXPECTED,
+    FS_EXPECTED_MIN,
+    FS_EXPECTED_MAX
 };
 
 inline bool isFSError(FSError value)
 {
-    return value >= FS_OK && value <= FS_EXPECTED_VALUE;
+    return value >= FS_OK && value <= FS_EXPECTED_MAX;
 }
 
 inline const char *sFSError(FSError value)
@@ -145,8 +161,10 @@ inline const char *sFSError(FSError value)
         case FS_CANNOT_CREATE_DIR:       return "FS_CANNOT_CREATE_DIR";
         case FS_CANNOT_CREATE_FILE:      return "FS_CANNOT_CREATE_FILE";
 
-        case FS_EXPECTED_VALUE:          return "FS_EXPECTED_VALUE";
-        
+        case FS_EXPECTED:                return "FS_EXPECTED";
+        case FS_EXPECTED_MIN:            return "FS_EXPECTED_MIN";
+        case FS_EXPECTED_MAX:            return "FS_EXPECTED_MAX";
+
         default:
             return isFSError(value) ? "<other>" : "???";
     }

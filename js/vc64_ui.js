@@ -1332,15 +1332,15 @@ $('.layer').change( function(event) {
     });
 
 
-    set_sid_model(load_setting('sid_engine', 'ReSID - Fast'));
-    function set_sid_model(sid_engine) {
+    set_sid_engine(load_setting('sid_engine', 'ReSID - Fast'));
+    function set_sid_engine(sid_engine) {
         $("#button_sid_engine").text(sid_engine);
         wasm_set_sid_engine(sid_engine);
     }
     $('#choose_sid_engine a').click(function () 
     {
         var sid_engine=$(this).text();
-        set_sid_model(sid_engine);
+        set_sid_engine(sid_engine);
         save_setting('sid_engine',sid_engine)
     });
 

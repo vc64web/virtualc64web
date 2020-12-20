@@ -984,7 +984,7 @@ extern "C" void wasm_set_2nd_sid(long address)
 
 extern "C" void wasm_set_sid_engine(char* engine)
 {
-  printf("wasm_set_sid_engine %s", engine);
+  printf("wasm_set_sid_engine %s\n", engine);
 
   bool wasRunning=false;
   if(wrapper->c64->isRunning()){
@@ -995,24 +995,24 @@ extern "C" void wasm_set_sid_engine(char* engine)
 
   if( strcmp(engine,"FastSID") == 0)
   {
-    printf("wrapper->c64->configure(OPT_SID_ENGINE, ENGINE_FASTSID);\n");
+    printf("c64->configure(OPT_SID_ENGINE, ENGINE_FASTSID);\n");
     wrapper->c64->configure(OPT_SID_ENGINE, ENGINE_FASTSID);
   }
   else if( strcmp(engine,"ReSID fast") == 0)
   { 
-    printf("wrapper->c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_FAST);\n");
+    printf("c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_FAST);\n");
     wrapper->c64->configure(OPT_SID_ENGINE, ENGINE_RESID);
     wrapper->c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_FAST);
   }
   else if( strcmp(engine,"ReSID interpolate") == 0)
   {
-    printf("wrapper->c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);\n");
+    printf("c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);\n");
     wrapper->c64->configure(OPT_SID_ENGINE, ENGINE_RESID);
     wrapper->c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);
   }
   else if( strcmp(engine,"ReSID resample") == 0)
   {
-    printf("wrapper->c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_RESAMPLE);\n");
+    printf("c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_RESAMPLE);\n");
     wrapper->c64->configure(OPT_SID_ENGINE, ENGINE_RESID);
     wrapper->c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_RESAMPLE);
   }

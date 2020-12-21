@@ -1230,7 +1230,7 @@ $('.layer').change( function(event) {
             {
 //                 console.log("not direct cycles now ="+time_since_start+ " time_coldstart_to_ready_prompt"+time_coldstart_to_ready_prompt);
 
-                intervall_id = setInterval(() => {  
+                var intervall_id = setInterval(() => {  
                     var cycles_now= wasm_get_cpu_cycles();
 //                    console.log("cycles now ="+cycles_now+ " time_coldstart_to_ready_prompt"+time_coldstart_to_ready_prompt);
 
@@ -1247,9 +1247,9 @@ $('.layer').change( function(event) {
             $('#alert_reset').show();
             wasm_reset();
 
-            intervall_id = setInterval(() => {  
+            var intervall_id = setInterval(() => {  
                 var cycles_now= wasm_get_cpu_cycles();
-//                console.log("cycles now ="+cycles_now+ " time_coldstart_to_ready_prompt"+time_reset_to_ready_prompt);
+//                console.log("cycles now ="+cycles_now+ " time_coldstart_to_ready_prompt"+time_coldstart_to_ready_prompt+ "  id="+intervall_id);
                 if(cycles_now > time_coldstart_to_ready_prompt)
                 {
                     clearInterval(intervall_id);

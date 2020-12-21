@@ -864,6 +864,9 @@ function InitWrappers() {
 
     wasm_set_sid_engine = Module.cwrap('wasm_set_sid_engine', 'undefined', ['string']);
 
+    wasm_get_cpu_cycles = Module.cwrap('wasm_get_cpu_cycles', 'number');
+
+
     dark_switch = document.getElementById('dark_switch');
 
 
@@ -1211,34 +1214,50 @@ $('.layer').change( function(event) {
             $("#button_run").click();
         }
         var faster_open_roms_installed = JSON.parse(wasm_rom_info()).kernal.startsWith("mega");
+        
+        //the roms differ from cold-start to ready prompt, orig-roms 3300ms and open-roms 250ms   
+        var time_since_start=wasm_get_cpu_cycles();
+        var time_coldstart_to_ready_prompt = faster_open_roms_installed ? 500000:2500000;
+ 
         if(reset_before_load == false)
         {
-            //the roms differ from cold-start to ready prompt, orig-roms 3300ms and open-roms 250ms   
-            var time_since_start=Date.now()-wasm_first_run;
-            var time_coldstart_to_ready_prompt = faster_open_roms_installed ? 500:3400;
-            
             if(time_since_start>time_coldstart_to_ready_prompt)
             {
+//                console.log("direct cycles now ="+time_since_start+ " time_coldstart_to_ready_prompt"+time_coldstart_to_ready_prompt);
                 execute_load();
             }
             else
             {
-                setTimeout(() => {  
-                    execute_load();
-                }, time_coldstart_to_ready_prompt - time_since_start);
+//                 console.log("not direct cycles now ="+time_since_start+ " time_coldstart_to_ready_prompt"+time_coldstart_to_ready_prompt);
+
+                intervall_id = setInterval(() => {  
+                    var cycles_now= wasm_get_cpu_cycles();
+//                    console.log("cycles now ="+cycles_now+ " time_coldstart_to_ready_prompt"+time_coldstart_to_ready_prompt);
+
+                    if(cycles_now > time_coldstart_to_ready_prompt)
+                    {
+                        clearInterval(intervall_id);
+                        execute_load();
+                    }
+                }, 50);
             }
         }
         else
         {
-            var time_reset_to_ready_prompt = faster_open_roms_installed ? 800:2800;
-            
             $('#alert_reset').show();
             wasm_reset();
-            setTimeout(() => {
-                execute_load();
-                $('#alert_reset').hide();
-                reset_before_load=false;
-            }, time_reset_to_ready_prompt);
+
+            intervall_id = setInterval(() => {  
+                var cycles_now= wasm_get_cpu_cycles();
+//                console.log("cycles now ="+cycles_now+ " time_coldstart_to_ready_prompt"+time_reset_to_ready_prompt);
+                if(cycles_now > time_coldstart_to_ready_prompt)
+                {
+                    clearInterval(intervall_id);
+                    execute_load();
+                    $('#alert_reset').hide();
+                    reset_before_load=false;
+                }
+            }, 50);
         }
     }
     $("#button_insert_file").click(insert_file);

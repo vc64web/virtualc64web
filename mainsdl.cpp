@@ -485,13 +485,8 @@ class C64Wrapper {
     c64->configure(OPT_GRAY_DOT_BUG, false);
     c64->configure(OPT_VIC_REVISION, PAL_6569_R1);
 
-
-//    c64->configure(OPT_SID_ENGINE, ENGINE_FASTSID);
-
     c64->configure(OPT_SID_ENGINE, ENGINE_RESID);
 //    c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);
-
-
 
 
     // master Volumne
@@ -1023,4 +1018,40 @@ extern "C" void wasm_set_sid_engine(char* engine)
     wrapper->c64->run();
   }
 
+}
+
+
+extern "C" void wasm_set_color_palette(char* palette)
+{
+
+  if( strcmp(palette,"COLOR_PALETTE") == 0)
+  {
+    wrapper->c64->configure(OPT_PALETTE, COLOR_PALETTE);
+  }
+  else if( strcmp(palette,"BLACK_WHITE_PALETTE") == 0)
+  { 
+    wrapper->c64->configure(OPT_PALETTE, BLACK_WHITE_PALETTE); 
+  }
+  else if( strcmp(palette,"PAPER_WHITE_PALETTE") == 0)
+  { 
+    wrapper->c64->configure(OPT_PALETTE, PAPER_WHITE_PALETTE); 
+  }
+  else if( strcmp(palette,"GREEN_PALETTE") == 0)
+  { 
+    wrapper->c64->configure(OPT_PALETTE, GREEN_PALETTE); 
+  }
+  else if( strcmp(palette,"AMBER_PALETTE") == 0)
+  { 
+    wrapper->c64->configure(OPT_PALETTE, AMBER_PALETTE); 
+  }
+  else if( strcmp(palette,"SEPIA_PALETTE") == 0)
+  { 
+    wrapper->c64->configure(OPT_PALETTE, SEPIA_PALETTE); 
+  }
+}
+
+
+extern "C" u64 wasm_get_cpu_cycles()
+{
+  return wrapper->c64->cpu.cycle;
 }

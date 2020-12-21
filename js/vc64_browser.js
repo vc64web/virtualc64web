@@ -1030,6 +1030,10 @@ var collectors = {
             fetch(download_url).then( async response => {
                 file_slot_file_name = decodeURIComponent(response.url.match(".*/(.*)$")[1]);
                 file_slot_file = new Uint8Array( await response.arrayBuffer());
+
+                //if there is still a zip file in the fileslot, eject it now
+                $("#button_eject_zip").click();
+
                 if(app_title == "call_parameter" && id == 0)
                 {
                     configure_file_dialog(reset=false);

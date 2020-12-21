@@ -1024,27 +1024,27 @@ extern "C" void wasm_set_sid_engine(char* engine)
 extern "C" void wasm_set_color_palette(char* palette)
 {
 
-  if( strcmp(palette,"COLOR_PALETTE") == 0)
+  if( strcmp(palette,"color") == 0)
   {
     wrapper->c64->configure(OPT_PALETTE, COLOR_PALETTE);
   }
-  else if( strcmp(palette,"BLACK_WHITE_PALETTE") == 0)
+  else if( strcmp(palette,"black white") == 0)
   { 
     wrapper->c64->configure(OPT_PALETTE, BLACK_WHITE_PALETTE); 
   }
-  else if( strcmp(palette,"PAPER_WHITE_PALETTE") == 0)
+  else if( strcmp(palette,"paper white") == 0)
   { 
     wrapper->c64->configure(OPT_PALETTE, PAPER_WHITE_PALETTE); 
   }
-  else if( strcmp(palette,"GREEN_PALETTE") == 0)
+  else if( strcmp(palette,"green") == 0)
   { 
     wrapper->c64->configure(OPT_PALETTE, GREEN_PALETTE); 
   }
-  else if( strcmp(palette,"AMBER_PALETTE") == 0)
+  else if( strcmp(palette,"amber") == 0)
   { 
     wrapper->c64->configure(OPT_PALETTE, AMBER_PALETTE); 
   }
-  else if( strcmp(palette,"SEPIA_PALETTE") == 0)
+  else if( strcmp(palette,"sepia") == 0)
   { 
     wrapper->c64->configure(OPT_PALETTE, SEPIA_PALETTE); 
   }

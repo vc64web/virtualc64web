@@ -865,7 +865,7 @@ function InitWrappers() {
     wasm_set_sid_engine = Module.cwrap('wasm_set_sid_engine', 'undefined', ['string']);
 
     wasm_get_cpu_cycles = Module.cwrap('wasm_get_cpu_cycles', 'number');
-
+    wasm_set_color_palette = Module.cwrap('wasm_set_color_palette', 'undefined', ['string']);
 
     dark_switch = document.getElementById('dark_switch');
 
@@ -1362,6 +1362,21 @@ $('.layer').change( function(event) {
         set_sid_engine(sid_engine);
         save_setting('sid_engine',sid_engine)
     });
+
+
+
+    set_color_palette(load_setting('color_palette', 'color'));
+    function set_color_palette(color_palette) {
+        $("#button_color_palette").text(color_palette.replace("_", " "));
+        wasm_set_color_palette(color_palette);
+    }
+    $('#choose_color_palette a').click(function () 
+    {
+        var color_palette=$(this).text();
+        set_color_palette(color_palette);
+        save_setting('color_palette',color_palette)
+    });
+
 
 
 

@@ -956,6 +956,9 @@ var collectors = {
             for(var link of item.links)
             {
                 $(`#detail_run${link_id}`).click(function (){
+                    if(already_loaded_collector != get_data_collector("csdb"))
+                        return;
+                    //only run when collector is fully loaded
                     var clicked_link_id=this.id.match("detail_run(.*)")[1];
                     already_loaded_collector.run_link(app_title, id, item.links[clicked_link_id]);
                 });

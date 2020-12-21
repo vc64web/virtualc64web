@@ -1262,13 +1262,19 @@ $('.layer').change( function(event) {
     }
     $("#button_insert_file").click(insert_file);
     
-
     $('#modal_take_snapshot').on('hidden.bs.modal', function () {
         if(is_running())
         {
             setTimeout(function(){try{wasm_run();} catch(e) {}},200);
         }
-    });
+    }).keydown(event => {
+            if(event.key === "Enter")
+            {
+                $( "#button_save_snapshot" ).click();                        
+            }
+            return true;
+        }
+    );
    
     document.getElementById('button_take_snapshot').onclick = function() 
     {       
@@ -1331,6 +1337,7 @@ $('.layer').change( function(event) {
         var sid_model=$(this).text();
         set_sid_model(sid_model);
         save_setting('sid_model',sid_model)
+        $("#modal_settings").focus();
     });
 
     function set_2nd_sid(sid_addr) {
@@ -1348,6 +1355,7 @@ $('.layer').change( function(event) {
     {
         var sid_addr=$(this).text();
         set_2nd_sid(sid_addr);
+        $("#modal_settings").focus();
     });
 
 
@@ -1360,7 +1368,8 @@ $('.layer').change( function(event) {
     {
         var sid_engine=$(this).text();
         set_sid_engine(sid_engine);
-        save_setting('sid_engine',sid_engine)
+        save_setting('sid_engine',sid_engine);
+        $("#modal_settings").focus();
     });
 
 
@@ -1374,10 +1383,9 @@ $('.layer').change( function(event) {
     {
         var color_palette=$(this).text();
         set_color_palette(color_palette);
-        save_setting('color_palette',color_palette)
+        save_setting('color_palette',color_palette);
+        $("#modal_settings").focus();
     });
-
-
 
 
     document.getElementById('button_update').onclick = function() 

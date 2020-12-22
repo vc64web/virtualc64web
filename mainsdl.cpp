@@ -562,6 +562,24 @@ extern "C" void wasm_key(int code1, int code2, int pressed)
   }
 }
 
+extern "C" void wasm_schedule_key(int code1, int code2, int pressed, int frame_delay)
+{
+  if(pressed==1)
+  {
+    printf("scheduleKeyPress ( %d, %d, %d ) \n", code1, code2, frame_delay);
+
+    wrapper->c64->keyboard.scheduleKeyPress(code1, code2, frame_delay);
+  }
+  else
+  {
+
+    printf("scheduleKeyRelease ( %d, %d, %d ) \n", code1, code2, frame_delay);
+
+    wrapper->c64->keyboard.scheduleKeyRelease(code1, code2, frame_delay);
+  }
+}
+
+
 
 
 

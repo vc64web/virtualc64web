@@ -49,7 +49,7 @@ public:
     static CartridgeType typeOfCRTBuffer(const u8 *buffer, size_t length);
     
     // Returns the cartridge type name stored in the CRT buffer
-    static const char *typeNameOfCRTBuffer(const u8 *buffer, size_t length);
+    // static const char *typeNameOfCRTBuffer(const u8 *buffer, size_t length);
     
     // Returns true if buffer contains a supported CRT file
     static bool isSupportedCRTBuffer(const u8 *buffer, size_t length);
@@ -101,8 +101,8 @@ public:
     // Returns the cartridge type (e.g., SimonsBasic, FinalIII)
     CartridgeType cartridgeType();
 
-    // Returns the cartridge type in plain text
-    const char *cartridgeTypeName();
+    // Checks whether the cartridge type is supported by the emulator, yet
+    bool isSupported();
     
     // Returns the initial value of the Exrom line and the Game line
     bool initialExromLine() { return data[0x18] != 0; }

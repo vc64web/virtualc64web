@@ -12,19 +12,28 @@
 
 #include "C64Component.h"
 
-/* This class manages the keyboard matrix of the virtual C64. Keyboard
- * management works as follows: When the GUI recognizes a key press or a key
- * release, it calls one of the functions in this class to tell the virtual
- * keyboard about the event. The called functions do nothing more than clearing
- * or setting a bit in the 8x8 keyboard matrix.Each key corresponds to a
- * specific bit in the matrix and is uniquely determined by a row and a column
- * value.
- *
- * Communication with the virtual computer is managed solely by the CIA. When a
- * method getRowValues is called which finally gets the contents of the keyboard
- * matrix into the C64.
- */
+struct KeyAction {
+    
+    // Action type (true = press, false = release)
+    bool press;
+
+    // Key identifier (0 .. 65)
+    u8 nr;
+    
+    // Keyboard matrix location
+    u8 row, col;
+
+    // Delay until the next action is performed, measures in frames
+    i64 delay;
+
+    // Constructors
+    KeyAction(bool _press, u8 _nr, u64 _delay);
+    KeyAction(bool _press, u8 _row, u8 _col, u64 _delay);
+};
+
 class Keyboard : public C64Component {
+    
+    friend struct KeyAction;
     
     // Maping from key numbers to keyboard matrix positions
     static const u8 rowcol[66][2];
@@ -37,9 +46,12 @@ class Keyboard : public C64Component {
 
     // Indicates if the shift lock is currently pressed
     bool shiftLock;
+        
+    // Key action list (for auto typing)
+    std::queue<KeyAction> actions;
     
-    // Counter for clearing the keyboard matrix with delay
-    i64 clearCnt = 0;
+    // Delay counter until the next key action is processed
+    i64 delay = 0;
     
     
     //
@@ -83,8 +95,7 @@ private:
         
         & kbMatrixRow
         & kbMatrixCol
-        & shiftLock
-        & clearCnt;
+        & shiftLock;
     }
     
     size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
@@ -110,15 +121,15 @@ public:
     bool restoreIsPressed();
     
 	// Presses a key
-    void press(long nr, i64 duration = 0);
-	void pressRowCol(u8 row, u8 col, i64 duration = 0);
-    void pressCommodore(i64 duration = 0) { pressRowCol(7,5, duration); }
-    void pressCtrl(i64 duration = 0) { pressRowCol(7,2, duration); }
-	void pressRunstop(i64 duration = 0) { pressRowCol(7,7, duration); }
-    void pressLeftShift(i64 duration = 0) { pressRowCol(1,7, duration); }
-    void pressRightShift(i64 duration = 0) { pressRowCol(6,4, duration); }
+    void press(long nr);
+	void pressRowCol(u8 row, u8 col);
+    void pressCommodore() { pressRowCol(7,5); }
+    void pressCtrl() { pressRowCol(7,2); }
+	void pressRunstop() { pressRowCol(7,7); }
+    void pressLeftShift() { pressRowCol(1,7); }
+    void pressRightShift() { pressRowCol(6,4); }
     void pressShiftLock() { shiftLock = true; }
-    void pressRestore(i64 duration = 0);
+    void pressRestore();
 
 	// Releases a pressed key
     void release(long nr);
@@ -144,22 +155,53 @@ public:
     void toggleCtrl() { toggle(7,2); }
     void toggleRunstop() { toggle(7,7); }
     
+private:
+    
+    void _press(long nr);
+    void _pressRowCol(u8 row, u8 col);
+    void _pressRestore();
+    
+    void _release(long nr);
+    void _releaseRowCol(u8 row, u8 col);
+    void _releaseRestore();
 
+    void _releaseAll();
+    
+    
     //
     // Accessing the keyboard matrix
     //
+    
+public:
     
 	// Reads a row or a column from the keyboard matrix
 	u8 getRowValues(u8 columnMask);
     u8 getColumnValues(u8 rowMask);
     
     
-    /* Returns true if the C64 is currently in upper case mode. When the C64
-     * is in normal operation, pressing SHIFT + COMMODORE toggles between the
-     * two modes.
-     */
-    bool inUpperCaseMode();
+    //
+    // Auto typing
+    //
     
+public:
+    
+    void scheduleKeyPress(long nr, i64 delay);
+    void scheduleKeyPress(u8 row, u8 col, i64 delay);
+    void scheduleKeyRelease(long nr, i64 delay);
+    void scheduleKeyRelease(u8 row, u8 col, i64 delay);
+
+private:
+    
+    // Inserts a delay after the last pending action
+    void addDelay(i64 delay);
+
+    // Deletes all pending actions and clears the keyboard matrix
+    void abortAutoTyping();
+    
+    // Workhorses for scheduleKeyPress and scheduleKeyRelease
+    void _scheduleKeyAction(bool press, long nr, i64 delay);
+    void _scheduleKeyAction(bool press, u8 row, u8 col, i64 delay);
+
     
     //
     // Performing periodic events

@@ -43,8 +43,58 @@ function load_parameter_link()
     }
 }
 
+
 var wasm_first_run=null;
 var required_roms_loaded =false;
+
+
+var last_tape_message = false;
+var msg_callback_stack = []
+function fire_on_message( msg, callback_fn)
+{
+    var handler = new Object();
+    handler.message = msg;
+    handler.callback_fn = callback_fn;
+    msg_callback_stack.push(handler); 
+}
+
+function fire_when_no_more_message( msg, callback_fn)
+{
+    last_tape_message=true;
+    var tape_poll_id = setInterval(() => {
+        if(!last_tape_message)
+        {
+            clearInterval(tape_poll_id);
+            callback_fn();
+        }
+        last_tape_message=false;
+    }, 9000);
+}
+
+function check_ready_to_fire(msg)
+{
+    var execute_stack = [];
+    var new_stack = [];
+    while(msg_callback_stack.length>0)
+    {
+        var next = msg_callback_stack.pop();
+        if(next.message==msg)
+        {
+            execute_stack.push(next.callback_fn);
+        }
+        else
+        {
+            new_stack.push(next);
+        }
+    }
+    msg_callback_stack= new_stack;
+
+    for(callback_fn of execute_stack)
+    {
+        callback_fn();
+    }
+}
+
 function message_handler(cores_msg)
 {
     var msg = UTF8ToString(cores_msg);
@@ -68,6 +118,31 @@ function message_handler(cores_msg)
     else if(msg == "MSG_RUN")
     {
         required_roms_loaded=true;
+    }
+    else if(msg == "MSG_IEC_BUS_IDLE")
+    {
+        var new_stack = [];
+        while(msg_callback_stack.length>0)
+        {
+            var next = msg_callback_stack.pop();
+            if(next.message==msg)
+            {
+                next.callback_fn();
+            }
+            else
+            {
+                new_stack.push(next);
+            }
+        }
+        msg_callback_stack= new_stack;
+    }
+    else if(msg == "MSG_IEC_BUS_BUSY")
+    {
+        check_ready_to_fire(msg);
+    }
+    else if(msg == "MSG_VC1530_PROGRESS")
+    {
+        last_tape_message=true;    
     }
 }
 
@@ -867,6 +942,11 @@ function InitWrappers() {
     wasm_get_cpu_cycles = Module.cwrap('wasm_get_cpu_cycles', 'number');
     wasm_set_color_palette = Module.cwrap('wasm_set_color_palette', 'undefined', ['string']);
 
+
+    wasm_schedule_key = Module.cwrap('wasm_schedule_key', 'undefined', ['number', 'number', 'number', 'number']);
+
+
+
     dark_switch = document.getElementById('dark_switch');
 
 
@@ -1190,16 +1270,25 @@ $('.layer').change( function(event) {
 
                     if(do_auto_run)
                     {
-                        emit_string(['Enter','r','u','n','Enter'], 4500, 1000);
+                        fire_when_no_more_message("MSG_VC1530_PROGRESS",function() {
+                            emit_string(['Enter','r','u','n','Enter']);
+                        });
                     }
                 }
                 else
                 {
                     emit_string(['Enter','l','o','a','d','"','*','"',',','8',',', '1', 'Enter']);
-                    
                     if(do_auto_run)
                     {
-                        emit_string(['Enter','r','u','n','Enter'], 4500, 1000);
+                        fire_on_message("MSG_IEC_BUS_BUSY",function() {
+                            fire_on_message("MSG_IEC_BUS_IDLE", function() {
+                                fire_on_message("MSG_IEC_BUS_BUSY",function() {
+                                    fire_on_message("MSG_IEC_BUS_IDLE", function() {
+                                        emit_string(['r','u','n','Enter'],0);
+                                    })
+                                })               
+                            })
+                        });
                     }
                 }
             }
@@ -2120,7 +2209,39 @@ function scaleVMCanvas() {
         
     
 
-function emit_string(keys_to_emit_array, type_first_key_time=200, next_key_time=300)
+
+
+function emit_string(keys_to_emit_array, type_first_key_time=200, release_delay=50)
+{  
+    // Set the initial delay for the first key (in frames)
+    var delay = type_first_key_time / 50;
+
+    for(the_key of keys_to_emit_array)
+    {
+        console.log(the_key);
+        var c64code = translateKey2(the_key, the_key.toLowerCase());
+        if(c64code !== undefined)
+        {
+            if(c64code.modifier != null)
+            {
+                wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 1, delay);
+                delay=0;
+            }
+            wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 1, delay);
+
+            delay=release_delay/50;
+            if(c64code.modifier != null)
+            {
+                wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, delay);
+                delay=0;
+            }
+            wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, delay);
+            delay=1;
+        }
+    }
+}
+
+function emit_string_old(keys_to_emit_array, type_first_key_time=200, next_key_time=300)
 {  
     time_in_future=type_first_key_time;
     keys_to_emit_array.forEach(function (the_key, i) {

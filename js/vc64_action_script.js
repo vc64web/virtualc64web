@@ -516,7 +516,7 @@ class Bot {
                 }
             }
           }
-          await action("50ms");
+          await action("20ms"); // time of one frame 1000/50=20ms
         }
     }
 }
@@ -550,8 +550,8 @@ class FalconBot extends Bot {
             else if(event.y_dir == 'up' )
             {
             }
-            else if(event.x_dir == 'left'  
-               && event.distance < 150 && this.process_event == false 
+            else if(event.x_dir == 'left' //|| event.x_dir == 'right'  
+               && event.distance < 150 /*&& this.process_event == false */
             )
             {
                 this.process_event = true; 

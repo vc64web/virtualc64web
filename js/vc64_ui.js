@@ -15,7 +15,11 @@ function get_parameter_link()
     var parameter_link=null;
     if(call_parameter.length>1)
     {
-        parameter_link= call_parameter[1];
+        parameter_link=call_parameter[1];
+        for(var i=2; i<call_parameter.length;i++)
+        {//in case there was a # inside the parameter link ... rebuild that
+            parameter_link+="#"+call_parameter[i];
+        }
     }
     return parameter_link;
 }
@@ -47,8 +51,6 @@ function load_parameter_link()
 var wasm_first_run=null;
 var required_roms_loaded =false;
 
-
-var last_tape_message = false;
 var msg_callback_stack = []
 function fire_on_message( msg, callback_fn)
 {
@@ -56,19 +58,6 @@ function fire_on_message( msg, callback_fn)
     handler.message = msg;
     handler.callback_fn = callback_fn;
     msg_callback_stack.push(handler); 
-}
-
-function fire_when_no_more_message( msg, callback_fn)
-{
-    last_tape_message=true;
-    var tape_poll_id = setInterval(() => {
-        if(!last_tape_message)
-        {
-            clearInterval(tape_poll_id);
-            callback_fn();
-        }
-        last_tape_message=false;
-    }, 9000);
 }
 
 function check_ready_to_fire(msg)
@@ -121,28 +110,11 @@ function message_handler(cores_msg)
     }
     else if(msg == "MSG_IEC_BUS_IDLE")
     {
-        var new_stack = [];
-        while(msg_callback_stack.length>0)
-        {
-            var next = msg_callback_stack.pop();
-            if(next.message==msg)
-            {
-                next.callback_fn();
-            }
-            else
-            {
-                new_stack.push(next);
-            }
-        }
-        msg_callback_stack= new_stack;
+        check_ready_to_fire(msg);
     }
     else if(msg == "MSG_IEC_BUS_BUSY")
     {
         check_ready_to_fire(msg);
-    }
-    else if(msg == "MSG_VC1530_PROGRESS")
-    {
-        last_tape_message=true;    
     }
 }
 
@@ -413,13 +385,14 @@ function configure_file_dialog(reset=false)
                 $("#div_auto_press_play").hide();
                 $("#div_auto_run").show(); 
                 auto_run = true;
+                reset_before_load = true; //when flashing a prg always reset
                 $("#button_insert_file").html("flash program "+return_icon);
             }
             else if(file_slot_file_name.match(/[.]tap$/i)) 
             {
                 $("#div_auto_load").show(); auto_load = true;
                 $("#div_auto_press_play").show(); auto_press_play = true;
-                $("#div_auto_run").show(); auto_run = true;
+                $("#div_auto_run").hide(); auto_run = false;
                 $("#button_insert_file").html("insert tape"+return_icon);
             }
             else if(file_slot_file_name.match(/[.](d64|g64)$/i)) 
@@ -1267,13 +1240,13 @@ $('.layer').change( function(event) {
                         //press play on tape shortly after emitting load command
                         setTimeout(function() {wasm_press_play(); },650);
                     }
-
-                    if(do_auto_run)
+/*                    if(do_auto_run)
                     {
                         fire_when_no_more_message("MSG_VC1530_PROGRESS",function() {
                             emit_string(['Enter','r','u','n','Enter']);
                         });
                     }
+*/
                 }
                 else
                 {
@@ -2211,11 +2184,15 @@ function scaleVMCanvas() {
 
 
 
-function emit_string(keys_to_emit_array, type_first_key_time=200, release_delay=50)
+function emit_string(keys_to_emit_array, type_first_key_time=200, release_delay_in_ms=50)
 {  
     // Set the initial delay for the first key (in frames)
     var delay = type_first_key_time / 50;
-
+    var release_delay = release_delay_in_ms / 50;
+    if(release_delay<1)
+    {
+        release_delay = 1;
+    }
     for(the_key of keys_to_emit_array)
     {
         console.log(the_key);
@@ -2229,7 +2206,7 @@ function emit_string(keys_to_emit_array, type_first_key_time=200, release_delay=
             }
             wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 1, delay);
 
-            delay=release_delay/50;
+            delay=release_delay;
             if(c64code.modifier != null)
             {
                 wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, delay);

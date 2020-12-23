@@ -564,7 +564,18 @@ extern "C" void wasm_key(int code1, int code2, int pressed)
 
 extern "C" void wasm_schedule_key(int code1, int code2, int pressed, int frame_delay)
 {
-  if(pressed==1)
+  if(code1 == 9 && code2 == 9)
+  {
+    if(pressed == 1)
+    {
+      wrapper->c64->keyboard.scheduleKeyPress(31, frame_delay);   //pressRestore();
+    }
+    else
+    {
+      wrapper->c64->keyboard.scheduleKeyRelease(31, frame_delay);   //releaseRestore();
+    }
+  }
+  else if(pressed==1)
   {
     printf("scheduleKeyPress ( %d, %d, %d ) \n", code1, code2, frame_delay);
 
@@ -789,7 +800,18 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 extern "C" void wasm_reset()
 {
   wrapper->c64->expansionport.detachCartridge();
-  wrapper->c64->reset();
+
+//  wrapper->c64->reset();
+//  wrapper->c64->cpu.dump();
+
+  if(wrapper->c64->isRunning())
+  {
+    wrapper->c64->pause();
+  }
+  wrapper->c64->powerOff();
+  wrapper->c64->powerOn();
+  wrapper->c64->run();
+
 }
 
 extern "C" void wasm_halt()

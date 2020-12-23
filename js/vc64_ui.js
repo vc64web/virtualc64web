@@ -557,7 +557,10 @@ function keydown(e) {
     }
     var c64code = translateKey(e.code, e.key);
     if(c64code !== undefined)
-        wasm_key(c64code[0], c64code[1], 1);
+    {
+        //wasm_key(c64code[0], c64code[1], 1);
+        wasm_schedule_key(c64code[0], c64code[1], 1,0);
+    }
 }
 
 function keyup(e) {
@@ -586,7 +589,10 @@ function keyup(e) {
 
     var c64code = translateKey(e.code, e.key);
     if(c64code !== undefined)
-        wasm_key(c64code[0], c64code[1], 0);
+    {
+        //wasm_key(c64code[0], c64code[1], 0);
+        wasm_schedule_key(c64code[0], c64code[1], 0,1);
+    }
 }
 
 timestampjoy1 = null;
@@ -2216,28 +2222,6 @@ function emit_string(keys_to_emit_array, type_first_key_time=200, release_delay_
             delay=1;
         }
     }
-}
-
-function emit_string_old(keys_to_emit_array, type_first_key_time=200, next_key_time=300)
-{  
-    time_in_future=type_first_key_time;
-    keys_to_emit_array.forEach(function (the_key, i) {
-             console.log(the_key);
-             var c64code = translateKey2(the_key, the_key.toLowerCase());
-             if(c64code !== undefined)
-             {
-                if(c64code.modifier != null)
-                {
-                    setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 1);}, time_in_future);
-                    setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 0);}, time_in_future+next_key_time-20);
-                }
-
-                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 1);}, time_in_future+20);
-                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 0);}, time_in_future+next_key_time-20);
-                time_in_future +=next_key_time;
-             }
-        }
-    );
 }
 
 function hide_all_tooltips()

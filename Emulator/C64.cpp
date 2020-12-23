@@ -571,16 +571,19 @@ void
 C64::powerOn()
 {
     trace(RUN_DEBUG, "powerOn()\n");
-    
+
+#ifndef __EMSCRIPTEN__    
     pthread_mutex_lock(&stateChangeLock);
-    
+#endif    
     if (!isPoweredOn() && isReady()) {
-        
+#ifndef __EMSCRIPTEN__    
         acquireThreadLock();
+#endif    
         HardwareComponent::powerOn();
     }
-    
+#ifndef __EMSCRIPTEN__    
     pthread_mutex_unlock(&stateChangeLock);
+#endif
 }
 
 void
@@ -598,16 +601,19 @@ void
 C64::powerOff()
 {
     trace(RUN_DEBUG, "powerOff()\n");
-    
+
+#ifndef __EMSCRIPTEN__    
     pthread_mutex_lock(&stateChangeLock);
-    
+#endif
     if (!isPoweredOff()) {
-        
+#ifndef __EMSCRIPTEN__
         acquireThreadLock();
+#endif  
         HardwareComponent::powerOff();
     }
-    
+#ifndef __EMSCRIPTEN__    
     pthread_mutex_unlock(&stateChangeLock);
+#endif  
 }
 
 void

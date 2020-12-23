@@ -675,6 +675,17 @@ extern "C" void wasm_take_user_snapshot()
 extern "C" void wasm_set_warp(unsigned on)
 {
   warp_mode = (on == 1);
+
+  if(wrapper->c64->iec.isBusy() && 
+      (
+        (wrapper->c64->inWarpMode() && warp_mode == false)
+        ||
+        (wrapper->c64->inWarpMode() == false && warp_mode)
+      )
+  )
+  {
+      wrapper->c64->setWarp(warp_mode);
+  }
 }
 
 
@@ -801,9 +812,15 @@ extern "C" void wasm_reset()
 {
   wrapper->c64->expansionport.detachCartridge();
 
-//  wrapper->c64->reset();
-//  wrapper->c64->cpu.dump();
 
+  wrapper->c64->reset();
+  wrapper->c64->clearControlFlags(RL_CPU_JAMMED);
+
+//  wrapper->c64->cpu.dump();
+//  printf("runLoopCtrl=%u\n",wrapper->c64->runLoopCtrl);
+//  wrapper->c64->runLoopCtrl=0;
+
+/*  
   if(wrapper->c64->isRunning())
   {
     wrapper->c64->pause();
@@ -811,7 +828,7 @@ extern "C" void wasm_reset()
   wrapper->c64->powerOff();
   wrapper->c64->powerOn();
   wrapper->c64->run();
-
+*/
 }
 
 extern "C" void wasm_halt()

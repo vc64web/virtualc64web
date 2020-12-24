@@ -280,13 +280,13 @@ function installKeyboard() {
                    var c64code = translateKey('ShiftLeft', 'ShiftLeft');
                    if(keydef.locked === undefined || keydef.locked == 0)
                    {
-                     wasm_key(c64code[0], c64code[1], 1);                   
+                     wasm_schedule_key(c64code[0], c64code[1], 1,0);                   
                      keydef.locked = 1;
                      $("#button_"+keydef.c).attr("style", "background-color: var(--green) !important");
                    }
                    else
                    {
-                     wasm_key(c64code[0], c64code[1], 0);                   
+                     wasm_schedule_key(c64code[0], c64code[1], 0, 0);                   
                      keydef.locked = 0;
                      $("#button_"+keydef.c).attr("style", "");
                    
@@ -296,24 +296,23 @@ function installKeyboard() {
                {
                 var c64code = translateKey(keydef.c, keydef.k);
                 if(c64code !== undefined){
-                    wasm_key(c64code[0], c64code[1], 1);
-                    
+                    wasm_schedule_key(c64code[0], c64code[1], 1,0);
+
                     if(keydef.c == 'ShiftLeft' ||keydef.c == 'rightShift')
                     {
                         $("#button_"+keydef.c).attr("style", "background-color: var(--green) !important");
                     
                         setTimeout(() => {
-                            wasm_key(c64code[0], c64code[1], 0);
+                            wasm_schedule_key(c64code[0], c64code[1], 0,1);
                             $("#button_"+keydef.c).attr("style", "");
                         }, 1000*4);
-                    
                     }
                     else if(keydef.c == 'commodore')
                     {
                         $("#button_"+keydef.c).attr("style", "background-color: var(--blue) !important");
                     
                         setTimeout(() => {
-                            wasm_key(c64code[0], c64code[1], 0);
+                            wasm_schedule_key(c64code[0], c64code[1], 0,1);
                             $("#button_"+keydef.c).attr("style", "");
                         }, 1000*4);
                     
@@ -323,7 +322,7 @@ function installKeyboard() {
                         $("#button_"+keydef.c).attr("style", "background-color: var(--blue) !important");
                     
                         setTimeout(() => {
-                            wasm_key(c64code[0], c64code[1], 0);
+                            wasm_schedule_key(c64code[0], c64code[1], 0,1);
                             $("#button_"+keydef.c).attr("style", "");
                         }, 1000*4);
                     
@@ -333,16 +332,16 @@ function installKeyboard() {
                         $("#button_"+keydef.c).attr("style", "background-color: var(--red) !important");
                     
                         setTimeout(() => {
-                            wasm_key(c64code[0], c64code[1], 0);
+                            wasm_schedule_key(c64code[0], c64code[1], 0, 1);
                             $("#button_"+keydef.c).attr("style", "");
                         }, 1000*4);
                     
                     }
                     else
                     {  //release the key automatically after a short time ...
-                        setTimeout(() => {
-                            wasm_key(c64code[0], c64code[1], 0);
-                        }, 100);
+                        //setTimeout(() => {
+                        wasm_schedule_key(c64code[0], c64code[1], 0, 1);
+                        //}, 100);
                     }
                 }
                }

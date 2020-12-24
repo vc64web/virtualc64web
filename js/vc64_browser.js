@@ -68,7 +68,7 @@ function setup_browser_interface()
 
 
     $('#snapshotModal').on('hidden.bs.modal', function () {
-        wasm_resume_auto_snapshots();
+      //  wasm_resume_auto_snapshots();
         if(is_running())
         {
             try{wasm_run();} catch(e) {}
@@ -119,7 +119,7 @@ async function load_browser(datasource_name, command="feeds")
         wasm_halt();
     }
 
-    wasm_suspend_auto_snapshots();
+  //  wasm_suspend_auto_snapshots();
 
     //-- build snapshot feed
     var collector=get_data_collector(datasource_name);
@@ -298,7 +298,7 @@ var collectors = {
             try
             {
                 //first load autosave snapshots
-                var auto_save_count=wasm_auto_snapshots_count();
+                var auto_save_count=auto_snaps.length;
                 var auto_save_items=[];
                 for(var z=0; z<auto_save_count; z++)
                 {
@@ -335,15 +335,24 @@ var collectors = {
             if(app_title == 'auto_save')
             {
                 var id = item.internal_id; 
-                snapshot_ptr = wasm_pull_auto_snapshot(id);
-                var width=wasm_auto_snapshot_width(id);
-                var height=wasm_auto_snapshot_height(id);
-                this.copy_snapshot_to_canvas(snapshot_ptr, teaser_canvas, width, height);
+                var width=384;
+                var height=284;
+                this.copy_autosnapshot_to_canvas(auto_snaps[id], teaser_canvas, width, height);
             }
             else
             {
-                width=392;
-                height=268;
+                var src_data = item.data;
+                var version = src_data[4] +'.'+src_data[5];
+                if(version.startsWith("3.3"))
+                { 
+                    width=392;
+                    height=268;
+                }
+                else //v4.0
+                {
+                    width=384;
+                    height=284;
+                }
                 var ctx = teaser_canvas.getContext("2d");
                 teaser_canvas.width = width;
                 teaser_canvas.height = height;
@@ -352,7 +361,6 @@ var collectors = {
                     imgData=ctx.createImageData(width,height);
                 
                     var data = imgData.data;
-                    var src_data = item.data;
                     snapshot_data = new Uint8Array(src_data, 40/* offset .. this number was a guess... */, data.length);
 
                     for (var i = 0; i < data.length; i += 4) {
@@ -363,6 +371,15 @@ var collectors = {
 
                     }
                     ctx.putImageData(imgData,0,0); 
+                
+                    if(version.startsWith("3.3"))
+                    {
+                        ctx.translate(50, 0); // translate to rectangle center 
+                        ctx.rotate((Math.PI / 180) * 27); // rotate
+                        ctx.font = '48px serif';
+                        ctx.fillStyle = '#DD0000';
+                        ctx.fillText('V'+version+' please delete', 10, 50);
+                    }
                 }
             }
             return; 
@@ -371,13 +388,31 @@ var collectors = {
             if(app_title == 'auto_save')
             {
                 var _id=id.substring(1);
-                wasm_restore_auto_snapshot(_id);
+                var snapshot_data =auto_snaps[_id];
+                if(is_running())
+                {
+                    wasm_halt();
+                }
+                wasm_loadfile(
+                            global_apptitle /*snapshot.title*/+".vc64",
+                            snapshot_data, 
+                            snapshot_data.length);
                 $('#snapshotModal').modal('hide');
+                if(!is_running())
+                {
+                    $("#button_run").click();
+                }            
             }
             else
             {
                 get_snapshot_per_id(id,
                     function (snapshot) {
+                        var version = snapshot.data[4] +'.'+snapshot.data[5];
+                        if(version.startsWith("3.3"))
+                        {
+                            alert('sorry, this snapshot has been taken with the older virtual C64 version 3.3 and can not be loaded with version 4 ...')
+                            return;
+                        }
                         wasm_loadfile(
                             snapshot.title+".vc64",
                             snapshot.data, 
@@ -390,13 +425,12 @@ var collectors = {
                                 install_custom_keys();
                             }
                         );
+                        if(!is_running())
+                        {
+                            $("#button_run").click();
+                        }            
                     }
                 );
-            }
-
-            if(!is_running())
-            {
-                $("#button_run").click();
             }
             return; 
         },
@@ -425,7 +459,25 @@ var collectors = {
 
             }
             ctx.putImageData(imgData,0,0); 
+        },
+        copy_autosnapshot_to_canvas: function(snapshot_data, canvas, width, height){ 
+            var ctx = canvas.getContext("2d");
+            canvas.width = width;
+            canvas.height = height;
+            imgData=ctx.createImageData(width,height);
+
+            var data = imgData.data;
+
+            for (var i = 0; i < data.length; i += 4) {
+                data[i]     = snapshot_data[i+0]; // red
+                data[i + 1] = snapshot_data[i+1]; // green
+                data[i + 2] = snapshot_data[i+2]; // blue
+                data[i + 3] = snapshot_data[i+3];
+
+            }
+            ctx.putImageData(imgData,0,0); 
         }
+
     },
 
     csdb: {
@@ -904,6 +956,9 @@ var collectors = {
             for(var link of item.links)
             {
                 $(`#detail_run${link_id}`).click(function (){
+                    if(already_loaded_collector != get_data_collector("csdb"))
+                        return;
+                    //only run when collector is fully loaded
                     var clicked_link_id=this.id.match("detail_run(.*)")[1];
                     already_loaded_collector.run_link(app_title, id, item.links[clicked_link_id]);
                 });
@@ -975,6 +1030,10 @@ var collectors = {
             fetch(download_url).then( async response => {
                 file_slot_file_name = decodeURIComponent(response.url.match(".*/(.*)$")[1]);
                 file_slot_file = new Uint8Array( await response.arrayBuffer());
+
+                //if there is still a zip file in the fileslot, eject it now
+                $("#button_eject_zip").click();
+
                 if(app_title == "call_parameter" && id == 0)
                 {
                     configure_file_dialog(reset=false);
@@ -1076,3 +1135,46 @@ function property_path(xml_root_item, property_path) {
     }
     return xml_element;
 }
+
+
+function RingBuffer(maxLength) {
+  this.maxLength = maxLength;
+}
+RingBuffer.prototype = Object.create(Array.prototype);
+RingBuffer.prototype.push = function(element) {
+  Array.prototype.push.call(this, element);
+  while (this.length > this.maxLength) {
+    this.shift();
+  }
+}
+
+var auto_snaps= new RingBuffer(5);
+var auto_snap_interval=null;
+function set_take_auto_snapshots(on) {
+    if(on == false && auto_snap_interval != null)
+    {
+        clearInterval(auto_snap_interval);
+        auto_snap_interval=null;
+    }
+    else if(on && auto_snap_interval == null)
+    {
+        auto_snap_interval=setInterval(() => {
+            if(is_running())
+            {
+                wasm_halt();
+                wasm_take_user_snapshot(); 
+                wasm_run();
+                var snapshot_json= wasm_pull_user_snapshot_file();
+
+                var snap_obj = JSON.parse(snapshot_json);
+                var snapshot_buffer = new Uint8Array(Module.HEAPU8.buffer, snap_obj.address, snap_obj.size);
+        
+                //snapshot_buffer is only a typed array view therefore slice, which creates a new array with byteposition 0 ...
+                auto_snaps.push(snapshot_buffer.slice(0,snap_obj.size));
+
+                console.log(`auto_snaps count = ${auto_snaps.length}`);
+            }
+        }, 5000);
+    }
+}
+

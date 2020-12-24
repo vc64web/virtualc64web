@@ -6,7 +6,7 @@
 
 #include <stdio.h>
 #include "C64.h"
-#include "C64_types.h"
+#include "C64Types.h"
 #include "msg_codes.h"
 
 #include <emscripten.h>
@@ -95,14 +95,14 @@ void PrintEvent(const SDL_Event * event)
     }
 }
 
-int emu_width  = NTSC_PIXELS; //428
-int emu_height = PAL_RASTERLINES; //284
+int emu_width  = TEX_WIDTH; //NTSC_PIXELS; //428
+int emu_height = TEX_HEIGHT; //PAL_RASTERLINES; //284
 int eat_border_width = 0;
 int eat_border_height = 0;
 int xOff = 12 + eat_border_width;
 int yOff = 12 + eat_border_height;
-int clipped_width  = NTSC_PIXELS -12 -24 -2*eat_border_width; //392
-int clipped_height = PAL_RASTERLINES -12 -24 -2*eat_border_height; //248
+int clipped_width  = TEX_WIDTH -12 -24 -2*eat_border_width; //392
+int clipped_height = TEX_HEIGHT -12 -24 -2*eat_border_height; //248
 
 int bFullscreen = false;
 
@@ -203,6 +203,7 @@ unsigned int executed_frame_count=0;
 int64_t total_executed_frame_count=0;
 double start_time=emscripten_get_now();
 unsigned int rendered_frame_count=0;
+unsigned int frames=0, seconds=0;
 // The emscripten "main loop" replacement function.
 void draw_one_frame_into_SDL(void *thisC64) 
 {
@@ -225,11 +226,11 @@ void draw_one_frame_into_SDL(void *thisC64)
 
   C64 *c64 = (C64 *)thisC64;
 
-  if(c64->getWarp() == true)
+  if(c64->inWarpMode() == true)
   {
     printf("warping at least 25 cycles at once ...\n");
     int i=25;
-    while(c64->getWarp() == true && i>0)
+    while(c64->inWarpMode() == true && i>0)
     {
       c64->executeOneFrame();
       i--;
@@ -254,8 +255,12 @@ void draw_one_frame_into_SDL(void *thisC64)
   { 
     double passed_time= now - last_time;
     last_time = now;
-    printf("time[ms]=%lf, audio_samples=%d, frames [executed=%u, rendered=%u]\n", passed_time, sum_samples, executed_frame_count, rendered_frame_count);
-    sum_samples=0;
+
+    seconds += 1; 
+    frames += rendered_frame_count;
+    printf("time[ms]=%lf, audio_samples=%d, frames [executed=%u, rendered=%u] avg_fps=%u\n", 
+    passed_time, sum_samples, executed_frame_count, rendered_frame_count, frames/seconds);
+    sum_samples=0; 
     rendered_frame_count=0;
     executed_frame_count=0;
   }
@@ -275,7 +280,7 @@ void draw_one_frame_into_SDL(void *thisC64)
       draw_one_frame(); // to gather joystick information for example 
   });
  
-  Uint8 *texture = (Uint8 *)c64->vic.screenBuffer();
+  Uint8 *texture = (Uint8 *)c64->vic.stableEmuTexture(); //screenBuffer();
 
   int surface_width = window_surface->w;
   int surface_height = window_surface->h;
@@ -302,7 +307,14 @@ void MyAudioCallback(void*  thisC64,
     C64 *c64 = (C64 *)thisC64;
     
     int n = len /  sizeof(float);
-    c64->sid.readMonoSamples((float *)stream, n);
+    c64->sid.copyMono((float *)stream, n);
+/*    printf("copyMono[%d]: ", n);
+    for(int i=0; i<n; i++)
+    {
+      printf("%hhu,",stream[i]);
+    }
+    printf("\n");
+  */  
     sum_samples += n;
 }
 
@@ -390,6 +402,8 @@ void initSDL(void *thisC64)
 
     printf("set SID to freq= %d\n", have.freq);
     c64->sid.setSampleRate(have.freq);
+    printf("freq in SIDBridge= %f\n", c64->sid.getSampleRate());
+ 
 
     SDL_PauseAudioDevice(device_id, 0); //unpause the audio device
     
@@ -401,8 +415,19 @@ void initSDL(void *thisC64)
 
 
 
+bool warp_mode=false;
+void theListener(const void * c64, long type, long data){
+  
+  if(warp_mode && type == MSG_IEC_BUS_BUSY && !((C64 *)c64)->inWarpMode())
+  {
+      ((C64 *)c64)->setWarp(true);
+  }
+  else if(type == MSG_IEC_BUS_IDLE && ((C64 *)c64)->inWarpMode())
+  {
+      ((C64 *)c64)->setWarp(false);
+  }
 
-void theListener(const void *, int type, long data){
+
   if(0!=strcmp("MSG_CHARSET", msg_code[type].c_str()))
   {
     printf("vC64 message=%s, data=%ld\n", msg_code[type].c_str(), data);
@@ -427,7 +452,7 @@ class C64Wrapper {
 
     printf("adding a listener to C64 message queue...\n");
 
-    c64->addListener(this, &theListener);
+    c64->addListener(this->c64, &theListener);
 
   }
   ~C64Wrapper()
@@ -437,24 +462,61 @@ class C64Wrapper {
 
   void run()
   {
-    printf("wrapper calls 4x c64->loadRom(...) method\n");
-    c64->loadRom("roms/kernal.901227-03.bin");
-    c64->loadRom("roms/basic.901226-01.bin");
-    c64->loadRom("roms/characters.901225-01.bin");
-    c64->loadRom("roms/1541-II.251968-03.bin");
-    printf("wrapper calls run on c64->run() method\n");
+/*    printf("wrapper calls 4x c64->loadRom(...) method\n");
+    c64->loadRom(ROM_KERNAL ,"roms/kernal.901227-03.bin");
+    c64->loadRom(ROM_BASIC, "roms/basic.901226-01.bin");
+    c64->loadRom(ROM_CHAR, "roms/characters.901225-01.bin");
+    c64->loadRom(ROM_VC1541, "roms/1541-II.251968-03.bin");
+*/
+    if(!c64->isReady())
+    {
+      c64->putMessage(MSG_ROM_MISSING);
+    }
+    /*
+    EM_ASM({
+      setTimeout(function() {message_handler( $0 );}, 0);
+    }, msg_code[MSG_ROM_MISSING].c_str() );
+*/
+
+    printf("v4 wrapper calls run on c64->run() method\n");
 
     //c64->setTakeAutoSnapshots(false);
     //c64->setWarpLoad(true);
-    c64->vic.emulateGrayDotBug=false;
+    c64->configure(OPT_GRAY_DOT_BUG, false);
+    c64->configure(OPT_VIC_REVISION, PAL_6569_R1);
+
+    c64->configure(OPT_SID_ENGINE, ENGINE_RESID);
+//    c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);
+
+
+    // master Volumne
+    c64->configure(OPT_AUDVOLL, 100); 
+    c64->configure(OPT_AUDVOLR, 100);
+
+    //SID0 Volumne
+    c64->configure(OPT_AUDVOL, 0, 100); 
+    c64->configure(OPT_AUDPAN, 0, 50);
+
+    //SID1 Volumne
+/*    c64->configure(OPT_AUDVOL, 1, 100);
+    c64->configure(OPT_AUDPAN, 1, 50);
+    c64->configure(OPT_SID_ENABLE, 1, true);
+    c64->configure(OPT_SID_ADDRESS, 1, 0xd420);
+*/
+
+
+    //c64->configure(OPT_HIDE_SPRITES, true); 
+    c64->dump();
+//    printf("is running = %u\n",c64->isRunning()); 
  //   c64->dump();
  //   c64->drive1.dump();
-    //c64->setDebugLevel(2);
+    //c64->setDebugLevel(2);also 
     //c64->sid.setDebugLevel(4);
  //   c64->drive1.setDebugLevel(3);
  //   c64->sid.dump();
-    c64->run();
-    printf("after run ...\n");
+
+    printf("waiting on emulator ready in javascript ...\n");
+ 
   }
 };
 
@@ -483,20 +545,48 @@ extern "C" void wasm_key(int code1, int code2, int pressed)
   {
     if(pressed == 1)
     {
-      wrapper->c64->keyboard.pressRestoreKey();
+      wrapper->c64->keyboard.pressRestore();
     }
     else
     {
-      wrapper->c64->keyboard.releaseRestoreKey();
+      wrapper->c64->keyboard.releaseRestore();
     }
   }
   else if(pressed==1)
   {
-    wrapper->c64->keyboard.pressKey(code1, code2);
+    wrapper->c64->keyboard.pressRowCol(code1, code2);
   }
   else
   {
-    wrapper->c64->keyboard.releaseKey(code1, code2);
+    wrapper->c64->keyboard.releaseRowCol(code1, code2);
+  }
+}
+
+extern "C" void wasm_schedule_key(int code1, int code2, int pressed, int frame_delay)
+{
+  if(code1 == 9 && code2 == 9)
+  {
+    if(pressed == 1)
+    {
+      wrapper->c64->keyboard.scheduleKeyPress(31, frame_delay);   //pressRestore();
+    }
+    else
+    {
+      wrapper->c64->keyboard.scheduleKeyRelease(31, frame_delay);   //releaseRestore();
+    }
+  }
+  else if(pressed==1)
+  {
+    printf("scheduleKeyPress ( %d, %d, %d ) \n", code1, code2, frame_delay);
+
+    wrapper->c64->keyboard.scheduleKeyPress(code1, code2, frame_delay);
+  }
+  else
+  {
+
+    printf("scheduleKeyRelease ( %d, %d, %d ) \n", code1, code2, frame_delay);
+
+    wrapper->c64->keyboard.scheduleKeyRelease(code1, code2, frame_delay);
   }
 }
 
@@ -505,129 +595,97 @@ extern "C" void wasm_key(int code1, int code2, int pressed)
 
 
 
-VC1541 *selected_drive = NULL;
+
+Drive *selected_drive = NULL;
 AnyArchive *selected_archive = NULL;
 void insertDisk(void *c64) 
 {
 //  printf("time[ms]=%lf insert disk\n",emscripten_get_now());
   selected_drive->insertDisk(selected_archive);
 }
-void prepareToInsert(void *c64) 
+/*void prepareToInsert(void *c64) 
 {
 //  printf("time[ms]=%lf prepare to insert\n",emscripten_get_now());
-  selected_drive->prepareToInsert();
+  //selected_drive->prepareToInsert();
   emscripten_async_call(insertDisk, c64, 300);
-}
+}*/
 void ejectDisk(void *c64) 
 {
 //  printf("time[ms]=%lf eject disk\n",emscripten_get_now());
   selected_drive->ejectDisk();
-  emscripten_async_call(prepareToInsert, c64, 300);
+  emscripten_async_call(insertDisk, c64, 300);
 }
 
 void changeDisk(AnyArchive *a, int iDriveNumber)
 {
-  VC1541 *drive = NULL;
+  Drive *drive = NULL;
   
   if(iDriveNumber == 8)
   {
-    drive = &(wrapper->c64->drive1);
+    drive = &(wrapper->c64->drive8);
   }
   else if(iDriveNumber == 9)
   {
-    drive = &(wrapper->c64->drive2);
+    drive = &(wrapper->c64->drive9);
   }
   selected_drive = drive;
   selected_archive = a;
  
   if( drive->hasDisk() ) {
 //    printf("time[ms]=%lf prepared to eject\n",emscripten_get_now());
-    drive->prepareToEject();
+  //  drive->prepareToEject();
     emscripten_async_call(ejectDisk, wrapper->c64, 300);
   }
   else
   {
 //    printf("time[ms]=%lf prepare to insert\n",emscripten_get_now());
-    drive->prepareToInsert();
+  //  drive->prepareToInsert();
     emscripten_async_call(insertDisk, wrapper->c64, 300);
   }
 }
 
-extern "C" Uint8 *wasm_pull_user_snapshot_file(unsigned nr)
+
+char wasm_pull_user_snapshot_file_json_result[255];
+//extern "C" Uint8 *wasm_pull_user_snapshot_file()
+extern "C" char* wasm_pull_user_snapshot_file()
 {
-  printf("wasm_pull_user_snapshot_file nr=%u\n", nr);
-  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
-  
+  printf("wasm_pull_user_snapshot_file\n");
+
+  Snapshot *snapshot = wrapper->c64->latestUserSnapshot(); //wrapper->c64->userSnapshot(nr);
+
   size_t size = snapshot->writeToBuffer(NULL);
   uint8_t *buffer = new uint8_t[size];
   snapshot->writeToBuffer(buffer);
-  return buffer;
-}
-extern "C" size_t wasm_pull_user_snapshot_file_size(unsigned nr)
-{
-  printf("wasm_pull_user_snapshot_file_size nr=%u\n", nr);
-  Snapshot *snapshot = wrapper->c64->userSnapshot(nr);
-  size_t size = snapshot->writeToBuffer(NULL);
-  return size;
-}
 
+  sprintf(wasm_pull_user_snapshot_file_json_result, "{\"address\":%lu, \"size\": %lu, \"width\": %u, \"height\":%u }",
+  (unsigned long)buffer, 
+  size,
+  snapshot->getHeader()->screenshot.width,
+  snapshot->getHeader()->screenshot.height
+  );
+  printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
+  return wasm_pull_user_snapshot_file_json_result;
+}
 
 extern "C" void wasm_take_user_snapshot()
 {
-  wrapper->c64->takeUserSnapshot();
+  wrapper->c64->requestUserSnapshot();
 }
-
-
-
-extern "C" void wasm_set_take_auto_snapshots(unsigned enable)
-{
-  wrapper->c64->setTakeAutoSnapshots(enable == 1);
-}
-
-extern "C" void wasm_restore_auto_snapshot(unsigned nr)
-{
-  wrapper->c64->restoreAutoSnapshot(nr);
-}
-
-
-extern "C" Uint8 *wasm_pull_auto_snapshot(unsigned nr)
-{
-  printf("wasm_pull_user_snapshot nr=%u\n", nr);
-  Snapshot *snapshot = wrapper->c64->autoSnapshot(nr);
-  return snapshot->getImageData();
-}
-
-extern "C" unsigned wasm_auto_snapshot_width(unsigned nr)
-{
-  Snapshot *snapshot = wrapper->c64->autoSnapshot(nr);
-  return snapshot->getImageWidth();
-}
-extern "C" unsigned wasm_auto_snapshot_height(unsigned nr)
-{
-  Snapshot *snapshot = wrapper->c64->autoSnapshot(nr);
-  return snapshot->getImageHeight();
-}
-
-extern "C" size_t wasm_auto_snapshots_count()
-{
-  return wrapper->c64->numAutoSnapshots();
-}
-
-extern "C" void wasm_suspend_auto_snapshots()
-{
-  return wrapper->c64->suspendAutoSnapshots();
-}
-
-extern "C" void wasm_resume_auto_snapshots()
-{
-  return wrapper->c64->resumeAutoSnapshots();
-}
-
-
 
 extern "C" void wasm_set_warp(unsigned on)
 {
-  wrapper->c64->setWarpLoad(on == 1);
+  warp_mode = (on == 1);
+
+  if(wrapper->c64->iec.isBusy() && 
+      (
+        (wrapper->c64->inWarpMode() && warp_mode == false)
+        ||
+        (wrapper->c64->inWarpMode() == false && warp_mode)
+      )
+  )
+  {
+      wrapper->c64->setWarp(warp_mode);
+  }
 }
 
 
@@ -636,14 +694,14 @@ extern "C" void wasm_set_borderless(unsigned on)
   //NTSC_PIXEL=428
   //PAL_RASTERLINES=284 
 
-  eat_border_width = on*35;
-  xOff = 12 + eat_border_width;
-  clipped_width  = NTSC_PIXELS -12 -24 -2*eat_border_width; //392
+  eat_border_width = on*(35 /* v4 */ -4);
+  xOff = 12 + eat_border_width /*v4*/ +92;
+  clipped_width  = TEX_WIDTH -12 -24 -2*eat_border_width /*v4*/ -100; //392
 //428-12-24-2*33 =326
 
-  eat_border_height = on*24;
-  yOff = 10 + eat_border_height;
-  clipped_height = PAL_RASTERLINES -10 -24 -2*eat_border_height; //248
+  eat_border_height = on*(24 /*v4*/ + 10);
+  yOff = 10 + eat_border_height /*v4*/ +5;
+  clipped_height = TEX_HEIGHT -10 -24 -2*eat_border_height  /*v4*/ -8; //248
 //284-11-24-2*22=205
  
   SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);
@@ -674,7 +732,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
   }
   else if (checkFileSuffix(name, ".CRT")|| checkFileSuffix(name, ".crt")) {
     printf("isCRT\n");
-    wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(wrapper->c64,(CRTFile::makeWithBuffer(blob, len))));
+    wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(*(wrapper->c64),(CRTFile::makeWithBuffer(blob, len))));
     wrapper->c64->reset();
   }
   else if (checkFileSuffix(name, ".TAP")|| checkFileSuffix(name, ".tap")) {
@@ -690,16 +748,18 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
   }
   else if (checkFileSuffix(name, ".vc64")|| checkFileSuffix(name, ".vc64")) {
     printf("isSnapshot\n");
-    wrapper->c64->loadFromSnapshotSafe(Snapshot::makeWithBuffer(blob, len));
+    wrapper->c64->loadFromSnapshot(Snapshot::makeWithBuffer(blob, len));
+  
   }
   else /*if (checkFileSuffix(name, ".BIN")|| checkFileSuffix(name, ".bin"))*/ {
  //   printf("\n");
-    //wrapper->c64->flash(ROMFile::makeWithBuffer(blob, len),0);
+    //wrapper->c64->flash(RomFile::makeWithBuffer(blob, len),0);
 
     bool result;
-    bool wasRunnable = wrapper->c64->isRunnable();
-    //ROMFile *rom = ROMFile::makeWithFile(name);
-    ROMFile *rom = ROMFile::makeWithBuffer(blob, len);
+    ErrorCode error;
+    bool wasRunnable = wrapper->c64->isReady(&error);
+    //RomFile *rom = RomFile::makeWithFile(name);
+    RomFile *rom = RomFile::makeWithBuffer(blob, len);
 
     if (!rom) {
         printf("Failed to read ROM image file %s\n", name);
@@ -716,9 +776,9 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
         printf("Failed to flash ROM image %s.\n", name);
     }
     
-    if (!wasRunnable && wrapper->c64->isRunnable())
+    if (!wasRunnable && wrapper->c64->isReady(&error))
     {
-        wrapper->c64->putMessage(MSG_READY_TO_RUN);
+       wrapper->c64->putMessage(MSG_READY_TO_RUN);
     }
     
     const char *rom_type="";
@@ -729,6 +789,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     else if(rom->isVC1541RomBuffer(blob, len))
     {
       rom_type = "vc1541_rom";
+      wrapper->c64->configure(OPT_DRIVE_CONNECT,DRIVE8,1);
     }
     else if(rom->isCharRomBuffer(blob, len))
     {
@@ -756,8 +817,9 @@ extern "C" void wasm_reset()
 extern "C" void wasm_halt()
 {
   printf("wasm_halt\n");
-  wrapper->c64->halt();
+  wrapper->c64->pause();
 }
+
 extern "C" void wasm_run()
 {
   printf("wasm_run\n");
@@ -794,7 +856,7 @@ RELEASE_FIRE
   char joyport = port_plus_event[0];
   char* event  = port_plus_event+1;
 
-  JoystickEvent code;
+  GamePadAction code;
   if( strcmp(event,"PULL_UP") == 0)
   {
     code = PULL_UP;
@@ -875,12 +937,161 @@ extern "C" char* wasm_sprite_info()
 
 extern "C" void wasm_set_sid_model(unsigned SID_Model)
 {
+  bool wasRunning=false;
+  if(wrapper->c64->isRunning()){
+    wasRunning= true;
+    wrapper->c64->pause();
+  }
   if(SID_Model == 6581)
   {
-    wrapper->c64->sid.setModel(MOS_6581);
+    wrapper->c64->configure(OPT_SID_REVISION, MOS_6581);
   }
   else if(SID_Model == 8580)
   {
-    wrapper->c64->sid.setModel(MOS_8580);  
+    wrapper->c64->configure(OPT_SID_REVISION, MOS_8580);  
   }
+  if(wasRunning)
+  {
+    wrapper->c64->run();
+  }
+}
+
+extern "C" void wasm_cut_layers(unsigned cut_layers)
+{
+//  wrapper->c64->configure(OPT_CUT_LAYERS, 0x100 | (SPR0|SPR1|SPR2|SPR3|SPR4|SPR5|SPR6|SPR7)); 
+  wrapper->c64->configure(OPT_CUT_LAYERS, cut_layers); 
+}
+
+
+
+char json_result[255];
+extern "C" const char* wasm_rom_info()
+{
+  sprintf(json_result, "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\"}",
+  wrapper->c64->hasMega65Rom(ROM_KERNAL) ? "mega" : wrapper->c64->hasRom(ROM_KERNAL) ? "commodore": "none", 
+  wrapper->c64->hasMega65Rom(ROM_BASIC) ? "mega" : wrapper->c64->hasRom(ROM_BASIC) ? "commodore": "none", 
+  wrapper->c64->hasMega65Rom(ROM_CHAR) ? "mega" : wrapper->c64->hasRom(ROM_CHAR) ? "commodore": "none"
+  );
+  return json_result;
+}
+
+
+/*
+extern "C" const char* wasm_rom_classifier(Uint8 *blob, long len)
+{
+  const char *rom_class = "unknown";
+ 
+   u64 _fnv = fnv_1a_64(blob, len);
+  RomIdentifier _identifier = RomFile::identifier(_fnv);
+  if(RomFile::isCommodoreRom(_identifier))
+  {
+    rom_class="commodore";
+  }
+  else if(RomFile::isMega65Rom(_identifier))
+  {
+    rom_class="mega";
+  }
+  printf("wasm_rom_classifier = %s, %s, %s, 0x%llx\n",
+              rom_class, 
+              RomFile::title(_identifier), 
+              RomFile::subTitle(_identifier), 
+              _fnv);
+  return rom_class;
+}
+*/
+
+extern "C" void wasm_set_2nd_sid(long address)
+{
+  if(address == 0)
+  {
+    wrapper->c64->configure(OPT_AUDVOL, 1, 0);
+    wrapper->c64->configure(OPT_SID_ENABLE, 1, false);
+  }
+  else
+  {
+    wrapper->c64->configure(OPT_AUDVOL, 1, 100);
+    wrapper->c64->configure(OPT_AUDPAN, 1, 50);
+    wrapper->c64->configure(OPT_SID_ENABLE, 1, true);
+    wrapper->c64->configure(OPT_SID_ADDRESS, 1, address);
+  }
+}
+
+
+extern "C" void wasm_set_sid_engine(char* engine)
+{
+  printf("wasm_set_sid_engine %s\n", engine);
+
+  bool wasRunning=false;
+  if(wrapper->c64->isRunning()){
+    wasRunning= true;
+    wrapper->c64->pause();
+  }
+
+
+  if( strcmp(engine,"FastSID") == 0)
+  {
+    printf("c64->configure(OPT_SID_ENGINE, ENGINE_FASTSID);\n");
+    wrapper->c64->configure(OPT_SID_ENGINE, ENGINE_FASTSID);
+  }
+  else if( strcmp(engine,"ReSID fast") == 0)
+  { 
+    printf("c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_FAST);\n");
+    wrapper->c64->configure(OPT_SID_ENGINE, ENGINE_RESID);
+    wrapper->c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_FAST);
+  }
+  else if( strcmp(engine,"ReSID interpolate") == 0)
+  {
+    printf("c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);\n");
+    wrapper->c64->configure(OPT_SID_ENGINE, ENGINE_RESID);
+    wrapper->c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);
+  }
+  else if( strcmp(engine,"ReSID resample") == 0)
+  {
+    printf("c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_RESAMPLE);\n");
+    wrapper->c64->configure(OPT_SID_ENGINE, ENGINE_RESID);
+    wrapper->c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_RESAMPLE);
+  }
+
+
+  if(wasRunning)
+  {
+    wrapper->c64->run();
+  }
+
+}
+
+
+extern "C" void wasm_set_color_palette(char* palette)
+{
+
+  if( strcmp(palette,"color") == 0)
+  {
+    wrapper->c64->configure(OPT_PALETTE, COLOR_PALETTE);
+  }
+  else if( strcmp(palette,"black white") == 0)
+  { 
+    wrapper->c64->configure(OPT_PALETTE, BLACK_WHITE_PALETTE); 
+  }
+  else if( strcmp(palette,"paper white") == 0)
+  { 
+    wrapper->c64->configure(OPT_PALETTE, PAPER_WHITE_PALETTE); 
+  }
+  else if( strcmp(palette,"green") == 0)
+  { 
+    wrapper->c64->configure(OPT_PALETTE, GREEN_PALETTE); 
+  }
+  else if( strcmp(palette,"amber") == 0)
+  { 
+    wrapper->c64->configure(OPT_PALETTE, AMBER_PALETTE); 
+  }
+  else if( strcmp(palette,"sepia") == 0)
+  { 
+    wrapper->c64->configure(OPT_PALETTE, SEPIA_PALETTE); 
+  }
+}
+
+
+extern "C" u64 wasm_get_cpu_cycles()
+{
+  return wrapper->c64->cpu.cycle;
 }

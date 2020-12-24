@@ -15,7 +15,11 @@ function get_parameter_link()
     var parameter_link=null;
     if(call_parameter.length>1)
     {
-        parameter_link= call_parameter[1];
+        parameter_link=call_parameter[1];
+        for(var i=2; i<call_parameter.length;i++)
+        {//in case there was a # inside the parameter link ... rebuild that
+            parameter_link+="#"+call_parameter[i];
+        }
     }
     return parameter_link;
 }
@@ -43,8 +47,43 @@ function load_parameter_link()
     }
 }
 
+
 var wasm_first_run=null;
 var required_roms_loaded =false;
+
+var msg_callback_stack = []
+function fire_on_message( msg, callback_fn)
+{
+    var handler = new Object();
+    handler.message = msg;
+    handler.callback_fn = callback_fn;
+    msg_callback_stack.push(handler); 
+}
+
+function check_ready_to_fire(msg)
+{
+    var execute_stack = [];
+    var new_stack = [];
+    while(msg_callback_stack.length>0)
+    {
+        var next = msg_callback_stack.pop();
+        if(next.message==msg)
+        {
+            execute_stack.push(next.callback_fn);
+        }
+        else
+        {
+            new_stack.push(next);
+        }
+    }
+    msg_callback_stack= new_stack;
+
+    for(callback_fn of execute_stack)
+    {
+        callback_fn();
+    }
+}
+
 function message_handler(cores_msg)
 {
     var msg = UTF8ToString(cores_msg);
@@ -68,6 +107,14 @@ function message_handler(cores_msg)
     else if(msg == "MSG_RUN")
     {
         required_roms_loaded=true;
+    }
+    else if(msg == "MSG_IEC_BUS_IDLE")
+    {
+        check_ready_to_fire(msg);
+    }
+    else if(msg == "MSG_IEC_BUS_BUSY")
+    {
+        check_ready_to_fire(msg);
     }
 }
 
@@ -99,8 +146,20 @@ async function fetchOpenROMS(){
 }
 
 
-
-
+/**
+* load_roms
+  if we open ROM-Dialog then we could 
+        A) show current roms in c64 instance,
+        or
+        B) saved roms in local storage ... 
+    
+        we choose A) because there is no method in the core for B) , 
+ *
+ * 
+ * @param {*} install_to_core true when we should load roms from local storage into the core. 
+ *
+ * TODO: maybe split up functionality into load_roms() and refresh_rom_dialog() 
+ */
 function load_roms(install_to_core){
     var loadStoredItem= function (item_name){
         var stored_item = localStorage.getItem(item_name); 
@@ -118,20 +177,7 @@ function load_roms(install_to_core){
             return null;
         }
     }
-
-    compare_header = function (header_array,file_array)
-    {
-        var matches = true;
-        header_array.forEach(function (element, i) {
-            if(file_array[i] != element)
-              matches=false;
-        }
-        );
-
-        return matches;
-
-    }
-
+    
     var all_fine = true;
     try{
         var the_rom=loadStoredItem('basic_rom.bin');
@@ -142,7 +188,7 @@ function load_roms(install_to_core){
         }
         else
         {
-            $("#rom_basic").attr("src", compare_header([0x94,0xe3, 0xb7], the_rom) ?
+            $("#rom_basic").attr("src", JSON.parse(wasm_rom_info()).basic.startsWith("mega") ?
             "img/rom_mega65.png":"img/rom.png");
         
             $("#button_delete_basic").show();
@@ -157,9 +203,7 @@ function load_roms(install_to_core){
         else
         {
             $("#rom_kernal").attr("src", 
-            compare_header([0x4c,0xb2, 0xa6], the_rom)||
-            compare_header([0xA9,0x01, 0x2C], the_rom)  //2020_09_22
-             ?
+            JSON.parse(wasm_rom_info()).kernal.startsWith("mega") ?
             "img/rom_mega65.png":"img/rom.png");
             $("#button_delete_kernal").show();
         }
@@ -173,9 +217,8 @@ function load_roms(install_to_core){
         else
         {
             $("#rom_charset").attr("src", 
-            compare_header([0x3c, 0x66, 0x6e, 110, 96, 102], the_rom) ||
-            compare_header([0, 60, 102, 110,110, 96, 60], the_rom)
-            ?
+            //wasm_rom_classifier(the_rom, the_rom.byteLength).startsWith("mega") ?
+            JSON.parse(wasm_rom_info()).charset.startsWith("mega") ?
             "img/rom_mega65.png":"img/rom.png");
             $("#button_delete_char_rom").show();
         }
@@ -342,13 +385,14 @@ function configure_file_dialog(reset=false)
                 $("#div_auto_press_play").hide();
                 $("#div_auto_run").show(); 
                 auto_run = true;
+                reset_before_load = true; //when flashing a prg always reset
                 $("#button_insert_file").html("flash program "+return_icon);
             }
             else if(file_slot_file_name.match(/[.]tap$/i)) 
             {
                 $("#div_auto_load").show(); auto_load = true;
                 $("#div_auto_press_play").show(); auto_press_play = true;
-                $("#div_auto_run").show(); auto_run = true;
+                $("#div_auto_run").hide(); auto_run = false;
                 $("#button_insert_file").html("insert tape"+return_icon);
             }
             else if(file_slot_file_name.match(/[.](d64|g64)$/i)) 
@@ -496,11 +540,27 @@ joystick_keyup_map = {
     'Space':'RELEASE_FIRE'
 }
 
-function keydown(e) {
-    if($('input, textarea').is(":focus") == false && $('modal_file_slot').is(":visible") == false)
-    {//incase any html5 input control has the focus, we should let it get the keydown 
-        event.preventDefault();
+
+function is_any_text_input_active()
+{
+    var active = false;
+    var element = document.activeElement;
+    if(element != null)
+    {                 
+        if(element.tagName != null)
+        {
+            var type_name = element.tagName.toLowerCase();
+            active = type_name == 'input' || type_name == 'textarea';
+        }     
     }
+    return active;
+}
+
+function keydown(e) {
+    if(is_any_text_input_active())
+        return;
+
+    e.preventDefault();
 
     if(port1=='keys'||port2=='keys')
     {
@@ -513,23 +573,26 @@ function keydown(e) {
     }
     var c64code = translateKey(e.code, e.key);
     if(c64code !== undefined)
-        wasm_key(c64code[0], c64code[1], 1);
+    {
+        //wasm_key(c64code[0], c64code[1], 1);
+        wasm_schedule_key(c64code[0], c64code[1], 1,0);
+    }
 }
 
 function keyup(e) {
-    if($('input, textarea').is(":focus") == false)
-    {//incase any html5 input control has the focus, we should let it get the keyup 
-        event.preventDefault();
+    if(is_any_text_input_active())
+        return;
 
-        for(action_button of custom_keys)
+    e.preventDefault();
+
+    for(action_button of custom_keys)
+    {
+        if(action_button.key == e.key)
         {
-            if(action_button.key == e.key)
-            {
-                execute_script(action_button.id, action_button.script);
-            }
+            execute_script(action_button.id, action_button.script);
         }
     }
- 
+
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keyup_map[e.code];
@@ -542,7 +605,10 @@ function keyup(e) {
 
     var c64code = translateKey(e.code, e.key);
     if(c64code !== undefined)
-        wasm_key(c64code[0], c64code[1], 0);
+    {
+        //wasm_key(c64code[0], c64code[1], 0);
+        wasm_schedule_key(c64code[0], c64code[1], 0,1);
+    }
 }
 
 timestampjoy1 = null;
@@ -825,15 +891,15 @@ function send_joystick( accessor, port, command )
 
 function restore_manual_state(port)
 {
-    if(port_state[port+'x'] !== 'undefined') 
+    if(port_state[port+'x'] !== undefined && !port_state[port+'x'].includes("RELEASE")) 
     {
         wasm_joystick( port + port_state[port+'x'] );
     }
-    if(port_state[port+'y'] !== 'undefined') 
+    if(port_state[port+'y'] !== undefined && !port_state[port+'y'].includes("RELEASE")) 
     {
         wasm_joystick( port + port_state[port+'y'] );
     }
-    if(port_state[port+'fire'] !== 'undefined') 
+    if(port_state[port+'fire'] !== undefined && !port_state[port+'fire'].includes("RELEASE")) 
     {
         wasm_joystick( port + port_state[port+'fire'] );
     }
@@ -850,24 +916,31 @@ function InitWrappers() {
     wasm_halt = Module.cwrap('wasm_halt', 'undefined');
     wasm_run = Module.cwrap('wasm_run', 'undefined');
     wasm_take_user_snapshot = Module.cwrap('wasm_take_user_snapshot', 'undefined');
-    wasm_pull_user_snapshot_file = Module.cwrap('wasm_pull_user_snapshot_file', 'number', ['number']);
-    wasm_pull_user_snapshot_file_size = Module.cwrap('wasm_pull_user_snapshot_file_size', 'number', ['number']);
+    wasm_pull_user_snapshot_file = Module.cwrap('wasm_pull_user_snapshot_file', 'string');
 
-    wasm_pull_auto_snapshot = Module.cwrap('wasm_pull_auto_snapshot', 'number', ['number']);
-    wasm_auto_snapshot_width = Module.cwrap('wasm_auto_snapshot_width', 'number', ['number']);
-    wasm_auto_snapshot_height = Module.cwrap('wasm_auto_snapshot_height', 'number', ['number']);
-    wasm_auto_snapshots_count = Module.cwrap('wasm_auto_snapshots_count', 'number');
-    wasm_restore_auto_snapshot = Module.cwrap('wasm_restore_auto_snapshot', 'undefined', ['number']);
-    wasm_suspend_auto_snapshots = Module.cwrap('wasm_suspend_auto_snapshots', 'undefined');
-    wasm_resume_auto_snapshots = Module.cwrap('wasm_resume_auto_snapshots', 'undefined');
-    wasm_set_take_auto_snapshots = Module.cwrap('wasm_set_take_auto_snapshots', 'undefined', ['number']);
-
-    wasm_create_renderer =  Module.cwrap('wasm_create_renderer', 'undefined', ['string']);
+    wasm_create_renderer = Module.cwrap('wasm_create_renderer', 'undefined', ['string']);
     wasm_set_warp = Module.cwrap('wasm_set_warp', 'undefined', ['number']);
     wasm_set_borderless = Module.cwrap('wasm_set_borderless', 'undefined', ['number']);
     wasm_press_play = Module.cwrap('wasm_press_play', 'undefined');
     wasm_sprite_info = Module.cwrap('wasm_sprite_info', 'string');
     wasm_set_sid_model = Module.cwrap('wasm_set_sid_model', 'undefined', ['number']);
+
+    wasm_cut_layers = Module.cwrap('wasm_cut_layers', 'undefined', ['number']);
+
+//    wasm_rom_classifier = Module.cwrap('wasm_rom_classifier', 'string', ['array', 'number']);
+    wasm_rom_info = Module.cwrap('wasm_rom_info', 'string');
+
+    wasm_set_2nd_sid = Module.cwrap('wasm_set_2nd_sid', 'undefined', ['number']);
+
+    wasm_set_sid_engine = Module.cwrap('wasm_set_sid_engine', 'undefined', ['string']);
+
+    wasm_get_cpu_cycles = Module.cwrap('wasm_get_cpu_cycles', 'number');
+    wasm_set_color_palette = Module.cwrap('wasm_set_color_palette', 'undefined', ['string']);
+
+
+    wasm_schedule_key = Module.cwrap('wasm_schedule_key', 'undefined', ['number', 'number', 'number', 'number']);
+
+
 
     dark_switch = document.getElementById('dark_switch');
 
@@ -1003,9 +1076,9 @@ borderless_switch.change( function() {
 auto_snapshot_switch = $('#auto_snapshot_switch');
 var take_auto_snapshots=load_setting('auto_snapshot_switch', false);
 auto_snapshot_switch.prop('checked', take_auto_snapshots);
-wasm_set_take_auto_snapshots(take_auto_snapshots ? 1:0);
+set_take_auto_snapshots(take_auto_snapshots ? 1:0);
 auto_snapshot_switch.change( function() {
-    wasm_set_take_auto_snapshots(this.checked ? 1:0);
+    set_take_auto_snapshots(this.checked ? 1:0);
     save_setting('auto_snapshot_switch', this.checked);
 });
 
@@ -1020,6 +1093,37 @@ wide_screen_switch.change( function() {
     scaleVMCanvas();
 });
 
+//------
+
+$('.layer').change( function(event) {
+    //recompute stencil cut out layer value
+    const layers={
+        sprite0: 0x01,
+        sprite1: 0x02,
+        sprite2: 0x04,
+        sprite3: 0x08,
+        sprite4: 0x10,
+        sprite5: 0x20,
+        sprite6: 0x40,
+        sprite7: 0x80,        
+    };
+    const GLOBAL_SPRITE_BIT= 0x100;
+
+    var layer_value = 0;
+    for(var layer_id in layers)
+    {
+        if(document.getElementById(layer_id).checked)
+        {
+            layer_value |= layers[layer_id];
+        }
+    }
+    if((layer_value & 0xff) != 0)
+    {
+        layer_value |= GLOBAL_SPRITE_BIT;
+    }
+
+    wasm_cut_layers( layer_value );
+});
 
 //------
 
@@ -1158,19 +1262,28 @@ wide_screen_switch.change( function() {
                         //press play on tape shortly after emitting load command
                         setTimeout(function() {wasm_press_play(); },650);
                     }
-
-                    if(do_auto_run)
+/*                    if(do_auto_run)
                     {
-                        emit_string(['Enter','r','u','n','Enter'], 4500, 1000);
+                        fire_when_no_more_message("MSG_VC1530_PROGRESS",function() {
+                            emit_string(['Enter','r','u','n','Enter']);
+                        });
                     }
+*/
                 }
                 else
                 {
                     emit_string(['Enter','l','o','a','d','"','*','"',',','8',',', '1', 'Enter']);
-                    
                     if(do_auto_run)
                     {
-                        emit_string(['Enter','r','u','n','Enter'], 4500, 1000);
+                        fire_on_message("MSG_IEC_BUS_BUSY",function() {
+                            fire_on_message("MSG_IEC_BUS_IDLE", function() {
+                                fire_on_message("MSG_IEC_BUS_BUSY",function() {
+                                    fire_on_message("MSG_IEC_BUS_IDLE", function() {
+                                        emit_string(['r','u','n','Enter'],0);
+                                    })
+                                })               
+                            })
+                        });
                     }
                 }
             }
@@ -1184,46 +1297,68 @@ wide_screen_switch.change( function() {
         {
             $("#button_run").click();
         }
-        var faster_open_roms_installed = $("#rom_basic").attr("src").match("mega65") != null;
+        var faster_open_roms_installed = JSON.parse(wasm_rom_info()).kernal.startsWith("mega");
+        
+        //the roms differ from cold-start to ready prompt, orig-roms 3300ms and open-roms 250ms   
+        var time_since_start=wasm_get_cpu_cycles();
+        var time_coldstart_to_ready_prompt = faster_open_roms_installed ? 500000:2500000;
+ 
         if(reset_before_load == false)
         {
-            //the roms differ from cold-start to ready prompt, orig-roms 3300ms and open-roms 250ms   
-            var time_since_start=Date.now()-wasm_first_run;
-            var time_coldstart_to_ready_prompt = faster_open_roms_installed ? 500:3400;
-            
             if(time_since_start>time_coldstart_to_ready_prompt)
             {
+//                console.log("direct cycles now ="+time_since_start+ " time_coldstart_to_ready_prompt"+time_coldstart_to_ready_prompt);
                 execute_load();
             }
             else
             {
-                setTimeout(() => {  
-                    execute_load();
-                }, time_coldstart_to_ready_prompt - time_since_start);
+//                 console.log("not direct cycles now ="+time_since_start+ " time_coldstart_to_ready_prompt"+time_coldstart_to_ready_prompt);
+
+                var intervall_id = setInterval(() => {  
+                    var cycles_now= wasm_get_cpu_cycles();
+//                    console.log("cycles now ="+cycles_now+ " time_coldstart_to_ready_prompt"+time_coldstart_to_ready_prompt);
+
+                    if(cycles_now > time_coldstart_to_ready_prompt)
+                    {
+                        clearInterval(intervall_id);
+                        execute_load();
+                    }
+                }, 50);
             }
         }
         else
         {
-            var time_reset_to_ready_prompt = faster_open_roms_installed ? 800:2800;
-            
             $('#alert_reset').show();
             wasm_reset();
-            setTimeout(() => {
-                execute_load();
-                $('#alert_reset').hide();
-                reset_before_load=false;
-            }, time_reset_to_ready_prompt);
+
+            var intervall_id = setInterval(() => {  
+                var cycles_now= wasm_get_cpu_cycles();
+//                console.log("cycles now ="+cycles_now+ " time_coldstart_to_ready_prompt"+time_coldstart_to_ready_prompt+ "  id="+intervall_id);
+                if(cycles_now > time_coldstart_to_ready_prompt)
+                {
+                    clearInterval(intervall_id);
+                    execute_load();
+                    $('#alert_reset').hide();
+                    reset_before_load=false;
+                }
+            }, 50);
         }
     }
     $("#button_insert_file").click(insert_file);
     
-
     $('#modal_take_snapshot').on('hidden.bs.modal', function () {
         if(is_running())
         {
             setTimeout(function(){try{wasm_run();} catch(e) {}},200);
         }
-    });
+    }).keydown(event => {
+            if(event.key === "Enter")
+            {
+                $( "#button_save_snapshot" ).click();                        
+            }
+            return true;
+        }
+    );
    
     document.getElementById('button_take_snapshot').onclick = function() 
     {       
@@ -1237,12 +1372,14 @@ wide_screen_switch.change( function() {
     {       
         var app_name = $("#input_app_title").val();
         wasm_take_user_snapshot();
-        var ptr=wasm_pull_user_snapshot_file(0);
-        var size = wasm_pull_user_snapshot_file_size(0);
-        var snapshot_buffer = new Uint8Array(Module.HEAPU8.buffer, ptr, size);
+        var snapshot_json= wasm_pull_user_snapshot_file();
+        var snap_obj = JSON.parse(snapshot_json);
+//        var ptr=wasm_pull_user_snapshot_file();
+//        var size = wasm_pull_user_snapshot_file_size();
+        var snapshot_buffer = new Uint8Array(Module.HEAPU8.buffer, snap_obj.address, snap_obj.size);
    
         //snapshot_buffer is only a typed array view therefore slice, which creates a new array with byteposition 0 ...
-        save_snapshot(app_name, snapshot_buffer.slice(0,size));
+        save_snapshot(app_name, snapshot_buffer.slice(0,snap_obj.size));
    
         $("#modal_take_snapshot").modal('hide');
         //document.getElementById('canvas').focus();
@@ -1284,7 +1421,56 @@ wide_screen_switch.change( function() {
         var sid_model=$(this).text();
         set_sid_model(sid_model);
         save_setting('sid_model',sid_model)
+        $("#modal_settings").focus();
     });
+
+    function set_2nd_sid(sid_addr) {
+        $("#button_2nd_sid").text("2nd sid "+sid_addr);
+        if(sid_addr == "disabled")
+        {
+            wasm_set_2nd_sid(0);
+        }
+        else
+        {
+            wasm_set_2nd_sid(parseInt(sid_addr.replace("enabled at $",""),16));
+        }
+    }
+    $('#choose_2nd_sid_addr a').click(function () 
+    {
+        var sid_addr=$(this).text();
+        set_2nd_sid(sid_addr);
+        $("#modal_settings").focus();
+    });
+
+
+    set_sid_engine(load_setting('sid_engine', 'ReSID - Fast'));
+    function set_sid_engine(sid_engine) {
+        $("#button_sid_engine").text(sid_engine);
+        wasm_set_sid_engine(sid_engine);
+    }
+    $('#choose_sid_engine a').click(function () 
+    {
+        var sid_engine=$(this).text();
+        set_sid_engine(sid_engine);
+        save_setting('sid_engine',sid_engine);
+        $("#modal_settings").focus();
+    });
+
+
+
+    set_color_palette(load_setting('color_palette', 'color'));
+    function set_color_palette(color_palette) {
+        $("#button_color_palette").text(color_palette.replace("_", " "));
+        wasm_set_color_palette(color_palette);
+    }
+    $('#choose_color_palette a').click(function () 
+    {
+        var color_palette=$(this).text();
+        set_color_palette(color_palette);
+        save_setting('color_palette',color_palette);
+        $("#modal_settings").focus();
+    });
+
 
     document.getElementById('button_update').onclick = function() 
     {
@@ -1382,6 +1568,7 @@ wide_screen_switch.change( function() {
 //---- rom dialog start
    document.getElementById('button_rom_dialog').addEventListener("click", function(e) {
      $('#modal_settings').modal('hide');
+     load_roms(false); //update to current roms
      setTimeout(function() { $('#modal_roms').modal('show');}, 500);
    }, false);
 
@@ -2017,26 +2204,40 @@ function scaleVMCanvas() {
         
     
 
-function emit_string(keys_to_emit_array, type_first_key_time=200, next_key_time=300)
-{  
-    time_in_future=type_first_key_time;
-    keys_to_emit_array.forEach(function (the_key, i) {
-             console.log(the_key);
-             var c64code = translateKey2(the_key, the_key.toLowerCase());
-             if(c64code !== undefined)
-             {
-                if(c64code.modifier != null)
-                {
-                    setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 1);}, time_in_future);
-                    setTimeout(function() {wasm_key(c64code.modifier[0], c64code.modifier[1], 0);}, time_in_future+next_key_time-20);
-                }
 
-                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 1);}, time_in_future+20);
-                setTimeout(function() {wasm_key(c64code.raw_key[0], c64code.raw_key[1], 0);}, time_in_future+next_key_time-20);
-                time_in_future +=next_key_time;
-             }
+
+function emit_string(keys_to_emit_array, type_first_key_time=200, release_delay_in_ms=50)
+{  
+    // Set the initial delay for the first key (in frames)
+    var delay = type_first_key_time / 50;
+    var release_delay = release_delay_in_ms / 50;
+    if(release_delay<1)
+    {
+        release_delay = 1;
+    }
+    for(the_key of keys_to_emit_array)
+    {
+        console.log(the_key);
+        var c64code = translateKey2(the_key, the_key.toLowerCase());
+        if(c64code !== undefined)
+        {
+            if(c64code.modifier != null)
+            {
+                wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 1, delay);
+                delay=0;
+            }
+            wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 1, delay);
+
+            delay=release_delay;
+            if(c64code.modifier != null)
+            {
+                wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, delay);
+                delay=0;
+            }
+            wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, delay);
+            delay=1;
         }
-    );
+    }
 }
 
 function hide_all_tooltips()

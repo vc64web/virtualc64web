@@ -814,21 +814,8 @@ extern "C" void wasm_reset()
 
 
   wrapper->c64->reset();
-  wrapper->c64->clearControlFlags(RL_CPU_JAMMED);
+//  wrapper->c64->clearControlFlags(RL_CPU_JAMMED);
 
-//  wrapper->c64->cpu.dump();
-//  printf("runLoopCtrl=%u\n",wrapper->c64->runLoopCtrl);
-//  wrapper->c64->runLoopCtrl=0;
-
-/*  
-  if(wrapper->c64->isRunning())
-  {
-    wrapper->c64->pause();
-  }
-  wrapper->c64->powerOff();
-  wrapper->c64->powerOn();
-  wrapper->c64->run();
-*/
 }
 
 extern "C" void wasm_halt()

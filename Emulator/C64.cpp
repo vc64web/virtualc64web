@@ -153,6 +153,9 @@ C64::_reset()
     // Initialize program counter (MOVE TO CPU)
     cpu.reg.pc = mem.resetVector();
     
+    // Clear all runloop flags
+    runLoopCtrl = 0;
+
     rasterCycle = 1;
 }
 
@@ -591,8 +594,6 @@ C64::_powerOn()
 {
     trace(RUN_DEBUG, "_powerOn()\n");
     
-    // Clear all runloop flags
-    runLoopCtrl = 0;
     
     putMessage(MSG_POWER_ON);
 }

@@ -13,8 +13,6 @@ vc64web is a C64 emulator that is based solely on HTML5 techniques e.g. javascri
 
 it supports PWA standard which gives it the appearance of an nearly native app e.g. runs offline, no browser addressbar and so on  ... to install it nativley as a PWA on iOS devices for example -> save it to homescreen 
 
-The emulation core is a copy of virtualC64 without its usual mac GUI in v3.4b1 master branch March 3 2020 latest commit point fe1629c
-
 some highlighted features: 
 * includes an online interface to the csdb.dk named scene browser (powered by CSDb web service https://csdb.dk/webservice/ and inspired by Mr.SIDs iOS app "C64 Scene" https://csdb.dk/release/?id=171112) 
 * supports external gamecontroller
@@ -63,9 +61,10 @@ _note_: start.sh starts an webserver with URL base path pointing to the folder w
 * adding favourites feature to the collector interface, to be able to 💖 entries and easily filter them 
 * drag and drop for CSDb-download-links into the fileslot or emulator window and CSDb-release-links into search field of scene browser
 * XBoxController standard digipad and analog stick mapping supported
+* migration to dirks new (still unreleased) v4 Core ... paves the way for a later vAmigaWeb project
+* 2nd SID support, settings for different ReSID quality settings, color palette 
 
 ## next goals
-* migration to dirks new (still unreleased) v4 Core ... paves the way for a later vAmigaWeb project
 * scrollable navbar for very tiny phones
 * XBoxController should trigger rumble/vibration if VIC is detecting sprite collisions
 * new  modern boot sequence/animation  replacing the standard emscripten visual boot code 

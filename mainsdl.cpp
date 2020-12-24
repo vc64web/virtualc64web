@@ -811,11 +811,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 extern "C" void wasm_reset()
 {
   wrapper->c64->expansionport.detachCartridge();
-
-
   wrapper->c64->reset();
-//  wrapper->c64->clearControlFlags(RL_CPU_JAMMED);
-
 }
 
 extern "C" void wasm_halt()

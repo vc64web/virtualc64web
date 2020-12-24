@@ -540,11 +540,27 @@ joystick_keyup_map = {
     'Space':'RELEASE_FIRE'
 }
 
-function keydown(e) {
-    if($('input, textarea').is(":focus") == false && $('modal_file_slot').is(":visible") == false)
-    {//incase any html5 input control has the focus, we should let it get the keydown 
-        event.preventDefault();
+
+function is_any_text_input_active()
+{
+    var active = false;
+    var element = document.activeElement;
+    if(element != null)
+    {                 
+        if(element.tagName != null)
+        {
+            var type_name = element.tagName.toLowerCase();
+            active = type_name == 'input' || type_name == 'textarea';
+        }     
     }
+    return active;
+}
+
+function keydown(e) {
+    if(is_any_text_input_active())
+        return;
+
+    e.preventDefault();
 
     if(port1=='keys'||port2=='keys')
     {
@@ -564,19 +580,19 @@ function keydown(e) {
 }
 
 function keyup(e) {
-    if($('input, textarea').is(":focus") == false)
-    {//incase any html5 input control has the focus, we should let it get the keyup 
-        event.preventDefault();
+    if(is_any_text_input_active())
+        return;
 
-        for(action_button of custom_keys)
+    e.preventDefault();
+
+    for(action_button of custom_keys)
+    {
+        if(action_button.key == e.key)
         {
-            if(action_button.key == e.key)
-            {
-                execute_script(action_button.id, action_button.script);
-            }
+            execute_script(action_button.id, action_button.script);
         }
     }
- 
+
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keyup_map[e.code];

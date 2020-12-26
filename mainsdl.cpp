@@ -228,7 +228,7 @@ void draw_one_frame_into_SDL(void *thisC64)
 
   if(c64->inWarpMode() == true)
   {
-    printf("warping at least 25 cycles at once ...\n");
+    printf("warping at least 25 frames at once ...\n");
     int i=25;
     while(c64->inWarpMode() == true && i>0)
     {
@@ -258,7 +258,7 @@ void draw_one_frame_into_SDL(void *thisC64)
 
     seconds += 1; 
     frames += rendered_frame_count;
-    printf("time[ms]=%lf, audio_samples=%d, frames [executed=%u, rendered=%u] avg_fps=%u\n", 
+    printf("time[ms]=%.0lf, audio_samples=%d, frames [executed=%u, rendered=%u] avg_fps=%u\n", 
     passed_time, sum_samples, executed_frame_count, rendered_frame_count, frames/seconds);
     sum_samples=0; 
     rendered_frame_count=0;
@@ -275,8 +275,8 @@ void draw_one_frame_into_SDL(void *thisC64)
   rendered_frame_count++;  
 
   EM_ASM({
-      if (typeof draw_one_frame === 'undefined')
-          return;
+ //     if (typeof draw_one_frame === 'undefined')
+ //         return;
       draw_one_frame(); // to gather joystick information for example 
   });
  

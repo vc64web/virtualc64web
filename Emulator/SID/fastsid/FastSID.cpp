@@ -1,6 +1,6 @@
 /*
- * This file belongs to the FastSID implementation of VirtualC64,
- * an adaption of the code used in VICE 3.1, the Versatile Commodore Emulator.
+ * This file belongs to the FastSID implementation of VirtualC64, an adaption
+ * of the code used in VICE 3.1, the Versatile Commodore Emulator.
  *
  * Original code written by
  *  Teemu Rantanen <tvr@cs.hut.fi>
@@ -341,25 +341,38 @@ FastSID::poke(u16 addr, u8 value)
 }
 
 i64
-FastSID::executeSamples(u64 numSamples)
+FastSID::executeCycles(u64 numCycles, SampleStream &stream)
 {
-    return executeSamples(numSamples, bridge.samples[nr]);
+    u64 buflength = stream.cap();
+    
+    executedCycles += numCycles;
+    
+    // Compute the number of sound samples to produce
+    double samplesPerCycle = (double)sampleRate / (double)cpuFrequency;
+    uint64_t shouldHave = (uint64_t)(executedCycles * samplesPerCycle);
+    
+    // How many sound samples are missing?
+    uint64_t samples = shouldHave - computedSamples;
+    computedSamples = shouldHave;
+    
+    // Do some consistency checking
+    if (samples > buflength) {
+        warn("Number of missing sound samples exceeds buffer size\n");
+        samples = buflength;
+    }
+    
+    // Compute missing samples
+    for (unsigned i = 0; i < samples; i++) {
+        stream.write(calculateSingleSample());
+    }
+    
+    return samples;
 }
 
 i64
-FastSID::executeSamples(u64 numSamples, short *buffer)
+FastSID::executeCycles(u64 numCycles)
 {
-    // Don't ask to compute more samples that fit into the buffer
-    assert(numSamples <= SIDBridge::sampleBufferSize);
-    
-    // Compute samples
-    for (unsigned i = 0; i < numSamples; i++) {
-        buffer[i] = calculateSingleSample();
-    }
-
-    // Return the estimated number of consumed cycles
-    double samplesPerCycle = (double)sampleRate / (double)cpuFrequency;
-    return (u64)(numSamples / samplesPerCycle);
+    return executeCycles(numCycles, bridge.sidStream[nr]);
 }
 
 void

@@ -1,6 +1,6 @@
 /*
- * This file belongs to the FastSID implementation of VirtualC64,
- * an adaption of the code used in VICE 3.1, the Versatile Commodore Emulator.
+ * This file belongs to the FastSID implementation of VirtualC64, an adaption
+ * of the code used in VICE 3.1, the Versatile Commodore Emulator.
  *
  * Original code written by
  *  Teemu Rantanen <tvr@cs.hut.fi>
@@ -31,6 +31,7 @@
 
 #include "C64Component.h"
 #include "FastVoice.h"
+#include "SIDStreams.h"
 
 class FastSID : public C64Component {
         
@@ -201,12 +202,12 @@ public:
     
 public:
     
-    /* Runs SID until a certain number of audio samples is produced. The
-     * generated sound samples are written into the provided buffer. The
-     * fuction returns the number of executed cycles.
+    /* Runs SID for the specified amount of CPU cycles. The generated sound
+     * samples are written into the provided ring buffer. The fuction returns
+     * the number of written audio samples.
      */
-    i64 executeSamples(u64 numSamples);
-    i64 executeSamples(u64 numSamples, short *buffer);
+    i64 executeCycles(u64 numCycles, SampleStream &stream);
+    i64 executeCycles(u64 numCycles);
     
 private:
     

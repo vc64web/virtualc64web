@@ -495,7 +495,7 @@ class C64Wrapper {
 
     //SID0 Volumne
     c64->configure(OPT_AUDVOL, 0, 100); 
-    c64->configure(OPT_AUDPAN, 0, 50);
+    c64->configure(OPT_AUDPAN, 0, 0);
 
     //SID1 Volumne
 /*    c64->configure(OPT_AUDVOL, 1, 100);

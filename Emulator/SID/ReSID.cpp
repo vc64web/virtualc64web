@@ -220,29 +220,31 @@ ReSID::poke(u16 addr, u8 value)
 }
 
 i64
-ReSID::executeSamples(u64 numSamples)
+ReSID::executeCycles(u64 numCycles, SampleStream &stream)
 {
-    return executeSamples(numSamples, bridge.samples[nr]);
+    short buf[2049];
+    int buflength = 2048;
+    
+    if (numCycles > PAL_CYCLES_PER_SECOND) {
+        warn("Number of missing SID cycles is far too large\n");
+        numCycles = PAL_CYCLES_PER_SECOND;
+    }
+    
+    // Let reSID compute sound samples
+    int samples = 0;
+    reSID::cycle_count cycles = (reSID::cycle_count)numCycles;
+    while (cycles) {
+        samples += sid->clock(cycles, buf + samples, buflength - samples);
+    }
+    
+    // Write samples into ringbuffer
+    if (samples) { for (int i = 0; i < samples; i++) stream.write(buf[i]); }
+    
+    return samples;
 }
 
 i64
-ReSID::executeSamples(u64 numSamples, short *buffer)
+ReSID::executeCycles(u64 numCycles)
 {
-    reSID::cycle_count delta = 100000;
-
-    // Don't ask to compute more samples that fit into the buffer
-    if (numSamples > SIDBridge::sampleBufferSize) {
-        warn("numSamples = %lld (max: %zu)\n", numSamples, SIDBridge::sampleBufferSize);
-        bridge.dump();
-        assert(false);
-    }
-    assert(numSamples <= SIDBridge::sampleBufferSize);
-    
-    // debug(SID_EXEC, "Executing ReSID %p for %lld samples\n", this, numSamples);
-
-    // Invoke reSID
-    int result = sid->clock(delta, buffer, (int)numSamples);
-    assert(result == (int)numSamples);
-        
-    return (i64)(100000 - delta);
+    return executeCycles(numCycles, bridge.sidStream[nr]);
 }

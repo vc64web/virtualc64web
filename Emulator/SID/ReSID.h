@@ -17,12 +17,15 @@
  *
  *     - INTERNAT.P00
  *     - DEFEND1.PRG  ("Das Boot" intro music)
+ *     - To Norah (Elysium)
+ *     - Vortex (LMan)
  */
 
 #ifndef _RESID_H
 #define _RESID_H
 
 #include "C64Component.h"
+#include "SIDStreams.h"
 #include "resid/sid.h"
 
 class ReSID : public C64Component {
@@ -39,11 +42,7 @@ class ReSID : public C64Component {
     // Result of the latest inspection
     SIDInfo info;
     VoiceInfo voiceInfo[3];
-    
-public:
-    
-    void clock() { sid->clock(); }
-    
+        
 private:
     
     // ReSID state
@@ -133,6 +132,21 @@ private:
         & st.write_pipeline
         & st.write_address
         & st.voice_mask
+        & st.accumulator
+        & st.shift_register
+        & st.shift_register_reset
+        & st.shift_pipeline
+        & st.pulse_output
+        & st.floating_output_ttl
+        & st.rate_counter
+        & st.rate_counter_period
+        & st.exponential_counter
+        & st.exponential_counter_period
+        & st.envelope_counter
+        & st.envelope_state
+        & st.hold_zero
+        & st.envelope_pipeline
+        /*
         & st.accumulator[0]
         & st.accumulator[1]
         & st.accumulator[2]
@@ -175,11 +189,11 @@ private:
         & st.envelope_pipeline[0]
         & st.envelope_pipeline[1]
         & st.envelope_pipeline[2]
-        
+        */
         & model
         & clockFrequency
+        & samplingMethod
         & emulateFilter;
-
     }
     
     template <class T>
@@ -210,18 +224,11 @@ public:
     //
     
 	/* Runs SID for the specified amount of CPU cycles. The generated sound
-     * samples are written into the provided buffer. The fuction returns the
-     * number of written audio samples.
+     * samples are written into the provided ring buffer. The fuction returns
+     * the number of written audio samples.
      */
-    // i64 executeCycles(u64 numCycles, short *buffer);
-    // i64 executeCycles(u64 numCycles) { return executeCycles(numCycles, samples); }
-
-    /* Runs SID until a certain number of audio samples is produced. The
-     * generated sound samples are written into the provided buffer. The
-     * fuction returns the number of executed cycles.
-     */
-    i64 executeSamples(u64 numSamples);
-    i64 executeSamples(u64 numSamples, short *buffer);
+    i64 executeCycles(u64 numCycles, SampleStream &stream);
+    i64 executeCycles(u64 numCycles);
 };
 
 #endif

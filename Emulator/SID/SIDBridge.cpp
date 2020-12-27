@@ -772,36 +772,56 @@ i64 SIDBridge::executeCycles(u64 numCycles)
     debug(SID_EXEC, "vol0: %f pan0: %f volL: %f volR: %f\n",
           vol[0], pan[0], volL.current, volR.current);
 
-    // Convert sound samples to floating point values and write into ringbuffer
-    for (unsigned i = 0; i < numSamples; i++) {
-        
-        float ch0, ch1, ch2, ch3, l, r;
-        
-        ch0 = (float)sidStream[0].read()    * vol[0];
-        ch1 = (float)sidStream[1].read(0.0) * vol[1];
-        ch2 = (float)sidStream[2].read(0.0) * vol[2];
-        ch3 = (float)sidStream[3].read(0.0) * vol[3];
 
-        // Compute left channel output
-        l =
-        ch0 * (1 - pan[0]) + ch1 * (1 - pan[1]) +
-        ch2 * (1 - pan[2]) + ch3 * (1 - pan[3]);
-
-        // Compute right channel output
-        r =
-        ch0 * pan[0] + ch1 * pan[1] +
-        ch2 * pan[2] + ch3 * pan[3];
-
-        // Apply master volume
-        l *= volL.current;
-        r *= volR.current;
+    if(config.enabled == 1)
+    {//optimized route if only one SID configured
+        float vol_l= vol[0] *  volL.current * (1 - pan[0]);
+        float vol_r= vol[0] *  volR.current * pan[0] ;
         
-        
-    // Apply ear protection
-    //    assert(abs(l) < 0.15);
-    //    assert(abs(r) < 0.15);
+        // Convert sound samples to floating point values and write into ringbuffer
+        for (unsigned i = 0; i < numSamples; i++) {
+            float ch0 = (float)sidStream[0].read();
+            float l = ch0 * vol_l;
+            float r = ch0 * vol_r;
 
-        stream.write(SamplePair { l, r } );
+            // Apply ear protection
+            //assert(abs(l) < 0.5);
+            //assert(abs(r) < 0.5);
+
+            stream.write(SamplePair { l, r } );
+        }
+    }
+    else
+    {
+        // Convert sound samples to floating point values and write into ringbuffer
+        for (unsigned i = 0; i < numSamples; i++) {
+            float l,r , ch0, ch1, ch2, ch3;
+            
+            ch0 = (float)sidStream[0].read()    * vol[0];
+            ch1 = (float)sidStream[1].read(0.0) * vol[1];
+            ch2 = (float)sidStream[2].read(0.0) * vol[2];
+            ch3 = (float)sidStream[3].read(0.0) * vol[3];
+
+            // Compute left channel output
+            l =
+            ch0 * (1 - pan[0]) + ch1 * (1 - pan[1]) +
+            ch2 * (1 - pan[2]) + ch3 * (1 - pan[3]);
+
+            // Compute right channel output
+            r =
+            ch0 * pan[0] + ch1 * pan[1] +
+            ch2 * pan[2] + ch3 * pan[3];
+
+            // Apply master volume
+            l *= volL.current;
+            r *= volR.current;
+                    
+            // Apply ear protection
+            //assert(abs(l) < 0.5);
+            //assert(abs(r) < 0.5);
+
+            stream.write(SamplePair { l, r } );
+        }
     }
     stream.unlock();
     

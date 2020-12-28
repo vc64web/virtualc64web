@@ -13,7 +13,7 @@
 #include "C64Component.h"
 #include "SIDTypes.h"
 #include "Volume.h"
-#include "SIDStream.h"
+#include "SIDStreams.h"
 #include "FastSID.h"
 #include "ReSID.h"
 
@@ -86,10 +86,10 @@ private:
     Volume volR;
 
     // Channel volumes
-    float vol[4];
+    float vol[4] = { 0, 0, 0, 0 };
 
     // Panning factors
-    float pan[4];
+    float pan[4] = { 0, 0, 0, 0 };
         
 public:
     
@@ -106,23 +106,14 @@ public:
 
     
     //
-    // Inputs
+    // Audio streams
     //
-
-    /* Sample buffers. There is a seperate buffer for each of the four SID
-     * channels. Every reSID or fastSID instance uses one of these buffers for
-     * storing the created sound samples.
+    
+    /* The four SID streams. Each stream stores the sound samples produced by
+     * one of the four supported SIDs.
      */
-    static const size_t sampleBufferSize = 2048;
-    short samples[4][sampleBufferSize];
-    
-    
-    //
-    // Outputs
-    //
-
-public:
-    
+    SampleStream sidStream[4];
+        
     /* The mixed stereo stream. This stream contains the final audio stream
      * ready to be handed over to the audio device of the host OS.
      */
@@ -219,9 +210,11 @@ private:
         & config.sampling
         & config.volL
         & config.volR
-        & config.pan
         & config.vol
+        & config.pan
+        & cycles
         & cpuFrequency
+        & lastAlignment
         & volL
         & volR
         & vol
@@ -315,17 +308,19 @@ public:
     const u32 samplesAhead = 8 * 735;
     void alignWritePtr() { stream.clear(SamplePair {0,0} ); stream.align(samplesAhead); }
     
-    // Executes SID until a certain cycle is reached
+    /* Executes SID until a certain cycle is reached.
+     * // The function returns the number of produced sound samples (not yet).
+     */
     void executeUntil(u64 targetCycle);
 
     // Executes SID for a certain number of CPU cycles
-    // DEPRECATED
-	// void executeCycles(u64 numCycles);
+	i64 executeCycles(u64 numCycles);
 
     /* Executes SID for a certain number of audio samples. The function returns
      * the number of consumed CPU cycles.
      */
-    i64 execute(u64 numSamples);
+    // DEPRECATED
+    // i64 execute(u64 numSamples);
 
     
     //

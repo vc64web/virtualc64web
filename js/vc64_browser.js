@@ -342,7 +342,7 @@ var collectors = {
             else
             {
                 var src_data = item.data;
-                var version = src_data[4] +'.'+src_data[5];
+                var version = src_data[4] +'.'+src_data[5]+'.'+src_data[6];
                 if(version.startsWith("3.3"))
                 { 
                     width=392;
@@ -372,7 +372,7 @@ var collectors = {
                     }
                     ctx.putImageData(imgData,0,0); 
                 
-                    if(version.startsWith("3.3"))
+                    if(!version.startsWith("4.0.1"))
                     {
                         ctx.translate(50, 0); // translate to rectangle center 
                         ctx.rotate((Math.PI / 180) * 27); // rotate

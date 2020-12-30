@@ -209,25 +209,27 @@
       <div class="modal-dialog modal-xl" role="document">
         <div class="modal-content">
           <div class="modal-header">           
-            <div class="btn-group btn-group-toggle" data-toggle="buttons">
-              <label class="btn btn-primary active">
-                <input type="radio" name="options" id="sel_browser_snapshots" checked> snapshots
-              </label>
-              <label class="btn btn-secondary">
-                <input type="radio" name="options" id="sel_browser_csdb"> CSDb.dk
-              </label>
-            </div>
-            <div class="input-group mb-3 ml-3 mr-4">
-              <div class="input-group-prepend">
-                <span class="input-group-text" id="search_symbol"><svg width="1.2em" height="1.2em" viewBox="0 0 16 16" class="bi bi-search" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                  <path fill-rule="evenodd" d="M10.442 10.442a1 1 0 0 1 1.415 0l3.85 3.85a1 1 0 0 1-1.414 1.415l-3.85-3.85a1 1 0 0 1 0-1.415z"/>
-                  <path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z"/>
-                </svg></span>
+            <div class="row" style="width: 100%">
+              <div class="col-sm mt-2 btn-group btn-group-toggle" data-toggle="buttons">
+                <label class="btn btn-primary active">
+                  <input type="radio" name="options" id="sel_browser_snapshots" checked> snapshots
+                </label>
+                <label class="btn btn-secondary">
+                  <input type="radio" name="options" id="sel_browser_csdb"> CSDb.dk
+                </label>
               </div>
-              <input id="search" type="text" class="form-control" placeholder="search snapshots (local browser storage)" aria-label="search">
+              <div class="col-sm mt-2 input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text" id="search_symbol"><svg width="1.2em" height="1.2em" viewBox="0 0 16 16" class="bi bi-search" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" d="M10.442 10.442a1 1 0 0 1 1.415 0l3.85 3.85a1 1 0 0 1-1.414 1.415l-3.85-3.85a1 1 0 0 1 0-1.415z"/>
+                    <path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z"/>
+                  </svg></span>
+                </div>
+                <input id="search" type="text" class="form-control" placeholder="search snapshots (local browser storage)" aria-label="search">
+              </div>
             </div>
             <div id="div_like"></div>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <button type="button" class="close px-1" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
           </div>

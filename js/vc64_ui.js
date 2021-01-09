@@ -1,5 +1,6 @@
 let global_apptitle="c64 - start screen"
-
+let call_param_openROMs=false;
+let call_param_2ndSID=null;
 function ToBase64(u8) 
 {
     return btoa(String.fromCharCode.apply(null, u8));
@@ -11,14 +12,50 @@ function FromBase64(str) {
 
 function get_parameter_link()
 {
-    var call_parameter = window.location.href.split('#');
+    var call_url = window.location.href.split('#');
     var parameter_link=null;
-    if(call_parameter.length>1)
-    {
-        parameter_link=call_parameter[1];
-        for(var i=2; i<call_parameter.length;i++)
+    if(call_url.length>1)
+    {//there are # inside the URL
+        //process settings 
+        for(var i=1; i<call_url.length;i++)
         {//in case there was a # inside the parameter link ... rebuild that
-            parameter_link+="#"+call_parameter[i];
+            var token = call_url[i]; 
+            
+            if(parameter_link != null)
+            {
+                parameter_link+="#"+token;
+            }
+            else if(token.startsWith("http"))
+            {
+                parameter_link=token;
+            }
+            else
+            { // it must be a setting
+                if(token.match(/openROMS=true/i))
+                {
+                    call_param_openROMS=true;
+                }
+                else if(token.match(/2ndSID=.*/i))
+                {
+                    var sid_addr=token.replace(/2ndSID=/i,"");
+                    //for example #2ndSID=d420#http...
+                    call_param_2ndSID = "enabled at $"+sid_addr; 
+                }
+                else if(token.match(/port1=true/i))
+                {
+                    port1="keys";          
+                    port2="none";     
+                    $('#port1').val(port1);
+                    $('#port2').val(port2);
+                }
+                else if(token.match(/port2=true/i))
+                {
+                    port1="none";
+                    port2="keys";        
+                    $('#port1').val(port1);       
+                    $('#port2').val(port2);
+                }
+            }
         }
     }
     return parameter_link;
@@ -91,15 +128,30 @@ function message_handler(cores_msg)
     {
         //start it async
         setTimeout(function() { try{wasm_first_run=Date.now(); wasm_run();}catch(e){}},10);
-        setTimeout(function() { try{load_parameter_link();}catch(e){}},250);
+        setTimeout(function() { 
+            try{
+                load_parameter_link();
+                if(call_param_2ndSID!=null)
+                {
+                    set_2nd_sid(call_param_2ndSID);
+                }    
+            }catch(e){}},
+        150);
     }
     else if(msg == "MSG_ROM_MISSING")
     {        
         //try to load roms from local storage
-        setTimeout(function() {
+        setTimeout(async function() {
             if(load_roms(true) == false)
             {
-                $('#modal_roms').modal();
+                if(call_param_openROMS==true)
+                {
+                    await fetchOpenROMS();        
+                }
+                else
+                {
+                    $('#modal_roms').modal();
+                }
             }
         },0);
  
@@ -1424,7 +1476,7 @@ $('.layer').change( function(event) {
         $("#modal_settings").focus();
     });
 
-    function set_2nd_sid(sid_addr) {
+    set_2nd_sid = function (sid_addr) {
         $("#button_2nd_sid").text("2nd sid "+sid_addr);
         if(sid_addr == "disabled")
         {

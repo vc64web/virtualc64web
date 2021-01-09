@@ -1,5 +1,5 @@
 let global_apptitle="c64 - start screen"
-let call_param_openROMs=false;
+let call_param_openROMS=false;
 let call_param_2ndSID=null;
 function ToBase64(u8) 
 {

@@ -1,6 +1,7 @@
 let global_apptitle="c64 - start screen"
 let call_param_openROMS=false;
 let call_param_2ndSID=null;
+let call_param_navbar=null;
 function ToBase64(u8) 
 {
     return btoa(String.fromCharCode.apply(null, u8));
@@ -54,6 +55,10 @@ function get_parameter_link()
                     port2="keys";        
                     $('#port1').val(port1);       
                     $('#port2').val(port2);
+                }
+                else if(token.match(/navbar=hidden/i))
+                {
+                    call_param_navbar='hidden';
                 }
             }
         }
@@ -135,6 +140,12 @@ function message_handler(cores_msg)
                 {
                     set_2nd_sid(call_param_2ndSID);
                 }    
+                if(call_param_navbar=='hidden')
+                {
+                    setTimeout(function(){
+                    $("#button_show_menu").click();
+                    },2500);
+                }
             }catch(e){}},
         150);
     }

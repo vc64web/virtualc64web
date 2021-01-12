@@ -2,6 +2,9 @@ let global_apptitle="c64 - start screen"
 let call_param_openROMS=false;
 let call_param_2ndSID=null;
 let call_param_navbar=null;
+let call_param_wide=null;
+let call_param_border=null;
+
 function ToBase64(u8) 
 {
     return btoa(String.fromCharCode.apply(null, u8));
@@ -59,6 +62,14 @@ function get_parameter_link()
                 else if(token.match(/navbar=hidden/i))
                 {
                     call_param_navbar='hidden';
+                }
+                else if(token.match(/wide=(true|false)/i))
+                {
+                    call_param_wide=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
+                }
+                else if(token.match(/border=(true|false)/i))
+                {
+                    call_param_border=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
                 }
             }
         }
@@ -144,8 +155,21 @@ function message_handler(cores_msg)
                 {
                     setTimeout(function(){
                     $("#button_show_menu").click();
-                    },2500);
+                    },500);
                 }
+                if(call_param_wide != null)
+                {
+                    use_wide_screen = call_param_wide;
+                    scaleVMCanvas();
+                    wide_screen_switch.prop('checked', use_wide_screen);
+                }
+                if(call_param_border != null)
+                {
+                    use_borderless = !call_param_border;
+                    wasm_set_borderless(use_borderless);
+                    borderless_switch.prop('checked', use_borderless);
+                }
+
             }catch(e){}},
         150);
     }

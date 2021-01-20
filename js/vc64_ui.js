@@ -1388,7 +1388,7 @@ $('.layer').change( function(event) {
         
         //the roms differ from cold-start to ready prompt, orig-roms 3300ms and open-roms 250ms   
         var time_since_start=wasm_get_cpu_cycles();
-        var time_coldstart_to_ready_prompt = faster_open_roms_installed ? 500000:2500000;
+        var time_coldstart_to_ready_prompt = faster_open_roms_installed ? 500000:2700000;
  
         if(reset_before_load == false)
         {

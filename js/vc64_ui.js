@@ -1,4 +1,9 @@
 let global_apptitle="c64 - start screen"
+let call_param_openROMS=false;
+let call_param_2ndSID=null;
+let call_param_navbar=null;
+let call_param_wide=null;
+let call_param_border=null;
 
 function ToBase64(u8) 
 {
@@ -11,14 +16,62 @@ function FromBase64(str) {
 
 function get_parameter_link()
 {
-    var call_parameter = window.location.href.split('#');
+    var call_url = window.location.href.split('#');
     var parameter_link=null;
-    if(call_parameter.length>1)
-    {
-        parameter_link=call_parameter[1];
-        for(var i=2; i<call_parameter.length;i++)
+    if(call_url.length>1)
+    {//there are # inside the URL
+        //process settings 
+        for(var i=1; i<call_url.length;i++)
         {//in case there was a # inside the parameter link ... rebuild that
-            parameter_link+="#"+call_parameter[i];
+            var token = call_url[i]; 
+            
+            if(parameter_link != null)
+            {
+                parameter_link+="#"+token;
+            }
+            else if(token.startsWith("http"))
+            {
+                parameter_link=token;
+            }
+            else
+            { // it must be a setting
+                if(token.match(/openROMS=true/i))
+                {
+                    call_param_openROMS=true;
+                }
+                else if(token.match(/2ndSID=.*/i))
+                {
+                    var sid_addr=token.replace(/2ndSID=/i,"");
+                    //for example #2ndSID=d420#http...
+                    call_param_2ndSID = "enabled at $"+sid_addr; 
+                }
+                else if(token.match(/port1=true/i))
+                {
+                    port1="keys";          
+                    port2="none";     
+                    $('#port1').val(port1);
+                    $('#port2').val(port2);
+                }
+                else if(token.match(/port2=true/i))
+                {
+                    port1="none";
+                    port2="keys";        
+                    $('#port1').val(port1);       
+                    $('#port2').val(port2);
+                }
+                else if(token.match(/navbar=hidden/i))
+                {
+                    call_param_navbar='hidden';
+                }
+                else if(token.match(/wide=(true|false)/i))
+                {
+                    call_param_wide=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
+                }
+                else if(token.match(/border=(true|false)/i))
+                {
+                    call_param_border=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
+                }
+            }
         }
     }
     return parameter_link;
@@ -91,15 +144,49 @@ function message_handler(cores_msg)
     {
         //start it async
         setTimeout(function() { try{wasm_first_run=Date.now(); wasm_run();}catch(e){}},10);
-        setTimeout(function() { try{load_parameter_link();}catch(e){}},250);
+        setTimeout(function() { 
+            try{
+                load_parameter_link();
+                if(call_param_2ndSID!=null)
+                {
+                    set_2nd_sid(call_param_2ndSID);
+                }    
+                if(call_param_navbar=='hidden')
+                {
+                    setTimeout(function(){
+                    $("#button_show_menu").click();
+                    },500);
+                }
+                if(call_param_wide != null)
+                {
+                    use_wide_screen = call_param_wide;
+                    scaleVMCanvas();
+                    wide_screen_switch.prop('checked', use_wide_screen);
+                }
+                if(call_param_border != null)
+                {
+                    use_borderless = !call_param_border;
+                    wasm_set_borderless(use_borderless);
+                    borderless_switch.prop('checked', use_borderless);
+                }
+
+            }catch(e){}},
+        150);
     }
     else if(msg == "MSG_ROM_MISSING")
     {        
         //try to load roms from local storage
-        setTimeout(function() {
+        setTimeout(async function() {
             if(load_roms(true) == false)
             {
-                $('#modal_roms').modal();
+                if(call_param_openROMS==true)
+                {
+                    await fetchOpenROMS();        
+                }
+                else
+                {
+                    $('#modal_roms').modal();
+                }
             }
         },0);
  
@@ -940,8 +1027,52 @@ function InitWrappers() {
 
     wasm_schedule_key = Module.cwrap('wasm_schedule_key', 'undefined', ['number', 'number', 'number', 'number']);
 
-
-
+    get_audio_context=function() {
+        if (typeof Module === 'undefined'
+        || typeof Module.SDL2 == 'undefined'
+        || typeof Module.SDL2.audioContext == 'undefined')
+        {
+            return null;
+        }
+        else
+        {
+            return Module.SDL2.audioContext;
+        }
+    }
+    window.addEventListener('message', event => {
+        if(event.data == "poll_state")
+        {
+            window.parent.postMessage({ msg: 'render_run_state', value: is_running()},"*");
+            var audio_context=get_audio_context(); 
+            window.parent.postMessage({ msg: 'render_current_audio_state', 
+                value: audio_context == null ? 'suspended' : audio_context.state},"*"); 
+        }
+        else if(event.data == "button_run()")
+        {
+            if(required_roms_loaded)
+            {
+                $('#button_run').click();
+                window.parent.postMessage({ msg: 'render_run_state', value: is_running()},"*");
+            }
+        }
+        else if(event.data == "toggle_audio()")
+        {
+            var context = get_audio_context();
+            if (context !=null)
+            {
+                if(context.state == 'suspended') {
+                    context.resume();
+                }
+                else if (context.state == 'running')
+                {
+                    context.suspend();
+                }
+            }
+            window.parent.postMessage({ msg: 'render_current_audio_state', 
+                value: audio_context == null ? 'suspended' : audio_context.state },"*");
+        }
+    }); 
+    
     dark_switch = document.getElementById('dark_switch');
 
 
@@ -1301,7 +1432,7 @@ $('.layer').change( function(event) {
         
         //the roms differ from cold-start to ready prompt, orig-roms 3300ms and open-roms 250ms   
         var time_since_start=wasm_get_cpu_cycles();
-        var time_coldstart_to_ready_prompt = faster_open_roms_installed ? 500000:2500000;
+        var time_coldstart_to_ready_prompt = faster_open_roms_installed ? 500000:2700000;
  
         if(reset_before_load == false)
         {
@@ -1424,7 +1555,7 @@ $('.layer').change( function(event) {
         $("#modal_settings").focus();
     });
 
-    function set_2nd_sid(sid_addr) {
+    set_2nd_sid = function (sid_addr) {
         $("#button_2nd_sid").text("2nd sid "+sid_addr);
         if(sid_addr == "disabled")
         {

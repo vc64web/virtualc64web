@@ -1027,8 +1027,52 @@ function InitWrappers() {
 
     wasm_schedule_key = Module.cwrap('wasm_schedule_key', 'undefined', ['number', 'number', 'number', 'number']);
 
-
-
+    get_audio_context=function() {
+        if (typeof Module === 'undefined'
+        || typeof Module.SDL2 == 'undefined'
+        || typeof Module.SDL2.audioContext == 'undefined')
+        {
+            return null;
+        }
+        else
+        {
+            return Module.SDL2.audioContext;
+        }
+    }
+    window.addEventListener('message', event => {
+        if(event.data == "poll_state")
+        {
+            window.parent.postMessage({ msg: 'render_run_state', value: is_running()},"*");
+            var audio_context=get_audio_context(); 
+            window.parent.postMessage({ msg: 'render_current_audio_state', 
+                value: audio_context == null ? 'suspended' : audio_context.state},"*"); 
+        }
+        else if(event.data == "button_run()")
+        {
+            if(required_roms_loaded)
+            {
+                $('#button_run').click();
+                window.parent.postMessage({ msg: 'render_run_state', value: is_running()},"*");
+            }
+        }
+        else if(event.data == "toggle_audio()")
+        {
+            var context = get_audio_context();
+            if (context !=null)
+            {
+                if(context.state == 'suspended') {
+                    context.resume();
+                }
+                else if (context.state == 'running')
+                {
+                    context.suspend();
+                }
+            }
+            window.parent.postMessage({ msg: 'render_current_audio_state', 
+                value: audio_context == null ? 'suspended' : audio_context.state },"*");
+        }
+    }); 
+    
     dark_switch = document.getElementById('dark_switch');
 
 

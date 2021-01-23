@@ -9,109 +9,36 @@
 
 #include "TAPFile.h"
 
-const u8 TAPFile::magicBytes[] = {
-    0x43, 0x36, 0x34, 0x2D, 0x54, 0x41, 0x50, 0x45, 0x2D, 0x52, 0x41, 0x57 };
-
-TAPFile::TAPFile()
+bool
+TAPFile::isCompatibleName(const std::string &name)
 {
-    dealloc();
-}
-
-TAPFile *
-TAPFile::makeWithBuffer(const u8 *buffer, size_t length)
-{
-    TAPFile *tape = new TAPFile();
-    
-    if (!tape->readFromBuffer(buffer, length)) {
-        delete tape;
-        return NULL;
-    }
-    
-    return tape;
-}
-
-TAPFile *
-TAPFile::makeWithFile(const char *filename)
-{
-    TAPFile *tape = new TAPFile();
-    
-    if (!tape->readFromFile(filename)) {
-        delete tape;
-        return NULL;
-    }
-    
-    return tape;
+    auto s = suffix(name);
+    return s == "tap" || s == "TAP";
 }
 
 bool
-TAPFile::isTAPBuffer(const u8 *buffer, size_t length)
+TAPFile::isCompatibleStream(std::istream &stream)
 {
-    if (length < 0x15) return false;
-    return matchingBufferHeader(buffer, magicBytes, sizeof(magicBytes));
-    // return checkBufferHeader(buffer, length, magicBytes);
+    const u8 magicBytes[] = {
+        0x43, 0x36, 0x34, 0x2D, 0x54, 0x41, 0x50, 0x45, 0x2D, 0x52, 0x41, 0x57 };
+    
+    if (streamLength(stream) < 0x15) return false;
+    return matchingStreamHeader(stream, magicBytes, sizeof(magicBytes));
 }
 
-bool
-TAPFile::isTAPFile(const char *filename)
+PETName<16>
+TAPFile::getName() const
 {
-    assert (filename != NULL);
-    
-    if (!checkFileSuffix(filename, ".TAP") && !checkFileSuffix(filename, ".tap") &&
-        !checkFileSuffix(filename, ".T64") && !checkFileSuffix(filename, ".t64"))
-        return false;
-    
-    if (!checkFileSize(filename, 0x15, -1))
-        return false;
-    
-    if (!matchingFileHeader(filename, magicBytes, sizeof(magicBytes)))
-        return false;
-    
-    return true;
+    return PETName<16>(data + 8);
 }
 
 void
-TAPFile::dealloc()
+TAPFile::repair()
 {
-    fp = -1;
-}
-
-const char *
-TAPFile::getName()
-{
-    unsigned i;
+    usize length = LO_LO_HI_HI(data[0x10], data[0x11], data[0x12], data[0x13]);
+    usize header = 0x14;
     
-    for (i = 0; i < 17; i++) {
-        name[i] = data[0x08+i];
+    if (length + header != size) {
+        warn("TAP: Expected %lu bytes, found %lu\n", length + header, size);
     }
-    name[i] = 0x00;
-    return name;
 }
-
-bool
-TAPFile::readFromBuffer(const u8 *buffer, size_t length)
-{
-    if (!AnyFile::readFromBuffer(buffer, length))
-        return false;
-    
-    u32 l = LO_LO_HI_HI(data[0x10], data[0x11], data[0x12], data[0x13]);
-    if (l + 0x14 /* Header */ != size) {
-        warn("readFromBuffer: Expected %d bytes, found %lu\n", l, size - 0x14);
-    }
-        
-    return true;
-}
-
-/*
-const char *
-TAPFile::description1()
-{
-    switch (TAPversion()) {
-            
-        case 0:  sprintf(str, "TAP type 0 (Original pulse layout)"); break;
-        case 1:  sprintf(str, "TAP type 1 (Advanced pulse layout)"); break;
-        default: sprintf(str, "TAP type %d (Unknown)", TAPversion());
-    }
-    
-    return str;
-}
-*/

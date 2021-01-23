@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _ZAXXON_H
-#define _ZAXXON_H
+#pragma once
 
 #include "Cartridge.h"
 
@@ -17,8 +16,8 @@ class Zaxxon : public Cartridge {
 public:
     
     Zaxxon(C64 &ref) : Cartridge(ref) { };
-    const char *getDescription() override { return "Zaxxon"; }
-    CartridgeType getCartridgeType() override { return CRT_ZAXXON; }
+    const char *getDescription() const override { return "Zaxxon"; }
+    CartridgeType getCartridgeType() const override { return CRT_ZAXXON; }
 
 private:
     
@@ -32,7 +31,5 @@ private:
 public:
         
     u8 peekRomL(u16 addr) override;
-    u8 spypeekRomL(u16 addr) override;
+    u8 spypeekRomL(u16 addr) const override;
 };
-
-#endif

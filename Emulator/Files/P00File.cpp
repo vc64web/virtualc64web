@@ -8,157 +8,102 @@
 // -----------------------------------------------------------------------------
 
 #include "P00File.h"
-#include <new>
+#include "FSDevice.h"
 
+/*
 const u8
 P00File::magicBytes[] = { 0x43, 0x36, 0x34, 0x46, 0x69, 0x6C, 0x65 };
+*/
 
 bool
-P00File::isP00Buffer(const u8 *buffer, size_t length)
+P00File::isCompatibleName(const std::string &name)
 {
-    if (length < 0x1A) return false;
-    return matchingBufferHeader(buffer, magicBytes, sizeof(magicBytes));
+    auto s = suffix(name);
+    return s == "p00" || s == "P00";
 }
 
 bool
-P00File::isP00File(const char *filename)
+P00File::isCompatibleStream(std::istream &stream)
 {
-    assert (filename != NULL);
-    
-    if (!checkFileSize(filename, 0x1A, -1))
-        return false;
-    
-    if (!matchingFileHeader(filename, magicBytes, sizeof(magicBytes)))
-        return false;
-    
-    return true;
+    const u8 magicBytes[] = { 0x43, 0x36, 0x34, 0x46, 0x69, 0x6C, 0x65 };
+
+    if (streamLength(stream) < 0x1A) return false;
+    return matchingStreamHeader(stream, magicBytes, sizeof(magicBytes));
 }
 
 P00File *
-P00File::makeWithBuffer(const u8 *buffer, size_t length)
+P00File::makeWithFileSystem(FSDevice &fs)
 {
-    P00File *archive = new P00File();
-    
-    if (!archive->readFromBuffer(buffer, length)) {
-        delete archive;
-        return NULL;
-    }
-    
-    return archive;
-}
+    unsigned item = 0;
+    usize itemSize = fs.fileSize(item);
 
-P00File *
-P00File::makeWithFile(const char *filename)
-{
-    P00File *archive = new P00File();
-    
-    if (!archive->readFromFile(filename)) {
-        delete archive;
-        return NULL;
-    }
-    
-    return archive;
-}
+    debug(FILE_DEBUG, "Creating P00 archive...\n");
 
-P00File *
-P00File::makeWithAnyArchive(AnyArchive *otherArchive)
-{
-    if (otherArchive == NULL || otherArchive->numberOfItems() == 0)
-        return NULL;
-    
-    otherArchive->selectItem(0);
-    
-    P00File *archive = new P00File();
-    debug(FILE_DEBUG, "Creating P00 archive from %s archive...\n", otherArchive->typeString());
-    
-    // Determine file size and allocate memory
-    try {
+    // Only proceed if the requested file exists
+    if (fs.numFiles() <= item) throw VC64Error(ERROR_FS_HAS_NO_FILES);
         
-        archive->size = 8 + 17 + 1 + 2 + otherArchive->getSizeOfItem();
-        archive->data = new u8[archive->size];
-    }
-    catch (std::bad_alloc&) {
-        
-        warn("Failed to allocate %zu bytes of memory\n", archive->size);
-        delete archive;
-        return NULL;
-    }
+    // Create new archive
+    usize p00Size = itemSize + 8 + 17 + 1;
+    P00File *p00 = new P00File(p00Size);
+            
+    // Write magic bytes (8 bytes)
+    u8 *p = p00->data;
+    strcpy((char *)p, "C64File");
+    p += 8;
     
-    // Magic bytes (8 bytes)
-    u8 *ptr = archive->data;
-    strcpy((char *)ptr, "C64File");
-    ptr += 8;
+    // Write name in PET format (16 bytes)
+    fs.fileName(item).write(p);
+    p += 16;
     
-    // Name in PET format (17 bytes)
-    strncpy((char *)ptr, (char *)otherArchive->getName(), 17);
-    for (unsigned i = 0; i < 17; i++, ptr++)
-        *ptr = ascii2pet(*ptr);
-    
+    // Always 0 (1 byte)
+    *p++ = 0;
+
     // Record size (applies to REL files, only) (1 byte)
-    *ptr++ = 0;
+    *p++ = 0;
+        
+    // Add data
+    fs.copyFile(item, p, itemSize);
+        
+    return p00;
+}
     
-    // Load address (2 bytes)
-    *ptr++ = LO_BYTE(otherArchive->getDestinationAddrOfItem());
-    *ptr++ = HI_BYTE(otherArchive->getDestinationAddrOfItem());
-    
-    // File data
-    int byte;
-    otherArchive->selectItem(0);
-    while ((byte = otherArchive->readItem()) != EOF) {
-        *ptr++ = (u8)byte;
-    }
-    
-    return archive;
+PETName<16>
+P00File::getName() const
+{
+    return PETName<16>(data + 8, 0x00);
 }
 
-const char *
-P00File::getName()
+PETName<16>
+P00File::collectionName()
 {
-    unsigned i;
-    
-    for (i = 0; i < 17; i++) {
-        name[i] = data[0x08+i];
-    }
-    name[i] = 0x00;
-    return name;
+    return PETName<16>(data + 8, 0x00);
 }
 
-void
-P00File::selectItem(unsigned item)
+u64
+P00File::collectionCount() const
 {
-    if (item == 0) {
-        iFp = 0x1C;
-        iEof = size;
-    } else {
-        iFp = -1;
-    }
+    return 1;
 }
 
-const char *
-P00File::getNameOfItem()
+PETName<16>
+P00File::itemName(unsigned nr) const
 {
-    unsigned i;
-    
-    for (i = 0; i < 17; i++) {
-        name[i] = data[0x08+i];
-    }
-    name[i] = 0x00;
-    return name;
+    assert(nr == 0);
+    u8 padChar = 0x00;
+    return PETName<16>(data + 0x08, padChar);
 }
 
-void
-P00File::seekItem(long offset)
+u64
+P00File::itemSize(unsigned nr) const
 {
-    assert(iFp != -1);
-    
-    iFp = 0x1C + offset;
-    
-    if (iFp >= (long)size)
-        iFp = -1;
+    assert(nr == 0);
+    return size - 0x1A;
 }
 
-u16 
-P00File::getDestinationAddrOfItem()
+u8
+P00File::readByte(unsigned nr, u64 pos) const
 {
-    return LO_HI(data[0x1A], data[0x1B]);
+    assert(nr == 0);
+    assert(pos < itemSize(nr));
+    return data[0x1A + pos];
 }

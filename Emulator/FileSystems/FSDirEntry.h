@@ -7,10 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _FS_DIR_ENTRY_H
-#define _FS_DIR_ENTRY_H
-
-#include "FSObjects.h"
+#pragma once
 
 struct FSDirEntry
 {
@@ -28,20 +25,24 @@ struct FSDirEntry
     u8 fileSizeHi;        // $1F
 
     // Initializes this entry
-    void init(FSName name, BlockRef ref, size_t numBlocks);
-    void init(const char *name, BlockRef ref, size_t numBlocks);
+    void init(PETName<16> name, TSLink ref, usize numBlocks);
+    void init(const char *name, TSLink ref, usize numBlocks);
 
-    // Checks if this directory entry if empty
-    bool isEmpty(); 
-    
-    // Returns the file type as a string
-    const char *typeString(); 
+    // Checks whether this entry if empty
+    bool isEmpty() const; 
     
     // Returns the name of this file
-    FSName getName() { return FSName(fileName); }
+    PETName<16> getName() { return PETName<16>(fileName); }
+        
+    // Returns the file type of this file
+    FSFileType getFileType() const;
     
-    // Returns true if this file does not appear in a regular directory listing
-    bool isHidden();
-};
+    // Returns the file type as a string
+    const char *typeString() const;
 
-#endif
+    // Returns true if this file does not appear in a regular directory listing
+    bool isHidden() const;
+    
+    // Returns the link to the first data block
+    TSLink firstBlock() const { return TSLink{firstDataTrack,firstDataSector}; }
+};

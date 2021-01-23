@@ -28,28 +28,32 @@ NeosMouse::_reset()
 }
 
 u8
-NeosMouse::readPotX()
+NeosMouse::readPotX() const
 {
     return rightButton ? 0xFF : 0x00;
 }
 
 u8
-NeosMouse::readPotY()
+NeosMouse::readPotY() const
 {
     return 0xFF;
 }
 
-u8
-NeosMouse::readControlPort(i64 targetX, i64 targetY)
+void
+NeosMouse::updateControlPort(i64 targetX, i64 targetY)
 {
-    u8 result = leftButton ? 0xE0 : 0xF0;
-    
     // Check for time out
     if (state != 0 && cpu.cycle > (triggerCycle + 232) /* from VICE */) {
         state = 0;
         latchPosition(targetX, targetY);
     }
-    
+}
+
+u8
+NeosMouse::readControlPort() const
+{
+    u8 result = leftButton ? 0xE0 : 0xF0;
+
     switch (state) {
             
         case 0: // Transmit X_HIGH
@@ -75,35 +79,17 @@ NeosMouse::readControlPort(i64 targetX, i64 targetY)
     return result;
 }
 
-/*
 void
-NeosMouse::execute(i64 targetX, i64 targetY)
-{
-    targetX /= dividerX;
-    targetY /= dividerY;
-    
-    // Jump directly to target coordinates if they are more than 8 shifts away.
-    if (abs(targetX - mouseX) / 8 > shiftX) mouseX = targetX;
-    if (abs(targetY - mouseY) / 8 > shiftY) mouseY = targetY;
-    
-    // Move mouse coordinates towards target coordinates
-    if (targetX < mouseX) mouseX -= MIN(mouseX - targetX, shiftX);
-    else if (targetX > mouseX) mouseX += MIN(targetX - mouseX, shiftX);
-    if (targetY < mouseY) mouseY -= MIN(mouseY - targetY, shiftY);
-    else if (targetY > mouseY) mouseY += MIN(targetY - mouseY, shiftY);
-}
-*/
-
-void
-NeosMouse::risingStrobe(int portNr, i64 targetX, i64 targetY)
+NeosMouse::risingStrobe(i64 targetX, i64 targetY)
 {
     // Perform rising edge state changes
     switch (state) {
-        case 0:  /* X_HIGH -> X_LOW */
+            
+        case 0:  // X_HIGH -> X_LOW
             state = 1;
             break;
             
-        case 2: /* Y_HIGH -> Y_LOW */
+        case 2:  // Y_HIGH -> Y_LOW
             state = 3;
             break;
     }
@@ -113,15 +99,16 @@ NeosMouse::risingStrobe(int portNr, i64 targetX, i64 targetY)
 }
 
 void
-NeosMouse::fallingStrobe(int portNr, i64 targetX, i64 targetY)
+NeosMouse::fallingStrobe(i64 targetX, i64 targetY)
 {
     // Perform falling edge state changes
     switch (state) {
-        case 1:  /* X_LOW -> Y_HIGH */
+            
+        case 1:  // X_LOW -> Y_HIGH
             state = 2;
             break;
             
-        case 3: /* Y_LOW -> X_HIGH */
+        case 3:  // Y_LOW -> X_HIGH
             state = 0;
             latchPosition(targetX, targetY);
             break;

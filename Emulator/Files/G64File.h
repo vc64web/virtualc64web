@@ -7,79 +7,61 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _G64_FILE_H
-#define _G64_FILE_H
+#pragma once
 
-#include "AnyDisk.h"
+#include "AnyFile.h"
 #include "Disk.h"
 
-class G64File : public AnyDisk {
+class G64File : public AnyFile {
 
-    // Header signature
-    static const u8 magicBytes[];
-    
-    // Number of the currently selected halftrack (0 = nothing selected)
-    Halftrack selectedHalftrack = 0;
-    
-    
-    //
-    // Class functions
-    //
-    
 public:
 
-    static bool isG64Buffer(const u8 *buffer, size_t length);
-    static bool isG64File(const char *filename);
+    //
+    // Class methods
+    //
+
+    static bool isCompatibleName(const std::string &name);
+    static bool isCompatibleStream(std::istream &stream);
     
+    static G64File *makeWithDisk(Disk &disk) throws;
+    static G64File *makeWithDisk(Disk &disk, ErrorCode *err);
+
     
     //
     // Initializing
     //
     
+    G64File() { };
+    G64File(usize capacity);
+    
+    
+    //
+    // Methods from C64Object
+    //
+    
+    const char *getDescription() const override { return "G64File"; }
+
+    
+    //
+    // Methods from AnyFile
+    //
+    
+    FileType type() const override { return FILETYPE_G64; }
+        
+  
+    //
+    // Reading data from a track
+    //
+
 public:
     
-    G64File() { };
-    G64File(size_t capacity);
-    const char *getDescription() override { return "G64File"; }
-
-    static G64File *makeWithBuffer(const u8 *buffer, size_t length);
-    static G64File *makeWithFile(const char *path);
-    static G64File *makeWithDisk(Disk *disk);
-    
-    
-    //
-    // Methods from AnyC64File
-    //
-    
-    FileType type() override { return FILETYPE_G64; }
-    bool hasSameType(const char *path) override { return G64File::isG64File(path); }
-    
-    
-    //
-    // Methods from AnyArchive (this API is not supported by the G64 format)
-    //
-    
-    int numberOfItems() override { assert(false); return 0; };
-    size_t getSizeOfItem() override { assert(false); return 0; }
-    const char *getNameOfItem() override { assert(false); return ""; }
-    const char *getTypeOfItem() override { assert(false); return ""; }
-    u16 getDestinationAddrOfItem() override { assert(false); return 0; }
-    void selectItem(unsigned n) override { assert(false); }
-
-    
-    //
-    // Methods from AnyDisk
-    //
-    
-    int numberOfHalftracks() override { return 84; }
-    void selectHalftrack(Halftrack ht) override;
-    size_t getSizeOfHalftrack() override;
-    void seekHalftrack(long offset) override;
+    // Returns the size of a certain haltrack in bytes
+    usize getSizeOfHalftrack(Halftrack ht) const;
+        
+    // Copies a certain track into a buffer
+    void copyHalftrack(Halftrack ht, u8 *buf) const;
     
 private:
     
-    long getStartOfHalftrack(Halftrack ht);
+    usize getStartOfHalftrack(Halftrack ht) const;
 };
-
-#endif
-

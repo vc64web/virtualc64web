@@ -7,10 +7,9 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _FS_BLOCK_H
-#define _FS_BLOCK_H
+#pragma once
 
-#include "FSObjects.h"
+#include "PETName.h"
 
 class FSBlock : C64Object {
     
@@ -28,6 +27,9 @@ public:
     // The actual block data
     u8 data[256];
     
+    // Error code (imported from D64 files, 1 = No error)
+    u8 errorCode = 1;
+    
     
     //
     // Constructing
@@ -37,7 +39,7 @@ public:
     
     FSBlock(FSDevice& _device, u32 _nr);
     virtual ~FSBlock() { }
-    const char *getDescription() override { return "FSBlock"; }
+    const char *getDescription() const override { return "FSBlock"; }
 
     
     //
@@ -47,16 +49,19 @@ public:
 public:
     
     // Returns the type of this block
-    FSBlockType type();
+    FSBlockType type() const;
     
+    // Returns the track / sector link stored in the fist two bytes
+    TSLink tsLink() { return TSLink { data[0], data[1] }; }
 
+    
     //
     // Formatting
     //
     
     // Writes the Block Availability Map (BAM)
-    void writeBAM(const char *name);
-    void writeBAM(FSName &name);
+    void writeBAM(const char *name = "");
+    void writeBAM(PETName<16> &name);
 
     
     //
@@ -66,7 +71,7 @@ public:
 public:
     
     // Prints some debug information for this block
-    void dump();
+    void dump() const;
     
     
     //
@@ -76,13 +81,13 @@ public:
 public:
     
     // Returns the role of a certain byte in this block
-    FSItemType itemType(u32 byte);
+    FSUsage itemType(u32 byte) const;
 
     // Checks the integrity of a certain byte in this block
-    FSError check(u32 byte, u8 *expected, bool strict);
+    ErrorCode check(u32 byte, u8 *expected, bool strict) const;
 
     // Scans the block data and returns the number of errors
-    unsigned check(bool strict);
+    unsigned check(bool strict) const;
 
       
     //
@@ -109,13 +114,13 @@ typedef FSBlock* BlockPtr;
 typedef FSBlock* BlockPtr;
 
 #define EXPECT_BYTE(exp) { \
-if (value != (exp)) { *expected = (exp); return FS_EXPECTED; } }
+if (value != (exp)) { *expected = (exp); return ERROR_FS_EXPECTED_VAL; } }
 
 #define EXPECT_MIN(min) { \
-if (value < (min)) { *expected = (min); return FS_EXPECTED_MIN; } }
+if (value < (min)) { *expected = (min); return ERROR_FS_EXPECTED_MIN; } }
 
 #define EXPECT_MAX(max) { \
-if (value > (max)) { *expected = (max); return FS_EXPECTED_MAX; } }
+if (value > (max)) { *expected = (max); return ERROR_FS_EXPECTED_MAX; } }
 
 #define EXPECT_RANGE(min,max) { \
 EXPECT_MIN(min); EXPECT_MAX(max) }
@@ -124,7 +129,5 @@ EXPECT_MIN(min); EXPECT_MAX(max) }
 EXPECT_RANGE(0, device.layout.numTracks() + 1)
 
 #define EXPECT_SECTOR_REF(t) { \
-if (u32 num = device.layout.numSectors(t)) EXPECT_RANGE(0,num) }
-// if (u32 num = device.layout.numSectors(t)) EXPECT_RANGE(0,num) else if (strict) EXPECT_BYTE(0) }
-
-#endif
+if (u32 num = device.layout.numSectors(t)) \
+EXPECT_RANGE(0,num) else if (strict) EXPECT_MAX(254) }

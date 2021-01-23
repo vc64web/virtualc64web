@@ -7,60 +7,44 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _P00_FILE_H
-#define _P00_FILE_H
+#pragma once
 
-#include "AnyArchive.h"
+#include "AnyCollection.h"
 
-class P00File : public AnyArchive {
+class P00File : public AnyCollection {
 
-    // Header signature
-    static const u8 magicBytes[];
-    
-    
-    //
-    // Class methods
-    //
-    
 public:
 
-    // Returns true iff buffer contains a P00 file
-    static bool isP00Buffer(const u8 *buffer, size_t length);
+    static bool isCompatibleName(const std::string &name);
+    static bool isCompatibleStream(std::istream &stream);
     
-    // Returns true iff the specified file is a P00 file
-    static bool isP00File(const char *filename);
+    static P00File *makeWithFileSystem(class FSDevice &fs);
     
-    
+    P00File() : AnyCollection() { }
+    P00File(usize capacity) : AnyCollection(capacity) { }
+
     //
-    // Constructing
+    // Methods from C64Object
     //
-    
-    static P00File *makeWithBuffer(const u8 *buffer, size_t length);
-    static P00File *makeWithFile(const char *path);
-    static P00File *makeWithAnyArchive(AnyArchive *otherArchive);
-    
-    const char *getDescription() override { return "P00File"; }
+
+    const char *getDescription() const override { return "P00File"; }
 
 
     //
     // Methods from AnyFile
     //
     
-    const char *getName() override;
-    FileType type() override { return FILETYPE_P00; }
-    bool hasSameType(const char *filename) override { return isP00File(filename); }
-    
-    
+    FileType type() const override { return FILETYPE_P00; }
+    PETName<16> getName() const override;
+
+
     //
-    // Methods from AnyArchive
+    // Methods from AnyCollection
     //
-    
-    int numberOfItems() override { return 1; }
-    void selectItem(unsigned item) override;
-    const char *getTypeOfItem() override { return "PRG"; }
-    const char *getNameOfItem() override;
-    size_t getSizeOfItem() override { return size - 0x1C; }
-    void seekItem(long offset) override;
-    u16 getDestinationAddrOfItem() override;
+
+    PETName<16> collectionName() override;
+    u64 collectionCount() const override;
+    PETName<16> itemName(unsigned nr) const override;
+    u64 itemSize(unsigned nr) const override;
+    u8 readByte(unsigned nr, u64 pos) const override;
 };
-#endif

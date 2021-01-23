@@ -7,22 +7,53 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-// This file must conform to standard ANSI-C to be compatible with Swift.
+#pragma once
 
-#ifndef MOUSE_TYPES_H
-#define MOUSE_TYPES_H
+#include "MousePublicTypes.h"
+#include "Reflection.h"
 
-enum_long(MouseModel)
-{
-    MOUSE1350 = 0,
-    MOUSE1351,
-    NEOSMOUSE
+//
+// Reflection APIs
+//
+
+struct MouseModelEnum : Reflection<MouseModelEnum, MouseModel> {
+    
+    static bool isValid(long value)
+    {
+        return (unsigned long)value < MOUSE_COUNT;
+    }
+    
+    static const char *prefix() { return "DISK_TYPE"; }
+    static const char *key(MouseModel value)
+    {
+        switch (value) {
+                
+            case MOUSE_C1350:  return "C1350";
+            case MOUSE_C1351:  return "C1351";
+            case MOUSE_NEOS:   return "NEOS";
+            case MOUSE_COUNT:  return "???";
+        }
+        return "???";
+    }
 };
 
-typedef struct
-{
-    MouseModel model;
-}
-MouseConfig;
-
-#endif
+struct PortIdEnum : Reflection<PortIdEnum, PortId> {
+    
+    static bool isValid(long value)
+    {
+        return (unsigned long)value < PORT_COUNT;
+    }
+    
+    static const char *prefix() { return "PORT"; }
+    static const char *key(PortId value)
+    {
+        switch (value) {
+                
+            case PORT_NONE:   return "NONE";
+            case PORT_ONE:    return "ONE";
+            case PORT_TWO:    return "TWO";
+            case PORT_COUNT:  return "???";
+        }
+        return "???";
+    }
+};

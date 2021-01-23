@@ -21,34 +21,34 @@
 VICII::VICII(C64 &ref) : C64Component(ref)
 {    
     config.grayDotBug = true;
-    config.palette = COLOR_PALETTE;
+    config.palette = PALETTE_COLOR;
     config.cutLayers = 0xFF;
     config.cutOpacity = 0xFF;
     config.dmaOpacity = 0x80;
     config.dmaDebug = false;
-    config.dmaChannel[R_ACCESS] = true;
-    config.dmaChannel[I_ACCESS] = true;
-    config.dmaChannel[C_ACCESS] = true;
-    config.dmaChannel[G_ACCESS] = true;
-    config.dmaChannel[P_ACCESS] = true;
-    config.dmaChannel[S_ACCESS] = true;
+    config.dmaChannel[MEMACCESS_R] = true;
+    config.dmaChannel[MEMACCESS_I] = true;
+    config.dmaChannel[MEMACCESS_C] = true;
+    config.dmaChannel[MEMACCESS_G] = true;
+    config.dmaChannel[MEMACCESS_P] = true;
+    config.dmaChannel[MEMACCESS_S] = true;
 
     // Assign default DMA debugging colors
-    setDmaDebugColor(R_ACCESS, RgbColor(1.0, 0.0, 0.0));
-    setDmaDebugColor(I_ACCESS, RgbColor(1.0, 0.8, 0.0));
-    setDmaDebugColor(C_ACCESS, RgbColor(1.0, 1.0, 0.0));
-    setDmaDebugColor(G_ACCESS, RgbColor(0.0, 1.0, 1.0));
-    setDmaDebugColor(P_ACCESS, RgbColor(0.0, 1.0, 0.0));
-    setDmaDebugColor(S_ACCESS, RgbColor(0.0, 0.5, 1.0));
+    setDmaDebugColor(MEMACCESS_R, RgbColor(1.0, 0.0, 0.0));
+    setDmaDebugColor(MEMACCESS_I, RgbColor(1.0, 0.8, 0.0));
+    setDmaDebugColor(MEMACCESS_C, RgbColor(1.0, 1.0, 0.0));
+    setDmaDebugColor(MEMACCESS_G, RgbColor(0.0, 1.0, 1.0));
+    setDmaDebugColor(MEMACCESS_P, RgbColor(0.0, 1.0, 0.0));
+    setDmaDebugColor(MEMACCESS_S, RgbColor(0.0, 0.5, 1.0));
     
     // Assign reference clock to all time delayed variables
     baLine.setClock(&cpu.cycle);
     gAccessResult.setClock(&cpu.cycle);
     
     // Create random background noise pattern
-    const size_t noiseSize = 2 * 512 * 512;
+    const usize noiseSize = 2 * 512 * 512;
     noise = new u32[noiseSize];
-    for (size_t i = 0; i < noiseSize; i++) {
+    for (usize i = 0; i < noiseSize; i++) {
         noise[i] = rand() % 2 ? 0xFF000000 : 0xFFFFFFFF;
     }
 }
@@ -56,7 +56,7 @@ VICII::VICII(C64 &ref) : C64Component(ref)
 void
 VICII::_initialize()
 {
-    setRevision(PAL_8565);
+    setRevision(VICREV_PAL_8565);
     
     config.hideSprites = false;
     config.checkSBCollisions = true;
@@ -138,7 +138,7 @@ VICII::resetDmaTexture(int nr)
 }
 
 long
-VICII::getConfigItem(ConfigOption option)
+VICII::getConfigItem(Option option) const
 {
     switch (option) {
             
@@ -147,18 +147,18 @@ VICII::getConfigItem(ConfigOption option)
         case OPT_GRAY_DOT_BUG:     return config.grayDotBug;
         case OPT_GLUE_LOGIC:       return config.glueLogic;
         case OPT_DMA_DEBUG:        return config.dmaDebug;
-        case OPT_DMA_CHANNEL_R:    return config.dmaChannel[R_ACCESS];
-        case OPT_DMA_CHANNEL_I:    return config.dmaChannel[I_ACCESS];
-        case OPT_DMA_CHANNEL_C:    return config.dmaChannel[C_ACCESS];
-        case OPT_DMA_CHANNEL_G:    return config.dmaChannel[G_ACCESS];
-        case OPT_DMA_CHANNEL_P:    return config.dmaChannel[P_ACCESS];
-        case OPT_DMA_CHANNEL_S:    return config.dmaChannel[S_ACCESS];
-        case OPT_DMA_COLOR_R:      return config.dmaColor[R_ACCESS];
-        case OPT_DMA_COLOR_I:      return config.dmaColor[I_ACCESS];
-        case OPT_DMA_COLOR_C:      return config.dmaColor[C_ACCESS];
-        case OPT_DMA_COLOR_G:      return config.dmaColor[G_ACCESS];
-        case OPT_DMA_COLOR_P:      return config.dmaColor[P_ACCESS];
-        case OPT_DMA_COLOR_S:      return config.dmaColor[S_ACCESS];
+        case OPT_DMA_CHANNEL_R:    return config.dmaChannel[MEMACCESS_R];
+        case OPT_DMA_CHANNEL_I:    return config.dmaChannel[MEMACCESS_I];
+        case OPT_DMA_CHANNEL_C:    return config.dmaChannel[MEMACCESS_C];
+        case OPT_DMA_CHANNEL_G:    return config.dmaChannel[MEMACCESS_G];
+        case OPT_DMA_CHANNEL_P:    return config.dmaChannel[MEMACCESS_P];
+        case OPT_DMA_CHANNEL_S:    return config.dmaChannel[MEMACCESS_S];
+        case OPT_DMA_COLOR_R:      return config.dmaColor[MEMACCESS_R];
+        case OPT_DMA_COLOR_I:      return config.dmaColor[MEMACCESS_I];
+        case OPT_DMA_COLOR_C:      return config.dmaColor[MEMACCESS_C];
+        case OPT_DMA_COLOR_G:      return config.dmaColor[MEMACCESS_G];
+        case OPT_DMA_COLOR_P:      return config.dmaColor[MEMACCESS_P];
+        case OPT_DMA_COLOR_S:      return config.dmaColor[MEMACCESS_S];
         case OPT_DMA_DISPLAY_MODE: return config.dmaDisplayMode;
         case OPT_DMA_OPACITY:      return config.dmaOpacity;
         case OPT_HIDE_SPRITES:     return config.hideSprites;
@@ -167,24 +167,21 @@ VICII::getConfigItem(ConfigOption option)
         case OPT_SS_COLLISIONS:    return config.checkSSCollisions;
         case OPT_SB_COLLISIONS:    return config.checkSBCollisions;
 
-        default: assert(false);
+        default:
+            assert(false);
+            return 0;
     }
 }
 
 bool
-VICII::setConfigItem(ConfigOption option, long value)
+VICII::setConfigItem(Option option, long value)
 {
     switch (option) {
             
         case OPT_VIC_REVISION:
             
-            if (!isVICRevision(value)) {
-                warn("Invalid VIC revision: %ld\n", value);
-                return false;
-            }
-            if (config.revision == value) {
-                return false;
-            }
+            if (!VICRevisionEnum::verify(value)) return false;
+            if (config.revision == value) return false;
             
             suspend();
             config.revision = (VICRevision)value;
@@ -194,13 +191,8 @@ VICII::setConfigItem(ConfigOption option, long value)
             
         case OPT_PALETTE:
             
-            if (!isPalette(value)) {
-                warn("Invalid color palette: %ld\n", value);
-                return false;
-            }
-            if (config.palette == value) {
-                return false;
-            }
+            if (!PaletteEnum::verify(value)) return false;
+            if (config.palette == value) return false;
             
             suspend();
             config.palette = (Palette)value;
@@ -232,63 +224,63 @@ VICII::setConfigItem(ConfigOption option, long value)
             
         case OPT_DMA_CHANNEL_R:
             
-            config.dmaChannel[R_ACCESS] = value;
+            config.dmaChannel[MEMACCESS_R] = value;
             return true;
             
         case OPT_DMA_CHANNEL_I:
             
-            config.dmaChannel[I_ACCESS] = value;
+            config.dmaChannel[MEMACCESS_I] = value;
             return true;
             
         case OPT_DMA_CHANNEL_C:
             
-            config.dmaChannel[C_ACCESS] = value;
+            config.dmaChannel[MEMACCESS_C] = value;
             return true;
             
         case OPT_DMA_CHANNEL_G:
             
-            config.dmaChannel[G_ACCESS] = value;
+            config.dmaChannel[MEMACCESS_G] = value;
             return true;
             
         case OPT_DMA_CHANNEL_P:
             
-            config.dmaChannel[P_ACCESS] = value;
+            config.dmaChannel[MEMACCESS_P] = value;
             return true;
             
         case OPT_DMA_CHANNEL_S:
             
-            config.dmaChannel[S_ACCESS] = value;
+            config.dmaChannel[MEMACCESS_S] = value;
             return true;
 
         case OPT_DMA_COLOR_R:
             
-            setDmaDebugColor(R_ACCESS, GpuColor((u32)value));
-            config.dmaColor[R_ACCESS] = (u32)value;
+            setDmaDebugColor(MEMACCESS_R, GpuColor((u32)value));
+            config.dmaColor[MEMACCESS_R] = (u32)value;
             return true;
             
         case OPT_DMA_COLOR_I:
             
-            config.dmaColor[I_ACCESS] = (u32)value;
+            config.dmaColor[MEMACCESS_I] = (u32)value;
             return true;
 
         case OPT_DMA_COLOR_C:
             
-            config.dmaColor[C_ACCESS] = (u32)value;
+            config.dmaColor[MEMACCESS_C] = (u32)value;
             return true;
 
         case OPT_DMA_COLOR_G:
             
-            config.dmaColor[G_ACCESS] = (u32)value;
+            config.dmaColor[MEMACCESS_G] = (u32)value;
             return true;
 
         case OPT_DMA_COLOR_P:
             
-            config.dmaColor[P_ACCESS] = (u32)value;
+            config.dmaColor[MEMACCESS_P] = (u32)value;
             return true;
 
         case OPT_DMA_COLOR_S:
             
-            config.dmaColor[S_ACCESS] = (u32)value;
+            config.dmaColor[MEMACCESS_S] = (u32)value;
             return true;
             
         case OPT_DMA_OPACITY:
@@ -323,13 +315,8 @@ VICII::setConfigItem(ConfigOption option, long value)
 
         case OPT_GLUE_LOGIC:
             
-            if (!isGlueLogic(value)) {
-                warn("Invalid glue logic type: %ld\n", value);
-                return false;
-            }
-            if (config.glueLogic == value) {
-                return false;
-            }
+            if (!GlueLogicEnum::verify(value)) return false;
+            if (config.glueLogic == value) return false;
             
             config.glueLogic = (GlueLogic)value;
             return true;
@@ -342,9 +329,10 @@ VICII::setConfigItem(ConfigOption option, long value)
 void
 VICII::setRevision(VICRevision revision)
 {
-    trace(VIC_DEBUG, "setRevision(%ld)\n", (long)revision);
+    assert_enum(VICRevision, revision);
     
-    assert(isVICRevision(revision));
+    debug(VIC_DEBUG, "setRevision(%ld)\n", (long)revision);
+    
     config.revision = revision;
     
     updatePalette();
@@ -356,9 +344,9 @@ VICII::setRevision(VICRevision revision)
 }
 
 void
-VICII::setDmaDebugColor(MemAccessType type, GpuColor color)
+VICII::setDmaDebugColor(MemAccess type, GpuColor color)
 {
-    assert(isMemAccessType(type));
+    assert_enum(MemAccess, type);
     
     config.dmaColor[type] = color.rawValue;
         
@@ -370,7 +358,7 @@ VICII::setDmaDebugColor(MemAccessType type, GpuColor color)
 }
 
 void
-VICII::setDmaDebugColor(MemAccessType type, RgbColor color)
+VICII::setDmaDebugColor(MemAccess type, RgbColor color)
 {
     setDmaDebugColor(type, GpuColor(color));
 }
@@ -443,18 +431,18 @@ VICII::_inspect()
 }
 
 void
-VICII::_dumpConfig()
+VICII::_dumpConfig() const
 {
-    msg("    Chip model : %lld (%s)\n", config.revision, vicRevisionName(config.revision));
+    msg("    Chip model : %lld (%s)\n", config.revision, VICRevisionEnum::key(config.revision));
     msg("  Gray dot bug : %s\n", config.grayDotBug ? "yes" : "no");
     msg("           PAL : %s\n", isPAL() ? "yes" : "no");
     msg("          NTSC : %s\n", isNTSC() ? "yes" : "no");
     msg("is656x, is856x : %d %d\n", is656x(), is856x());
-    msg("    Glue logic : %lld (%s)\n", config.glueLogic, glueLogicName(config.glueLogic));
+    msg("    Glue logic : %lld (%s)\n", config.glueLogic, GlueLogicEnum::key(config.glueLogic));
 }
 
 void 
-VICII::_dump()
+VICII::_dump() const
 {
     u8 ctrl1 = reg.current.ctrl1;
     u8 ctrl2 = reg.current.ctrl2; 
@@ -468,27 +456,9 @@ VICII::_dump()
 	msg("X/Y raster scroll : %d / %d\n", xscroll, yscroll);
     msg("    Control reg 1 : %02X\n", reg.current.ctrl1);
     msg("    Control reg 2 : %02X\n", reg.current.ctrl2);
-	msg("     Display mode : ");
-	switch (mode) {
-		case STANDARD_TEXT: 
-			msg("Standard character mode\n");
-			break;
-		case MULTICOLOR_TEXT:
-			msg("Multicolor character mode\n");
-			break;
-		case STANDARD_BITMAP:
-			msg("Standard bitmap mode\n");
-			break;
-		case MULTICOLOR_BITMAP:
-			msg("Multicolor bitmap mode\n");
-			break;
-		case EXTENDED_BACKGROUND_COLOR:
-			msg("Extended background color mode\n");
-			break;
-		default:
-			msg("Invalid\n");
-	}
-	msg("            (X,Y) : (%d,%d) %s %s\n", xCounter, yCounter,  badLine ? "(DMA line)" : "", DENwasSetInRasterline30 ? "" : "(DMA lines disabled, no DEN bit in rasterline 30)");
+	msg("     Display mode : %s\n", DisplayModeEnum::key(mode));
+    msg("          badLine : %s\n", badLine ? "yes" : "no");
+    msg("    DENwasSetIn30 : %s\n", DENwasSetInRasterline30 ? "yes" : "no");
 	msg("               VC : %02X\n", vc);
 	msg("           VCBASE : %02X\n", vcBase);
 	msg("               RC : %02X\n", rc);
@@ -499,11 +469,11 @@ VICII::_dump()
 	msg("     DisplayState : %s\n", displayState ? "on" : "off");
     msg("    SpriteDisplay : %02X (%02X)\n", spriteDisplay, spriteDisplayDelayed);
 	msg("        SpriteDma : %02X ( ", spriteDmaOnOff);
-	for (int i = 0; i < 8; i++) 
+	for (usize i = 0; i < 8; i++)
 		msg("%d ", (spriteDmaOnOff & (1 << i)) != 0 );
 	msg(")\n");
 	msg("      Y expansion : %02X ( ", expansionFF);
-	for (int i = 0; i < 8; i++) 
+	for (usize i = 0; i < 8; i++) 
 		msg("%d ", (expansionFF & (1 << i)) != 0);
 	msg(")\n");
 }
@@ -524,31 +494,31 @@ VICII::_run()
 bool
 VICII::isPAL(VICRevision revision)
 {
-    return revision & (PAL_6569_R1 | PAL_6569_R3 | PAL_8565);
+    return revision & (VICREV_PAL_6569_R1 | VICREV_PAL_6569_R3 | VICREV_PAL_8565);
 }
 
 bool
 VICII::isNTSC(VICRevision revision)
 {
-     return revision & (NTSC_6567 | NTSC_6567_R56A | NTSC_8562);
+     return revision & (VICREV_NTSC_6567 | VICREV_NTSC_6567_R56A | VICREV_NTSC_8562);
 }
 
 bool
 VICII::is856x(VICRevision revision)
 {
-     return revision & (PAL_8565 | NTSC_8562);
+     return revision & (VICREV_PAL_8565 | VICREV_NTSC_8562);
 }
  
 bool
 VICII::is656x(VICRevision revision)
 {
-     return revision & ~(PAL_8565 | NTSC_8562);
+     return revision & ~(VICREV_PAL_8565 | VICREV_NTSC_8562);
 }
 
 bool
 VICII::delayedLightPenIrqs(VICRevision revision)
 {
-     return revision & (PAL_6569_R1 | NTSC_6567_R56A);
+     return revision & (VICREV_PAL_6569_R1 | VICREV_NTSC_6567_R56A);
 }
 
 unsigned
@@ -556,9 +526,9 @@ VICII::getFrequency(VICRevision revision)
 {
     switch (revision) {
             
-        case NTSC_6567:
-        case NTSC_8562:
-        case NTSC_6567_R56A:
+        case VICREV_NTSC_6567:
+        case VICREV_NTSC_8562:
+        case VICREV_NTSC_6567_R56A:
             return NTSC_CLOCK_FREQUENCY;
             
         default:
@@ -571,11 +541,11 @@ VICII::getCyclesPerLine(VICRevision revision)
 {
     switch (revision) {
             
-        case NTSC_6567_R56A:
+        case VICREV_NTSC_6567_R56A:
             return 64;
             
-        case NTSC_6567:
-        case NTSC_8562:
+        case VICREV_NTSC_6567:
+        case VICREV_NTSC_8562:
             return 65;
             
         default:
@@ -584,21 +554,21 @@ VICII::getCyclesPerLine(VICRevision revision)
 }
 
 bool
-VICII::isLastCycleInRasterline(unsigned cycle)
+VICII::isLastCycleInRasterline(unsigned cycle) const
 {
     return cycle >= getCyclesPerLine();
 }
 
 long
-VICII::getRasterlinesPerFrame()
+VICII::getRasterlinesPerFrame() const
 {
     switch (config.revision) {
             
-        case NTSC_6567_R56A:
+        case VICREV_NTSC_6567_R56A:
             return 262;
             
-        case NTSC_6567:
-        case NTSC_8562:
+        case VICREV_NTSC_6567:
+        case VICREV_NTSC_8562:
             return 263;
             
         default:
@@ -607,15 +577,15 @@ VICII::getRasterlinesPerFrame()
 }
 
 long
-VICII::numVisibleRasterlines()
+VICII::numVisibleRasterlines() const
 {
     switch (config.revision) {
             
-        case NTSC_6567_R56A:
+        case VICREV_NTSC_6567_R56A:
             return 234;
             
-        case NTSC_6567:
-        case NTSC_8562:
+        case VICREV_NTSC_6567:
+        case VICREV_NTSC_8562:
             return 235;
             
         default:
@@ -624,15 +594,15 @@ VICII::numVisibleRasterlines()
 }
 
 bool
-VICII::isVBlankLine(unsigned rasterline)
+VICII::isVBlankLine(unsigned rasterline) const
 {
     switch (config.revision) {
             
-        case NTSC_6567_R56A:
+        case VICREV_NTSC_6567_R56A:
             return rasterline < 16 || rasterline >= 16 + 234;
             
-        case NTSC_6567:
-        case NTSC_8562:
+        case VICREV_NTSC_6567:
+        case VICREV_NTSC_8562:
             return rasterline < 16 || rasterline >= 16 + 235;
             
         default:
@@ -641,32 +611,32 @@ VICII::isVBlankLine(unsigned rasterline)
 }
 
 void *
-VICII::stableEmuTexture()
+VICII::stableEmuTexture() const
 {
     return emuTexture == emuTexture1 ? emuTexture2 : emuTexture1;
 }
 
 void *
-VICII::stableDmaTexture()
+VICII::stableDmaTexture() const
 {
     return dmaTexture == dmaTexture1 ? dmaTexture2 : dmaTexture1;
 }
 
 u32 *
-VICII::getNoise()
+VICII::getNoise() const
 {
     int offset = rand() % (512 * 512);
     return noise + offset;
 }
 
 u16
-VICII::rasterline()
+VICII::rasterline() const
 {
     return c64.rasterLine;
 }
 
 u8
-VICII::rastercycle()
+VICII::rastercycle() const
 {
     return c64.rasterCycle;
 }
@@ -742,8 +712,8 @@ VICII::setMainFrameFF(bool value)
 }
 
 bool
-VICII::badLineCondition() {
-    
+VICII::badLineCondition() const
+{    
     /* A Bad Line Condition is given at any arbitrary clock cycle, if at the
      * negative edge of ø0 at the beginning of the cycle
      * [1] RASTER >= $30 and RASTER <= $f7 and
@@ -782,27 +752,27 @@ VICII::triggerIrq(u8 source)
 }
 
 u16
-VICII::lightpenX()
+VICII::lightpenX() const
 {
     u8 cycle = c64.rasterCycle;
     
     switch (config.revision) {
             
-        case PAL_6569_R1:
-        case PAL_6569_R3:
+        case VICREV_PAL_6569_R1:
+        case VICREV_PAL_6569_R3:
 
             return 4 + (cycle < 14 ? 392 + (8 * cycle) : (cycle - 14) * 8);
 
-        case PAL_8565:
+        case VICREV_PAL_8565:
             
             return 2 + (cycle < 14 ? 392 + (8 * cycle) : (cycle - 14) * 8);
             
-        case NTSC_6567:
-        case NTSC_6567_R56A:
+        case VICREV_NTSC_6567:
+        case VICREV_NTSC_6567_R56A:
             
             return 4 + (cycle < 14 ? 400 + (8 * cycle) : (cycle - 14) * 8);
             
-        case NTSC_8562:
+        case VICREV_NTSC_8562:
             
             return 2 + (cycle < 14 ? 400 + (8 * cycle) : (cycle - 14) * 8);
             
@@ -812,7 +782,7 @@ VICII::lightpenX()
 }
 
 u16
-VICII::lightpenY()
+VICII::lightpenY() const
 {
     return yCounter;
 }
@@ -864,17 +834,17 @@ VICII::checkForLightpenIrqAtStartOfFrame()
     // Latch coordinate (values according to VICE 3.1)
     switch (config.revision) {
             
-        case PAL_6569_R1:
-        case PAL_6569_R3:
-        case PAL_8565:
+        case VICREV_PAL_6569_R1:
+        case VICREV_PAL_6569_R3:
+        case VICREV_PAL_8565:
             
             latchedLPX = 209;
             latchedLPY = 0;
             break;
             
-        case NTSC_6567:
-        case NTSC_6567_R56A:
-        case NTSC_8562:
+        case VICREV_NTSC_6567:
+        case VICREV_NTSC_6567_R56A:
+        case VICREV_NTSC_8562:
             
             latchedLPX = 213;
             latchedLPY = 0;
@@ -894,7 +864,7 @@ VICII::checkForLightpenIrqAtStartOfFrame()
 //
 
 u8
-VICII::spriteDepth(u8 nr)
+VICII::spriteDepth(u8 nr) const
 {
     return
     GET_BIT(reg.delayed.sprPriority, nr) ?
@@ -903,7 +873,7 @@ VICII::spriteDepth(u8 nr)
 }
 
 u8
-VICII::compareSpriteY()
+VICII::compareSpriteY() const
 {
     u8 result = 0;
     

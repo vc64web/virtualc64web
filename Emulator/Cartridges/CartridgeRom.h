@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _CARTRIDGEROM_H
-#define _CARTRIDGEROM_H
+#pragma once
 
 #include "C64Component.h"
 
@@ -19,7 +18,7 @@ class CartridgeRom : public C64Component {
 protected:
     
     // Rom data
-    u8 *rom = NULL;
+    u8 *rom = nullptr;
     
 public:
     
@@ -41,9 +40,9 @@ public:
 public:
     
     CartridgeRom(C64 &ref);
-    CartridgeRom(C64 &ref, u16 _size, u16 _loadAddress, const u8 *buffer = NULL);
+    CartridgeRom(C64 &ref, u16 _size, u16 _loadAddress, const u8 *buffer = nullptr);
     ~CartridgeRom();
-    const char *getDescription() override { return "CartridgeRom"; }
+    const char *getDescription() const override { return "CartridgeRom"; }
 
 private:
     
@@ -70,9 +69,9 @@ private:
     {
     }
     
-    size_t _size() override;
-    size_t _load(u8 *buffer) override;
-    size_t _save(u8 *buffer) override;
+    usize _size() override;
+    usize _load(u8 *buffer) override;
+    usize _save(u8 *buffer) override;
 
     
     //
@@ -82,20 +81,16 @@ private:
 public:
     
     // Returns true if this Rom chip maps to ROML
-    bool mapsToL();
+    bool mapsToL() const;
     
     // Returns true if this Rom chip maps to ROMH
-    bool mapsToH();
+    bool mapsToH() const;
 
     // Returns true if this Rom chip maps to both ROML and ROMH
-    bool mapsToLH();
+    bool mapsToLH() const;
     
     // Reads or writes a byte
     u8 peek(u16 addr);
-    u8 spypeek(u16 addr) { return peek(addr); }
+    u8 spypeek(u16 addr) const;
     void poke(u16 addr, u8 value) { }
 };
-
-#endif
-
-

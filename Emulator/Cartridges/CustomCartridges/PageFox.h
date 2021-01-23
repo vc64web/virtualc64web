@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _PAGEFOX_H
-#define _PAGEFOX_H
+#pragma once
 
 #include "Cartridge.h"
 
@@ -26,8 +25,8 @@ public:
     //
     
     PageFox(C64 &ref);
-    const char *getDescription() override { return "PageFox"; }
-    CartridgeType getCartridgeType() override { return CRT_PAGEFOX; }
+    const char *getDescription() const override { return "PageFox"; }
+    CartridgeType getCartridgeType() const override { return CRT_PAGEFOX; }
     
 private:
     
@@ -40,7 +39,7 @@ private:
     
 private:
     
-    void _dump() override;
+    void _dump() const override;
     
     
     //
@@ -62,24 +61,24 @@ private:
     {
     }
     
-    size_t __size() { COMPUTE_SNAPSHOT_SIZE }
-    size_t __load(u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
-    size_t __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
+    usize __size() { COMPUTE_SNAPSHOT_SIZE }
+    usize __load(u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
+    usize __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
     
-    size_t _size() override { return Cartridge::_size() + __size(); }
-    size_t _load(u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
-    size_t _save(u8 *buf) override { return Cartridge::_save(buf) + __save(buf); }
+    usize _size() override { return Cartridge::_size() + __size(); }
+    usize _load(u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
+    usize _save(u8 *buf) override { return Cartridge::_save(buf) + __save(buf); }
     
     
     //
     // Intepreting the control register
     //
         
-    u16 bankSelect()  { return (ctrlReg & 0b00010) >> 1; }
-    u8 chipSelect()   { return (ctrlReg & 0b01100) >> 2; }
-    u8 bank()         { return (ctrlReg & 0b00110) >> 1; }
-    u8 disabled()     { return (ctrlReg & 0b10000) >> 4; }
-    u8 ramIsVisible() { return chipSelect() == 0b10; }
+    u16 bankSelect() const { return (ctrlReg & 0b00010) >> 1; }
+    u8 chipSelect() const { return (ctrlReg & 0b01100) >> 2; }
+    u8 bank() const { return (ctrlReg & 0b00110) >> 1; }
+    u8 disabled() const { return (ctrlReg & 0b10000) >> 4; }
+    u8 ramIsVisible() const { return chipSelect() == 0b10; }
     
     //
     // Accessing cartridge memory
@@ -89,17 +88,18 @@ public:
     
     void resetCartConfig() override;
     u8 peekRomL(u16 addr) override;
+    u8 spypeekRomL(u16 addr) const override;
     u8 peekRomH(u16 addr) override;
+    u8 spypeekRomH(u16 addr) const override;
     void pokeRomL(u16 addr, u8 value) override;
     void pokeRomH(u16 addr, u8 value) override;
     u8 peekIO1(u16 addr) override;
+    u8 spypeekIO1(u16 addr) const override;
     void pokeIO1(u16 addr, u8 value) override;
     void updatePeekPokeLookupTables() override;
     
 private:
     
-    u16 ramAddrL(u16 addr) { return (bankSelect() << 14) + (addr & 0x1FFF); }
-    u16 ramAddrH(u16 addr) { return 0x2000 + ramAddrL(addr); }
+    u16 ramAddrL(u16 addr) const { return (bankSelect() << 14) + (addr & 0x1FFF); }
+    u16 ramAddrH(u16 addr) const { return 0x2000 + ramAddrL(addr); }
 };
-
-#endif

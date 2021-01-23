@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _SNAPSHOT_H
-#define _SNAPSHOT_H
+#pragma once
 
 #include "AnyFile.h"
 
@@ -35,51 +34,16 @@ typedef struct {
 SnapshotHeader;
 
 class Snapshot : public AnyFile {
-    
-    // Header signature
-    static const u8 magicBytes[];
-    
-    
+
+public:
+
     //
     // Class methods
     //
-    
-public:
-    
-    // Checks whether a buffer contains a snapshot
-    static bool isSnapshot(const u8 *buffer, size_t length);
-    
-    // Checks whether a buffer contains a snapshot of a specific version
-    static bool isSnapshot(const u8 *buffer, size_t length,
-                           u8 major, u8 minor, u8 subminor);
-    
-    // Checks whether a buffer contains a snapshot with a supported version number
-    static bool isSupportedSnapshot(const u8 *buffer, size_t length);
-    
-    // Checks whether a buffer contains a snapshot with an outdated version number
-    static bool isUnsupportedSnapshot(const u8 *buffer, size_t length);
-    
-    // Checks whether 'path' points to a snapshot
-    static bool isSnapshotFile(const char *path);
-    
-    // Checks whether 'path' points to a snapshot of a specific version
-    static bool isSnapshotFile(const char *path, u8 major, u8 minor, u8 subminor);
-    
-    // Checks whether 'path' points to a snapshot with a supported version number
-    static bool isSupportedSnapshotFile(const char *path);
-    
-    // Checks whether 'path' points to a snapshot with an outdated version number
-    static bool isUnsupportedSnapshotFile(const char *path);
-    
-    
-    //
-    // Factory methods
-    //
-    
-public:
-    
-    static Snapshot *makeWithFile(const char *filename);
-    static Snapshot *makeWithBuffer(const u8 *buffer, size_t size);
+
+    static bool isCompatibleName(const std::string &name);
+    static bool isCompatibleStream(std::istream &stream);
+     
     static Snapshot *makeWithC64(class C64 *c64);
 
     
@@ -88,39 +52,43 @@ public:
     //
         
     Snapshot() { };
-    Snapshot(size_t capacity);
-    const char *getDescription() override { return "Snapshot"; }
-
-    void takeScreenshot(class C64 *c64);
-
-private:
-    
-    // Allocates memory for storing the emulator state
-    bool setCapacity(size_t size);
+    Snapshot(usize capacity);
         
     
     //
-    // Methods from AnyC64File
+    // Methods from C64Object
     //
+
+    const char *getDescription() const override { return "Snapshot"; }
+
     
-    FileType type() override { return FILETYPE_V64; }
-    bool hasSameType(const char *filename) override;
+    //
+    // Methods from AnyFile
+    //
+        
+    FileType type() const override { return FILETYPE_V64; }
     
     
     //
-    // Accessing properties
+    // Accessing
     //
+        
+    // Returns a pointer to the snapshot header
+    SnapshotHeader *header() const { return (SnapshotHeader *)data; }
+
+    // Checks the snapshot version number
+    bool isTooOld() const;
+    bool isTooNew() const;
+    bool matches() { return !isTooOld() && !isTooNew(); }
     
-public:
-    
-    SnapshotHeader *getHeader() { return (SnapshotHeader *)data; }
     u8 *getData() { return data + sizeof(SnapshotHeader); }
     
-    time_t getTimestamp() { return getHeader()->timestamp; }
-    unsigned char *getImageData() { return (unsigned char *)(getHeader()->screenshot.screen); }
-    unsigned getImageWidth() { return getHeader()->screenshot.width; }
-    unsigned getImageHeight() { return getHeader()->screenshot.height; }
+    // Queries time and screenshot properties
+    time_t timeStamp() const { return header()->timestamp; }
+    u8 *imageData() const { return (u8 *)(header()->screenshot.screen); }
+    usize imageWidth() const { return header()->screenshot.width; }
+    usize imageHeight() const { return header()->screenshot.height; }
+    
+    // Records a screenshot
+    void takeScreenshot(class C64 *c64);
 };
-
-#endif
-

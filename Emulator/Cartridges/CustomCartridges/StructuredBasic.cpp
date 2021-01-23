@@ -12,7 +12,7 @@
 void
 StructuredBasic::resetCartConfig()
 {
-    expansionport.setCartridgeMode(CRT_8K);
+    expansionport.setCartridgeMode(CRTMODE_8K);
 }
 
 u8
@@ -24,19 +24,25 @@ StructuredBasic::peekIO1(u16 addr)
             
         case 0:
         case 1:
-            expansionport.setCartridgeMode(CRT_8K);
+            expansionport.setCartridgeMode(CRTMODE_8K);
             bankIn(0);
             break;
             
         case 2:
-            expansionport.setCartridgeMode(CRT_8K);
+            expansionport.setCartridgeMode(CRTMODE_8K);
             bankIn(1);
             break;
             
         case 3:
-            expansionport.setCartridgeMode(CRT_OFF);
+            expansionport.setCartridgeMode(CRTMODE_OFF);
             break;
     }
+    return 0;
+}
+
+u8
+StructuredBasic::spypeekIO1(u16 addr) const
+{
     return 0;
 }
 

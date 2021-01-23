@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _IEC_H
-#define _IEC_H
+#pragma once
 
 #include "C64Component.h"
 
@@ -50,9 +49,12 @@ public:
     
 private:
     
-	// Used to determine if the bus is idle or if data is transferred
-	u32 busActivity;
-	
+	// Watchdog timer to determine if there is traffic on the bus
+	u32 busActivity = 0;
+
+    // Indicates whether data is being transferred from or to a drive
+    bool transferring = false;
+
     
     //
     // Initializing
@@ -61,7 +63,7 @@ private:
 public:
         
     IEC(C64 &ref) : C64Component(ref) { };
-    const char *getDescription() override { return "IEC"; }
+    const char *getDescription() const override { return "IEC"; }
     
 private:
     
@@ -74,7 +76,7 @@ private:
     
 private:
     
-    void _dump() override;
+    void _dump() const override;
     void dumpTrace();
 
     
@@ -111,9 +113,9 @@ private:
         & busActivity;
     }
     
-    size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
@@ -121,9 +123,6 @@ private:
     //
     
 public:
-
-    // Returns true if the IEC is transfering data
-    bool isBusy() { return busActivity > 0; }
     
     // Requensts an update of the bus lines from the C64 side
     // DEPRECATED
@@ -145,6 +144,12 @@ public:
      */
 	void execute();
     
+    // Returns true if data is currently transferred over the bus
+    bool isTransferring() { return transferring; }
+    
+    // Updates variable transferring
+    void updateTransferStatus();
+    
 private:
     
     void updateIecLines();
@@ -154,5 +159,3 @@ private:
      */
     bool _updateIecLines();
 };
-	
-#endif

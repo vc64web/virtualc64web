@@ -6,35 +6,29 @@
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
- 
+
 #include "C64.h"
 
-ControlPort::ControlPort(int portNr, C64 &ref) : C64Component(ref)
+const char *
+Joystick::getDescription() const
 {
-    assert(portNr == 1 || portNr == 2);
-    
-    nr = portNr;
-    autofire = false;
-    autofireBullets = -3;
-    autofireFrequency = 2.5;
-    bulletCounter = 0;
-    nextAutofireFrame = 0;    
+    return port.nr == PORT_ONE ? "Joystick1" : "Joystick2";
 }
 
 void
-ControlPort::_reset()
+Joystick::_dump() const
 {
-    RESET_SNAPSHOT_ITEMS
-    
-    button = false;
-    axisX = 0;
-    axisY = 0;
+    msg("ControlPort %lld:\n", port.nr);
+    msg("--------------\n");
+    msg("   Button : %s\n", button ? "pressed" : "released");
+    msg("    axisX : %d axisY: %d\n", axisX, axisY);
+    msg("  bitmask : %02X\n", getControlPort());
 }
 
-size_t
-ControlPort::didLoadFromBuffer(u8 *buffer)
+usize
+Joystick::didLoadFromBuffer(u8 *buffer)
 {
-    // Discard active joystick movements
+    // Discard any active joystick movements
     button = false;
     axisX = 0;
     axisY = 0;
@@ -43,46 +37,51 @@ ControlPort::didLoadFromBuffer(u8 *buffer)
 }
 
 void
-ControlPort::_dump()
+Joystick::setAutofire(bool value)
 {
-    msg("ControlPort port %d\n", nr);
-    msg("------------------\n");
-    msg("Button:  %s AxisX: %d AxisY: %d\n", button ? "YES" : "NO", axisX, axisY);
-    msg("Bitmask: %02X\n", bitmask());
+    autofire = value;
+    
+    // Release button immediately if autofire-mode is switches off
+    if (value == false) button = false;
 }
 
 void
-ControlPort::scheduleNextShot()
+Joystick::setAutofireBullets(int value)
+{
+    autofireBullets = value;
+    
+    // Update the bullet counter if we're currently firing
+    if (bulletCounter > 0) {
+        bulletCounter = (autofireBullets < 0) ? UINT64_MAX : autofireBullets;
+    }
+}
+
+void
+Joystick::scheduleNextShot()
 {
     nextAutofireFrame = c64.frame +
     (int)(vic.getFramesPerSecond() / (2 * autofireFrequency));
 }
 
-void
-ControlPort::execute()
+u8
+Joystick::getControlPort() const
 {
-    if (!autofire || autofireFrequency <= 0.0)
-        return;
-  
-    // Wait until it's time to push or release fire
-    if (c64.frame != nextAutofireFrame)
-        return;
+    u8 result = 0xFF;
     
-    // Are there any bullets left?
-    if (bulletCounter) {
-        if (button) {
-            button = false;
-            bulletCounter--;
-        } else {
-            button = true;
-        }
-        scheduleNextShot();
-    }
+    if (axisY == -1) CLR_BIT(result, 0);
+    if (axisY ==  1) CLR_BIT(result, 1);
+    if (axisX == -1) CLR_BIT(result, 2);
+    if (axisX ==  1) CLR_BIT(result, 3);
+    if (button)      CLR_BIT(result, 4);
+        
+    return result;
 }
 
 void
-ControlPort::trigger(GamePadAction event)
+Joystick::trigger(GamePadAction event)
 {
+    debug(PORT_DEBUG, "Port %lld: %s\n", port.nr, GamePadActionEnum::key(event));
+    
     switch (event) {
             
         case PULL_UP:
@@ -132,40 +131,27 @@ ControlPort::trigger(GamePadAction event)
         default:
             assert(false);
     }
+    port.device = CPDEVICE_JOYSTICK;
 }
 
 void
-ControlPort::setAutofire(bool value)
+Joystick::execute()
 {
-    if (!(autofire = value)) {
-        button = false;
+    if (!autofire || autofireFrequency <= 0.0)
+        return;
+  
+    // Wait until it's time to push or release fire
+    if ((i64)c64.frame != nextAutofireFrame)
+        return;
+    
+    // Are there any bullets left?
+    if (bulletCounter) {
+        if (button) {
+            button = false;
+            bulletCounter--;
+        } else {
+            button = true;
+        }
+        scheduleNextShot();
     }
 }
-
-void
-ControlPort::setAutofireBullets(int value)
-{
-    autofireBullets = value;
-    if (bulletCounter > 0) {
-        bulletCounter = (autofireBullets < 0) ? UINT64_MAX : autofireBullets;
-    }
-}
-
-u8
-ControlPort::bitmask() {
-    
-    u8 result = 0xFF;
-    
-    if (axisY == -1) CLR_BIT(result, 0);
-    if (axisY ==  1) CLR_BIT(result, 1);
-    if (axisX == -1) CLR_BIT(result, 2);
-    if (axisX ==  1) CLR_BIT(result, 3);
-    if (button)      CLR_BIT(result, 4);
-    
-    u8 mouseBits = mouse.readControlPort(nr);
-    result &= mouseBits;
-    
-    return result;
-}
-
-

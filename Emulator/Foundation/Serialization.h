@@ -7,11 +7,10 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _SERIALIZATION_H
-#define _SERIALIZATION_H
+#pragma once
 
 #include "C64Types.h"
-#include "C64PrivateTypes.h"
+#include "Buffers.h"
 #include "CPUInstructions.h"
 #include "TimeDelayed.h"
 #include "Volume.h"
@@ -23,81 +22,82 @@
 // Basic memory buffer I/O
 //
 
-inline u8 read8(u8 *& buffer)
+inline u8 read8(u8 *& buf)
 {
-    u8 result = *buffer;
-    buffer += 1;
+    u8 result = R8BE(buf);
+    buf += 1;
     return result;
 }
 
-inline u16 read16(u8 *& buffer)
+inline u16 read16(u8 *& buf)
 {
-    u16 result = ntohs(*((u16 *)buffer));
-    buffer += 2;
+    u16 result = R16BE(buf);
+    buf += 2;
     return result;
 }
 
-inline u32 read32(u8 *& buffer)
+inline u32 read32(u8 *& buf)
 {
-    u32 result = ntohl(*((u32 *)buffer));
-    buffer += 4;
+    u32 result = R32BE(buf);
+    buf += 4;
     return result;
 }
 
-inline u64 read64(u8 *& buffer)
+inline u64 read64(u8 *& buf)
 {
-    u32 hi = read32(buffer);
-    u32 lo = read32(buffer);
+    u32 hi = read32(buf);
+    u32 lo = read32(buf);
     return ((u64)hi << 32) | lo;
 }
 
-inline float readFloat(u8 *& buffer)
+inline float readFloat(u8 *& buf)
 {
     float result;
-    *((u32 *)(&result)) = read32(buffer);
+    *((u32 *)(&result)) = read32(buf);
     return result;
 }
 
-inline double readDouble(u8 *& buffer)
+inline double readDouble(u8 *& buf)
 {
     double result;
-    *((u64 *)(&result)) = read64(buffer);
+    *((u64 *)(&result)) = read64(buf);
     return result;
 }
  
-inline void write8(u8 *& buffer, u8 value)
+inline void write8(u8 *& buf, u8 value)
 {
-    *buffer = value;
-    buffer += 1;
+    W8BE(buf, value);
+    buf += 1;
 }
 
-inline void write16(u8 *& buffer, u16 value)
+inline void write16(u8 *& buf, u16 value)
 {
-    *((u16 *)buffer) = htons(value);
-    buffer += 2;
+    W16BE(buf, value);
+    buf += 2;
 }
 
-inline void write32(u8 *& buffer, u32 value)
+inline void write32(u8 *& buf, u32 value)
 {
-    *((u32 *)buffer) = htonl(value);
-    buffer += 4;
+    W32BE(buf, value);
+    buf += 4;
 }
 
-inline void write64(u8 *& buffer, u64 value)
+inline void write64(u8 *& buf, u64 value)
 {
-    write32(buffer, (u32)(value >> 32));
-    write32(buffer, (u32)(value));
+    write32(buf, (u32)(value >> 32));
+    write32(buf, (u32)(value));
 }
 
-inline void writeFloat(u8 *& buffer, float value)
+inline void writeFloat(u8 *& buf, float value)
 {
-    write32(buffer, *((u32 *)(&value)));
+    write32(buf, *((u32 *)(&value)));
 }
 
-inline void writeDouble(u8 *& buffer, double value)
+inline void writeDouble(u8 *& buf, double value)
 {
-    write64(buffer, *((u64 *)(&value)));
+    write64(buf, *((u64 *)(&value)));
 }
+
 
 //
 // Counter (determines the state size)
@@ -123,7 +123,7 @@ class SerCounter
 {
 public:
 
-    size_t count;
+    usize count;
 
     SerCounter() { count = 0; }
 
@@ -142,7 +142,7 @@ public:
 
     COUNT(const MemoryType)
     COUNT(const CartridgeType)
-    COUNT(const DriveType)
+    COUNT(const DriveModel)
     COUNT(const InsertionStatus)
     COUNT(const MicroInstruction)
     COUNT(const CIARevision)
@@ -151,7 +151,7 @@ public:
     COUNT(const SIDEngine)
     COUNT(const SamplingMethod)
     COUNT(const GlueLogic)
-    COUNT(const FlashRomState)
+    COUNT(const FlashState)
     COUNT(const reSID::EnvelopeGenerator::State)
     
     STRUCT(VICIIRegisters)
@@ -161,10 +161,10 @@ public:
     STRUCT(Volume)
     template <class T, int capacity> STRUCT(TimeDelayed<T __ capacity>)
 
-    template <class T, size_t N>
+    template <class T, usize N>
     SerCounter& operator&(T (&v)[N])
     {
-        for(size_t i = 0; i < N; ++i) {
+        for(usize i = 0; i < N; ++i) {
             *this & v[i];
         }
         return *this;
@@ -215,7 +215,7 @@ public:
  
     DESERIALIZE64(MemoryType)
     DESERIALIZE64(CartridgeType)
-    DESERIALIZE64(DriveType)
+    DESERIALIZE64(DriveModel)
     DESERIALIZE64(InsertionStatus)
     DESERIALIZE64(MicroInstruction)
     DESERIALIZE64(CIARevision)
@@ -224,7 +224,7 @@ public:
     DESERIALIZE64(SIDEngine)
     DESERIALIZE64(SamplingMethod)
     DESERIALIZE64(GlueLogic)
-    DESERIALIZE64(FlashRomState)
+    DESERIALIZE64(FlashState)
     DESERIALIZE32(reSID::EnvelopeGenerator::State)
 
     STRUCT(VICIIRegisters)
@@ -234,16 +234,16 @@ public:
     STRUCT(Volume)
     template <class T, int capacity> STRUCT(TimeDelayed<T __ capacity>)
 
-    template <class T, size_t N>
+    template <class T, usize N>
     SerReader& operator&(T (&v)[N])
     {
-        for(size_t i = 0; i < N; ++i) {
+        for(usize i = 0; i < N; ++i) {
             *this & v[i];
         }
         return *this;
     }
 
-    void copy(void *dst, size_t n)
+    void copy(void *dst, usize n)
     {
         memcpy(dst, (void *)ptr, n);
         ptr += n;
@@ -294,7 +294,7 @@ public:
  
     SERIALIZE64(const MemoryType)
     SERIALIZE64(const CartridgeType)
-    SERIALIZE64(const DriveType)
+    SERIALIZE64(const DriveModel)
     SERIALIZE64(const InsertionStatus)
     SERIALIZE64(const MicroInstruction)
     SERIALIZE64(const CIARevision)
@@ -303,7 +303,7 @@ public:
     SERIALIZE64(const SIDEngine)
     SERIALIZE64(const SamplingMethod)
     SERIALIZE64(const GlueLogic)
-    SERIALIZE64(const FlashRomState)
+    SERIALIZE64(const FlashState)
     SERIALIZE32(const reSID::EnvelopeGenerator::State)
 
     STRUCT(VICIIRegisters)
@@ -313,16 +313,16 @@ public:
     STRUCT(Volume)
     template <class T, int capacity> STRUCT(TimeDelayed<T __ capacity>)
 
-    template <class T, size_t N>
+    template <class T, usize N>
     SerWriter& operator&(T (&v)[N])
     {
-        for(size_t i = 0; i < N; ++i) {
+        for(usize i = 0; i < N; ++i) {
             *this & v[i];
         }
         return *this;
     }
 
-    void copy(const void *src, size_t n)
+    void copy(const void *src, usize n)
     {
         memcpy((void *)ptr, src, n);
         ptr += n;
@@ -374,14 +374,12 @@ public:
     STRUCT(Volume)
     template <class T, int capacity> STRUCT(TimeDelayed<T __ capacity>)
 
-    template <class T, size_t N>
+    template <class T, usize N>
     SerResetter& operator&(T (&v)[N])
     {
-        for(size_t i = 0; i < N; ++i) {
+        for(usize i = 0; i < N; ++i) {
             *this & v[i];
         }
         return *this;
     }
 };
-
-#endif

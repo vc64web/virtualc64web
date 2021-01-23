@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _STRUCTURED_BASIC_H
-#define _STRUCTURED_BASIC_H
+#pragma once
 
 #include "Cartridge.h"
 
@@ -20,8 +19,8 @@ class StructuredBasic : public Cartridge {
 public:
     
     StructuredBasic(C64 &ref) : Cartridge(ref) { };
-    const char *getDescription() override { return "StructuredBasic"; }
-    CartridgeType getCartridgeType() override { return CRT_STRUCTURED_BASIC; }
+    const char *getDescription() const override { return "StructuredBasic"; }
+    CartridgeType getCartridgeType() const override { return CRT_STRUCTURED_BASIC; }
         
     
     //
@@ -45,13 +44,13 @@ private:
         */
     }
     
-    size_t __size() { COMPUTE_SNAPSHOT_SIZE }
-    size_t __load(u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
-    size_t __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
+    usize __size() { COMPUTE_SNAPSHOT_SIZE }
+    usize __load(u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
+    usize __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
     
-    size_t _size() override { return Cartridge::_size() + __size(); }
-    size_t _load(u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
-    size_t _save(u8 *buf) override { return Cartridge::_save(buf) + __save(buf); }
+    usize _size() override { return Cartridge::_size() + __size(); }
+    usize _load(u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
+    usize _save(u8 *buf) override { return Cartridge::_save(buf) + __save(buf); }
     
     
     //
@@ -62,8 +61,6 @@ public:
     
     void resetCartConfig() override;
     u8 peekIO1(u16 addr) override;
-    u8 spypeekIO1(u16 addr) override { return 0; }
+    u8 spypeekIO1(u16 addr) const override;
     void pokeIO1(u16 addr, u8 value) override;
 };
-
-#endif

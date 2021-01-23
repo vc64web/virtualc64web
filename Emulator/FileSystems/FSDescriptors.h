@@ -7,25 +7,10 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _FS_DESCRIPTORS_H
-#define _FS_DESCRIPTORS_H
+#pragma once
 
 #include "C64Object.h"
-#include "FSTypes.h"
-
-/*
-#include "FSObjects.h"
-#include "FSBlock.h"
-#include "FSEmptyBlock.h"
-#include "FSBootBlock.h"
-#include "FSRootBlock.h"
-#include "FSBitmapBlock.h"
-#include "FSBitmapExtBlock.h"
-#include "FSUserDirBlock.h"
-#include "FSFileHeaderBlock.h"
-#include "FSFileListBlock.h"
-#include "FSDataBlock.h"
-*/
+#include "FSPublicTypes.h"
 
 /* To create a FSDevice, the layout parameters of the represendet device have
  * to be provided. This is done by passing a structure of type FSDeviceLayout
@@ -41,7 +26,7 @@
 struct FSDeviceDescriptor : C64Object {
     
     // DOS type
-    FSVolumeType dos;
+    DOSType dos = DOS_TYPE_NODOS;
     
     // Number of cylinders
     u32 numCyls = 0;
@@ -55,55 +40,52 @@ struct FSDeviceDescriptor : C64Object {
     //
     
     FSDeviceDescriptor() { }
-    FSDeviceDescriptor(DiskType type, FSVolumeType dos = FS_CBM_DOS);
 
-    const char *getDescription() override { return "FSLayout"; }
+    // Creates a device descriptor for a standard disk
+    FSDeviceDescriptor(DiskType type, DOSType dos = DOS_TYPE_CBM);
+
+    // Creates a device descriptor from a D64 file
+    FSDeviceDescriptor(class D64File &d64);
+
+    const char *getDescription() const override { return "FSLayout"; }
     
     
     //
     // Performing integrity checks
     //
     
-    bool isCylinderNr(Cylinder c) { return 1 <= c && c <= numCyls; }
-    bool isHeadNr(Head h) { return h == 0 || h == 1; }
-    bool isTrackNr(Track t) { return 1 <= t && t <= numCyls * numHeads; }
-    bool isTrackSectorPair(Track t, Sector s);
-    bool isValidRef(BlockRef ref);
+    bool isCylinderNr(Cylinder c) const { return 1 <= c && c <= numCyls; }
+    bool isHeadNr(Head h) const { return h == 0 || h == 1; }
+    bool isTrackNr(Track t) const { return 1 <= t && t <= numCyls * numHeads; }
+    bool isValidLink(TSLink ref) const;
 
     
     //
     // Querying device properties
     //
     
-    u32 numTracks() { return numCyls * numHeads; }
-    u32 speedZone(Track track);
-    u32 numSectors(Track track);
-    u32 numBlocks();
+    u32 numTracks() const { return numCyls * numHeads; }
+    u32 speedZone(Track track) const;
+    u32 numSectors(Track track) const;
+    u32 numBlocks() const;
 
     
     //
-    // Translating block numbers
+    // Translating blocks, tracks, sectors, and heads
     //
-        
-    Cylinder cylNr(Track t);
 
-    Head headNr(Track t);
+    Cylinder cylNr(Track t) const { return t <= numCyls ? t : t - numCyls; }
+    Head headNr(Track t) const { return t <= numCyls ? 0 : 1; }
+    Track trackNr(Cylinder c, Head h) const { return c + h * numCyls; }
 
-    Track trackNr(Cylinder c, Head h);
-    Track trackNr(Block b);
-
-    Sector sectorNr(Block b);
-
-    Block blockNr(Cylinder c, Head h, Sector s);
-    Block blockNr(Track t, Sector s);
-    Block blockNr(BlockRef ts);
+    TSLink tsLink(Block b) const;
+    Track trackNr(Block b) const { return tsLink(b).t; }
+    Sector sectorNr(Block b) const { return tsLink(b).s; }
     
-    void translateBlockNr(Block b, Track *t, Sector *s);
-    void translateBlockNr(Block b, Cylinder *c, Head *h, Sector *s);
-    
-    void translateBlockNr(Block *b, Track t, Sector s);
-    void translateBlockNr(Block *b, Cylinder c, Head h, Sector s);
-    
+    Block blockNr(TSLink ts) const;
+    Block blockNr(Track t, Sector s) const { return blockNr(TSLink{t,s}); }
+    Block blockNr(Cylinder c, Head h, Sector s) const { return blockNr(trackNr(c,h), s); }
+
     
     //
     // Ordering blocks
@@ -111,9 +93,6 @@ struct FSDeviceDescriptor : C64Object {
     
 public:
     
-    bool nextBlock(Block b, Block *nb);
-    BlockRef nextBlockRef(BlockRef b);
-    bool nextTrackAndSector(Track t, Sector s, Track *nt, Sector *ns);
+    bool nextBlock(Block b, Block *nb) const;
+    TSLink nextBlockRef(TSLink b) const;
 };
-
-#endif

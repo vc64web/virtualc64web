@@ -9,7 +9,6 @@
 
 #include "C64.h"
 
-
 #ifdef __EMSCRIPTEN__    
 #include <emscripten.h>
 #endif
@@ -22,7 +21,7 @@ Oscillator::Oscillator(C64& ref) : C64Component(ref)
 }
 
 const char *
-Oscillator::getDescription()
+Oscillator::getDescription() const
 {
 #ifdef __MACH__
     return "Oscillator (Mac)";
@@ -115,7 +114,7 @@ Oscillator::waitUntil(u64 deadline)
 {
 #ifdef __MACH__
     
-    mach_wait_until(deadline);
+    mach_wait_until(nanos_to_abs(deadline));
     
 #else
 

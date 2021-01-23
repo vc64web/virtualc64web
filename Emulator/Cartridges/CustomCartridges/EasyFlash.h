@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _EASYFLASH_H
-#define _EASYFLASH_H
+#pragma once
 
 #include "Cartridge.h"
 
@@ -37,8 +36,8 @@ public:
     //
     
     EasyFlash(C64 &ref);
-    const char *getDescription() override { return "EasyFlash"; }
-    CartridgeType getCartridgeType() override { return CRT_EASYFLASH; }
+    const char *getDescription() const override { return "EasyFlash"; }
+    CartridgeType getCartridgeType() const override { return CRT_EASYFLASH; }
     
     void resetCartConfig() override;
 
@@ -53,7 +52,7 @@ private:
     
 private:
     
-    void _dump() override;
+    void _dump() const override;
     
     
     //
@@ -80,19 +79,19 @@ private:
         & bank;
     }
     
-    size_t __size() { COMPUTE_SNAPSHOT_SIZE }
-    size_t _size() override { return Cartridge::_size() + __size(); }
-    size_t _load(u8 *buffer) override { return Cartridge::_load(buffer); }
-    size_t _save(u8 *buffer) override { return Cartridge::_save(buffer); }
-    size_t didLoadFromBuffer(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t didSaveToBuffer(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize __size() { COMPUTE_SNAPSHOT_SIZE }
+    usize _size() override { return Cartridge::_size() + __size(); }
+    usize _load(u8 *buffer) override { return Cartridge::_load(buffer); }
+    usize _save(u8 *buffer) override { return Cartridge::_save(buffer); }
+    usize didLoadFromBuffer(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize didSaveToBuffer(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
 
     
     //
     // Handling ROM packets
     //
     
-    void loadChip(unsigned nr, CRTFile *c) override;
+    void loadChip(unsigned nr, const CRTFile &crt) override;
 
     
     //
@@ -106,12 +105,12 @@ public:
     void pokeRomL(u16 addr, u8 value) override;
     void pokeRomH(u16 addr, u8 value) override;
     u8 peekIO1(u16 addr) override;
+    u8 spypeekIO1(u16 addr) const override;
     u8 peekIO2(u16 addr) override;
+    u8 spypeekIO2(u16 addr) const override;
     void pokeIO1(u16 addr, u8 value) override;
     void pokeIO2(u16 addr, u8 value) override;
     void pokeBankReg(u8 value);
     void pokeModeReg(u8 value);
-    bool hasLED() override { return true; }
+    bool hasLED() const override { return true; }
 };
-
-#endif

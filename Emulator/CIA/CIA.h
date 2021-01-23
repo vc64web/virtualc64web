@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _CIA_H
-#define _CIA_H
+#pragma once
 
 #include "TOD.h"
 
@@ -232,9 +231,8 @@ public:
 public:
     
 	CIA(C64 &ref);
-    virtual bool isCIA1() = 0;
-    virtual bool isCIA2() = 0;
-    // const char *getDescription() override { return "CIA"; }
+    virtual bool isCIA1() const = 0;
+    virtual bool isCIA2() const = 0;
 
 protected:
     
@@ -247,10 +245,10 @@ protected:
     
 public:
     
-    CIAConfig getConfig() { return config; }
+    CIAConfig getConfig() const { return config; }
     
-    long getConfigItem(ConfigOption option);
-    bool setConfigItem(ConfigOption option, long value) override;
+    long getConfigItem(Option option) const;
+    bool setConfigItem(Option option, long value) override;
     
 
     //
@@ -264,7 +262,7 @@ public:
 protected:
     
     void _inspect() override;
-    void _dump() override;
+    void _dump() const override;
 
     
     //
@@ -319,9 +317,9 @@ private:
         & wakeUpCycle;
     }
     
-    size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
         
     //
@@ -334,8 +332,8 @@ public:
     u8 peek(u16 addr);
     
     // Reads a value from a CIA register without causing side effects
-    u8 spypeek(u16 addr);
-    
+    u8 spypeek(u16 addr) const;
+
     // Writes a value into a CIA register
     void poke(u16 addr, u8 value);
     
@@ -346,32 +344,32 @@ public:
 public:
     
     // Returns the data registers (call updatePA() or updatePB() first)
-    u8 getPA() { return PA; }
-    u8 getPB() { return PB; }
+    u8 getPA() const { return PA; }
+    u8 getPB() const { return PB; }
 
 private:
     
     // Returns the data direction register
-    u8 getDDRA() { return DDRA; }
-    u8 getDDRB() { return DDRB; }
+    u8 getDDRA() const { return DDRA; }
+    u8 getDDRB() const { return DDRB; }
     
     // Computes the value we currently see at port A
     virtual void updatePA() = 0;
     
     // Returns the value driving port A from inside the chip
-    virtual u8 portAinternal() = 0;
+    virtual u8 portAinternal() const = 0;
     
     // Returns the value driving port A from outside the chip
-    virtual u8 portAexternal() = 0;
+    virtual u8 portAexternal() const = 0;
     
     // Computes the value we currently see at port B
     virtual void updatePB() = 0;
     
     // Returns the value driving port B from inside the chip
-    virtual u8 portBinternal() = 0;
+    virtual u8 portBinternal() const = 0;
     
     // Returns the value  driving port B from outside the chip
-    virtual u8 portBexternal() = 0;
+    virtual u8 portBexternal() const = 0;
     
 protected:
     
@@ -449,16 +447,16 @@ public:
     void wakeUp(Cycle targetCycle);
     
     // Returns true if the CIA is in idle state
-    bool isSleeping() { return sleeping; }
+    bool isSleeping() const { return sleeping; }
     
     // Returns true if the CIA is awake
-    bool isAwake() { return !sleeping; }
+    bool isAwake() const { return !sleeping; }
     
     // The CIA is idle since this number of cycles
-    Cycle idleSince();
+    Cycle idleSince() const;
     
     // Total number of cycles the CIA was idle
-    Cycle idleTotal() { return idleCycles; }
+    Cycle idleTotal() const { return idleCycles; }
 };
 
 
@@ -471,20 +469,20 @@ class CIA1 : public CIA {
 public:
 
     CIA1(C64 &ref) : CIA(ref) { };
-    bool isCIA1() override { return true; }
-    bool isCIA2() override { return false; }
-    const char *getDescription() override { return "CIA1"; }
+    bool isCIA1() const override { return true; }
+    bool isCIA2() const override { return false; }
+    const char *getDescription() const override { return "CIA1"; }
     
 private:
         
     void pullDownInterruptLine() override;
     void releaseInterruptLine() override;
     
-    u8 portAinternal() override;
-    u8 portAexternal() override;
+    u8 portAinternal() const override;
+    u8 portAexternal() const override;
     void updatePA() override;
-    u8 portBinternal() override;
-    u8 portBexternal() override;
+    u8 portBinternal() const override;
+    u8 portBexternal() const override;
     void updatePB() override;
 };
 	
@@ -498,9 +496,9 @@ class CIA2 : public CIA {
 public:
 
     CIA2(C64 &ref) : CIA(ref) { };
-    bool isCIA1() override { return false; }
-    bool isCIA2() override { return true; }
-    const char *getDescription() override { return "CIA2"; }
+    bool isCIA1() const override { return false; }
+    bool isCIA2() const override { return true; }
+    const char *getDescription() const override { return "CIA2"; }
 
 private:
     
@@ -509,8 +507,8 @@ private:
     void pullDownInterruptLine() override;
     void releaseInterruptLine() override;
     
-    u8 portAinternal() override;
-    u8 portAexternal() override;
+    u8 portAinternal() const override;
+    u8 portAexternal() const override;
     
 public:
     
@@ -518,11 +516,9 @@ public:
     
 private:
     
-    u8 portBinternal() override;
-    u8 portBexternal() override;
+    u8 portBinternal() const override;
+    u8 portBexternal() const override;
     void updatePB() override;
     void pokePA(u8 value) override;
     void pokeDDRA(u8 value) override;
 };
-
-#endif

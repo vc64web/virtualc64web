@@ -9,8 +9,21 @@
 
 #include "C64.h"
 
+void
+MagicDesk::resetCartConfig()
+{
+    trace(CRT_DEBUG, "Starting cartridge in 8K game mode\n");
+    expansionport.setCartridgeMode(CRTMODE_8K);
+}
+
 u8
 MagicDesk::peekIO1(u16 addr)
+{
+    return control;
+}
+
+u8
+MagicDesk::spypeekIO1(u16 addr) const
 {
     return control;
 }
@@ -28,7 +41,8 @@ MagicDesk::pokeIO1(u16 addr, u8 value)
      * RAM at $8000-$9FFF instead of ROM.
      */
     
-    if (addr == 0xDE00) {
+    // if (addr == 0xDE00) {
+    {
         expansionport.setExromLine(value & 0x80);
         bankIn(value & 0x0F);
     }

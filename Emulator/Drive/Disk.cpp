@@ -102,65 +102,62 @@ Disk::isValidHalftrackSectorPair(Halftrack ht, Sector s)
 }
 
 Disk *
-Disk::make(C64 &ref, FileSystemType type)
+Disk::make(C64 &ref, DOSType type, PETName<16> name)
 {
-    assert(isFileSystemType(type));
+    assert_enum(DOSType, type);
     
     switch (type) {
             
-        case FS_NONE:
+        case DOS_TYPE_NODOS:
         {
-            printf("FS_NONE");
+            printf("FS_NODOS");
             return new Disk(ref);
         }
-        case FS_COMMODORE:
+        case DOS_TYPE_CBM:
         {
-            printf("FS_COMMODORE");
-            AnyArchive *emptyArchive = new AnyArchive();
-            Disk *disk = makeWithArchive(ref, emptyArchive);
-            delete emptyArchive;
+            printf("FS_CBM_DOS");
+            FSDevice *fs = FSDevice::makeWithType(DISK_TYPE_SS_SD, DOS_TYPE_CBM);
+            fs->setName(name);
+            Disk *disk = makeWithFileSystem(ref, *fs);
+            delete fs;
             return disk;
         }
         default:
         {
             assert(false);
-            return NULL;
+            return nullptr;
         }
     }
 }
 
 Disk *
-Disk::makeWithArchive(C64 &ref, AnyArchive *archive)
+Disk::makeWithFileSystem(C64 &ref, FSDevice &fs)
 {
-    assert(archive != NULL);
-        
     Disk *disk = new Disk(ref);
-    
-    switch (archive->type()) {
-            
-        case FILETYPE_D64:
-            disk->clearDisk();
-            disk->encodeArchive((D64File *)archive);
-            return disk;
-    
-        case FILETYPE_G64:
 
-            disk->clearDisk();
-            disk->encodeArchive((G64File *)archive);
-            return disk;
+    disk->encode(fs);
+    return disk;
+}
 
-        default: break;
-    }
+Disk *
+Disk::makeWithG64(C64 &ref, G64File *g64)
+{
+    Disk *disk = new Disk(ref);
+
+    disk->encodeG64(g64);
+    return disk;
+}
+
+Disk *
+Disk::makeWithCollection(C64 &ref, AnyCollection &collection)
+{
+    ErrorCode err;
+    FSDevice *fs = FSDevice::makeWithCollection(collection, &err);
+    assert(fs);
     
-    /* Archive formats other than D64 or G64 cannot be encoded directly. They
-     * are processed in two stages. First a D64 archive is created, which is
-     * then encoded as a disk.
-     */
-    D64File *converted = D64File::makeWithAnyArchive(archive);
+    Disk *disk = makeWithFileSystem(ref, *fs);
+    delete fs;
     
-    disk->clearDisk();
-    disk->encodeArchive(converted);
-    delete converted;
     return disk;
 }
 
@@ -192,7 +189,7 @@ Disk::_reset()
 }
 
 void
-Disk::_dump()
+Disk::_dump() const
 {
     msg("Floppy disk\n");
     msg("-----------\n\n");
@@ -209,7 +206,7 @@ Disk::setModified(bool b)
 {
     if (b != modified) {
         modified = b;
-        messageQueue.put(MSG_DISK_PROTECT);
+        // messageQueue.put(MSG_DISK_PROTECT);
     }
 }
 
@@ -235,9 +232,9 @@ Disk::encodeGcr(u8 value, Track t, HeadPos offset)
 }
 
 void
-Disk::encodeGcr(u8 *values, size_t length, Track t, HeadPos offset)
+Disk::encodeGcr(u8 *values, usize length, Track t, HeadPos offset)
 {
-    for (size_t i = 0; i < length; i++, values++, offset += 10) {
+    for (usize i = 0; i < length; i++, values++, offset += 10) {
         encodeGcr(*values, t, offset);
     }
 }
@@ -245,7 +242,7 @@ Disk::encodeGcr(u8 *values, size_t length, Track t, HeadPos offset)
 u8
 Disk::decodeGcrNibble(u8 *gcr)
 {
-    assert(gcr != NULL);
+    assert(gcr);
     
     u8 codeword = (gcr[0] << 4) | (gcr[1] << 3) | (gcr[2] << 2) | (gcr[3] << 1) | gcr[4];
     assert(codeword < 32);
@@ -256,7 +253,7 @@ Disk::decodeGcrNibble(u8 *gcr)
 u8
 Disk::decodeGcr(u8 *gcr)
 {
-    assert(gcr != NULL);
+    assert(gcr);
     
     u8 nibble1 = decodeGcrNibble(gcr);
     u8 nibble2 = decodeGcrNibble(gcr + 5);
@@ -265,20 +262,20 @@ Disk::decodeGcr(u8 *gcr)
 }
 
 bool
-Disk::isValidHeadPos(Halftrack ht, HeadPos pos)
+Disk::isValidHeadPos(Halftrack ht, HeadPos pos) const
 {
     return isHalftrackNumber(ht) && pos < length.halftrack[ht];
 }
 
 HeadPos
-Disk::wrap(Halftrack ht, HeadPos pos)
+Disk::wrap(Halftrack ht, HeadPos pos) const
 {
     u16 len = length.halftrack[ht];
     return pos < 0 ? pos + len : pos >= len ? pos - len : pos;
 }
 
 u64
-Disk::_bitDelay(Halftrack ht, HeadPos pos) {
+Disk::_bitDelay(Halftrack ht, HeadPos pos) const {
     
     assert(isValidHeadPos(ht, pos));
 
@@ -317,7 +314,7 @@ Disk::clearDisk()
 }
 
 bool
-Disk::halftrackIsEmpty(Halftrack ht)
+Disk::halftrackIsEmpty(Halftrack ht) const
 {
     assert(isHalftrackNumber(ht));
     for (unsigned i = 0; i < sizeof(data.halftrack[ht]); i++)
@@ -326,14 +323,14 @@ Disk::halftrackIsEmpty(Halftrack ht)
 }
 
 bool
-Disk::trackIsEmpty(Track t)
+Disk::trackIsEmpty(Track t) const
 {
     assert(isTrackNumber(t));
     return halftrackIsEmpty(2 * t - 1);
 }
 
 unsigned
-Disk::nonemptyHalftracks()
+Disk::nonemptyHalftracks() const
 {
     unsigned result = 0;
     
@@ -346,14 +343,14 @@ Disk::nonemptyHalftracks()
 }
 
 u16
-Disk::lengthOfHalftrack(Halftrack ht)
+Disk::lengthOfHalftrack(Halftrack ht) const
 {
     assert(isHalftrackNumber(ht));
     return length.halftrack[ht];
 }
 
 u16
-Disk::lengthOfTrack(Track t)
+Disk::lengthOfTrack(Track t) const
 {
     assert(isTrackNumber(t));
     return length.track[t][0];
@@ -488,7 +485,7 @@ Disk::analyzeTrack(Track t)
 }
 
 void
-Disk::analyzeSectorHeaderBlock(size_t offset)
+Disk::analyzeSectorHeaderBlock(usize offset)
 {
     // The first byte must be 0x08 (indicating a header block)
     assert(decodeGcr(trackInfo.bit + offset) == 0x08);
@@ -506,7 +503,7 @@ Disk::analyzeSectorHeaderBlock(size_t offset)
 }
 
 void
-Disk::analyzeSectorDataBlock(size_t offset)
+Disk::analyzeSectorDataBlock(usize offset)
 {
     // The first byte must be 0x07 (indicating a header block)
     assert(decodeGcr(trackInfo.bit + offset) == 0x07);
@@ -523,7 +520,7 @@ Disk::analyzeSectorDataBlock(size_t offset)
 }
 
 void
-Disk::log(size_t begin, size_t length, const char *fmt, ...)
+Disk::log(usize begin, usize length, const char *fmt, ...)
 {
     char buf[256];
     
@@ -543,7 +540,7 @@ Disk::diskNameAsString()
     analyzeTrack(18);
     
     unsigned i;
-    size_t offset = trackInfo.sectorInfo[0].dataBegin + (0x90 * 10);
+    usize offset = trackInfo.sectorInfo[0].dataBegin + (0x90 * 10);
     
     for (i = 0; i < 255; i++, offset += 10) {
         u8 value = decodeGcr(trackInfo.bit + offset);
@@ -559,7 +556,7 @@ Disk::diskNameAsString()
 const char *
 Disk::trackBitsAsString()
 {
-    size_t i;
+    usize i;
     for (i = 0; i < trackInfo.length; i++) {
         if (trackInfo.bit[i]) {
             text[i] = '1';
@@ -575,8 +572,8 @@ const char *
 Disk::sectorHeaderBytesAsString(Sector nr, bool hex)
 {
     assert(isSectorNumber(nr));
-    size_t begin = trackInfo.sectorInfo[nr].headerBegin;
-    size_t end = trackInfo.sectorInfo[nr].headerEnd;
+    usize begin = trackInfo.sectorInfo[nr].headerBegin;
+    usize end = trackInfo.sectorInfo[nr].headerEnd;
     return (begin == end) ? "" : sectorBytesAsString(trackInfo.bit + begin, 10, hex);
 }
 
@@ -584,18 +581,18 @@ const char *
 Disk::sectorDataBytesAsString(Sector nr, bool hex)
 {
     assert(isSectorNumber(nr));
-    size_t begin = trackInfo.sectorInfo[nr].dataBegin;
-    size_t end = trackInfo.sectorInfo[nr].dataEnd;
+    usize begin = trackInfo.sectorInfo[nr].dataBegin;
+    usize end = trackInfo.sectorInfo[nr].dataEnd;
     return (begin == end) ? "" : sectorBytesAsString(trackInfo.bit + begin, 256, hex);
 }
 
 const char *
-Disk::sectorBytesAsString(u8 *buffer, size_t length, bool hex)
+Disk::sectorBytesAsString(u8 *buffer, usize length, bool hex)
 {
-    size_t gcrOffset = 0;
-    size_t strOffset = 0;
+    usize gcrOffset = 0;
+    usize strOffset = 0;
     
-    for (size_t i = 0; i < length; i++, gcrOffset += 10) {
+    for (usize i = 0; i < length; i++, gcrOffset += 10) {
 
         u8 value = decodeGcr(buffer + gcrOffset);
 
@@ -618,7 +615,7 @@ Disk::sectorBytesAsString(u8 *buffer, size_t length, bool hex)
 // Decoding disk data
 //
 
-size_t
+usize
 Disk::decodeDisk(u8 *dest)
 {
     // Determine highest non-empty track
@@ -635,7 +632,7 @@ Disk::decodeDisk(u8 *dest)
     return decodeDisk(dest, 42);
 }
 
-size_t
+usize
 Disk::decodeDisk(u8 *dest, unsigned numTracks)
 {
     unsigned numBytes = 0;
@@ -655,7 +652,7 @@ Disk::decodeDisk(u8 *dest, unsigned numTracks)
     return numBytes;
 }
 
-size_t
+usize
 Disk::decodeTrack(Track t, u8 *dest)
 {
     unsigned numBytes = 0;
@@ -683,8 +680,8 @@ Disk::decodeTrack(Track t, u8 *dest)
     return numBytes;
 }
 
-size_t
-Disk::decodeSector(size_t offset, u8 *dest)
+usize
+Disk::decodeSector(usize offset, u8 *dest)
 {
     // The first byte must be 0x07 (indicating a data block)
     assert(decodeGcr(trackInfo.bit + offset) == 0x07);
@@ -705,17 +702,16 @@ Disk::decodeSector(size_t offset, u8 *dest)
 //
 
 void
-Disk::encodeArchive(G64File *a)
+Disk::encodeG64(G64File *a)
 {
     trace(GCR_DEBUG, "Encoding G64 archive\n");
     
-    assert(a != NULL);
+    assert(a);
     
     clearDisk();
     for (Halftrack ht = 1; ht <= 84; ht++) {
         
-        a->selectHalftrack(ht);
-        u16 size = a->getSizeOfHalftrack();
+        u16 size = a->getSizeOfHalftrack(ht);
         
         if (size == 0) {
             if (ht > 1) {
@@ -732,20 +728,13 @@ Disk::encodeArchive(G64File *a)
         trace(GCR_DEBUG, "  Encoding halftrack %d (%d bytes)\n", ht, size);
         length.halftrack[ht] = 8 * size;
         
-        for (unsigned i = 0; i < size; i++) {
-            int b = a->readHalftrack();
-            assert(b != -1);
-            data.halftrack[ht][i] = (u8)b;
-        }
-        assert(a->readHalftrack() == -1 /* EOF */);
+        a->copyHalftrack(ht, data.halftrack[ht]);
     }
 }
 
 void
-Disk::encodeArchive(D64File *a, bool alignTracks)
-{
-    assert(a != NULL);
-    
+Disk::encode(FSDevice &fs, bool alignTracks)
+{    
     // 64COPY (fails on VICE test drive/skew)
     /*
     int tailGap[4] = { 9, 9, 9, 9 };
@@ -780,10 +769,10 @@ Disk::encodeArchive(D64File *a, bool alignTracks)
     };
     */
     
-    size_t encodedBits;
-    unsigned numTracks = a->numberOfTracks();
+    usize encodedBits;
+    unsigned numTracks = fs.getNumTracks();
 
-    trace(GCR_DEBUG, "Encoding D64 archive with %d tracks\n", numTracks);
+    trace(GCR_DEBUG, "Encoding disk with %d tracks\n", numTracks);
 
     // Wipe out track data
     clearDisk();
@@ -802,7 +791,7 @@ Disk::encodeArchive(D64File *a, bool alignTracks)
         } else {
             start = 0;
         }
-        encodedBits = encodeTrack(a, t, tailGap[zone], start);
+        encodedBits = encodeTrack(fs, t, tailGap[zone], start);
         trace(GCR_DEBUG, "Encoded %zu bits (%lu bytes) for track %d.\n",
               encodedBits, encodedBits / 8, t);
     }
@@ -813,18 +802,18 @@ Disk::encodeArchive(D64File *a, bool alignTracks)
     }
 }
 
-size_t
-Disk::encodeTrack(D64File *a, Track t, u8 tailGap, HeadPos start)
+usize
+Disk::encodeTrack(FSDevice &fs, Track t, u8 tailGap, HeadPos start)
 {
     assert(isTrackNumber(t));
     trace(GCR_DEBUG, "Encoding track %d\n", t);
 
-    size_t totalEncodedBits = 0;
+    usize totalEncodedBits = 0;
     
     // For each sector in this track ...
     for (Sector s = 0; s < trackDefaults[t].sectors; s++) {
         
-        size_t encodedBits = encodeSector(a, t, s, start, tailGap);
+        usize encodedBits = encodeSector(fs, t, s, start, tailGap);
         start += (HeadPos)encodedBits;
         totalEncodedBits += encodedBits;
     }
@@ -832,22 +821,21 @@ Disk::encodeTrack(D64File *a, Track t, u8 tailGap, HeadPos start)
     return totalEncodedBits;
 }
 
-size_t
-Disk::encodeSector(D64File *a, Track t, Sector s, HeadPos start, int tailGap)
+usize
+Disk::encodeSector(FSDevice &fs, Track t, Sector s, HeadPos start, int tailGap)
 {
-    assert(a != NULL);
     assert(isValidTrackSectorPair(t, s));
     
+    TSLink ts = TSLink{t,s};
+    
     HeadPos offset = start;
-    u8 errorCode = a->errorCode(t, s);
-    
-    a->selectTrackAndSector(t, s);
-    
+    u8 errorCode = fs.getErrorCode(ts);
+        
     trace(GCR_DEBUG, "  Encoding track/sector %d/%d\n", t, s);
     
     // Get disk id and compute checksum
-    u8 id1 = a->diskId1();
-    u8 id2 = a->diskId2();
+    u8 id1 = fs.diskId1();
+    u8 id2 = fs.diskId2();
     u8 checksum = id1 ^ id2 ^ t ^ s; // Header checksum byte
     
     // SYNC (0xFF 0xFF 0xFF 0xFF 0xFF)
@@ -928,7 +916,8 @@ Disk::encodeSector(D64File *a, Track t, Sector s, HeadPos start, int tailGap)
     // Data bytes
     checksum = 0;
     for (unsigned i = 0; i < 256; i++, offset += 10) {
-        u8 byte = (u8)a->readTrack();
+        // u8 byte = (u8)d64->readTrack();
+        u8 byte = fs.readByte(ts, i);
         checksum ^= byte;
         encodeGcr(byte, t, offset);
     }

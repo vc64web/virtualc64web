@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _REX_H
-#define _REX_H
+#pragma once
 
 #include "Cartridge.h"
 
@@ -17,8 +16,8 @@ class Rex : public Cartridge {
 public:
     
     Rex(C64 &ref) : Cartridge(ref) { };
-    const char *getDescription() override { return "Rex"; }
-    CartridgeType getCartridgeType() override { return CRT_REX; }
+    const char *getDescription() const override { return "Rex"; }
+    CartridgeType getCartridgeType() const override { return CRT_REX; }
     
     
     //
@@ -28,7 +27,5 @@ public:
 public:
     
     u8 peekIO2(u16 addr) override;
-    u8 spypeekIO2(u16 addr) override { return 0; }
+    u8 spypeekIO2(u16 addr) const override;
 };
-
-#endif

@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _C64MEMORY_H
-#define _C64MEMORY_H
+#pragma once
 
 #include "C64Memory.h"
 
@@ -66,7 +65,7 @@ public:
 public:
     
 	C64Memory(C64 &ref);
-    const char *getDescription() override { return "C64Memory"; }
+    const char *getDescription() const override { return "C64Memory"; }
 
 private:
     
@@ -79,15 +78,11 @@ private:
     
 public:
     
-    MemConfig getConfig() { return config; }
+    MemConfig getConfig() const { return config; }
     
-    long getConfigItem(ConfigOption option);
-    bool setConfigItem(ConfigOption option, long value) override;
+    long getConfigItem(Option option) const;
+    bool setConfigItem(Option option, long value) override;
     
-    /*
-    RamPattern getRamPattern() { return config.ramPattern; }
-    void setRamPattern(RamPattern pattern) { config.ramPattern = pattern; }
-    */
     
     //
     // Analyzing
@@ -100,7 +95,7 @@ public:
 private:
     
     void _inspect() override;
-    void _dump() override;
+    void _dump() const override;
 
     
     //
@@ -126,9 +121,9 @@ private:
     {
     }
     
-    size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
@@ -166,10 +161,10 @@ public:
     void peekIOIdle(u16 addr) { (void)peekIO(addr); }
     
     // Reads a value from memory without side effects
-    u8 spypeek(u16 addr, MemoryType source);
-    u8 spypeek(u16 addr) { return spypeek(addr, peekSrc[addr >> 12]); }
-    u8 spypeekIO(u16 addr);
-    u8 spypeekColor(u16 addr);
+    u8 spypeek(u16 addr, MemoryType source) const;
+    u8 spypeek(u16 addr) const { return spypeek(addr, peekSrc[addr >> 12]); }
+    u8 spypeekIO(u16 addr) const;
+    u8 spypeekColor(u16 addr) const;
 
     // Writing a value into memory
     void poke(u16 addr, u8 value, MemoryType target);
@@ -195,5 +190,3 @@ public:
     char *decdump(u16 addr, long num) { return decdump(addr, num, peekSrc[addr >> 12]); }
     char *txtdump(u16 addr, long num) { return txtdump(addr, num, peekSrc[addr >> 12]); }
 };
-
-#endif

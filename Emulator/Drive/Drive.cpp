@@ -24,14 +24,14 @@ Drive::Drive(DriveID id, C64 &ref) : C64Component(ref), deviceNr(id)
     
     config.connected = false;
     config.switchedOn = true;
-    config.type = DRIVE_VC1541II;
+    config.type = DRIVE_MODEL_VC1541II;
     
-    insertionStatus = FULLY_EJECTED;
+    insertionStatus = DISK_FULLY_EJECTED;
     disk.clearDisk();
 }
 
 const char *
-Drive::getDescription()
+Drive::getDescription() const
 {
     assert(deviceNr == DRIVE8 || deviceNr == DRIVE9);
     return deviceNr == DRIVE8 ? "Drive8" : "Drive9";
@@ -47,7 +47,7 @@ Drive::_reset()
 }
 
 long
-Drive::getConfigItem(ConfigOption option)
+Drive::getConfigItem(Option option) const
 {
     switch (option) {
             
@@ -55,12 +55,14 @@ Drive::getConfigItem(ConfigOption option)
         case OPT_DRIVE_CONNECT:       return config.connected;
         case OPT_DRIVE_POWER_SWITCH:  return config.switchedOn;
             
-        default: assert(false);
+        default:
+            assert(false);
+            return 0;
     }
 }
 
 bool
-Drive::setConfigItem(ConfigOption option, long value)
+Drive::setConfigItem(Option option, long value)
 {
     switch (option) {
             
@@ -81,7 +83,7 @@ Drive::setConfigItem(ConfigOption option, long value)
 }
 
 bool
-Drive::setConfigItem(ConfigOption option, long id, long value)
+Drive::setConfigItem(Option option, long id, long value)
 {
     if (id != deviceNr) return false;
     
@@ -89,15 +91,10 @@ Drive::setConfigItem(ConfigOption option, long id, long value)
             
         case OPT_DRIVE_TYPE:
         {
-            if (!isDriveType(value)) {
-                warn("Invalid drive type: %ld\n", value);
-                return false;
-            }
-            if (config.type == value) {
-                return false;
-            }
+            if (!DriveTypeEnum::verify(value)) return false;
+            if (config.type == value) return false;
             
-            config.type = (DriveType)value;
+            config.type = (DriveModel)value;
             return true;
         }
         case OPT_DRIVE_CONNECT:
@@ -105,7 +102,7 @@ Drive::setConfigItem(ConfigOption option, long id, long value)
             if (config.connected == value) {
                 return false;
             }
-            if (value && !c64.hasRom(ROM_VC1541)) {
+            if (value && !c64.hasRom(ROM_TYPE_VC1541)) {
                 warn("Can't connect drive (ROM missing).\n");
                 return false;
             }
@@ -144,7 +141,7 @@ Drive::setConfigItem(ConfigOption option, long id, long value)
 }
 
 void 
-Drive::_dump()
+Drive::_dump() const
 {
 	msg("VC1541\n");
 	msg("------\n\n");
@@ -153,7 +150,6 @@ Drive::_dump()
 	msg("            SYNC : %d\n", sync);
     msg("       Read mode : %s\n", readMode() ? "YES" : "NO");
 	msg("\n");
-    mem.dump();
 }
 
 void
@@ -346,13 +342,11 @@ Drive::setRedLED(bool b)
 void
 Drive::setRotating(bool b)
 {
-    if (!spinning && b) {
-        spinning = true;
-        c64.putMessage(MSG_DRIVE_MOTOR_ON, deviceNr);
-    } else if (spinning && !b) {
-        spinning = false;
-        c64.putMessage(MSG_DRIVE_MOTOR_OFF, deviceNr);
-    }
+    if (spinning == b) return;
+    
+    spinning = b;
+    c64.putMessage(b ? MSG_DRIVE_MOTOR_ON : MSG_DRIVE_MOTOR_OFF, deviceNr);
+    iec.updateTransferStatus();
 }
 
 void
@@ -400,27 +394,10 @@ Drive::setModifiedDisk(bool value)
 }
 
 void
-Drive::insertDisk(FileSystemType fstype)
-{
-    Disk *newDisk = Disk::make(c64, fstype);
-    insertDisk(newDisk);
-}
-
-void
-Drive::insertDisk(AnyArchive *archive)
-{
-    assert(archive != NULL);
-
-    trace(DSKCHG_DEBUG, "insertDisk(archive %p)\n", archive);
-    insertDisk(Disk::makeWithArchive(c64, archive));
-}
-
-void
 Drive::insertDisk(Disk *otherDisk)
 {
-    trace(DSKCHG_DEBUG, "insertDisk(otherDisk %p)\n", otherDisk);
-    assert(otherDisk != NULL);
-    
+    debug(DSKCHG_DEBUG, "insertDisk(otherDisk %p)\n", otherDisk);
+
     suspend();
     
     if (!diskToInsert) {
@@ -433,14 +410,49 @@ Drive::insertDisk(Disk *otherDisk)
     resume();
 }
 
+void
+Drive::insertNewDisk(DOSType fsType)
+{
+    PETName<16> name = PETName<16>("NEW DISK");
+    insertNewDisk(fsType, name);
+}
+
+void
+Drive::insertNewDisk(DOSType fsType, PETName<16> name)
+{
+    Disk *newDisk = Disk::make(c64, fsType, name);
+    insertDisk(newDisk);
+}
+
+void
+Drive::insertFileSystem(FSDevice *device)
+{
+    debug(DSKCHG_DEBUG, "insertFileSystem(%p)\n", device);
+    insertDisk(Disk::makeWithFileSystem(c64, *device));
+}
+
+void
+Drive::insertG64(G64File *g64)
+{
+    debug(DSKCHG_DEBUG, "insertG64(%p)\n", g64);
+    insertDisk(Disk::makeWithG64(c64, g64));
+}
+
+void
+Drive::insertDisk(AnyCollection &collection)
+{
+    debug(DSKCHG_DEBUG, "insertDisk(collection)\n");
+    insertDisk(Disk::makeWithCollection(c64, collection));
+}
+
 void 
 Drive::ejectDisk()
 {
-    trace(DSKCHG_DEBUG, "ejectDisk()\n");
+    debug(DSKCHG_DEBUG, "ejectDisk()\n");
 
     suspend();
     
-    if (insertionStatus == FULLY_INSERTED && !diskToInsert) {
+    if (insertionStatus == DISK_FULLY_INSERTED && !diskToInsert) {
         
         // Initiate the disk change procedure
         diskChangeCounter = 1;
@@ -457,12 +469,12 @@ Drive::vsyncHandler()
     
     switch (insertionStatus) {
             
-        case FULLY_INSERTED:
-            
+        case DISK_FULLY_INSERTED:
+        {
             trace(DSKCHG_DEBUG, "FULLY_INSERTED -> PARTIALLY_EJECTED\n");
 
             // Pull the disk half out (blocks the light barrier)
-            insertionStatus = PARTIALLY_EJECTED;
+            insertionStatus = DISK_PARTIALLY_EJECTED;
             
             // Make sure the drive can no longer read from this disk
             disk.clearDisk();
@@ -470,13 +482,13 @@ Drive::vsyncHandler()
             // Schedule the next transition
             diskChangeCounter = 17;
             return;
-            
-        case PARTIALLY_EJECTED:
-            
+        }
+        case DISK_PARTIALLY_EJECTED:
+        {
             trace(DSKCHG_DEBUG, "PARTIALLY_EJECTED -> FULLY_EJECTED\n");
 
             // Take the disk out (unblocks the light barrier)
-            insertionStatus = FULLY_EJECTED;
+            insertionStatus = DISK_FULLY_EJECTED;
             
             // Inform listeners
             c64.putMessage(MSG_DISK_EJECTED, deviceNr);
@@ -484,38 +496,41 @@ Drive::vsyncHandler()
             // Schedule the next transition
             diskChangeCounter = 17;
             return;
-            
-        case FULLY_EJECTED:
-            
+        }
+        case DISK_FULLY_EJECTED:
+        {
             trace(DSKCHG_DEBUG, "FULLY_EJECTED -> PARTIALLY_INSERTED\n");
 
             // Only proceed if a new disk is waiting for insertion
             if (!diskToInsert) return;
             
             // Push the new disk half in (blocks the light barrier)
-            insertionStatus = PARTIALLY_INSERTED;
+            insertionStatus = DISK_PARTIALLY_INSERTED;
             
             // Schedule the next transition
             diskChangeCounter = 17;
             return;
-            
-        case PARTIALLY_INSERTED:
-            
+        }
+        case DISK_PARTIALLY_INSERTED:
+        {
             trace(DSKCHG_DEBUG, "PARTIALLY_INSERTED -> FULLY_INSERTED\n");
 
             // Fully insert the disk (unblocks the light barrier)
-            insertionStatus = FULLY_INSERTED;
+            insertionStatus = DISK_FULLY_INSERTED;
 
             // Copy the disk contents
-            size_t size = diskToInsert->size();
+            usize size = diskToInsert->size();
             u8 *buffer = new u8[size];
             diskToInsert->save(buffer);
             disk.load(buffer);
             delete[] buffer;
-            diskToInsert = NULL;
+            diskToInsert = nullptr;
 
             // Inform listeners
             c64.putMessage(MSG_DISK_INSERTED, deviceNr);
             return;
+        }
+        default:
+            assert(false);
     }
 }

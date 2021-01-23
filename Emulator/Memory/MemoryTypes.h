@@ -7,63 +7,58 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef MEMORY_TYPES_H
-#define MEMORY_TYPES_H
+#pragma once
+
+#include "MemoryPublicTypes.h"
+#include "Reflection.h"
 
 //
-// Enumerations
+// Reflection APIs
 //
 
-// Memory source identifiers. The identifiers are used inside the peek and poke
-// lookup tables to indicate the source and target of a peek or poke operation.
-enum_long(MemoryType)
-{
-    M_RAM = 1,
-    M_CHAR,
-    M_KERNAL,
-    M_BASIC,
-    M_IO,
-    M_CRTLO,
-    M_CRTHI,
-    M_PP,
-    M_NONE
-};
-
-enum_long(RamPattern)
-{
-    RAM_PATTERN_C64 = 0,
-    RAM_PATTERN_C64C = 1
-};
-
-inline bool isRamPattern(long value)
-{
-    return value == RAM_PATTERN_C64 || value == RAM_PATTERN_C64C;
-}
-
-//
-// Structures
-//
-
-typedef struct
-{
-    RamPattern ramPattern;
-    bool debugcart;
-}
-MemConfig;
-
-typedef struct
-{
-    bool exrom;
-    bool game;
-    bool loram;
-    bool hiram;
-    bool charen;
-    u8   bankMap;
+struct MemoryTypeEnum : Reflection<MemoryTypeEnum, MemoryType> {
     
-    MemoryType peekSrc[16];
-    MemoryType vicPeekSrc[16];
-}
-MemInfo;
+    static bool isValid(long value)
+    {
+        return value >= 1 && value < M_COUNT;
+    }
+    
+    static const char *prefix() { return "M"; }
+    static const char *key(MemoryType value)
+    {
+        switch (value) {
+                
+            case M_RAM:     return "M_RAM";
+            case M_CHAR:    return "M_CHAR";
+            case M_KERNAL:  return "M_KERNAL";
+            case M_BASIC:   return "M_BASIC";
+            case M_IO:      return "M_IO";
+            case M_CRTLO:   return "M_CRTLO";
+            case M_CRTHI:   return "M_CRTHI";
+            case M_PP:      return "M_PP";
+            case M_NONE:    return "M_NONE";
+            case M_COUNT:   return "???";
+        }
+        return "???";
+    }
+};
 
-
-#endif
+struct RamPatternEnum : Reflection<RamPatternEnum, RamPattern> {
+    
+    static bool isValid(long value)
+    {
+        return (unsigned long)value < RAM_PATTERN_COUNT;
+    }
+    
+    static const char *prefix() { return "RAM_PATTERN"; }
+    static const char *key(RamPattern value)
+    {
+        switch (value) {
+                
+            case RAM_PATTERN_C64:    return "C64";
+            case RAM_PATTERN_C64C:   return "C64C";
+            case RAM_PATTERN_COUNT:  return "???";
+        }
+        return "???";
+    }
+};

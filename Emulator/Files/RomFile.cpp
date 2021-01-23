@@ -48,69 +48,161 @@ const u8 RomFile::magicVC1541RomBytes[vc1541RomSignatureCnt][3] = {
 };
 
 bool
-RomFile::isRomBuffer(const u8 *buffer, size_t length)
+RomFile::isCompatibleName(const std::string &name)
+{
+    return true;
+}
+
+bool
+RomFile::isCompatibleStream(std::istream &stream)
 {
     return
-    isBasicRomBuffer(buffer, length) ||
-    isCharRomBuffer(buffer, length) ||
-    isKernalRomBuffer(buffer, length) ||
-    isVC1541RomBuffer(buffer, length);
+    isBasicRomStream(stream) ||
+    isCharRomStream(stream) ||
+    isKernalRomStream(stream) ||
+    isVC1541RomStream(stream);
 }
 
 bool
-RomFile::isBasicRomBuffer(const u8 *buffer, size_t length)
+RomFile::isRomStream(RomType type, std::istream &stream)
 {
-    if (length != 0x2000) return false;
+    switch (type) {
+        case ROM_TYPE_BASIC:   return isBasicRomStream(stream);
+        case ROM_TYPE_CHAR:    return isCharRomStream(stream);
+        case ROM_TYPE_KERNAL:  return isKernalRomStream(stream);
+        case ROM_TYPE_VC1541:  return isVC1541RomStream(stream);
 
-    for (size_t i = 0; i < basicRomSignatureCnt; i++) {
-        if (matchingBufferHeader(buffer, magicBasicRomBytes[i], sizeof(magicBasicRomBytes[i]))) {
+        default:
+            assert(false);
+            return false;
+    }
+}
+
+bool
+RomFile::isBasicRomStream(std::istream &stream)
+{
+    if (streamLength(stream) != 0x2000) return false;
+
+    for (usize i = 0; i < basicRomSignatureCnt; i++) {
+        
+        if (matchingStreamHeader(stream,
+                                 magicBasicRomBytes[i],
+                                 sizeof(magicBasicRomBytes[i]))) {
             return true;
         }
     }
-
     return false;
 }
 
 bool
-RomFile::isCharRomBuffer(const u8 *buffer, size_t length)
+RomFile::isCharRomStream(std::istream &stream)
 {
-    if (length != 0x1000) return false;
+    if (streamLength(stream) != 0x1000) return false;
 
-    for (size_t i = 0; i < charRomSignatureCnt; i++) {
-        if (matchingBufferHeader(buffer, magicCharRomBytes[i], sizeof(magicCharRomBytes[i]))) {
+    for (usize i = 0; i < basicRomSignatureCnt; i++) {
+        
+        if (matchingStreamHeader(stream,
+                                 magicCharRomBytes[i],
+                                 sizeof(magicCharRomBytes[i]))) {
             return true;
         }
     }
-
     return false;
 }
 
 bool
-RomFile::isKernalRomBuffer(const u8 *buffer, size_t length)
+RomFile::isKernalRomStream(std::istream &stream)
 {
-    if (length != 0x2000) return false;
+    if (streamLength(stream) != 0x2000) return false;
 
-    for (size_t i = 0; i < kernalRomSignatureCnt; i++) {
-        if (matchingBufferHeader(buffer, magicKernalRomBytes[i], sizeof(magicKernalRomBytes[i]))) {
+    for (usize i = 0; i < kernalRomSignatureCnt; i++) {
+        
+        if (matchingStreamHeader(stream,
+                                 magicKernalRomBytes[i],
+                                 sizeof(magicKernalRomBytes[i]))) {
             return true;
         }
     }
-
     return false;
 }
 
 bool
-RomFile::isVC1541RomBuffer(const u8 *buffer, size_t length)
+RomFile::isVC1541RomStream(std::istream &stream)
 {
-    if (length != 0x4000) return false;
+    if (streamLength(stream) != 0x4000) return false;
 
-    for (size_t i = 0; i < vc1541RomSignatureCnt; i++) {
-        if (matchingBufferHeader(buffer, magicVC1541RomBytes[i], sizeof(magicVC1541RomBytes[i]))) {
+    for (usize i = 0; i < vc1541RomSignatureCnt; i++) {
+        
+        if (matchingStreamHeader(stream,
+                                 magicVC1541RomBytes[i],
+                                 sizeof(magicVC1541RomBytes[i]))) {
             return true;
         }
     }
-
     return false;
+}
+
+bool
+RomFile::isRomFile(RomType type, const char *path)
+{
+    std::ifstream stream(path);
+    return isRomStream(type, stream);
+}
+
+bool
+RomFile::isBasicRomFile(const char *path)
+{
+    return isRomFile(ROM_TYPE_BASIC, path);
+}
+
+bool
+RomFile::isCharRomFile(const char *path)
+{
+    return isRomFile(ROM_TYPE_CHAR, path);
+}
+
+bool
+RomFile::isKernalRomFile(const char *path)
+{
+    return isRomFile(ROM_TYPE_KERNAL, path);
+}
+
+bool
+RomFile::isVC1541RomFile(const char *path)
+{
+    return isRomFile(ROM_TYPE_VC1541, path);
+}
+
+bool
+RomFile::isRomBuffer(RomType type, const u8 *buf, usize len)
+{
+    std::stringstream stream;
+    stream.write((const char *)buf, len);
+    return isRomStream(type, stream);
+}
+
+bool
+RomFile::isBasicRomBuffer(const u8 *buf, usize len)
+{
+    return isRomBuffer(ROM_TYPE_BASIC, buf, len);
+}
+
+bool
+RomFile::isCharRomBuffer(const u8 *buf, usize len)
+{
+    return isRomBuffer(ROM_TYPE_CHAR, buf, len);
+}
+
+bool
+RomFile::isKernalRomBuffer(const u8 *buf, usize len)
+{
+    return isRomBuffer(ROM_TYPE_KERNAL, buf, len);
+}
+
+bool
+RomFile::isVC1541RomBuffer(const u8 *buf, usize len)
+{
+    return isRomBuffer(ROM_TYPE_VC1541, buf, len);
 }
 
 RomIdentifier
@@ -121,7 +213,6 @@ RomFile::identifier(u64 fnv)
         case 0x0000000000000000: return ROM_MISSING;
             
         case 0x20765FEA67A8762D: return BASIC_COMMODORE;
-        case 0x2e2a8ba6b516d316: return BASIC_MEGA65;
                         
         case 0xACC576F7B332AC15: return CHAR_COMMODORE;
         case 0x3CA9D37AA3DE0969: return CHAR_SWEDISH_C2D007;
@@ -152,7 +243,6 @@ RomFile::identifier(u64 fnv)
         case 0x7E0A124C3F192818: return KERNAL_DATEL_V32;
         case 0x211EAC45AB03A2CA: return KERNAL_EXOS_V3;
         case 0xF2A39FF166D338AE: return KERNAL_TURBO_TAPE;
-        case 0x921c11f1c5ad1544: return KERNAL_MEGA65;
             
         case 0x44BBA0EAC5898597: return VC1541_II_1987;
         case 0xA1D36980A17C8756: return VC1541_II_NEWTRONIC;
@@ -195,22 +285,6 @@ RomFile::isCommodoreRom(RomIdentifier rev)
 }
 
 bool
-RomFile::isMega65Rom(RomIdentifier rev)
-{
-    switch (rev) {
-            
-        case BASIC_MEGA65:
-        case CHAR_MEGA65:
-        case CHAR_PXLFONT_V23:
-        case KERNAL_MEGA65:
-            return true;
-            
-        default:
-            return false;
-     }
-}
-
-bool
 RomFile::isPatchedRom(RomIdentifier rev)
 {
     switch (rev) {
@@ -250,7 +324,6 @@ RomFile::title(RomIdentifier rev)
         case ROM_UNKNOWN:             return "Unknown";
             
         case BASIC_COMMODORE:         return "Basic Rom";
-        case BASIC_MEGA65:            return "Free Basic Replacement";
             
         case CHAR_COMMODORE:
         case CHAR_SWEDISH_C2D007:
@@ -281,7 +354,6 @@ RomFile::title(RomIdentifier rev)
         case KERNAL_DATEL_V32:
         case KERNAL_EXOS_V3:
         case KERNAL_TURBO_TAPE:       return "Patched Kernal Rom";
-        case KERNAL_MEGA65:           return "Free Kernal Replacement";
             
         case VC1541_II_1987:        
         case VC1541_II_NEWTRONIC:
@@ -301,7 +373,6 @@ RomFile::subTitle(RomIdentifier rev)
     switch (rev) {
             
         case BASIC_COMMODORE:         return "Generic C64";
-        case BASIC_MEGA65:            return "M.E.G.A. C64 OpenROM";
             
         case CHAR_COMMODORE:          return "Generic C64";
         case CHAR_SWEDISH_C2D007:     return "Swedish C64 (C2D007)";
@@ -332,7 +403,6 @@ RomFile::subTitle(RomIdentifier rev)
         case KERNAL_DATEL_V32:        return "Datel Rom";
         case KERNAL_EXOS_V3:          return "Exos Rom";
         case KERNAL_TURBO_TAPE:       return "Turbo Tape";
-        case KERNAL_MEGA65:           return "M.E.G.A. C64 OpenROM";
             
         case VC1541_II_1987:          return "VC1541-II (1987)";
         case VC1541_II_NEWTRONIC:     return "VC1541-II (Newtronic motor)";
@@ -352,7 +422,6 @@ RomFile::revision(RomIdentifier rev)
     switch (rev) {
             
         case BASIC_COMMODORE:         return "V2";
-        case BASIC_MEGA65:            return "";
             
         case CHAR_COMMODORE:          return "V1";
         case CHAR_SWEDISH_C2D007:     return "";
@@ -383,7 +452,6 @@ RomFile::revision(RomIdentifier rev)
         case KERNAL_DATEL_V32:        return "V3.2+";
         case KERNAL_EXOS_V3:          return "V3";
         case KERNAL_TURBO_TAPE:       return "V0.1";
-        case KERNAL_MEGA65:           return "";
             
         case VC1541_II_1987:          return "";
         case VC1541_II_NEWTRONIC:     return "";
@@ -397,110 +465,15 @@ RomFile::revision(RomIdentifier rev)
     }
 }
 
-bool
-RomFile::isRomFile(const char *filename)
+usize
+RomFile::readFromStream(std::istream &stream)
 {
-    return
-    isBasicRomFile(filename) ||
-    isCharRomFile(filename) ||
-    isKernalRomFile(filename) ||
-    isVC1541RomFile(filename);
-}
-
-bool
-RomFile::isBasicRomFile(const char *filename)
-{
-    if (!checkFileSize(filename, 0x2000, 0x2000)) return false;
-
-    for (size_t i = 0; i < basicRomSignatureCnt; i++) {
-        if (matchingFileHeader(filename, magicBasicRomBytes[i], sizeof(magicBasicRomBytes[i]))) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool
-RomFile::isCharRomFile(const char *filename)
-{
-    if (!checkFileSize(filename, 0x1000, 0x1000)) return false;
-
-    for (size_t i = 0; i < charRomSignatureCnt; i++) {
-        if (matchingFileHeader(filename, magicCharRomBytes[i], sizeof(magicCharRomBytes[i]))) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool
-RomFile::isKernalRomFile(const char *filename)
-{
-    if (!checkFileSize(filename, 0x2000, 0x2000)) return false;
-
-    for (size_t i = 0; i < kernalRomSignatureCnt; i++) {
-        if (matchingFileHeader(filename, magicKernalRomBytes[i], sizeof(magicKernalRomBytes[i]))) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-bool
-RomFile::isVC1541RomFile(const char *filename)
-{
-    if (!checkFileSize(filename, 0x4000, 0x4000)) return false;
-
-    for (size_t i = 0; i < vc1541RomSignatureCnt; i++) {
-        if (matchingFileHeader(filename, magicVC1541RomBytes[i], sizeof(magicVC1541RomBytes[i]))) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-RomFile *
-RomFile::makeWithBuffer(const u8 *buffer, size_t length)
-{
-    RomFile *rom = new RomFile();
-    
-    if (!rom->readFromBuffer(buffer, length)) {
-        delete rom;
-        return NULL;
-    }
-    
-    return rom;
-}
-
-RomFile *
-RomFile::makeWithFile(const char *filename)
-{
-    RomFile *rom = new RomFile();
-    
-    if (!rom->readFromFile(filename)) {
-        delete rom;
-        return NULL;
-    }
-    
-    return rom;
-}
-
-bool
-RomFile::readFromBuffer(const u8 *buffer, size_t length)
-{
-    if (!AnyFile::readFromBuffer(buffer, length))
-        return false;
-    
-    romtype =
-    isBasicRomBuffer(buffer, length) ? FILETYPE_BASIC_ROM :
-    isCharRomBuffer(buffer, length) ? FILETYPE_CHAR_ROM :
-    isKernalRomBuffer(buffer, length) ? FILETYPE_KERNAL_ROM :
-    isVC1541RomBuffer(buffer, length) ? FILETYPE_VC1541_ROM :
+    romType =
+    isBasicRomStream(stream) ? FILETYPE_BASIC_ROM :
+    isCharRomStream(stream) ? FILETYPE_CHAR_ROM :
+    isKernalRomStream(stream) ? FILETYPE_KERNAL_ROM :
+    isVC1541RomStream(stream) ? FILETYPE_VC1541_ROM :
     FILETYPE_UNKNOWN;
- 
-    return romtype != FILETYPE_UNKNOWN;
+    
+    return AnyFile::readFromStream(stream);
 }

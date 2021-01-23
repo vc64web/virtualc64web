@@ -114,31 +114,28 @@ C64Memory::_reset()
 }
 
 long
-C64Memory::getConfigItem(ConfigOption option)
+C64Memory::getConfigItem(Option option) const
 {
     switch (option) {
             
         case OPT_RAM_PATTERN:  return config.ramPattern;
         case OPT_DEBUGCART:    return config.debugcart;
             
-        default: assert(false);
+        default:
+            assert(false);
+            return 0;
     }
 }
 
 bool
-C64Memory::setConfigItem(ConfigOption option, long value)
+C64Memory::setConfigItem(Option option, long value)
 {
     switch (option) {
             
         case OPT_RAM_PATTERN:
             
-            if (!isRamPattern(value)) {
-                warn("Invalid RAM pattern: %ld\n", value);
-                return false;
-            }
-            if (config.ramPattern == value) {
-                return false;
-            }
+            if (!RamPatternEnum::verify(value)) return false;
+            if (config.ramPattern == value) return false;
             
             config.ramPattern = (RamPattern)value;
             return true;
@@ -179,21 +176,21 @@ C64Memory::_inspect()
 }
 
 void 
-C64Memory::_dump()
+C64Memory::_dump() const
 {
 	msg("C64 Memory:\n");
 	msg("-----------\n");
-    msg("    Basic ROM: %s loaded\n", c64.hasRom(ROM_BASIC)  ? "" : " not");
-	msg("Character ROM: %s loaded\n", c64.hasRom(ROM_CHAR)   ? "" : " not");
-    msg("   Kernal ROM: %s loaded\n", c64.hasRom(ROM_KERNAL) ? "" : " not");
+    msg("    Basic ROM: %s loaded\n", c64.hasRom(ROM_TYPE_BASIC)  ? "" : " not");
+	msg("Character ROM: %s loaded\n", c64.hasRom(ROM_TYPE_CHAR)   ? "" : " not");
+    msg("   Kernal ROM: %s loaded\n", c64.hasRom(ROM_TYPE_KERNAL) ? "" : " not");
 	msg("\n");
 }
 
 void
 C64Memory::eraseWithPattern(RamPattern pattern)
 {
-    if (!isRamPattern(pattern)) {
-        warn("Unknown RAM init pattern. Assuming INIT_PATTERN_C64\n");
+    if (!RamPatternEnum::isValid(pattern)) {
+        warn("Unknown RAM init pattern. Falling back to default.\n");
         pattern = RAM_PATTERN_C64;
     }
     
@@ -357,7 +354,7 @@ C64Memory::peekIO(u16 addr)
 }
 
 u8
-C64Memory::spypeek(u16 addr, MemoryType source)
+C64Memory::spypeek(u16 addr, MemoryType source) const
 {
     switch(source) {
             
@@ -377,7 +374,13 @@ C64Memory::spypeek(u16 addr, MemoryType source)
             return expansionport.spypeek(addr);
             
         case M_PP:
-            return peek(addr, M_PP);
+            if (addr >= 0x02) {
+                return ram[addr];
+            } else if (addr == 0x00) {
+                return cpu.pport.readDirection();
+            } else {
+                return cpu.pport.read();
+            }
       
         case M_NONE:
             return ram[addr];
@@ -389,7 +392,7 @@ C64Memory::spypeek(u16 addr, MemoryType source)
 }
 
 u8
-C64Memory::spypeekIO(u16 addr)
+C64Memory::spypeekIO(u16 addr) const
 {
     assert(addr >= 0xD000 && addr <= 0xDFFF);
     
@@ -409,6 +412,12 @@ C64Memory::spypeekIO(u16 addr)
             
             return sid.spypeek(addr & 0x001F);
             
+        case 0x8: // Color Ram
+        case 0x9: // Color Ram
+        case 0xA: // Color Ram
+        case 0xB: // Color Ram
+            return spypeekColor(addr - 0xD8000);
+
         case 0xC: // CIA 1
             
             // Only the lower 4 bits are used for adressing the CIA I/O space.
@@ -428,13 +437,13 @@ C64Memory::spypeekIO(u16 addr)
             return expansionport.spypeekIO2(addr);
 
         default:
-            
-            return peek(addr);
+            assert(false);
+            return 0;
     }
 }
 
 u8
-C64Memory::spypeekColor(u16 addr)
+C64Memory::spypeekColor(u16 addr) const
 {
     assert(addr <= 0x400);
     return colorRam[addr];
@@ -585,7 +594,7 @@ C64Memory::pokeIO(u16 addr, u8 value)
 u16
 C64Memory::nmiVector() {
     
-    if (peekSrc[0xF] != M_KERNAL || c64.hasRom(ROM_KERNAL)) {
+    if (peekSrc[0xF] != M_KERNAL || c64.hasRom(ROM_TYPE_KERNAL)) {
         return LO_HI(peek(0xFFFA), peek(0xFFFB));
     } else {
         return 0xFE43;
@@ -595,7 +604,7 @@ C64Memory::nmiVector() {
 u16
 C64Memory::irqVector() {
     
-    if (peekSrc[0xF] != M_KERNAL || c64.hasRom(ROM_KERNAL)) {
+    if (peekSrc[0xF] != M_KERNAL || c64.hasRom(ROM_TYPE_KERNAL)) {
         return LO_HI(peek(0xFFFE), peek(0xFFFF));
     } else {
         return 0xFF48;
@@ -605,7 +614,7 @@ C64Memory::irqVector() {
 u16
 C64Memory::resetVector() {
     
-    if (peekSrc[0xF] != M_KERNAL || c64.hasRom(ROM_KERNAL)) {
+    if (peekSrc[0xF] != M_KERNAL || c64.hasRom(ROM_TYPE_KERNAL)) {
         return LO_HI(peek(0xFFFC), peek(0xFFFD));
     } else {
         return 0xFCE2;

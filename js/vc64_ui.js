@@ -137,9 +137,9 @@ function check_ready_to_fire(msg)
     }
 }
 
-function message_handler(cores_msg)
+function message_handler(msg)
 {
-    var msg = UTF8ToString(cores_msg);
+    //UTF8ToString(cores_msg);
     if(msg == "MSG_READY_TO_RUN")
     {
         //start it async

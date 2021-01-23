@@ -7,58 +7,52 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef VC1541_TYPES_H
-#define VC1541_TYPES_H
+#pragma once
+
+#include "DrivePublicTypes.h"
+#include "Reflection.h"
 
 //
-// Enumerations
+// Reflection APIs
 //
 
-enum_long(DriveID)
-{
-    DRIVE8 = 8,
-    DRIVE9 = 9
+struct DriveTypeEnum : Reflection<DriveTypeEnum, DriveModel> {
+    
+    static bool isValid(long value)
+    {
+        return (unsigned long)value < DRIVE_MODEL_COUNT;
+    }
+    
+    static const char *prefix() { return "DRIVE"; }
+    static const char *key(DriveModel value)
+    {
+        switch (value) {
+                
+            case DRIVE_MODEL_VC1541II:  return "VC1541II";
+            case DRIVE_MODEL_COUNT:     return "???";
+        }
+        return "???";
+    }
 };
 
-inline bool isDriveID(long value)
-{
-    return value >= DRIVE8 && value <= DRIVE9;
-}
-
-enum_long(DriveType)
-{
-    DRIVE_VC1541II
+struct InsertionStatusEnum : Reflection<InsertionStatusEnum, InsertionStatus> {
+    
+    static bool isValid(long value)
+    {
+        return (unsigned)value < DISK_INSERTION_STATUS_COUNT;
+    }
+    
+    static const char *prefix() { return "DISK"; }
+    static const char *key(InsertionStatus value)
+    {
+        switch (value) {
+                
+            case DISK_FULLY_EJECTED:           return "FULLY_EJECTED";
+            case DISK_PARTIALLY_INSERTED:      return "PARTIALLY_INSERTED";
+            case DISK_FULLY_INSERTED:          return "FULLY_INSERTED";
+            case DISK_PARTIALLY_EJECTED:       return "PARTIALLY_EJECTED";
+            case DISK_INSERTION_STATUS_COUNT:  return "???";
+        }
+        return "???";
+    }
 };
-
-inline bool isDriveType(long value)
-{
-    return value == DRIVE_VC1541II;
-}
-
-enum_long(InsertionStatus)
-{
-    FULLY_EJECTED,
-    PARTIALLY_INSERTED,
-    FULLY_INSERTED,
-    PARTIALLY_EJECTED
-};
-
-inline bool isInsertionStatus(long value)
-{
-    return value >= FULLY_EJECTED && value <= PARTIALLY_EJECTED;
-}
-
-
-//
-// Structures
-//
-
-typedef struct
-{
-    DriveType type;
-    bool connected;
-    bool switchedOn;
-}
-DriveConfig;
-
-#endif

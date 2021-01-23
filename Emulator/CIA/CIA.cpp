@@ -30,40 +30,35 @@ CIA::_reset()
 }
 
 long
-CIA::getConfigItem(ConfigOption option)
+CIA::getConfigItem(Option option) const
 {
     switch (option) {
             
         case OPT_CIA_REVISION:  return config.revision;
         case OPT_TIMER_B_BUG:   return config.timerBBug;
         
-        default: assert(false);
+        default:
+            assert(false);
+            return 0;
     }
 }
 
 bool
-CIA::setConfigItem(ConfigOption option, long value)
+CIA::setConfigItem(Option option, long value)
 {
     switch (option) {
             
         case OPT_CIA_REVISION:
             
-            if (!isCIARevision(value)) {
-                warn("Invalid CIA revision: %ld\n", value);
-                return false;
-            }
-            if (config.revision == value) {
-                return false;
-            }
+            if (!CIARevisionEnum::verify(value)) return false;
+            if (config.revision == value)  return false;
             
             config.revision = (CIARevision)value;
             return true;
             
         case OPT_TIMER_B_BUG:
             
-            if (config.timerBBug == value) {
-                return false;
-            }
+            if (config.timerBBug == value) return false;
 
             config.timerBBug = value;
             return true;
@@ -118,10 +113,8 @@ CIA::_inspect()
 }
 
 void
-CIA::_dump()
+CIA::_dump() const
 {
-    _inspect();
-
     msg("                Sleeping : %s\n", sleeping ? "yes" : "no");
     msg("               Tiredness : %d\n", tiredness);
     msg(" Most recent sleep cycle : %lld\n", sleepCycle);
@@ -145,13 +138,13 @@ CIA::_dump()
     msg("      Interrupt mask reg : %02X\n", info.imr);
     msg("\n");
 //    msg("                     SDR : %02X %02X\n", info.sdr, sdr);
-//     msg("              serCounter : %02X\n", serCounter);
+//    msg("              serCounter : %02X\n", serCounter);
     msg("\n");
     msg("                     CNT : %d\n", CNT);
     msg("                     INT : %d\n", INT);
     msg("\n");
 
-    tod.dump();
+    // tod.dump();
 }
 
 void
@@ -601,7 +594,7 @@ CIA::wakeUp(Cycle targetCycle)
 }
 
 Cycle
-CIA::idleSince()
+CIA::idleSince() const
 {
     return isAwake() ? 0 : cpu.cycle - sleepCycle;
 }
@@ -635,13 +628,13 @@ CIA1::releaseInterruptLine()
 //                    -------
 
 u8
-CIA1::portAinternal()
+CIA1::portAinternal() const
 {
     return PRA;
 }
 
 u8
-CIA1::portAexternal()
+CIA1::portAexternal() const
 {
     return 0xFF;
     // return keyboard.getColumnValues(PB);
@@ -655,19 +648,19 @@ CIA1::updatePA()
     PA = (portAinternal() & DDRA) | (portAexternal() & ~DDRA);
 
     // Get lines which are driven actively low by port 2
-    u8 rowMask = ~PRB & DDRB & port1.bitmask();
+    u8 rowMask = ~PRB & DDRB & port1.getControlPort();
     
     // Pull lines low that are connected by a pressed key
     PA &= keyboard.getColumnValues(rowMask);
     
     // The control port can always bring the port lines low
-    PA &= port2.bitmask();
+    PA &= port2.getControlPort();
     
     // An edge on PA4 triggers the NeosMouse on port 2
     if (FALLING_EDGE_BIT(oldPA, PA, 4))
-        mouse.fallingStrobe(2 /* Port */);
+        port2.mouse.fallingStrobe();
     if (RISING_EDGE_BIT(oldPA, PA, 4))
-        mouse.risingStrobe(2 /* Port */);
+        port2.mouse.risingStrobe();
 }
 
 //                    -------
@@ -682,16 +675,15 @@ CIA1::updatePA()
 //                    -------
 
 u8
-CIA1::portBinternal()
+CIA1::portBinternal() const
 {
     return PRB;
 }
 
 u8
-CIA1::portBexternal()
+CIA1::portBexternal() const
 {
     return 0xFF;
-    // return keyboard.getRowValues(PA);
 }
 
 void
@@ -702,7 +694,7 @@ CIA1::updatePB()
     PB = (portBinternal() & DDRB) | (portBexternal() & ~DDRB);
  
     // Get lines which are driven actively low by port 1
-    u8 columnMask = ~PRA & DDRA & port2.bitmask();
+    u8 columnMask = ~PRA & DDRA & port2.getControlPort();
     
     // Pull lines low that are connected by a pressed key
     PB &= keyboard.getRowValues(columnMask);
@@ -716,16 +708,16 @@ CIA1::updatePB()
         REPLACE_BIT(PB, 7, PB67TimerOut & (1 << 7));
     
     // The control port can always bring the port lines low
-    PB &= port1.bitmask();
+    PB &= port1.getControlPort();
     
     // PB4 is connected to the VICII (LP pin).
     vic.setLP(GET_BIT(PB, 4) != 0);
     
     // An edge on PB4 triggers the NeosMouse on port 1
     if (FALLING_EDGE_BIT(oldPB, PB, 4))
-        mouse.fallingStrobe(1 /* Port */);
+        port1.mouse.fallingStrobe();
     if (RISING_EDGE_BIT(oldPB, PB, 4))
-        mouse.risingStrobe(1 /* Port */);
+        port1.mouse.risingStrobe();
 }
 
 
@@ -766,13 +758,13 @@ CIA2::releaseInterruptLine()
 //                        -------
 
 u8
-CIA2::portAinternal()
+CIA2::portAinternal() const
 {
     return PRA;
 }
 
 u8
-CIA2::portAexternal()
+CIA2::portAexternal() const
 {
     u8 result = 0x3F;
     result |= (iec.clockLine ? 0x40 : 0x00);
@@ -805,7 +797,7 @@ CIA2::updatePA()
 //                        -------
 
 u8
-CIA2::portBinternal()
+CIA2::portBinternal() const
 {
     u8 result = PRB;
     
@@ -821,7 +813,7 @@ CIA2::portBinternal()
 }
 
 u8
-CIA2::portBexternal()
+CIA2::portBexternal() const
 {
     // User port is not implemented. All pins are high if nothing is connected.
     return 0xFF;

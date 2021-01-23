@@ -26,19 +26,19 @@ Mouse1350::_reset()
 }
 
 u8
-Mouse1350::readPotX()
+Mouse1350::readPotX() const
 {
     return rightButton ? 0x00 : 0xFF;
 }
 
 u8
-Mouse1350::readPotY()
+Mouse1350::readPotY() const
 {
     return 0xFF;
 }
 
 u8
-Mouse1350::readControlPort()
+Mouse1350::readControlPort() const
 {
     return controlPort & (leftButton ? 0xEF : 0xFF);
 }
@@ -49,7 +49,7 @@ Mouse1350::execute(i64 targetX, i64 targetY)
     mouseX = targetX / dividerX;
     mouseY = targetY / dividerY;
  
-    trace(MOUSE_DEBUG, "targetX = %lld targetY = %lld\n", targetX, targetY);
+    // debug(PORT_DEBUG, "targetX = %lld targetY = %lld\n", targetX, targetY);
     
     controlPort = 0xFF;
     

@@ -10,208 +10,43 @@
 #include "CRTFile.h"
 #include "Cartridge.h"
 
+/*
 const u8 CRTFile::magicBytes[] = {
     'C','6','4',' ','C','A','R','T','R','I','D','G','E',' ',' ',' ' };
-
-bool
-CRTFile::isCRTBuffer(const u8 *buffer, size_t length)
-{
-    if (length < 0x40) return false;
-    return matchingBufferHeader(buffer, magicBytes, sizeof(magicBytes));
-}
-
-CartridgeType
-CRTFile::typeOfCRTBuffer(const u8 *buffer, size_t length)
-{
-    assert(isCRTBuffer(buffer, length));
-    return (CartridgeType)LO_HI(buffer[0x17], buffer[0x16]);
-}
-
-/*
-const char *
-CRTFile::typeNameOfCRTBuffer(const u8 *buffer, size_t length)
-{
-    CartridgeType type = typeOfCRTBuffer(buffer, length);
-    return CRTFile::cartridgeTypeName(type);
-}
 */
 
 bool
-CRTFile::isSupportedCRTBuffer(const u8 *buffer, size_t length)
+CRTFile::isCompatibleName(const std::string &name)
 {
-    if (!isCRTBuffer(buffer, length))
-        return false;
-    return Cartridge::isSupportedType(typeOfCRTBuffer(buffer, length));
+    auto s = suffix(name);
+    return s == "crt" || s == "CRT";
 }
 
 bool
-CRTFile::isUnsupportedCRTBuffer(const u8 *buffer, size_t length)
+CRTFile::isCompatibleStream(std::istream &stream)
 {
-    return isCRTBuffer(buffer, length) && !isSupportedCRTBuffer(buffer, length);
+    const u8 magicBytes[] = {
+        'C','6','4',' ','C','A','R','T','R','I','D','G','E',' ',' ',' ' };
+    
+    if (streamLength(stream) < 0x40) return false;
+    return matchingStreamHeader(stream, magicBytes, sizeof(magicBytes));
 }
 
-bool
-CRTFile::isCRTFile(const char *path)
+PETName<16>
+CRTFile::getName() const
 {
-    assert(path != NULL);
-    
-    if (!checkFileSuffix(path, ".CRT") && !checkFileSuffix(path, ".crt"))
-        return false;
-    
-    if (!checkFileSize(path, 0x40, -1))
-        return false;
-    
-    if (!matchingFileHeader(path, magicBytes, sizeof(magicBytes)))
-        return false;
-    
-    return true;
+    return PETName<16>(data + 0x20, 0x00);
 }
 
-/*
-const char *
-CRTFile::cartridgeTypeName(CartridgeType type)
+usize
+CRTFile::readFromStream(std::istream &stream)
 {
-    switch (type) {
+    usize result = AnyFile::readFromStream(stream);
+    if (CRT_DEBUG) dump();
             
-        case CRT_NORMAL: return "Standard cartridge";
-        case CRT_ACTION_REPLAY: return "Action Replay";
-        case CRT_KCS_POWER: return "KCS Power";
-        case CRT_FINAL_III: return "Final Cartridge III";
-        case CRT_SIMONS_BASIC: return "Simons Basic";
-        case CRT_OCEAN: return "Ocean";
-        case CRT_EXPERT: return "Expert";
-        case CRT_FUNPLAY: return "Fun Play";
-        case CRT_SUPER_GAMES: return "Super Games";
-        case CRT_ATOMIC_POWER: return "Atomic Power";
-        case CRT_EPYX_FASTLOAD: return "Epyx Fastload";
-        case CRT_WESTERMANN: return "Westermann";
-        case CRT_REX: return "REX";
-        case CRT_FINAL_I: return "Final Cartridge I";
-        case CRT_MAGIC_FORMEL: return "Magic Formel";
-        case CRT_GAME_SYSTEM_SYSTEM_3: return "Game System 3";
-        case CRT_WARPSPEED: return "WarpSpeed";
-        case CRT_DINAMIC: return "Dinamic";
-        case CRT_ZAXXON: return "Zaxxon (SEGA)";
-        case CRT_MAGIC_DESK: return "Magic Desk";
-        case CRT_SUPER_SNAPSHOT_V5: return "Super Snapshot";
-        case CRT_COMAL80: return "Comal 80";
-        case CRT_STRUCTURED_BASIC: return "Structured Basic";
-        case CRT_ROSS: return "Ross";
-        case CRT_DELA_EP64: return "Dela EP64";
-        case CRT_DELA_EP7x8: return "Dela EP7x8";
-        case CRT_DELA_EP256: return "Dela EP256";
-        case CRT_REX_EP256: return "Rex EP256";
-        case CRT_MIKRO_ASS: return "Mikro Assembler";
-        case CRT_FINAL_PLUS: return "Final Plus";
-        case CRT_ACTION_REPLAY4: return "Action replay 4";
-        case CRT_STARDOS: return "Stardos";
-        case CRT_EASYFLASH: return "EasyFlash";
-        case CRT_EASYFLASH_XBANK: return "EasyFlash (XBank)";
-        case CRT_CAPTURE: return "Capture";
-        case CRT_ACTION_REPLAY3: return "Action replay 3";
-        case CRT_RETRO_REPLAY: return "Metro replay";
-        case CRT_MMC64: return "MMC 64";
-        case CRT_MMC_REPLAY: return "MMC replay";
-        case CRT_IDE64: return "IDE 64";
-        case CRT_SUPER_SNAPSHOT: return "Super snapshot";
-        case CRT_IEEE488: return "IEEE 488";
-        case CRT_GAME_KILLER: return "Game killer";
-        case CRT_P64: return "P64";
-        case CRT_EXOS: return "Exos";
-        case CRT_FREEZE_FRAME: return "Freeze frame";
-        case CRT_FREEZE_MACHINE: return "Freeze machine";
-        case CRT_SNAPSHOT64: return "Snapshot 64";
-        case CRT_SUPER_EXPLODE_V5: return "Super explode V5";
-        case CRT_MAGIC_VOICE: return "Magic voice";
-        case CRT_ACTION_REPLAY2: return "Action replay 2";
-        case CRT_MACH5: return "Mach 5";
-        case CRT_DIASHOW_MAKER: return "Diashow Maker";
-        case CRT_PAGEFOX: return "Pagefox";
-        case CRT_KINGSOFT: return "Kingsoft";
-        case CRT_SILVERROCK_128: return "Silverrock 128";
-        case CRT_FORMEL64: return "Formel 64";
-        case CRT_RGCD: return "RGCD";
-        case CRT_RRNETMK3: return "RRNETMK3";
-        case CRT_EASYCALC: return "Easy calc";
-        case CRT_GMOD2: return "GMOD 2";
-            
-        default: return "";
-    }
-}
-*/
-
-CRTFile::CRTFile()
-{
-    memset(chips, 0, sizeof(chips));
-}
-
-CRTFile *
-CRTFile::makeWithBuffer(const u8 *buffer, size_t length)
-{
-    CRTFile *cartridge = new CRTFile();
-    
-    if (!cartridge->readFromBuffer(buffer, length)) {
-        delete cartridge;
-        return NULL;
-    }
-    
-    return cartridge;
-}
-
-CRTFile *
-CRTFile::makeWithFile(const char *filename)
-{
-    CRTFile *cartridge = new CRTFile();
-    
-    if (!cartridge->readFromFile(filename)) {
-        delete cartridge;
-        return NULL;
-    }
-    
-    return cartridge;
-}
-
-void
-CRTFile::dealloc()
-{
-    AnyFile::dealloc();
-    memset(chips, 0, sizeof(chips));
-    numberOfChips = 0;
-}
-        
-bool
-CRTFile::readFromBuffer(const u8 *buffer, size_t length)
-{
-    if (!AnyFile::readFromBuffer(buffer, length))
-        return false;
-    
-    // Only proceed if the cartridge header matches
-    if (memcmp("C64 CARTRIDGE   ", data, 16) != 0) {
-        warn("Bad cartridge signature. Expected 'C64  CARTRIDGE  '\n");
-        return false;
-    }
-
-    // Some CRT files contain incosistencies. We try to fix them here.
-    if (!repair()) {
-        warn("Failed to repair broken CRT file\n");
-        return false;
-    }
-
-    // Cartridge header size
-    u32 headerSize = HI_HI_LO_LO(data[0x10],data[0x11],data[0x12],data[0x13]);
-    
-    // Minimum header size is 0x40. Some cartridges show a value of 0x20 which is wrong.
-    if (headerSize < 0x40) headerSize = 0x40;
-    
-    msg("Cartridge: %s\n", getName());
-    msg("   Header: %08X bytes long (normally 0x40)\n", headerSize);
-    msg("   Type:   %ld\n", (long)cartridgeType());
-    msg("   Game:   %d\n", initialGameLine());
-    msg("   Exrom:  %d\n", initialExromLine());
-    
     // Load chip packets
-    u8 *ptr = &data[headerSize];
-    for (numberOfChips = 0; ptr < data + length; numberOfChips++) {
+    u8 *ptr = data + headerSize();
+    for (numberOfChips = 0; ptr < data + size; numberOfChips++) {
         
         if (numberOfChips == MAX_PACKETS) {
             warn("CRT file contains too many chip packets. Aborting!\n");
@@ -220,7 +55,7 @@ CRTFile::readFromBuffer(const u8 *buffer, size_t length)
         
         if (memcmp("CHIP", ptr, 4) != 0) {
             warn("Unexpected data in cartridge, expected 'CHIP'\n");
-            return false;
+            return result; // TODO: throw exception instead
         }
         
         // Remember start address of each chip section
@@ -231,45 +66,59 @@ CRTFile::readFromBuffer(const u8 *buffer, size_t length)
     }
     
     msg("CRT file imported successfully (%d chips)\n", numberOfChips);
-    return true;	
+    return result;
 }
 
 CartridgeType
-CRTFile::cartridgeType() {
+CRTFile::cartridgeType() const {
     
     u16 type = LO_HI(data[0x17], data[0x16]);
     return CartridgeType(type);
 }
 
 bool
-CRTFile::isSupported()
+CRTFile::isSupported() const
 {
     return Cartridge::isSupportedType(cartridgeType());
 }
 
-bool
+void
+CRTFile::dump() const
+{
+    msg("Cartridge: %s\n", getName().c_str());
+    msg("   Header: %08X bytes (normally 0x40)\n", headerSize());
+    msg("   Type:   %ld\n", (long)cartridgeType());
+    msg("   Game:   %d\n", initialGameLine());
+    msg("   Exrom:  %d\n", initialExromLine());
+}
+
+void
 CRTFile::repair()
 {
-    if ((data == NULL) != (size == 0)) {
-        warn("CRT file inconsistency: data = %p size = %zu\n", data, size);
-        return false;
+    //
+    // General errors
+    //
+        
+    // Some cartridges show a header size of 0x20 which is wrong
+    if (headerSize() < 0x40) {
+        u32 newSize = 0x40;
+        data[0x10] = BYTE3(newSize);
+        data[0x11] = BYTE2(newSize);
+        data[0x12] = BYTE1(newSize);
+        data[0x13] = BYTE0(newSize);
     }
+    
+    //
+    // Individual errors
+    //
+    
+    switch (fnv_1a_64(data, size)) {
 
-    // Compute a fingerprint for the CRT file
-    u64 fingerprint = fnv_1a_64(data, size);
-    trace(CRT_DEBUG, "CRT fingerprint: %llx\n", fingerprint);
-
-    // Check for known inconsistencies
-    switch (fingerprint) {
-
-        case 0xb2a479a5a2ee6cd5: // Mikro Assembler (invalid CRT type)
+        case 0xb2a479a5a2ee6cd5: // Mikro Assembler
 
             // Replace invalid CRT type $00 by $1C
             msg("Repairing broken Mikro Assembler cartridge\n");
             data[0x17] = 0x1C;
-            break;
+            break;            
     }
-
-    return true; 
 }
-

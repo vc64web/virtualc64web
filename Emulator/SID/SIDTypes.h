@@ -7,140 +7,73 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef SID_TYPES_H
-#define SID_TYPES_H
+#pragma once
+
+#include "SIDPublicTypes.h"
+#include "Reflection.h"
 
 //
-// Enumerations
+// Reflection APIs
 //
 
-enum_long(SIDRevision)
-{
-    MOS_6581,
-    MOS_8580
+struct SIDRevisionEnum : Reflection<SIDRevisionEnum, SIDRevision> {
+    
+    static bool isValid(long value)
+    {
+        return (unsigned long)value < SIDREV_COUNT;
+    }
+    
+    static const char *prefix() { return nullptr; }
+    static const char *key(SIDRevision value)
+    {
+        switch (value) {
+                
+            case MOS_6581:      return "MOS_6581";
+            case MOS_8580:      return "MOS_8580";
+            case SIDREV_COUNT:  return "???";
+        }
+        return "???";
+    }
 };
 
-inline bool isSIDRevision(long value)
-{
-    return value == MOS_6581 || value == MOS_8580;
-}
-
-inline const char *sidRevisionName(SIDRevision type)
-{
-    assert(isSIDRevision(type));
+struct SIDEngineEnum : Reflection<SIDEngineEnum, SIDEngine> {
     
-    switch (type) {
-        case MOS_6581: return "MOS_6581";
-        case MOS_8580: return "MOS_8580";
-        default:       return "???";
+    static bool isValid(long value)
+    {
+        return (unsigned long)value < SIDENGINE_COUNT;
     }
-}
-
-enum_long(SIDEngine)
-{
-    ENGINE_FASTSID,
-    ENGINE_RESID
+    
+    static const char *prefix() { return "SIDENGINE"; }
+    static const char *key(SIDEngine value)
+    {
+        switch (value) {
+                
+            case SIDENGINE_FASTSID:  return "FASTSID";
+            case SIDENGINE_RESID:    return "RESID";
+            case SIDENGINE_COUNT:    return "???";
+        }
+        return "???";
+    }
 };
 
-inline bool isAudioEngine(long value)
-{
-    return value >= ENGINE_FASTSID && value <= ENGINE_RESID;
-}
-
-inline const char *sidEngineName(SIDEngine engine)
-{
-    assert(isAudioEngine(engine));
+struct SamplingMethodEnum : Reflection<SamplingMethodEnum, SamplingMethod> {
     
-    switch (engine) {
-        case ENGINE_FASTSID: return "FASTSID";
-        case ENGINE_RESID:   return "RESID";
-        default:             return "???";
+    static bool isValid(long value)
+    {
+        return (unsigned long)value < SAMPLING_COUNT;
     }
-}
-
-// This enum reflects enum "sampling_method" used by reSID.
-enum_long(SamplingMethod)
-{
-    SID_SAMPLE_FAST,
-    SID_SAMPLE_INTERPOLATE,
-    SID_SAMPLE_RESAMPLE,
-    SID_SAMPLE_RESAMPLE_FASTMEM
+    
+    static const char *prefix() { return "SAMPLING"; }
+    static const char *key(SamplingMethod value)
+    {
+        switch (value) {
+                
+            case SAMPLING_FAST:              return "FAST";
+            case SAMPLING_INTERPOLATE:       return "INTERPOLATE";
+            case SAMPLING_RESAMPLE:          return "RESAMPLE";
+            case SAMPLING_RESAMPLE_FASTMEM:  return "RESAMPLE FASTMEM";
+            case SAMPLING_COUNT:             return "???";
+        }
+        return "???";
+    }
 };
-
-inline bool isSamplingMethod(long value)
-{
-    return value >= SID_SAMPLE_FAST && value <= SID_SAMPLE_RESAMPLE_FASTMEM;
-}
-
-inline const char *sidSamplingMethodName(SamplingMethod method)
-{
-    assert(isSamplingMethod(method));
-    
-    switch (method) {
-        case SID_SAMPLE_FAST:             return "FAST";
-        case SID_SAMPLE_INTERPOLATE:      return "INTERPOLATE";
-        case SID_SAMPLE_RESAMPLE:         return "RESAMPLE";
-        case SID_SAMPLE_RESAMPLE_FASTMEM: return "RESAMPLE FASTMEM";
-        default:                          return "???";
-    }
-}
-
-
-//
-// Structures
-//
-
-typedef struct
-{
-    // Hardware settings
-    SIDRevision revision;
-    u8 enabled;
-    u16 address[4];
-    bool filter;
-    
-    // Emlation engine settings
-    SIDEngine engine;
-    SamplingMethod sampling;
-    
-    // Master volume (left and right channel)
-    i64 volL;
-    i64 volR;
-
-    // Channel volumes and pan factors
-    i64 vol[4];
-    i64 pan[4];
-}
-SIDConfig;
-
-typedef struct
-{
-    u8 reg[7];
-    u16 frequency;
-    u16 pulseWidth;
-    u8 waveform;
-    bool ringMod;
-    bool hardSync;
-    bool gateBit;
-    bool testBit;
-    u8 attackRate;
-    u8 decayRate;
-    u8 sustainRate;
-    u8 releaseRate;
-    bool filterEnableBit;
-}
-VoiceInfo;
-
-typedef struct
-{
-    u8 volume;
-    u16 filterCutoff;
-    u8 filterResonance;
-    u8 filterModeBits;
-    u8 filterType;
-    u8 filterEnableBits;
-    u8 potX;
-    u8 potY;
-}
-SIDInfo;
-
-#endif

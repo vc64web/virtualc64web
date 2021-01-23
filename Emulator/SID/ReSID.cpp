@@ -31,7 +31,7 @@ ReSID::~ReSID()
 void
 ReSID::_reset()
 {
-    assert(sid != NULL);
+    assert(sid);
 
     RESET_SNAPSHOT_ITEMS
     
@@ -49,7 +49,7 @@ ReSID::_reset()
 }
 
 u32
-ReSID::getClockFrequency()
+ReSID::getClockFrequency() const
 {
     assert((u32)sid->clock_frequency == clockFrequency);
     return (u32)sid->clock_frequency;
@@ -102,14 +102,14 @@ ReSID::_inspect()
     }
 }
 
-size_t
+usize
 ReSID::didLoadFromBuffer(u8 *buffer)
 {
     sid->write_state(st);
     return 0;
 }
  
-size_t
+usize
 ReSID::willSaveToBuffer(u8 *buffer)
 {
     st = sid->read_state();
@@ -117,7 +117,7 @@ ReSID::willSaveToBuffer(u8 *buffer)
 }
 
 SIDRevision
-ReSID::getRevision()
+ReSID::getRevision() const
 {
     assert((SIDRevision)sid->sid_model == model);
     return model;
@@ -136,7 +136,7 @@ ReSID::setRevision(SIDRevision revision)
     resume();
         
     assert((SIDRevision)sid->sid_model == revision);
-    trace(SID_DEBUG, "Emulating SID revision %s.\n", sidRevisionName(revision));
+    trace(SID_DEBUG, "Emulating SID revision %s.\n", SIDRevisionEnum::key(revision));
 }
 
 void
@@ -168,7 +168,8 @@ ReSID::setAudioFilter(bool value)
 }
 
 SamplingMethod
-ReSID::getSamplingMethod() {
+ReSID::getSamplingMethod() const
+{
     assert((SamplingMethod)sid->sampling == samplingMethod);
     return samplingMethod;
 }
@@ -179,18 +180,18 @@ ReSID::setSamplingMethod(SamplingMethod value)
     assert(!isRunning());
     
     switch(value) {
-        case SID_SAMPLE_FAST:
+        case SAMPLING_FAST:
             trace(SID_DEBUG, "Using sampling method SAMPLE_FAST.\n");
             break;
-        case SID_SAMPLE_INTERPOLATE:
+        case SAMPLING_INTERPOLATE:
             trace(SID_DEBUG, "Using sampling method SAMPLE_INTERPOLATE.\n");
             break;
-        case SID_SAMPLE_RESAMPLE:
+        case SAMPLING_RESAMPLE:
             trace(SID_DEBUG, "Using sampling method SAMPLE_RESAMPLE.\n");
             break;
-        case SID_SAMPLE_RESAMPLE_FASTMEM:
+        case SAMPLING_RESAMPLE_FASTMEM:
             warn("SAMPLE_RESAMPLE_FASTMEM not supported. Using SAMPLE_INTERPOLATE.\n");
-            value = SID_SAMPLE_INTERPOLATE;
+            value = SAMPLING_INTERPOLATE;
             break;
         default:
             warn("Unknown sampling method: %lld\n", value);
@@ -220,10 +221,10 @@ ReSID::poke(u16 addr, u8 value)
 }
 
 i64
-ReSID::executeCycles(u64 numCycles, SampleStream &stream)
+ReSID::executeCycles(usize numCycles, SampleStream &stream)
 {
     short buf[2049];
-    int buflength = 2048;
+    usize buflength = 2048;
     
     if (numCycles > PAL_CYCLES_PER_SECOND) {
         warn("Number of missing SID cycles is far too large\n");
@@ -231,20 +232,28 @@ ReSID::executeCycles(u64 numCycles, SampleStream &stream)
     }
     
     // Let reSID compute sound samples
-    int samples = 0;
+    usize samples = 0;
     reSID::cycle_count cycles = (reSID::cycle_count)numCycles;
     while (cycles) {
-        samples += sid->clock(cycles, buf + samples, buflength - samples);
+        int resid = sid->clock(cycles, buf + samples, int(buflength) - int(samples));
+        assert(resid >= 0); // TODO: REMOVE AFTER A WHILE
+        samples += (usize)resid;
+    }
+    
+    // Check for a buffer overflow
+    if (unlikely(samples > stream.free())) {
+        warn("SID %d: SAMPLE BUFFER OVERFLOW", nr);
+        stream.clear();
     }
     
     // Write samples into ringbuffer
-    if (samples) { for (int i = 0; i < samples; i++) stream.write(buf[i]); }
+    if (samples) { for (usize i = 0; i < samples; i++) stream.write(buf[i]); }
     
     return samples;
 }
 
 i64
-ReSID::executeCycles(u64 numCycles)
+ReSID::executeCycles(usize numCycles)
 {
     return executeCycles(numCycles, bridge.sidStream[nr]);
 }

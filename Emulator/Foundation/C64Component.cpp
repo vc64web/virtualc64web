@@ -26,7 +26,6 @@ iec(ref.iec),
 drive8(ref.drive8),
 drive9(ref.drive9),
 datasette(ref.datasette),
-mouse(ref.mouse),
 messageQueue(ref.messageQueue),
 oscillator(ref.oscillator)
 {
@@ -45,7 +44,7 @@ C64Component::resume()
 }
 
 void
-C64Component::prefix()
+C64Component::prefix() const
 {
     c64.prefix();
 }

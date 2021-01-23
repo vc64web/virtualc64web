@@ -12,6 +12,8 @@
 bool
 Cartridge::isSupportedType(CartridgeType type)
 {
+    if (FORCE_UNSUPPORTED_CRT) return false;
+    
     switch (type) {
         
         case CRT_NORMAL:
@@ -76,10 +78,8 @@ Cartridge::isROMHaddr (u16 addr)
 Cartridge *
 Cartridge::makeWithType(C64 &c64, CartridgeType type)
 {
-    assert(isSupportedType(type));
-    
     switch (type) {
-        
+            
         case CRT_NORMAL:           return new Cartridge(c64);
         case CRT_ACTION_REPLAY:    return new ActionReplay(c64);
         case CRT_KCS_POWER:        return new KcsPower(c64);
@@ -109,28 +109,25 @@ Cartridge::makeWithType(C64 &c64, CartridgeType type)
         case CRT_KINGSOFT:         return new Kingsoft(c64);
         case CRT_ISEPIC:           return new Isepic(c64);
         case CRT_GEO_RAM:          return new GeoRAM(c64);
-        
+            
         default:
-        assert(false); // Should not reach
-        return nullptr;
+            throw VC64Error(ERROR_CRT_UNSUPPORTED);
     }
 }
 
 Cartridge *
-Cartridge::makeWithCRTFile(C64 &c64, CRTFile *file)
+Cartridge::makeWithCRTFile(C64 &c64, CRTFile &file)
 {
-    Cartridge *cart;
-    
-    cart = makeWithType(c64, file->cartridgeType());
-    assert(cart != nullptr);
+    Cartridge *cart = makeWithType(c64, file.cartridgeType());
+    assert(cart);
     
     // Remember powerup values for game line and exrom line
-    cart->gameLineInCrtFile = file->initialGameLine();
-    cart->exromLineInCrtFile = file->initialExromLine();
+    cart->gameLineInCrtFile = file.initialGameLine();
+    cart->exromLineInCrtFile = file.initialExromLine();
 
     // Load chip packets
     cart->numPackets = 0;
-    for (unsigned i = 0; i < file->chipCount(); i++) {
+    for (unsigned i = 0; i < file.chipCount(); i++) {
         cart->loadChip(i, file);
     }
     
@@ -142,19 +139,14 @@ Cartridge::Cartridge(C64 &ref) : C64Component(ref)
 {
     trace(CRT_DEBUG, "Creating cartridge at address %p...\n", this);
     
-    memset(packet, 0, sizeof(packet));
+    // REMOVE ASAP
+    for (usize i = 0; i < MAX_PACKETS; i++) assert(packet[i] == nullptr);
 }
 
 Cartridge::~Cartridge()
 {
     trace(CRT_DEBUG, "Releasing cartridge...\n");
     dealloc();
-}
-
-void
-Cartridge::resetCartConfig() {
-
-    expansionport.setGameAndExrom(gameLineInCrtFile, exromLineInCrtFile);
 }
 
 void
@@ -173,6 +165,12 @@ Cartridge::dealloc()
     }
 
     numPackets = 0;
+}
+
+void
+Cartridge::resetCartConfig() {
+
+    expansionport.setGameAndExrom(gameLineInCrtFile, exromLineInCrtFile);
 }
 
 void
@@ -203,7 +201,7 @@ Cartridge::resetWithoutDeletingRam()
 }
 
 void
-Cartridge::_dump()
+Cartridge::_dump() const
 {
     msg("\n");
     msg("Cartridge\n");
@@ -221,7 +219,7 @@ Cartridge::_dump()
     msg("\n");
 }
 
-size_t
+usize
 Cartridge::_size()
 {
     SerCounter counter;
@@ -229,7 +227,7 @@ Cartridge::_size()
     applyToResetItems(counter);
  
     // Determine size of all packets
-    size_t packetSize = 0;
+    usize packetSize = 0;
     for (unsigned i = 0; i < numPackets; i++) {
         assert(packet[i] != nullptr);
         packetSize += packet[i]->_size();
@@ -238,7 +236,7 @@ Cartridge::_size()
     return ramCapacity + packetSize + counter.count;
 }
 
-size_t
+usize
 Cartridge::_load(u8 *buffer)
 {
     dealloc();
@@ -269,7 +267,7 @@ Cartridge::_load(u8 *buffer)
     return reader.ptr - buffer;
 }
 
-size_t
+usize
 Cartridge::_save(u8 *buffer)
 {
     printf("Cartridge::_save = %d\n", numPackets);
@@ -329,6 +327,39 @@ Cartridge::peekRomH(u16 addr)
     return packet[chipH]->peek(addr + offsetH);
 }
 
+u8
+Cartridge::spypeek(u16 addr) const
+{
+    assert(isROMLaddr(addr) || isROMHaddr(addr));
+
+    u16 relAddr = addr & 0x1FFF;
+
+    // Question: Is it correct to return a value from RAM if no ROM is mapped?
+    if (isROMLaddr(addr)) {
+        return (relAddr < mappedBytesL) ? spypeekRomL(relAddr) : mem.ram[addr];
+    } else {
+        return (relAddr < mappedBytesH) ? spypeekRomH(relAddr) : mem.ram[addr];
+    }
+}
+
+u8
+Cartridge::spypeekRomL(u16 addr) const
+{
+    assert(addr <= 0x1FFF);
+    assert(chipL >= 0 && chipL < numPackets);
+    
+    return packet[chipL]->spypeek(addr + offsetL);
+}
+
+u8
+Cartridge::spypeekRomH(u16 addr) const
+{
+    assert(addr <= 0x1FFF);
+    assert(chipH >= 0 && chipH < numPackets);
+    
+    return packet[chipH]->spypeek(addr + offsetH);
+}
+
 void
 Cartridge::poke(u16 addr, u8 value)
 {
@@ -349,8 +380,8 @@ Cartridge::poke(u16 addr, u8 value)
     }
 }
 
-u32
-Cartridge::getRamCapacity()
+usize
+Cartridge::getRamCapacity() const
 {
     if (ramCapacity == 0) {
         assert(externalRam == nullptr);
@@ -361,7 +392,7 @@ Cartridge::getRamCapacity()
 }
 
 void
-Cartridge::setRamCapacity(u32 size)
+Cartridge::setRamCapacity(usize size)
 {
     // Free
     if (getRamCapacity() > 0) {
@@ -373,13 +404,13 @@ Cartridge::setRamCapacity(u32 size)
     // Allocate
     if (size > 0) {
         externalRam = new u8[size];
-        ramCapacity = size;
+        ramCapacity = (u64)size;
         memset(externalRam, 0xFF, size);
     }
 }
 
 u8
-Cartridge::peekRAM(u16 addr)
+Cartridge::peekRAM(u16 addr) const
 {
     assert(addr < ramCapacity);
     return externalRam[addr];
@@ -400,14 +431,13 @@ Cartridge::eraseRAM(u8 value)
 }
 
 void
-Cartridge::loadChip(unsigned nr, CRTFile *c)
+Cartridge::loadChip(unsigned nr, const CRTFile &crt)
 {
     assert(nr < MAX_PACKETS);
-    assert(c != nullptr);
     
-    u16 size = c->chipSize(nr);
-    u16 start = c->chipAddr(nr);
-    u16 type = c->chipType(nr);
+    u16 size = crt.chipSize(nr);
+    u16 start = crt.chipAddr(nr);
+    u16 type = crt.chipType(nr);
     
     // Perform some consistency checks
     if (start < 0x8000) {
@@ -428,7 +458,7 @@ Cartridge::loadChip(unsigned nr, CRTFile *c)
     switch (type) {
         
         case 0: // ROM
-        packet[nr] = new CartridgeRom(c64, size, start, c->chipData(nr));
+        packet[nr] = new CartridgeRom(c64, size, start, crt.chipData(nr));
         break;
         
         case 1: // RAM
@@ -437,7 +467,7 @@ Cartridge::loadChip(unsigned nr, CRTFile *c)
         
         case 2: // Flash ROM
         warn("Chip %d is a Flash Rom. Creating a Rom instead.\n", nr);
-        packet[nr] = new CartridgeRom(c64, size, start, c->chipData(nr));
+        packet[nr] = new CartridgeRom(c64, size, start, crt.chipData(nr));
         break;
         
         default:

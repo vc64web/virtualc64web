@@ -26,12 +26,14 @@ double gammaCorrect(double value, double source, double target)
     return round(value);
 }
 
+/*
 u32
-VICII::getColor(unsigned nr)
+VICII::getColor(unsigned nr) const
 {
     assert(nr < 16);
     return rgbaTable[nr];
 }
+*/
 
 u32
 VICII::getColor(unsigned nr, Palette palette)
@@ -100,20 +102,20 @@ VICII::getColor(unsigned nr, Palette palette)
     double *luma;
     switch(config.revision) {
             
-        case PAL_6569_R1:
+        case VICREV_PAL_6569_R1:
             luma = luma_vice_6569_r1;
             break;
-        case PAL_6569_R3:
+        case VICREV_PAL_6569_R3:
             luma = luma_vice_6569_r3;
             break;
-        case NTSC_6567:
+        case VICREV_NTSC_6567:
             luma = luma_vice_6567;
             break;
-        case NTSC_6567_R56A:
+        case VICREV_NTSC_6567_R56A:
             luma = luma_vice_6567_r65a;
             break;
-        case PAL_8565:
-        case NTSC_8562:
+        case VICREV_PAL_8565:
+        case VICREV_NTSC_8562:
             luma = luma_pepto;
             break;
         default:
@@ -179,33 +181,33 @@ VICII::getColor(unsigned nr, Palette palette)
     // Translate to monochrome if applicable
     switch(palette) {
         
-        case BLACK_WHITE_PALETTE:
+        case PALETTE_BLACK_WHITE:
         u = 0.0;
         v = 0.0;
         break;
         
-        case PAPER_WHITE_PALETTE:
+        case PALETTE_PAPER_WHITE:
         u = -128.0 + 120.0;
         v = -128.0 + 133.0;
         break;
         
-        case GREEN_PALETTE:
+        case PALETTE_GREEN:
         u = -128.0 + 29.0;
         v = -128.0 + 64.0;
         break;
         
-        case AMBER_PALETTE:
+        case PALETTE_AMBER:
         u = -128.0 + 24.0;
         v = -128.0 + 178.0;
         break;
         
-        case SEPIA_PALETTE:
+        case PALETTE_SEPIA:
         u = -128.0 + 97.0;
         v = -128.0 + 154.0;
         break;
         
         default:
-        assert(palette == COLOR_PALETTE);
+        assert(palette == PALETTE_COLOR);
     }
     
     // Convert YUV value to RGB

@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _STARDOS_H
-#define _STARDOS_H
+#pragma once
 
 #include "Cartridge.h"
 
@@ -25,8 +24,8 @@ class StarDos : public Cartridge {
 public:
     
     StarDos(C64 &ref) : Cartridge(ref) { };
-    const char *getDescription() override { return "StarDos"; }
-    CartridgeType getCartridgeType() override { return CRT_STARDOS; }
+    const char *getDescription() const override { return "StarDos"; }
+    CartridgeType getCartridgeType() const override { return CRT_STARDOS; }
 
 private:
     
@@ -53,13 +52,13 @@ private:
         & latestVoltageUpdate;
     }
     
-    size_t __size() { COMPUTE_SNAPSHOT_SIZE }
-    size_t __load(u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
-    size_t __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
+    usize __size() { COMPUTE_SNAPSHOT_SIZE }
+    usize __load(u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
+    usize __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
     
-    size_t _size() override { return Cartridge::_size() + __size(); }
-    size_t _load(u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
-    size_t _save(u8 *buf) override { return Cartridge::_save(buf) + __save(buf); }
+    usize _size() override { return Cartridge::_size() + __size(); }
+    usize _load(u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
+    usize _save(u8 *buf) override { return Cartridge::_save(buf) + __save(buf); }
     
     
     //
@@ -67,7 +66,9 @@ private:
     //
     
     u8 peekIO1(u16 addr) override { charge(); return 0; }
+    u8 spypeekIO1(u16 addr) const override { return 0; }
     u8 peekIO2(u16 addr) override { discharge(); return 0; }
+    u8 spypeekIO2(u16 addr) const override { return 0; }
     void pokeIO1(u16 addr, u8 value) override { charge(); }
     void pokeIO2(u16 addr, u8 value) override { discharge(); }
     
@@ -92,5 +93,3 @@ private:
     void enableROML();
     void disableROML();
 };
-
-#endif

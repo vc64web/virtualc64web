@@ -9,14 +9,33 @@
 
 #include "FSDevice.h"
 
+void
+FSDirEntry::init(PETName<16> name, TSLink ref, usize numBlocks)
+{
+    fileType        = 0x82;  // PRG
+    firstDataTrack  = (u8)ref.t;
+    firstDataSector = (u8)ref.s;
+    fileSizeLo      = LO_BYTE(numBlocks);
+    fileSizeHi      = HI_BYTE(numBlocks);
+
+    name.write(fileName);
+}
+
+void
+FSDirEntry::init(const char *name, TSLink ref, usize numBlocks)
+{
+    auto petName = PETName<16>(name);
+    init(petName, ref, numBlocks);
+}
+
 bool
-FSDirEntry::isEmpty()
+FSDirEntry::isEmpty() const
 {
     return isZero(&fileType, 30);
 }
 
 const char *
-FSDirEntry::typeString()
+FSDirEntry::typeString() const
 {
     switch (fileType) {
             
@@ -46,26 +65,14 @@ FSDirEntry::typeString()
 }
 
 bool
-FSDirEntry::isHidden()
+FSDirEntry::isHidden() const
 {
     return strlen(typeString()) == 0;
 }
 
-void
-FSDirEntry::init(FSName name, BlockRef ref, size_t numBlocks)
+FSFileType
+FSDirEntry::getFileType() const
 {
-    fileType        = 0x82;  // PRG
-    firstDataTrack  = (u8)ref.t;
-    firstDataSector = (u8)ref.s;
-    fileSizeLo      = LO_BYTE(numBlocks);
-    fileSizeHi      = HI_BYTE(numBlocks);
-
-    name.write(fileName);
+    return (FSFileType)(fileType & 0b111);
 }
 
-void
-FSDirEntry::init(const char *name, BlockRef ref, size_t numBlocks)
-{
-    FSName fsName = FSName(name);
-    init(fsName, ref, numBlocks);
-}

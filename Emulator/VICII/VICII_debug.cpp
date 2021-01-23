@@ -11,20 +11,20 @@
 
 
 ScreenGeometry
-VICII::getScreenGeometry(void)
+VICII::getScreenGeometry(void) const
 {
     unsigned rows = GET_BIT(reg.current.ctrl1, 3) ? 25 : 24;
     unsigned cols = GET_BIT(reg.current.ctrl2, 3) ? 40 : 38;
     
     if (cols == 40) {
-        return rows == 25 ? COL_40_ROW_25 : COL_40_ROW_24;
+        return rows == 25 ? SCREEN_GEOMETRY_25_40 : SCREEN_GEOMETRY_24_40;
     } else {
-        return rows == 25 ? COL_38_ROW_25 : COL_38_ROW_24;
+        return rows == 25 ? SCREEN_GEOMETRY_25_38 : SCREEN_GEOMETRY_24_38;
     }
 }
 
 void
-VICII::visualizeDma(u8 offset, u8 data, MemAccessType type)
+VICII::visualizeDma(u8 offset, u8 data, MemAccess type)
 {
     int *p = dmaTexturePtr + bufferoffset + offset;
     
@@ -42,7 +42,7 @@ VICII::computeOverlay()
 
     switch (config.dmaDisplayMode) {
 
-        case MODULATE_FG_LAYER:
+        case DMA_DISPLAY_MODE_FG_LAYER:
             
             for (int y = 0; y < TEX_HEIGHT; y++) {
                 
@@ -61,7 +61,7 @@ VICII::computeOverlay()
             }
             break;
 
-        case MODULATE_BG_LAYER:
+        case DMA_DISPLAY_MODE_BG_LAYER:
             
             for (int y = 0; y < TEX_HEIGHT; y++) {
                 
@@ -81,7 +81,7 @@ VICII::computeOverlay()
             }
             break;
 
-        case MODULATE_ODD_EVEN_LAYERS:
+        case DMA_DISPLAY_MODE_ODD_EVEN_LAYERS:
             
             for (int y = 0; y < TEX_HEIGHT; y++) {
                 

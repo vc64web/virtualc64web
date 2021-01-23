@@ -21,65 +21,6 @@ releaseBuild()
 #endif
 }
 
-struct timeval t;
-// long tv_base = ((void)gettimeofday(&t,NULL), t.tv_sec);
-
-void translateToUnicode(const char *petscii, u16 *unichars, u16 base, size_t max)
-{
-    assert(petscii != NULL);
-    assert(unichars != NULL);
-    
-    unsigned i;
-    size_t len = MIN(strlen(petscii), max);
-    
-    for (i = 0; i < len; i++) {
-        unichars[i] = base + (u16)petscii2printable(petscii[i], ' ');
-    }
-    unichars[i] = 0;
-}
-
-size_t
-strlen16(const u16 *unichars)
-{
-    size_t count = 0;
-    
-    if (unichars)
-        while(unichars[count]) count++;
-    
-    return count;
-}
-
-u8
-petscii2printable(u8 c, u8 subst)
-{
-    if (c >= 0x20 /*' '*/ && c <= 0x7E /* ~ */) return c;
-    return subst;
-}
-
-u8
-ascii2pet(u8 asciichar)
-{
-    if (asciichar == 0x00)
-        return 0x00;
-    
-    asciichar = toupper(asciichar);
-    
-    if (asciichar >= 0x20 && asciichar <= 0x5D) {
-        return asciichar;
-    } else {
-        return ' ';
-    }
-}
-
-void
-ascii2petStr(char *str)
-{
-    assert(str != NULL);
-    for (; *str != 0; str++) {
-        *str = ascii2pet(*str);
-    }
-}
-
 void
 sprint8d(char *s, u8 value)
 {
@@ -144,12 +85,12 @@ sprint16b(char *s, u16 value)
     s[16] = 0;
 }
 
-void hexdump(u8 *p, size_t size, size_t cols, size_t pad)
+void hexdump(u8 *p, usize size, usize cols, usize pad)
 {
     while (size) {
         
-        size_t cnt = MIN(size, cols);
-        for (size_t x = 0; x < cnt; x++) {
+        usize cnt = MIN(size, cols);
+        for (usize x = 0; x < cnt; x++) {
             fprintf(stderr, "%02X %s", p[x], ((x + 1) % pad) == 0 ? " " : "");
         }
         
@@ -161,80 +102,65 @@ void hexdump(u8 *p, size_t size, size_t cols, size_t pad)
     fprintf(stderr, "\n");
 }
 
-void hexdump(u8 *p, size_t size, size_t cols)
+void hexdump(u8 *p, usize size, usize cols)
 {
     hexdump(p, size, cols, cols);
 }
 
-void hexdumpWords(u8 *p, size_t size, size_t cols)
+void hexdumpWords(u8 *p, usize size, usize cols)
 {
     hexdump(p, size, cols, 2);
 }
 
-void hexdumpLongwords(u8 *p, size_t size, size_t cols)
+void hexdumpLongwords(u8 *p, usize size, usize cols)
 {
     hexdump(p, size, cols, 4);
 }
 
-bool isZero(const u8 *ptr, size_t size)
+bool isZero(const u8 *ptr, usize size)
 {
-    for (size_t i = 0; i < size; i++) {
+    for (usize i = 0; i < size; i++) {
         if (ptr[i]) return false;
     }
     return true;
 }
 
-char *
-extractFilename(const char *path)
+string
+extractFileName(const string &s)
 {
-    assert(path != NULL);
-    
-    const char *pos = strrchr(path, '/');
-    return pos ? strdup(pos + 1) : strdup(path);
+    auto idx = s.rfind('/');
+    auto pos = idx != std::string::npos ? idx + 1 : 0;
+    auto len = std::string::npos;
+    return s.substr(pos, len);
 }
 
-char *
-extractSuffix(const char *path)
+string
+extractSuffix(const string &s)
 {
-    assert(path != NULL);
-    
-    const char *pos = strrchr(path, '.');
-    return pos ? strdup(pos + 1) : strdup("");
+    auto idx = s.rfind('.');
+    auto pos = idx != std::string::npos ? idx + 1 : 0;
+    auto len = std::string::npos;
+    return s.substr(pos, len);
 }
 
-char *
-extractFilenameWithoutSuffix(const char *path)
+string stripSuffix(const string &s)
 {
-    assert(path != NULL);
-    
-    char *result;
-    char *filename = extractFilename(path);
-    char *suffix   = extractSuffix(filename);
-    
-    if (strlen(suffix) == 0)
-        result = strdup(filename);
-    else
-        result = strndup(filename, strlen(filename) - strlen(suffix) - 1);
-    
-    free(filename);
-    free(suffix);
-    return result;
+    auto idx = s.rfind('.');
+    auto pos = 0;
+    auto len = idx != std::string::npos ? idx : std::string::npos;
+    return s.substr(pos, len);
 }
 
-bool
-checkFileSuffix(const char *filename, const char *suffix)
+std::string
+suffix(const std::string &name)
 {
-	assert(filename != NULL);
-	assert(suffix != NULL);
-	
-	if (strlen(suffix) > strlen(filename))
-		return false;
-	
-	filename += (strlen(filename) - strlen(suffix));
-	if (strcmp(filename, suffix) == 0)
-		return true;
-	else
-		return false;
+    auto idx = name.rfind('.');
+    return idx != std::string::npos ? name.substr(idx + 1) : "";
+}
+
+bool isDirectory(const std::string &path)
+{
+    return isDirectory(path.c_str());
 }
 
 bool isDirectory(const char *path)
@@ -250,9 +176,14 @@ bool isDirectory(const char *path)
     return S_ISDIR(fileProperties.st_mode);
 }
 
-long numDirectoryItems(const char *path)
+usize numDirectoryItems(const std::string &path)
 {
-    long count = 0;
+    return numDirectoryItems(path.c_str());
+}
+
+usize numDirectoryItems(const char *path)
+{
+    usize count = 0;
     
     if (DIR *dir = opendir(path)) {
         
@@ -270,7 +201,7 @@ getSizeOfFile(const char *filename)
 {
     struct stat fileProperties;
     
-    if (filename == NULL)
+    if (filename == nullptr)
         return -1;
     
     if (stat(filename, &fileProperties) != 0)
@@ -279,118 +210,63 @@ getSizeOfFile(const char *filename)
     return fileProperties.st_size;
 }
 
-bool
-checkFileSize(const char *filename, long min, long max)
+bool matchingStreamHeader(std::istream &stream, const u8 *header, usize length)
 {
-    long filesize = getSizeOfFile(filename);
+    stream.seekg(0, std::ios::beg);
     
-    if (filesize == -1) {
-        return false;
-    }
-    if (min > 0 && filesize < min) {
-        return false;
-    }
-    if (max > 0 && filesize > max) {
-        return false;
-    }
-    return true;
-}
-
-bool
-matchingFileHeader(const char *path, const u8 *header, size_t length)
-{
-    assert(path != NULL);
-    assert(header != NULL);
-    
-    bool result = true;
-    FILE *file;
-    
-    if ((file = fopen(path, "r")) == NULL) {
-        return false;
-    }
-    for (size_t i = 0; i < length; i++) {
-        int c = fgetc(file);
+    for (usize i = 0; i < length; i++) {
+        int c = stream.get();
         if (c != (int)header[i]) {
-            result = false;
-            break;
+            stream.seekg(0, std::ios::beg);
+            return false;
         }
     }
-
-    fclose(file);
-    return result;
-}
-
-bool
-matchingBufferHeader(const u8 *buffer, const u8 *header, size_t length)
-{
-    assert(buffer != NULL);
-    assert(header != NULL);
-
-    for (size_t i = 0; i < length; i++) {
-        if (header[i] != buffer[i])
-        return false;
-    }
-
+    stream.seekg(0, std::ios::beg);
     return true;
 }
 
-bool
-loadFile(const char *path, u8 **buffer, long *size)
+bool loadFile(const std::string &path, u8 **bufptr, long *lenptr)
 {
-    assert(path != nullptr);
-    assert(buffer != nullptr);
-    assert(size != nullptr);
+    assert(bufptr); assert(lenptr);
 
-    *buffer = nullptr;
-    *size = 0;
+    std::ifstream stream(path);
+    if (!stream.is_open()) return false;
     
-    // Get file size
-    long bytes = getSizeOfFile(path);
-    if (bytes == -1) return false;
+    usize len = streamLength(stream);
+    u8 *buf = new u8[len];
+    stream.read((char *)buf, len);
     
-    // Open file
-    FILE *file = fopen(path, "r");
-    if (file == nullptr) return false;
-     
-    // Allocate memory
-    u8 *data = new u8[bytes];
-    if (data == nullptr) { fclose(file); return false; }
-    
-    // Read data
-    for (unsigned i = 0; i < bytes; i++) {
-        int c = fgetc(file);
-        if (c == EOF) break;
-        data[i] = (u8)c;
-    }
-    
-    fclose(file);
-    *buffer = data;
-    *size = bytes;
+    *bufptr = buf;
+    *lenptr = len;
     return true;
 }
 
-bool
-loadFile(const char *path, const char *name, u8 **buffer, long *size)
+bool loadFile(const std::string &path, const std::string &name, u8 **bufptr, long *lenptr)
 {
-    assert(path != nullptr);
-    assert(name != nullptr);
+    return loadFile(path + "/" + name, bufptr, lenptr);
+}
 
-    char *fullpath = new char[strlen(path) + strlen(name) + 2];
-    strcpy(fullpath, path);
-    strcat(fullpath, "/");
-    strcat(fullpath, name);
+usize
+streamLength(std::istream &stream)
+{
+    auto cur = stream.tellg();
+    stream.seekg(0, std::ios::beg);
+    auto beg = stream.tellg();
+    stream.seekg(0, std::ios::end);
+    auto end = stream.tellg();
+    stream.seekg(cur, std::ios::beg);
     
-    return loadFile(fullpath, buffer, size);
+    return (usize)(end - beg);
 }
 
 u32
-fnv_1a_32(u8 *addr, size_t size)
+fnv_1a_32(const u8 *addr, usize size)
 {
-    if (addr == NULL || size == 0) return 0;
+    if (addr == nullptr || size == 0) return 0;
 
     u32 hash = fnv_1a_init32();
 
-    for (size_t i = 0; i < size; i++) {
+    for (usize i = 0; i < size; i++) {
         hash = fnv_1a_it32(hash, (u32)addr[i]);
     }
 
@@ -398,13 +274,13 @@ fnv_1a_32(u8 *addr, size_t size)
 }
 
 u64
-fnv_1a_64(u8 *addr, size_t size)
+fnv_1a_64(const u8 *addr, usize size)
 {
-    if (addr == NULL || size == 0) return 0;
+    if (addr == nullptr || size == 0) return 0;
 
     u64 hash = fnv_1a_init64();
 
-    for (size_t i = 0; i < size; i++) {
+    for (usize i = 0; i < size; i++) {
         hash = fnv_1a_it64(hash, (u64)addr[i]);
     }
 
@@ -412,9 +288,9 @@ fnv_1a_64(u8 *addr, size_t size)
 }
 
 u32
-crc32(const u8 *addr, size_t size)
+crc32(const u8 *addr, usize size)
 {
-    if (addr == NULL || size == 0) return 0;
+    if (addr == nullptr || size == 0) return 0;
 
     u32 result = 0;
 
@@ -423,7 +299,7 @@ crc32(const u8 *addr, size_t size)
     for(int i = 0; i < 256; i++) table[i] = crc32forByte(i);
 
     // Compute CRC-32 checksum
-     for(size_t i = 0; i < size; i++)
+     for(usize i = 0; i < size; i++)
        result = table[(u8)result ^ addr[i]] ^ result >> 8;
 
     return result;

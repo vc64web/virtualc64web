@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _FINALIII_H
-#define _FINALIII_H
+#pragma once
 
 #include "Cartridge.h"
 
@@ -32,8 +31,8 @@ class FinalIII : public Cartridge {
 public:
     
     FinalIII(C64 &ref) : Cartridge(ref) { };
-    const char *getDescription() override { return "FinalIII"; }
-    CartridgeType getCartridgeType() override { return CRT_FINAL_III; }
+    const char *getDescription() const override { return "FinalIII"; }
+    CartridgeType getCartridgeType() const override { return CRT_FINAL_III; }
     
     void resetCartConfig() override;
 
@@ -60,13 +59,13 @@ private:
         worker & qD;
     }
     
-    size_t __size() { COMPUTE_SNAPSHOT_SIZE }
-    size_t __load(u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
-    size_t __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
+    usize __size() { COMPUTE_SNAPSHOT_SIZE }
+    usize __load(u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
+    usize __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
     
-    size_t _size() override { return Cartridge::_size() + __size(); }
-    size_t _load(u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
-    size_t _save(u8 *buf) override { return Cartridge::_save(buf) + __save(buf); }
+    usize _size() override { return Cartridge::_size() + __size(); }
+    usize _load(u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
+    usize _save(u8 *buf) override { return Cartridge::_save(buf) + __save(buf); }
     
 
     //
@@ -76,7 +75,9 @@ private:
 public:
         
     u8 peekIO1(u16 addr) override;
+    u8 spypeekIO1(u16 addr) const override;
     u8 peekIO2(u16 addr) override;
+    u8 spypeekIO2(u16 addr) const override;
     void pokeIO2(u16 addr, u8 value) override;
     void nmiDidTrigger() override;
     
@@ -88,16 +89,16 @@ public:
 private:
     
     void setControlReg(u8 value);
-    bool hidden() { return (control & 0x80) != 0; }
-    bool nmi() { return (control & 0x40) != 0; }
-    bool game() { return (control & 0x20) != 0; }
-    bool exrom() { return (control & 0x10) != 0; }
-    u8 bank() { return (control & 0x03); }
+    bool hidden() const { return (control & 0x80) != 0; }
+    bool nmi() const { return (control & 0x40) != 0; }
+    bool game() const { return (control & 0x20) != 0; }
+    bool exrom() const { return (control & 0x10) != 0; }
+    u8 bank() const { return (control & 0x03); }
     
     /* Indicates if the control register is write enabled. Final Cartridge III
      * enables and disables the control register by masking the clock signal.
      */
-    bool writeEnabled();
+    bool writeEnabled() const;
 
     /* Updates the NMI line. The NMI line is driven by the control register and
      * the current position of the freeze button.
@@ -114,11 +115,8 @@ private:
     // Operating buttons
     //
     
-    long numButtons() override { return 2; }
-    const char *getButtonTitle(unsigned nr) override;
+    long numButtons() const override { return 2; }
+    const char *getButtonTitle(unsigned nr) const override;
     void pressButton(unsigned nr) override;
     void releaseButton(unsigned nr) override;
 };
-
-#endif
-

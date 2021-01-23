@@ -12,7 +12,7 @@
 bool
 Snapshot::isCompatibleName(const std::string &name)
 {
-    return  suffix(name) == "VC64"; 
+    return  suffix(name) == "VC64" || suffix(name) == "vc64"; 
 }
 
 bool

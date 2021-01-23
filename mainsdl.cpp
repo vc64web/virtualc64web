@@ -624,10 +624,14 @@ extern "C" char* wasm_pull_user_snapshot_file()
 
   Snapshot *snapshot = wrapper->c64->latestUserSnapshot(); //wrapper->c64->userSnapshot(nr);
 
-  size_t size = snapshot->writeToBuffer(NULL);
+  size_t size = snapshot->size; //writeToBuffer(NULL);
   uint8_t *buffer = new uint8_t[size];
   snapshot->writeToBuffer(buffer);
-
+  for(int i=0; i < 30; i++)
+  {
+    printf("%d",buffer[i]);
+  }
+  printf("\n");
   sprintf(wasm_pull_user_snapshot_file_json_result, "{\"address\":%lu, \"size\": %lu, \"width\": %u, \"height\":%u }",
   (unsigned long)buffer, 
   size,

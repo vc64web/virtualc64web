@@ -13,7 +13,7 @@ bool
 TAPFile::isCompatibleName(const std::string &name)
 {
     auto s = suffix(name);
-    return s == "tap" || s == "TAP";
+    return s == "tap" || s == "TAP" || s == "t64" || s == "T64";
 }
 
 bool

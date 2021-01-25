@@ -688,54 +688,99 @@ extern "C" void wasm_set_borderless(unsigned on)
 extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 {
   printf("load file=%s len=%ld, header bytes= %x, %x, %x\n", name, len, blob[0],blob[1],blob[2]);
+  ErrorCode error;
   filename=name;
   auto file_suffix= suffix(name); 
   if(wrapper == NULL)
   {
     return "";
   }
+  bool file_still_unprocessed=true;   
   if (D64File::isCompatibleName(filename)) {
-    printf("isD64\n");
-    FSDevice *fs= FSDevice::makeWithD64(*D64File::make<D64File>(blob, len)); 
-    wrapper->c64->drive8.insertFileSystem(fs);
+    printf("try to build D64File\n");
+    D64File *file = D64File::make<D64File>(blob, len, &error);
+    if(file != NULL)
+    {
+      printf("isD64\n");  
+      FSDevice *fs= FSDevice::makeWithD64(*file); 
+      wrapper->c64->drive8.insertFileSystem(fs);
+      file_still_unprocessed=false;
+    }
   }
-  else if (G64File::isCompatibleName(filename)) {
-    printf("isG64\n");
-    wrapper->c64->drive8.insertDisk(Disk::makeWithG64(*(wrapper->c64), G64File::make<G64File>(blob, len)));
+  if (file_still_unprocessed && G64File::isCompatibleName(filename)) {
+    printf("try to build G64File\n");
+    G64File *file = G64File::make<G64File>(blob, len, &error);
+    if(file != NULL)
+    {
+      printf("isG64\n");
+      wrapper->c64->drive8.insertDisk(Disk::makeWithG64(*(wrapper->c64), file));
+      file_still_unprocessed=false;
+    }
   }
-  else if (PRGFile::isCompatibleName(filename)) {
-    printf("isPRG\n");
-    wrapper->c64->flash(PRGFile::make<PRGFile>(blob, len),0);
+  if (file_still_unprocessed && PRGFile::isCompatibleName(filename)) {
+    printf("try to build PRGFile\n");
+    PRGFile *file = PRGFile::make<PRGFile>(blob, len, &error);
+    if(file != NULL)
+    {
+      printf("isPRG\n");
+      wrapper->c64->flash(file,0);
+      file_still_unprocessed=false;
+    }
   }
-  else if (CRTFile::isCompatibleName(filename)) {
-    printf("isCRT\n");
-    wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(*(wrapper->c64),*(CRTFile::make<CRTFile>(blob, len))));
-    wrapper->c64->reset();
+  if (file_still_unprocessed && CRTFile::isCompatibleName(filename)) {
+    printf("try to build CRTFile\n");
+    CRTFile *file = CRTFile::make<CRTFile>(blob, len, &error);
+    if(file != NULL)
+    {
+      printf("isCRT\n");
+      wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(*(wrapper->c64),*file));
+      wrapper->c64->reset();
+      file_still_unprocessed=false;
+    } 
   }
-  else if (TAPFile::isCompatibleName(filename)) {
-    printf("isTAP\n");
-    wrapper->c64->datasette.insertTape(TAPFile::make<TAPFile>(blob, len));
-    wrapper->c64->datasette.rewind();
-  //  wrapper->c64->datasette.pressPlay();
-  //  wrapper->c64->datasette.pressStop();
-  }
-  else if (T64File::isCompatibleName(filename)) {
-    printf("isT64\n");
-    wrapper->c64->flash(T64File::make<T64File>(blob, len),0);
-  }
-  else if (Snapshot::isCompatibleName(filename)) {
-    printf("isSnapshot\n");
-    wrapper->c64->loadFromSnapshot(Snapshot::make<Snapshot>(blob, len));
-  }
-  else {
- //   printf("\n");
-    //wrapper->c64->flash(RomFile::makeWithBuffer(blob, len),0);
+  if (file_still_unprocessed && TAPFile::isCompatibleName(filename)) {
+    printf("try to build TAPFile\n");
 
+    TAPFile *file = TAPFile::make<TAPFile>(blob, len, &error);
+    if(file != NULL)
+    {  
+      printf("isTAP\n");
+      wrapper->c64->datasette.insertTape(file);
+      wrapper->c64->datasette.rewind();
+    //  wrapper->c64->datasette.pressPlay();
+    //  wrapper->c64->datasette.pressStop();
+      file_still_unprocessed=false;
+    } 
+  }
+  if (file_still_unprocessed && T64File::isCompatibleName(filename)) {
+    printf("try to build T64File\n");
+
+    T64File *file = T64File::make<T64File>(blob, len, &error);
+    if(file != NULL)
+    { 
+      printf("isT64\n");
+      wrapper->c64->flash(file,0);
+      file_still_unprocessed=false;
+    } 
+  }
+  if (file_still_unprocessed && Snapshot::isCompatibleName(filename) && suffix(filename)!="bin") {
+    printf("try to build Snapshot\n");
+    Snapshot *file = Snapshot::make<Snapshot>(blob, len, &error);
+    if(file != NULL)
+    {     
+      printf("isSnapshot\n");
+      wrapper->c64->loadFromSnapshot(file);
+      file_still_unprocessed=false;
+    } 
+  }
+  if(file_still_unprocessed)
+  {
     bool result;
     ErrorCode error;
     bool wasRunnable = wrapper->c64->isReady(&error);
-    //RomFile *rom = RomFile::makeWithFile(name);
-    RomFile *rom = RomFile::make<RomFile>(blob, len);
+
+    printf("try to build RomFile\n");
+    RomFile *rom = RomFile::make<RomFile>(blob, len, &error);
 
     if (!rom) {
         printf("Failed to read ROM image file %s\n", name);

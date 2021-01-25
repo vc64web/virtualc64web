@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include "C64.h"
 #include "C64Types.h"
-#include "msg_codes.h"
 
 #include <emscripten.h>
 #include <SDL2/SDL.h>
@@ -438,27 +437,9 @@ void theListener(const void * c64, long type, long data){
       ((C64 *)c64)->setWarp(false);
   }
 
-
-  if(0!=strcmp("MSG_CHARSET", msg_code[type].c_str()))
-  {
-
-    const char *message_as_string =  (const char *)MsgTypeEnum::key((MsgType)type);
-    printf("vC64 message=%s, data=%ld\n", 
-    message_as_string
-    //msg_code[type].c_str()
-    , data);
-
-    send_message_to_js(
-      message_as_string
-      //msg_code[type]
-      );
-/*    EM_ASM({
-        if (typeof message_handler === 'undefined')
-            return;
-        message_handler( $0 );}, msg_code[type].c_str() );    
-*/
-  }
-
+  const char *message_as_string =  (const char *)MsgTypeEnum::key((MsgType)type);
+  printf("vC64 message=%s, data=%ld\n", message_as_string, data);
+  send_message_to_js(message_as_string);
 }
 
 

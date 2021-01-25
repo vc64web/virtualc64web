@@ -1,3 +1,4 @@
+var vc64web_version ="4.0.2";
 var current_browser_datasource='snapshots';
 var current_browser_command=null;
 
@@ -372,7 +373,7 @@ var collectors = {
                     }
                     ctx.putImageData(imgData,0,0); 
                 
-                    if(!version.startsWith("4.0.1"))
+                    if(!version.startsWith(vc64web_version))
                     {
                         ctx.translate(50, 0); // translate to rectangle center 
                         ctx.rotate((Math.PI / 180) * 27); // rotate
@@ -407,10 +408,10 @@ var collectors = {
             {
                 get_snapshot_per_id(id,
                     function (snapshot) {
-                        var version = snapshot.data[4] +'.'+snapshot.data[5];
-                        if(version.startsWith("3.3"))
+                        var version = snapshot.data[4] +'.'+snapshot.data[5]+'.'+snapshot.data[6];
+                        if(!version.startsWith(vc64web_version))
                         {
-                            alert('sorry, this snapshot has been taken with the older virtual C64 version 3.3 and can not be loaded with version 4 ...')
+                            alert(`This snapshot has been taken with the older virtual C64 version ${version} and can not be loaded with the current version ${vc64web_version}, sorry.`);
                             return;
                         }
                         wasm_loadfile(

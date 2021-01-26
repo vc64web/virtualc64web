@@ -7,9 +7,9 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _C64OBJECT_H
-#define _C64OBJECT_H
+#pragma once
 
+#include "C64PublicTypes.h"
 #include "Utils.h"
 #include "Concurrency.h"
 #include "Colors.h"
@@ -51,10 +51,8 @@ public:
     virtual ~C64Object() { };
     
     // Returns the name for this component (e.g., "CPU" or "VICII")
-    virtual const char *getDescription() = 0;
+    virtual const char *getDescription() const = 0;
     
     // Called by debug() and trace() to produce a detailed debug output
-    virtual void prefix();
+    virtual void prefix() const;
 };
-
-#endif

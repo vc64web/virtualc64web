@@ -23,11 +23,11 @@ ExpansionPort::_reset()
         cartridge->reset();
         cartridge->resetCartConfig();
     } else {
-        setCartridgeMode(CRT_OFF);
+        setCartridgeMode(CRTMODE_OFF);
     }
 }
 
-size_t
+usize
 ExpansionPort::_size()
 {
     SerCounter counter;
@@ -38,7 +38,7 @@ ExpansionPort::_size()
     return counter.count;
 }
 
-size_t
+usize
 ExpansionPort::_load(u8 *buffer)
 {
     SerReader reader(buffer);
@@ -47,7 +47,7 @@ ExpansionPort::_load(u8 *buffer)
     
     // Load cartridge (if any)
     if (crtType != CRT_NONE) {
-        assert(cartridge != NULL);
+        assert(cartridge);
         delete cartridge;
         cartridge = Cartridge::makeWithType(c64, crtType);
         reader.ptr += cartridge->load(reader.ptr);
@@ -57,7 +57,7 @@ ExpansionPort::_load(u8 *buffer)
     return reader.ptr - buffer;
 }
 
-size_t
+usize
 ExpansionPort::_save(u8 *buffer)
 {
     SerWriter writer(buffer);
@@ -74,7 +74,7 @@ ExpansionPort::_save(u8 *buffer)
 }
 
 void
-ExpansionPort::_dump()
+ExpansionPort::_dump() const
 {
     msg("Expansion port\n");
     msg("--------------\n");
@@ -82,7 +82,7 @@ ExpansionPort::_dump()
     msg(" Game line:  %d\n", gameLine);
     msg("Exrom line:  %d\n", exromLine);
 
-    if (cartridge == NULL) {
+    if (cartridge == nullptr) {
         msg("No cartridge attached\n");
     } else {
         cartridge->dump();
@@ -102,7 +102,7 @@ ExpansionPort::peek(u16 addr)
 }
 
 u8
-ExpansionPort::spypeek(u16 addr)
+ExpansionPort::spypeek(u16 addr) const
 {
     return cartridge ? cartridge->spypeek(addr) : 0;
 }
@@ -121,7 +121,7 @@ ExpansionPort::peekIO1(u16 addr)
 }
 
 u8
-ExpansionPort::spypeekIO1(u16 addr)
+ExpansionPort::spypeekIO1(u16 addr) const
 {
     return cartridge ? cartridge->spypeekIO1(addr) : vic.getDataBusPhi1();
 }
@@ -133,7 +133,7 @@ ExpansionPort::peekIO2(u16 addr)
 }
 
 u8
-ExpansionPort::spypeekIO2(u16 addr)
+ExpansionPort::spypeekIO2(u16 addr) const
 {
     return cartridge ? cartridge->spypeekIO2(addr) : vic.getDataBusPhi1();
 }
@@ -189,25 +189,25 @@ ExpansionPort::setGameAndExrom(bool game, bool exrom)
     mem.updatePeekPokeLookupTables();
 }
 
-CartridgeMode
-ExpansionPort::getCartridgeMode()
+CRTMode
+ExpansionPort::getCartridgeMode() const
 {
     switch ((exromLine ? 0b10 : 0) | (gameLine ? 0b01 : 0)) {
             
-        case 0b00: return CRT_16K;
-        case 0b01: return CRT_8K;
-        case 0b10: return CRT_ULTIMAX;
-        default:   return CRT_OFF;
+        case 0b00: return CRTMODE_16K;
+        case 0b01: return CRTMODE_8K;
+        case 0b10: return CRTMODE_ULTIMAX;
+        default:   return CRTMODE_OFF;
     }
 }
 
 void
-ExpansionPort::setCartridgeMode(CartridgeMode mode)
+ExpansionPort::setCartridgeMode(CRTMode mode)
 {
     switch (mode) {
-        case CRT_16K:     setGameAndExrom(0,0); return;
-        case CRT_8K:      setGameAndExrom(1,0); return;
-        case CRT_ULTIMAX: setGameAndExrom(0,1); return;
+        case CRTMODE_16K:     setGameAndExrom(0,0); return;
+        case CRTMODE_8K:      setGameAndExrom(1,0); return;
+        case CRTMODE_ULTIMAX: setGameAndExrom(0,1); return;
         default:          setGameAndExrom(1,1);
     }
 }
@@ -215,8 +215,9 @@ ExpansionPort::setCartridgeMode(CartridgeMode mode)
 void
 ExpansionPort::attachCartridge(Cartridge *c)
 {
-    assert(c != NULL);
-    
+    assert(c);
+    assert(c->isSupported());
+               
     // Remove old cartridge (if any) and assign new one
     detachCartridge();
     cartridge = c;
@@ -225,59 +226,59 @@ ExpansionPort::attachCartridge(Cartridge *c)
     // Reset cartridge to update exrom and game line on the expansion port
     cartridge->reset();
     
-    c64.putMessage(MSG_CARTRIDGE);
+    c64.putMessage(MSG_CRT_ATTACHED);
     if (cartridge->hasSwitch()) c64.putMessage(MSG_CART_SWITCH);
     
-    trace(EXP_DEBUG, "Cartridge attached to expansion port");
+    debug(EXP_DEBUG, "Cartridge attached to expansion port");
 }
 
-bool
-ExpansionPort::attachCartridgeAndReset(CRTFile *file)
+void
+ExpansionPort::attachGeoRamCartridge(usize kb)
 {
-    assert(file != NULL);
-    
-    Cartridge *cartridge = Cartridge::makeWithCRTFile(c64, file);
-    
-    if (cartridge) {
-        
-        suspend();
-        attachCartridge(cartridge);
-        c64.reset();
-        resume();
-        return true;
-    }
-    
-    return false;
-}
+    debug(EXP_DEBUG, "Attaching GeoRAM cartridge (%zu KB)", kb);
 
-bool
-ExpansionPort::attachGeoRamCartridge(u32 capacity)
-{
-    trace(EXP_DEBUG, "Attaching GeoRAM cartridge (%d KB)\n", capacity);
-
-    switch (capacity) {
-        case 64: case 128: case 256: case 512: case 1024: case 2048: case 4096:
-            break;
-        default:
-            warn("Cannot create GeoRAM cartridge of size %d\n", capacity);
-            return false;
+    if (kb != 64 && kb != 256 && kb != 512 && kb != 1024 && kb != 2048) {
+        assert(false);
     }
     
     Cartridge *geoRAM = Cartridge::makeWithType(c64, CRT_GEO_RAM);
-    u32 capacityInBytes = capacity * 1024;
-    geoRAM->setRamCapacity(capacityInBytes);
-    
+    geoRAM->setRamCapacity(kb * 1024);
     attachCartridge(geoRAM);
+}
+
+bool
+ExpansionPort::attachCartridge(CRTFile *file, bool reset)
+{
+    assert(file);
+    
+    // Only proceed if this cartridge is supported
+    if (!file->isSupported()) {
+        c64.putMessage(MSG_CRT_UNSUPPORTED, file->cartridgeType());
+        return false;
+    }
+    
+    // Create cartridge from cartridge file
+    Cartridge *cartridge;
+    if (!(cartridge = Cartridge::makeWithCRTFile(c64, *file))) {
+        return false;
+    }
+    
+    // Attach cartridge
+    suspend();
+    attachCartridge(cartridge);
+    if (reset) c64.reset();
+    resume();
+    
     return true;
 }
 
 void
 ExpansionPort::attachIsepicCartridge()
 {
-    trace(EXP_DEBUG, "Attaching Isepic cartridge\n");
+    debug(EXP_DEBUG, "Attaching Isepic cartridge\n");
     
     Cartridge *isepic = Cartridge::makeWithType(c64, CRT_ISEPIC);
-    return attachCartridge(isepic);
+    (void)attachCartridge(isepic);
 }
 
 void
@@ -288,13 +289,13 @@ ExpansionPort::detachCartridge()
         suspend();
         
         delete cartridge;
-        cartridge = NULL;
+        cartridge = nullptr;
         crtType = CRT_NONE;
         
-        setCartridgeMode(CRT_OFF);
+        setCartridgeMode(CRTMODE_OFF);
         
-        trace(EXP_DEBUG, "Cartridge detached from expansion port");
-        c64.putMessage(MSG_NO_CARTRIDGE);
+        debug(EXP_DEBUG, "Cartridge detached from expansion port");
+        c64.putMessage(MSG_CRT_DETACHED);
        
         resume();
     }
@@ -310,7 +311,7 @@ ExpansionPort::detachCartridgeAndReset()
 }
 
 bool
-ExpansionPort::hasBattery()
+ExpansionPort::hasBattery() const
 {
     return cartridge ? cartridge->getBattery() : false;
 }
@@ -322,15 +323,15 @@ ExpansionPort::setBattery(bool value)
 }
 
 long
-ExpansionPort::numButtons()
+ExpansionPort::numButtons() const
 {
     return cartridge ? cartridge->numButtons() : 0;
 }
 
 const char *
-ExpansionPort::getButtonTitle(unsigned nr)
+ExpansionPort::getButtonTitle(unsigned nr) const
 {
-     return cartridge ? cartridge->getButtonTitle(nr) : NULL;
+     return cartridge ? cartridge->getButtonTitle(nr) : nullptr;
 }
  
 void
@@ -346,61 +347,61 @@ ExpansionPort::releaseButton(unsigned nr)
 }
 
 bool
-ExpansionPort::hasSwitch()
+ExpansionPort::hasSwitch() const
 {
     return cartridge ? cartridge->hasSwitch() : false;
 }
 
 i8
-ExpansionPort::getSwitch()
+ExpansionPort::getSwitch() const
 {
     return cartridge ? cartridge->getSwitch() : 0;
 }
 
 bool
-ExpansionPort::switchIsNeutral()
+ExpansionPort::switchIsNeutral() const
 {
     return cartridge ? cartridge->switchIsNeutral() : false;
 }
    
 bool
-ExpansionPort::switchIsLeft()
+ExpansionPort::switchIsLeft() const
 {
     return cartridge ? cartridge->switchIsLeft() : false;
 }
    
 bool
-ExpansionPort::switchIsRight()
+ExpansionPort::switchIsRight() const
 {
     return cartridge ? cartridge->switchIsRight() : false;
 }
 
 const char *
-ExpansionPort::getSwitchDescription(i8 pos)
+ExpansionPort::getSwitchDescription(i8 pos) const
 {
-    return cartridge ? cartridge->getSwitchDescription(pos) : NULL;
+    return cartridge ? cartridge->getSwitchDescription(pos) : nullptr;
 }
 
 const char *
-ExpansionPort::getSwitchDescription()
+ExpansionPort::getSwitchDescription() const
 {
     return getSwitchDescription(getSwitch());
 }
 
 bool
-ExpansionPort::validSwitchPosition(i8 pos)
+ExpansionPort::validSwitchPosition(i8 pos) const
 {
     return cartridge ? cartridge->validSwitchPosition(pos) : false;    
 }
 
 bool
-ExpansionPort::hasLED()
+ExpansionPort::hasLED() const
 {
     return cartridge ? cartridge->hasLED() : false;
 }
  
 bool
-ExpansionPort::getLED()
+ExpansionPort::getLED() const
 {
     return cartridge ? cartridge->getLED() : false;
 }

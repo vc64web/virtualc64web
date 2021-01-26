@@ -7,10 +7,14 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef C64_UTILS_H
-#define C64_UTILS_H
+#pragma once
 
-#include <assert.h>
+#include "C64Config.h"
+#include "C64Constants.h"
+#include "Debug.h"
+#include "Errors.h"
+#include "C64Types.h"
+
 #include <limits.h>
 #include <math.h>
 #include <pthread.h>
@@ -23,12 +27,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <string>
+#include <set>
+#include <sstream>
+#include <fstream>
 
-#include "Debug.h"
-#include "C64Config.h"
-#include "C64Constants.h"
-#include "C64Types.h"
-#include "C64PrivateTypes.h"
+using std::string;
 
 // Returns true if this executable is a release build
 bool releaseBuild();
@@ -38,8 +42,12 @@ bool releaseBuild();
 //
 
 // Returns a byte from a u16 value
-#define HI_BYTE(x) (u8)((x) >> 8)
 #define LO_BYTE(x) (u8)((x) & 0xFF)
+#define HI_BYTE(x) (u8)((x) >> 8)
+
+// Returns the low word or the high word of a 32 bit value
+#define LO_WORD(x) (u16)((x) & 0xFFFF)
+#define HI_WORD(x) (u16)((x) >> 16)
 
 // Builds a larger integer in little endian byte format
 #define LO_HI(x,y) (u16)((y) << 8 | (x))
@@ -81,45 +89,37 @@ bool releaseBuild();
 #define FALLING_EDGE(x,y) ((x) && !(y))
 #define FALLING_EDGE_BIT(x,y,n) (((x) & (1 << (n))) && !((y) & (1 << (n))))
 
+// Checks is a number is even or odd
+#define IS_EVEN(x) (!IS_ODD(x))
+#define IS_ODD(x) ((x) & 1)
+
 
 //
-// Converting low level data objects
+// Accessing memory
 //
 
-/* Translates a PETSCII string to a unichar array. This functions creates
- * unicode characters compatible with the C64ProMono font. The target font
- * supports four different mapping tables starting at different base addresses:
- *
- *     0xE000 : Unshifted (only upper case characters)
- *     0xE100 : Shifted   (upper and lower case characters)
- *     0xE200 : Unshifted, reversed
- *     0xE300 : Shifted, reversed
- *
- * A maximum of max characters are translated. The unicode array will always
- * be terminated by a NULL character.
- */
-void translateToUnicode(const char *petscii, u16 *unichars,
-                        u16 base, size_t max);
+// Reads a value in big-endian format
+#define R8BE(a)  (*(u8 *)(a))
+#define R16BE(a) HI_LO(*(u8 *)(a), *(u8 *)((a)+1))
+#define R32BE(a) HI_HI_LO_LO(*(u8 *)(a), *(u8 *)((a)+1), *(u8 *)((a)+2), *(u8 *)((a)+3))
 
-// Returns the number of characters in a null terminated unichar array
-size_t strlen16(const u16 *unichars);
+#define R8BE_ALIGNED(a)  (*(u8 *)(a))
+#define R16BE_ALIGNED(a) (htons(*(u16 *)(a)))
+#define R32BE_ALIGNED(a) (htonl(*(u32 *)(a)))
 
-/* Converts a PETSCII character to a printable character. Replaces all
- * unprintable characters by subst.
- */
-u8 petscii2printable(u8 c, u8 subst);
+// Writes a value in big-endian format
+#define W8BE(a,v)  { *(u8 *)(a) = (v); }
+#define W16BE(a,v) { *(u8 *)(a) = HI_BYTE(v); *(u8 *)((a)+1) = LO_BYTE(v); }
+#define W32BE(a,v) { W16BE(a,HI_WORD(v)); W16BE((a)+2,LO_WORD(v)); }
 
-/* Converts an ASCII character to a PETSCII character. This function translates
- * into the unshifted PET character set. I.e., lower case characters are
- * converted to uppercase characters. Returns ' ' for ASCII characters with no
- * PETSCII representation.
- */
-u8 ascii2pet(u8 asciichar);
+#define W8BE_ALIGNED(a,v)  { *(u8 *)(a) = (u8)(v); }
+#define W16BE_ALIGNED(a,v) { *(u16 *)(a) = ntohs((u16)v); }
+#define W32BE_ALIGNED(a,v) { *(u32 *)(a) = ntohl((u32)v); }
 
-/* Converts an ASCII string into a PETSCII string. Applies function ascii2pet
- * to all characters of a string.
- */
-void ascii2petStr(char *str);
+
+//
+// Pretty printing
+//
 
 // Writes an integer into a string in decimal format
 void sprint8d(char *s, u8 value);
@@ -133,16 +133,11 @@ void sprint16x(char *s, u16 value);
 void sprint8b(char *s, u8 value);
 void sprint16b(char *s, u16 value);
 
-
-//
-// Pretty printing
-//
-
 // Prints a hex dump of a buffer to the console (for debugging)
-void hexdump(u8 *p, size_t size, size_t cols, size_t pad);
-void hexdump(u8 *p, size_t size, size_t cols = 32);
-void hexdumpWords(u8 *p, size_t size, size_t cols = 32);
-void hexdumpLongwords(u8 *p, size_t size, size_t cols = 32);
+void hexdump(u8 *p, usize size, usize cols, usize pad);
+void hexdump(u8 *p, usize size, usize cols = 32);
+void hexdumpWords(u8 *p, usize size, usize cols = 32);
+void hexdumpLongwords(u8 *p, usize size, usize cols = 32);
 
 
 //
@@ -150,42 +145,45 @@ void hexdumpLongwords(u8 *p, size_t size, size_t cols = 32);
 //
 
 // Checks if a certain memory area is all zero
-bool isZero(const u8 *ptr, size_t size); 
+bool isZero(const u8 *ptr, usize size); 
 
 
 //
-// Handling file
+// Handling files
 //
 
-/* Extracts a certain component from a path. Every function returns a newly
- * created string which needs to be deleted manually.
- */
-char *extractFilename(const char *path);
-char *extractSuffix(const char *path);
-char *extractFilenameWithoutSuffix(const char *path);
+// Extracts a certain component from a path
+string extractFileName(const string &s);
+string extractSuffix(const string &s);
+string stripSuffix(const string &s); 
 
-// Checks the suffix of a file name
-bool checkFileSuffix(const char *filename, const char *suffix);
+// Extracts the suffix from a filename
+std::string suffix(const std::string &name);
 
 // Returns the size of a file in bytes
 long getSizeOfFile(const char *filename);
 
 // Checks if a path points to a directory
+bool isDirectory(const std::string &path);
 bool isDirectory(const char *path);
 
 // Returns the number of files in a directory
-long numDirectoryItems(const char *path);
-
-// Checks the size of a file
-bool checkFileSize(const char *filename, long min = -1, long max = -1);
+usize numDirectoryItems(const std::string &path);
+usize numDirectoryItems(const char *path);
 
 // Checks the header signature (magic bytes) of a file or buffer
-bool matchingFileHeader(const char *path, const u8 *header, size_t length);
-bool matchingBufferHeader(const u8 *buffer, const u8 *header, size_t length);
+bool matchingStreamHeader(std::istream &stream, const u8 *header, usize length);
 
 // Loads a file from disk
-bool loadFile(const char *path, u8 **buffer, long *size);
-bool loadFile(const char *path, const char *name, u8 **buffer, long *size);
+bool loadFile(const std::string &path, u8 **bufptr, long *lenptr);
+bool loadFile(const std::string &path, const std::string &name, u8 **bufptr, long *lenptr);
+
+
+//
+// Handling streams
+//
+
+usize streamLength(std::istream &stream);
 
 
 //
@@ -201,11 +199,9 @@ inline u32 fnv_1a_it32(u32 prev, u32 value) { return (prev ^ value) * 0x1000193;
 inline u64 fnv_1a_it64(u64 prev, u64 value) { return (prev ^ value) * 0x100000001b3; }
 
 // Computes a FNV-1a checksum for a given buffer
-u32 fnv_1a_32(u8 *addr, size_t size);
-u64 fnv_1a_64(u8 *addr, size_t size);
+u32 fnv_1a_32(const u8 *addr, usize size);
+u64 fnv_1a_64(const u8 *addr, usize size);
 
 // Computes a CRC-32 checksum for a given buffer
-u32 crc32(const u8 *addr, size_t size);
+u32 crc32(const u8 *addr, usize size);
 u32 crc32forByte(u32 r);
-
-#endif

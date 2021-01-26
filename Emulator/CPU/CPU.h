@@ -7,9 +7,9 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _CPU_H
-#define _CPU_H
+#pragma once
 
+#include "CPUTypes.h"
 #include "C64Component.h"
 #include "CPUDebugger.h"
 #include "CPUInstructions.h"
@@ -24,16 +24,11 @@ class CPU : public C64Component {
     friend class CPUDebugger;
     friend class Breakpoints;
     friend class Watchpoints;
-        
-private:
-    
+            
     // Result of the latest inspection
     CPUInfo info;
+        
     
-    // Address of the first disassembled instruction in memory
-    // u16 instrStart;
-    
-
     //
     // Sub components
     //
@@ -58,9 +53,9 @@ public:
     
 public:
     
-    virtual CPUModel model() = 0;
-    virtual bool isC64CPU() = 0;
-    virtual bool isDriveCPU() = 0;
+    CPURevision model() const;
+    bool isC64CPU() const;
+    bool isDriveCPU() const;
 
     
     //
@@ -229,7 +224,7 @@ public:
 private:
     
     void _inspect() override;
-    void _dump() override;
+    void _dump() const override;
 
     
     //
@@ -279,9 +274,9 @@ private:
         & doIrq;
     }
     
-    size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
 
     
     //
@@ -290,7 +285,7 @@ private:
     
 private:
     
-    void _settrace(bool enable) override;
+    void _setDebug(bool enable) override;
     
     
     //
@@ -307,7 +302,7 @@ public:
      * address of the currently executed command, even if some microcycles of
      * the command have already been computed.
      */
-    u16 getPC0() { return reg.pc0; }
+    u16 getPC0() const { return reg.pc0; }
     
     void jumpToAddress(u16 addr) { reg.pc0 = reg.pc = addr; next = fetch; }
     void setPCL(u8 lo) { reg.pc = (reg.pc & 0xff00) | lo; }
@@ -316,45 +311,33 @@ public:
     void incPCL(u8 offset = 1) { setPCL(LO_BYTE(reg.pc) + offset); }
     void incPCH(u8 offset = 1) { setPCH(HI_BYTE(reg.pc) + offset); }
 
-    bool getN() { return reg.sr.n; }
+    bool getN() const { return reg.sr.n; }
     void setN(bool value) { reg.sr.n = value; }
     
-    bool getV() { return reg.sr.v; }
+    bool getV() const { return reg.sr.v; }
     void setV(bool value) { reg.sr.v = value; }
     
-    bool getB() { return reg.sr.b; }
+    bool getB() const { return reg.sr.b; }
     void setB(bool value) { reg.sr.b = value; }
     
-    bool getD() { return reg.sr.d; }
+    bool getD() const { return reg.sr.d; }
     void setD(bool value) { reg.sr.d = value; }
     
-    bool getI() { return reg.sr.i; }
+    bool getI() const { return reg.sr.i; }
     void setI(bool value) { reg.sr.i = value; }
     
-    bool getZ() { return reg.sr.z; }
+    bool getZ() const { return reg.sr.z; }
     void setZ(bool value) { reg.sr.z = value; }
     
-    bool getC() { return reg.sr.c; }
+    bool getC() const { return reg.sr.c; }
     void setC(bool value) { reg.sr.c = value; }
     
-    u8 getP();
-    u8 getPWithClearedB();
+    u8 getP() const;
+    u8 getPWithClearedB() const;
     void setP(u8 p);
     void setPWithoutB(u8 p);
     
 private:
-    
-    /*
-    // Loads the accumulator. The Z- and N-flag may change.
-    void loadA(u8 a) { reg.a = a; setN(a & 0x80); setZ(a == 0); }
-    
-    // Loads the X register. The Z- and N-flag may change.
-    void loadX(u8 x) { reg.x = x; setN(x & 0x80); setZ(x == 0); }
-    
-    // Loads the Y register. The Z- and N-flag may change.
-    void loadY(u8 y) { reg.y = y; setN(y & 0x80); setZ(y == 0); }
-    */
-    
     
     //
     // Operating the Arithmetical Logical Unit (ALU)
@@ -392,10 +375,10 @@ public:
 public:
 
     // Returns true if the CPU is jammed
-    bool isJammed() { return next == JAM || next == JAM_2; }
+    bool isJammed() const { return next == JAM || next == JAM_2; }
     
     // Returns true if the next cycle marks the beginning of an instruction
-    bool inFetchPhase() { return next == fetch; }
+    bool inFetchPhase() const { return next == fetch; }
 
     // Executes the next micro instruction
     void executeOneCycle();
@@ -416,11 +399,7 @@ class C64CPU : public CPU<C64Memory> {
 public:
     
     C64CPU(C64& ref, C64Memory& memref) : CPU(ref, memref) { }
-    const char *getDescription() override { return "CPU"; }
-    
-    CPUModel model() override { return MOS_6510; }
-    bool isC64CPU() override { return true; }
-    bool isDriveCPU() override { return false; }
+    const char *getDescription() const override { return "CPU"; }
 };
 
 
@@ -433,11 +412,5 @@ class DriveCPU : public CPU<DriveMemory> {
 public:
     
     DriveCPU(C64& ref, DriveMemory &memref) : CPU(ref, memref) { }
-    const char *getDescription() override { return "DriveCPU"; }
-    
-    CPUModel model() override { return MOS_6502; }
-    bool isC64CPU() override { return false; }
-    bool isDriveCPU() override { return true; }
+    const char *getDescription() const override { return "DriveCPU"; }    
 };
-
-#endif

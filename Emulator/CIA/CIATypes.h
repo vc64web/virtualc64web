@@ -7,111 +7,61 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _CIA_T_H
-#define _CIA_T_H
+#pragma once
 
-//
-// Enumerations
-//
+#include "CIAPublicTypes.h"
+#include "Reflection.h"
 
-enum_long(CIARevision)
-{
-    MOS_6526,
-    MOS_8521
+struct CIARevisionEnum : Reflection<CIARevisionEnum, CIARevision> {
+    
+    static bool isValid(long value)
+    {
+        return (unsigned long)value < CIAREV_COUNT;
+    }
+
+    static const char *prefix() { return nullptr; }
+    static const char *key(CIARevision value)
+    {
+        switch (value) {
+                
+            case MOS_6526:      return "MOS_6526";
+            case MOS_8521:      return "MOS_8521";
+            case CIAREV_COUNT:  return "???";
+        }
+        return "";
+    }
 };
 
-inline bool
-isCIARevision(long value)
-{
-    return value == MOS_6526 || value == MOS_8521;
-}
+struct CIARegEnum : Reflection<CIARegEnum, CIAReg> {
 
-inline const char *
-ciaRevisionName(CIARevision type)
-{    
-    switch (type) {
-        case MOS_6526: return "MOS_6526";
-        case MOS_8521: return "MOS_8521";
-        default:       return "???";
+    static bool isValid(long value)
+    {
+        return (unsigned long)value < CIAREG_COUNT;
     }
-}
-
-//
-// Structures
-//
-
-typedef struct
-{
-    CIARevision revision;
-    bool timerBBug;
-}
-CIAConfig;
-
-typedef union
-{
-    struct {
-        u8 tenth;
-        u8 seconds;
-        u8 minutes;
-        u8 hours;
-    };
-    u32 value;
-}
-TimeOfDay;
-
-typedef struct
-{
-    TimeOfDay time;
-    TimeOfDay latch;
-    TimeOfDay alarm;
-}
-TODInfo;
-
-typedef struct
-{
-    struct {
-        u8 port;
-        u8 reg;
-        u8 dir;
-    } portA;
-
-    struct {
-        u8 port;
-        u8 reg;
-        u8 dir;
-    } portB;
-
-    struct {
-        u16 count;
-        u16 latch;
-        bool running;
-        bool toggle;
-        bool pbout;
-        bool oneShot;
-    } timerA;
-
-    struct {
-        u16 count;
-        u16 latch;
-        bool running;
-        bool toggle;
-        bool pbout;
-        bool oneShot;
-    } timerB;
-
-    u8 sdr;
-    u8 ssr;
-    u8 icr;
-    u8 imr;
-    bool intLine;
     
-    TODInfo tod;
-    bool todIntEnable;
-    
-    Cycle idleSince;
-    Cycle idleTotal;
-    double idlePercentage;
-}
-CIAInfo;
-
-#endif
+    static const char *prefix() { return "CIAREG"; }
+    static const char *key(CIAReg value)
+    {
+        switch (value) {
+                
+            case CIAREG_PRA:     return "PRA";
+            case CIAREG_PRB:     return "PRB";
+            case CIAREG_DDRA:    return "DDRA";
+            case CIAREG_DDRB:    return "DDRB";
+            case CIAREG_TALO:    return "TALO";
+            case CIAREG_TAHI:    return "TAHI";
+            case CIAREG_TBLO:    return "TBLO";
+            case CIAREG_TBHI:    return "TBHI";
+            case CIAREG_TODTHS:  return "TODTHS";
+            case CIAREG_TODSEC:  return "TODSEC";
+            case CIAREG_TODMIN:  return "TODMIN";
+            case CIAREG_TODHR:   return "TODHR";
+            case CIAREG_SDR:     return "SDR";
+            case CIAREG_ICR:     return "ICR";
+            case CIAREG_CRA:     return "CRA";
+            case CIAREG_CRB:     return "CRB";
+            case CIAREG_COUNT:   return "???";
+        }
+        return "???";
+    }
+};

@@ -7,11 +7,11 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _HARDWARE_COMPONENT_H
-#define _HARDWARE_COMPONENT_H
+#pragma once
 
 #include "C64Object.h"
 #include "Serialization.h"
+#include "Concurrency.h"
 
 /* This class defines the base functionality of all hardware components. It
  * comprises functions for initializing, configuring, and serializing the
@@ -33,7 +33,7 @@ protected:
      *     Paused: The C64 is turned on, but there is no emulator thread
      *    Running: The C64 is turned on and the emulator thread running
      */
-    EmulatorState state = STATE_OFF;
+    EmulatorState state = EMULATOR_STATE_OFF;
     
     /* Indicates if the emulator should be executed in warp mode. To speed up
      * emulation (e.g., during disk accesses), the virtual hardware may be put
@@ -84,20 +84,20 @@ public:
      * setConfigItem(). The function returns true iff the current configuration
      * has changed.
      */
-    bool configure(ConfigOption option, long value);
-    bool configure(ConfigOption option, long id, long value);
+    bool configure(Option option, long value);
+    bool configure(Option option, long id, long value);
     
     /* Requests the change of a single configuration item. Each sub-component
      * checks if it is responsible for the requested configuration item. If
      * yes, it changes the internal state. If no, it ignores the request.
      * The function returns true iff the current configuration has changed.
      */
-    virtual bool setConfigItem(ConfigOption option, long value) { return false; }
-    virtual bool setConfigItem(ConfigOption option, long id, long value) { return false; }
+    virtual bool setConfigItem(Option option, long value) { return false; }
+    virtual bool setConfigItem(Option option, long id, long value) { return false; }
     
     // Dumps debug information about the current configuration to the console
-    void dumpConfig();
-    virtual void _dumpConfig() { }
+    void dumpConfig() const;
+    virtual void _dumpConfig() const { }
     
     
     //
@@ -111,7 +111,7 @@ public:
      * Note: Because this function accesses the internal emulator state with
      * many non-atomic operations, it must not be called on a running emulator.
      * To carry out inspections while the emulator is running, set up an
-     * inspection target via Amiga::setInspectionTarget().
+     * inspection target via C64::setInspectionTarget().
      */
     void inspect();
     virtual void _inspect() { }
@@ -131,8 +131,8 @@ public:
     }
     
     // Dumps debug information about the internal state to the console
-    void dump();
-    virtual void _dump() { }
+    void dump() const;
+    virtual void _dump() const { }
     
  
     //
@@ -140,25 +140,25 @@ public:
     //
     
     // Returns the size of the internal state in bytes
-    size_t size();
-    virtual size_t _size() = 0;
+    usize size();
+    virtual usize _size() = 0;
     
     // Loads the internal state from a memory buffer
-    size_t load(u8 *buffer);
-    virtual size_t _load(u8 *buffer) = 0;
+    usize load(u8 *buffer);
+    virtual usize _load(u8 *buffer) = 0;
     
     // Saves the internal state to a memory buffer
-    size_t save(u8 *buffer);
-    virtual size_t _save(u8 *buffer) = 0;
+    usize save(u8 *buffer);
+    virtual usize _save(u8 *buffer) = 0;
     
     /* Delegation methods called inside load() or save(). Some components
      * override these methods to add custom behavior if not all elements can be
      * processed by the default implementation.
      */
-    virtual size_t willLoadFromBuffer(u8 *buffer) { return 0; }
-    virtual size_t didLoadFromBuffer(u8 *buffer) { return 0; }
-    virtual size_t willSaveToBuffer(u8 *buffer) {return 0; }
-    virtual size_t didSaveToBuffer(u8 *buffer) { return 0; }
+    virtual usize willLoadFromBuffer(u8 *buffer) { return 0; }
+    virtual usize didLoadFromBuffer(u8 *buffer) { return 0; }
+    virtual usize willSaveToBuffer(u8 *buffer) {return 0; }
+    virtual usize didSaveToBuffer(u8 *buffer) { return 0; }
     
     
     //
@@ -188,10 +188,10 @@ public:
      * Additional component flags: warp (on / off), debug (on / off)
      */
     
-    bool isPoweredOff() { return state == STATE_OFF; }
-    bool isPoweredOn() { return state != STATE_OFF; }
-    bool isPaused() { return state == STATE_PAUSED; }
-    bool isRunning() { return state == STATE_RUNNING; }
+    bool isPoweredOff() { return state == EMULATOR_STATE_OFF; }
+    bool isPoweredOn() { return state != EMULATOR_STATE_OFF; }
+    bool isPaused() { return state == EMULATOR_STATE_PAUSED; }
+    bool isRunning() { return state == EMULATOR_STATE_RUNNING; }
     
 protected:
     
@@ -244,8 +244,8 @@ protected:
     virtual void _setWarp(bool enable) { }
     
     // Switches debug mode on or off
-    void settrace(bool enable);
-    virtual void _settrace(bool enable) { }
+    void setDebug(bool enable);
+    virtual void _setDebug(bool enable) { }
 
 //
 // Standard implementations of _reset, _load, and _save
@@ -280,5 +280,3 @@ return writer.ptr - buffer;
     // trace(SNP_DEBUG, "Serialized to %d bytes\n", writer.ptr - buffer);
 
 };
-
-#endif

@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _PROCESSOR_PORT_H
-#define _PROCESSOR_PORT_H
+#pragma once
 
 #include "C64Component.h"
 
@@ -53,7 +52,7 @@ class ProcessorPort : public C64Component {
 public:
     
     ProcessorPort(C64 &ref) : C64Component(ref) { }
-    const char *getDescription() override { return "ProcessorPort"; }
+    const char *getDescription() const override { return "ProcessorPort"; }
 
 private:
     
@@ -66,7 +65,7 @@ private:
     
 private:
     
-    void _dump() override;
+    void _dump() const override;
 
     
     //
@@ -92,9 +91,9 @@ private:
         & dischargeCycleBit7;
     }
     
-    size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
@@ -103,15 +102,13 @@ private:
     
 public:
     
-    u8 read();
-    u8 readDirection();
+    u8 read() const;
+    u8 readDirection() const;
 
     void write(u8 value);
     void writeDirection(u8 value);
 
-    bool getLoram() { return read() & 0x1; }
-    bool getHiram() { return read() & 0x2; }
-    bool getCharen() { return read() & 0x4; }
+    bool getLoram() const { return read() & 0x1; }
+    bool getHiram() const { return read() & 0x2; }
+    bool getCharen() const { return read() & 0x4; }
 };
-
-#endif 

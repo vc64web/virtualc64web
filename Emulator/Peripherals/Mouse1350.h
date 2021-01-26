@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef MOUSE1350_H
-#define MOUSE1350_H
+#pragma once
 
 #include "C64Component.h"
 
@@ -43,7 +42,7 @@ private:
 public:
     
     Mouse1350(C64 &ref) : C64Component(ref) { }
-    const char *getDescription() override { return "Mouse1350"; }
+    const char *getDescription() const override { return "Mouse1350"; }
     
 private:
     
@@ -66,9 +65,9 @@ private:
     {
     }
     
-    size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
@@ -82,14 +81,12 @@ public:
     void setRightMouseButton(bool value) { rightButton = value; }
 
     // Returns the pot bits as set by the mouse
-    u8 readPotX();
-    u8 readPotY();
+    u8 readPotX() const;
+    u8 readPotY() const;
     
     // Returns the control port bits triggered by the mouse
-    u8 readControlPort();
+    u8 readControlPort() const;
     
     // Execution function (Translates movement deltas into joystick events)
     void execute(i64 targetX, i64 targetY);
 };
-
-#endif

@@ -7,183 +7,86 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _FS_TYPES_H
-#define _FS_TYPES_H
+#pragma once
 
-#include "Aliases.h"
+#include "FSPublicTypes.h"
+#include "Reflection.h"
 
-enum_long(FSVolumeType)
-{
-    FS_NODOS = 0,
-    FS_CBM_DOS = 1
-};
+//
+// Reflection APIs
+//
 
-inline bool isFSVolumeType(long value)
-{
-    return value >= FS_NODOS && value <= FS_CBM_DOS;
-}
-
-inline const char *sFSVolumeType(FSVolumeType value)
-{
-    switch (value) {
-        case FS_NODOS:    return "No DOS";
-        case FS_CBM_DOS:  return "Commdore CBM DOS";
-        default:          return "???";
-    }
-}
-
-enum_long(FSFileType)
-{
-    FS_PRG = 1,
-    FS_SEQ,
-    FS_REL,
-    FS_USR,
-    FS_DEL
-};
-
-inline bool isFSFileType(long value)
-{
-    return value >= FS_PRG && value <= FS_DEL;
-}
-
-inline const char *sFSFileType(FSFileType value)
-{
-    switch (value) {
-        case FS_PRG:  return "PRG";
-        case FS_SEQ:  return "SEQ";
-        case FS_REL:  return "REL";
-        case FS_USR:  return "USR";
-        default:      return "???";
-    }
-}
-
-enum_long(FSBlockType)
-{
-    FS_UNKNOWN_BLOCK,
-    FS_BAM_BLOCK,
-    FS_DIR_BLOCK,
-    FS_DATA_BLOCK
-};
-
-inline bool
-isFSBlockType(long value)
-{
-    return value >= 0 && value <= FS_DATA_BLOCK;
-}
-
-inline const char *
-sFSBlockType(FSBlockType type)
-{
-    assert(isFSBlockType(type));
-
-    switch (type) {
-        case FS_UNKNOWN_BLOCK:  return "FS_UNKNOWN_BLOCK";
-        case FS_BAM_BLOCK:      return "FS_BAM_BLOCK";
-        case FS_DIR_BLOCK:      return "FS_DIR_BLOCK";
-        case FS_DATA_BLOCK:     return "FS_DATA_BLOCK";
-        default:                return "???";
-    }
-}
-
-enum_long(FSItemType)
-{
-    FSI_UNKNOWN,
-    FSI_UNUSED,
-    FSI_DOS_VERSION,
-    FSI_DOS_TYPE,
-    FSI_ALLOCATION_BITS,
-    FSI_DISK_ID,
-    FSI_DISK_NAME,
-    FSI_TRACK_LINK,
-    FSI_SECTOR_LINK,
-    FSI_FIRST_FILE_TRACK,
-    FSI_FIRST_FILE_SECTOR,
-    FSI_FIRST_REL_TRACK,
-    FSI_FIRST_REL_SECTOR,
-    FSI_FIRST_DIR_TRACK,
-    FSI_FIRST_DIR_SECTOR,
-    FSI_FILE_TYPE,
-    FSI_FILE_NAME,
-    FSI_FILE_LENGTH_LO,
-    FSI_FILE_LENGTH_HI,
-    FSI_REL_RECORD_LENGTH,
-    FSI_GEOS,
-    FSI_DATA
-};
-
-inline bool
-isFSBlockItem(long value)
-{
-    return value >= 0 && value <= FSI_DATA;
-}
-
-enum_long(FSError)
-{
-    FS_OK,
+struct DOSTypeEnum : Reflection<DOSTypeEnum, DOSType> {
     
-    // File system errors
-    FS_UNKNOWN,
-    FS_UNSUPPORTED,
-    FS_WRONG_CAPACITY,
-    FS_OUT_OF_MEMORY,
-    FS_HAS_CYCLES,
-    FS_CORRUPTED,
-    FS_IMPORT_ERROR,
-
-    // Export errors
-    FS_DIRECTORY_NOT_EMPTY,
-    FS_CANNOT_CREATE_DIR,
-    FS_CANNOT_CREATE_FILE,
-
-    // Block errros
-    FS_EXPECTED,
-    FS_EXPECTED_MIN,
-    FS_EXPECTED_MAX
+    static bool isValid(long value)
+    {
+        return (unsigned long)value <= DOS_TYPE_CBM;
+    }
+    
+    static const char *prefix() { return "DOS_TYPE"; }
+    static const char *key(DOSType value)
+    {
+        switch (value) {
+                
+            case DOS_TYPE_NODOS:  return "NODOS";
+            case DOS_TYPE_CBM:    return "CBM";
+            default:              return "???";
+        }
+    }
 };
 
-inline bool isFSError(FSError value)
-{
-    return value >= FS_OK && value <= FS_EXPECTED_MAX;
-}
-
-inline const char *sFSError(FSError value)
-{
-    switch (value) {
-            
-        case FS_OK:                      return "FS_OK";
-        case FS_UNKNOWN:                 return "FS_UNKNOWN";
-        case FS_UNSUPPORTED:             return "FS_UNSUPPORTED";
-        case FS_WRONG_CAPACITY:          return "FS_WRONG_CAPACITY";
-        case FS_HAS_CYCLES:              return "FS_HAS_CYCLES";
-        case FS_CORRUPTED:               return "FS_CORRUPTED";
-            
-        case FS_DIRECTORY_NOT_EMPTY:     return "FS_DIRECTORY_NOT_EMPTY";
-        case FS_CANNOT_CREATE_DIR:       return "FS_CANNOT_CREATE_DIR";
-        case FS_CANNOT_CREATE_FILE:      return "FS_CANNOT_CREATE_FILE";
-
-        case FS_EXPECTED:                return "FS_EXPECTED";
-        case FS_EXPECTED_MIN:            return "FS_EXPECTED_MIN";
-        case FS_EXPECTED_MAX:            return "FS_EXPECTED_MAX";
-
-        default:
-            return isFSError(value) ? "<other>" : "???";
+struct FSFileTypeEnum : Reflection<FSFileTypeEnum, FSFileType> {
+    
+    static bool isValid(long value)
+    {
+        return (unsigned long)value < FS_FILETYPE_COUNT;
     }
-}
+    
+    static const char *prefix() { return "FS_FILETYPE"; }
+    static const char *key(FSFileType value)
+    {
+        switch (value) {
+                
+            case FS_FILETYPE_DEL:    return "DEL";
+            case FS_FILETYPE_SEQ:    return "SEQ";
+            case FS_FILETYPE_PRG:    return "PRG";
+            case FS_FILETYPE_USR:    return "USR";
+            case FS_FILETYPE_REL:    return "REL";
+            case FS_FILETYPE_COUNT:  return "???";
+        }
+        return "???";
+    }
+};
 
-typedef struct
-{
-    Track t;
-    Sector s;
-}
-BlockRef;
+struct FSBlockTypeEnum : Reflection<FSBlockTypeEnum, FSBlockType> {
+    
+    static bool isValid(long value)
+    {
+        return (unsigned long)value < FS_BLOCKTYPE_COUNT;
+    }
+    
+    static const char *prefix() { return "FS_BLOCKTYPE"; }
+    static const char *key(FSBlockType value)
+    {
+        switch (value) {
+                
+            case FS_BLOCKTYPE_UNKNOWN:  return "UNKNOWN";
+            case FS_BLOCKTYPE_BAM:      return "BAM";
+            case FS_BLOCKTYPE_DIR:      return "DIR";
+            case FS_BLOCKTYPE_DATA:     return "DATA";
+            case FS_BLOCKTYPE_COUNT:    return "???";
+        }
+        return "???";
+    }
+};
 
-typedef struct
-{
-    long bitmapErrors;
-    long corruptedBlocks;
-    long firstErrorBlock;
-    long lastErrorBlock;
-}
-FSErrorReport;
-
-#endif
+struct FSUsageEnum : Reflection<FSUsageEnum, FSUsage> {
+    
+    static bool isValid(long value)
+    {
+        return (unsigned long)value <= FS_BLOCKTYPE_DATA;
+    }
+    
+    static const char *prefix() { return "FS_USAGE"; }
+    static const char *key(FSUsage value) { return "???"; }
+};

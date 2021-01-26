@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _MIKROASS_H
-#define _MIKROASS_H
+#pragma once
 
 #include "Cartridge.h"
 
@@ -17,8 +16,8 @@ class MikroAss : public Cartridge {
 public:
 
     MikroAss(C64 &ref) : Cartridge(ref) { };
-    const char *getDescription() override { return "Mikro Assembler"; }
-    CartridgeType getCartridgeType() override { return CRT_MIKRO_ASS; }
+    const char *getDescription() const override { return "Mikro Assembler"; }
+    CartridgeType getCartridgeType() const override { return CRT_MIKRO_ASS; }
 
     
     //
@@ -28,7 +27,7 @@ public:
 public:
     
     u8 peekIO1(u16 addr) override;
+    u8 spypeekIO1(u16 addr) const override;
     u8 peekIO2(u16 addr) override;
+    u8 spypeekIO2(u16 addr) const override;
 };
-
-#endif

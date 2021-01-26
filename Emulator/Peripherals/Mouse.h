@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef MOUSE_H
-#define MOUSE_H
+#pragma once
 
 #include "C64Component.h"
 #include "Mouse1350.h"
@@ -17,9 +16,13 @@
 
 class Mouse : public C64Component {
     
+    // Reference to the control port this device belongs to
+    ControlPort &port;
+
     // Current configuration
     MouseConfig config;
 
+    
     //
     // Sub components
     //
@@ -35,9 +38,6 @@ private:
     // A Neos (analog) mouse
     NeosMouse mouseNeos = NeosMouse(c64);
         
-    // The port the mouse is connected to (0 = unconnected)
-    unsigned port = 0;
-
     /* Target mouse position. In order to achieve a smooth mouse movement, a
      * new mouse coordinate is not written directly into mouseX and mouseY.
      * Instead, these variables are set. In execute(), mouseX and mouseY are
@@ -53,8 +53,8 @@ private:
     
 public:
     
-    Mouse(C64 &ref);
-    const char *getDescription() override { return "Mouse"; }
+    Mouse(C64 &ref, ControlPort& pref);
+    const char *getDescription() const override { return "Mouse"; }
     
 private:
     
@@ -62,12 +62,21 @@ private:
 
     
     //
+    // Analyzing
+    //
+    
+private:
+    
+    void _dump() const override;
+    
+    
+    //
     // Configuring
     //
     
 public:
     
-    MouseConfig getConfig() { return config; }
+    MouseConfig getConfig() const { return config; }
     
     MouseModel getModel() { return config.model; }
     void setModel(MouseModel model);
@@ -89,9 +98,9 @@ private:
     {
     }
     
-    size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
@@ -100,13 +109,6 @@ private:
     
 public:
     
-    // Returns the port the mouse is connected to (0 = unconnected)
-    unsigned getPort() { return port; }
-    
-    // Connects the mouse to the specified port
-    void connectMouse(unsigned port);
-    void disconnectMouse() { connectMouse(0); }
-
     // Emulates a mouse movement event
     void setXY(i64 x, i64 y);
 
@@ -114,19 +116,27 @@ public:
     void setLeftButton(bool value);
     void setRightButton(bool value);
     
-    // Triggers a state change (Neos mouse only)
-    void risingStrobe(int portNr);
-    void fallingStrobe(int portNr);
+    // Triggers a gamepad event
+    void trigger(GamePadAction event);
     
-    // Returns the pot bits as set by the mouse
-    u8 readPotX();
-    u8 readPotY();
-
+    // Triggers a state change (Neos mouse only)
+    void risingStrobe();
+    void fallingStrobe();
+    
+    // Updates the control port bits (must be called before reading)
+    void updateControlPort();
+    
     // Returns the control port bits as set by the mouse
-    u8 readControlPort(unsigned portNr);
+    u8 getControlPort() const;
+
+    // Updates the pot bits (must be called before reading)
+    void updatePotX();
+    void updatePotY();
+
+    // Reads the pot bits that show up in the SID registers
+    u8 readPotX() const;
+    u8 readPotY() const;
 
     // Performs periodic actions for this device
     void execute();
 };
-
-#endif

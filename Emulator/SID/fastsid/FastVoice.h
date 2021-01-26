@@ -26,9 +26,7 @@
  *
  */
 
-
-#ifndef FASTSIDVOICE_H
-#define FASTSIDVOICE_H
+#pragma once
 
 #include "HardwareComponent.h"
 
@@ -173,7 +171,7 @@ class FastVoice : public HardwareComponent {
 public:
  
     FastVoice() { };
-    const char *getDescription() override { return "FastVoice"; }
+    const char *getDescription() const override { return "FastVoice"; }
 
     static void initWaveTables();
     void init(FastSID *owner, unsigned voiceNr, FastVoice *prevVoice);
@@ -226,10 +224,10 @@ private:
         & filterResDy;
     }
     
-    size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    size_t didLoadFromBuffer(u8 *buffer) override;
+    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize didLoadFromBuffer(u8 *buffer) override;
     
  
     //
@@ -341,5 +339,3 @@ public:
      */
     u8 releaseRate() { return sidreg[0x06] & 0x0F; }
 };
-
-#endif

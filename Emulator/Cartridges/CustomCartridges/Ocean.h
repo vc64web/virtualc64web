@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _OCEAN_H
-#define _OCEAN_H
+#pragma once
 
 #include "Cartridge.h"
 
@@ -17,8 +16,8 @@ class Ocean : public Cartridge {
 public:
     
     Ocean(C64 &ref) : Cartridge(ref) { };
-    const char *getDescription() override { return "Ocean"; }
-    CartridgeType getCartridgeType() override { return CRT_OCEAN; }
+    const char *getDescription() const override { return "Ocean"; }
+    CartridgeType getCartridgeType() const override { return CRT_OCEAN; }
 
     
     //
@@ -29,6 +28,3 @@ public:
     
     void pokeIO1(u16 addr, u8 value) override;
 };
-
-#endif
-

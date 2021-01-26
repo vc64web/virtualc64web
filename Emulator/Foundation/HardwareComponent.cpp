@@ -36,7 +36,7 @@ HardwareComponent::reset()
 }
 
 bool
-HardwareComponent::configure(ConfigOption option, long value)
+HardwareComponent::configure(Option option, long value)
 {
     bool result = false;
     
@@ -52,7 +52,7 @@ HardwareComponent::configure(ConfigOption option, long value)
 }
 
 bool
-HardwareComponent::configure(ConfigOption option, long id, long value)
+HardwareComponent::configure(Option option, long id, long value)
 {
     bool result = false;
     
@@ -67,10 +67,10 @@ HardwareComponent::configure(ConfigOption option, long id, long value)
     return result;
 }
 
-size_t
+usize
 HardwareComponent::size()
 {
-    size_t result = _size();
+    usize result = _size();
 
     for (HardwareComponent *c : subComponents) {
         result += c->size();
@@ -79,7 +79,7 @@ HardwareComponent::size()
     return result;
 }
 
-size_t
+usize
 HardwareComponent::load(u8 *buffer)
 {    
     u8 *ptr = buffer;
@@ -105,7 +105,7 @@ HardwareComponent::load(u8 *buffer)
     return ptr - buffer;
 }
 
-size_t
+usize
 HardwareComponent::save(u8 *buffer)
 {
     u8 *ptr = buffer;
@@ -146,7 +146,7 @@ HardwareComponent::powerOn()
     // Power this component on
     _powerOn();
 
-    state = STATE_PAUSED;
+    state = EMULATOR_STATE_PAUSED;
 }
 
 void
@@ -163,7 +163,7 @@ HardwareComponent::powerOff()
     // Power all subcomponents off
     for (HardwareComponent *c : subComponents) c->powerOff();
 
-    state = STATE_OFF;
+    state = EMULATOR_STATE_OFF;
 }
 
 void
@@ -182,7 +182,7 @@ HardwareComponent::run()
     // Start this component
     _run();
     
-    state = STATE_RUNNING;
+    state = EMULATOR_STATE_RUNNING;
 }
 
 void
@@ -196,7 +196,7 @@ HardwareComponent::pause()
     // Pause all subcomponents
     for (HardwareComponent *c : subComponents) c->pause();
 
-    state = STATE_PAUSED;
+    state = EMULATOR_STATE_PAUSED;
 }
 
 void
@@ -212,7 +212,7 @@ HardwareComponent::inspect()
 }
 
 void
-HardwareComponent::dumpConfig()
+HardwareComponent::dumpConfig() const
 {
     // Dump the configuration of all subcomponents
     for (HardwareComponent *c : subComponents) {
@@ -226,7 +226,7 @@ HardwareComponent::dumpConfig()
 }
 
 void
-HardwareComponent::dump()
+HardwareComponent::dump() const
 {
     // Dump all subcomponents
     for (HardwareComponent *c : subComponents) {
@@ -256,7 +256,7 @@ HardwareComponent::setWarp(bool enable)
 }
 
 void
-HardwareComponent::settrace(bool enable)
+HardwareComponent::setDebug(bool enable)
 {
     if (debugMode == enable) return;
     
@@ -264,9 +264,9 @@ HardwareComponent::settrace(bool enable)
 
      // Enable or disable debug mode for all subcomponents
      for (HardwareComponent *c : subComponents) {
-         c->settrace(enable);
+         c->setDebug(enable);
      }
 
      // Enable debug mode for this component
-     _settrace(enable);
+     _setDebug(enable);
 }

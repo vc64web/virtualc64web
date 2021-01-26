@@ -7,6 +7,8 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#pragma once
+
 /*
  * For more information: http://www.c64-wiki.com/index.php/Cartridge
  *
@@ -23,16 +25,13 @@
  *  As well read the Commodore 64 Programmers Reference Guide pages 260-267.
  */
 
-#ifndef _EXPANSIONPORT_H
-#define _EXPANSIONPORT_H
-
 #include "C64Component.h"
 #include "Cartridge.h"
 
 class ExpansionPort : public C64Component {
     
-    // Attached cartridge (NULL if no cartridge is plugged in)
-    Cartridge *cartridge = NULL;
+    // Attached cartridge (nullptr if no cartridge is plugged in)
+    Cartridge *cartridge = nullptr;
     
     // Type of the attached cartridge
     CartridgeType crtType = CRT_NONE;
@@ -50,7 +49,7 @@ public:
     
     ExpansionPort(C64 &ref) : C64Component(ref) { };
     ~ExpansionPort();
-    const char *getDescription() override { return "ExpansionPort"; }
+    const char *getDescription() const override { return "ExpansionPort"; }
 
 private:
     
@@ -67,7 +66,7 @@ public:
 
 private:
     
-    void _dump() override;
+    void _dump() const override;
 
     
     //
@@ -91,9 +90,9 @@ private:
     {
     }
     
-    size_t _size() override;
-    size_t _load(u8 *buffer) override;
-    size_t _save(u8 *buffer) override;
+    usize _size() override;
+    usize _load(u8 *buffer) override;
+    usize _save(u8 *buffer) override;
 
  
     //
@@ -103,11 +102,11 @@ private:
 public:
     
     u8 peek(u16 addr);
-    u8 spypeek(u16 addr);
+    u8 spypeek(u16 addr) const;
     u8 peekIO1(u16 addr);
-    u8 spypeekIO1(u16 addr);
+    u8 spypeekIO1(u16 addr) const;
     u8 peekIO2(u16 addr);
-    u8 spypeekIO2(u16 addr);
+    u8 spypeekIO2(u16 addr) const;
     
     void poke(u16 addr, u8 value);
     void pokeIO1(u16 addr, u8 value);
@@ -120,16 +119,16 @@ public:
     
 public:
     
-    bool getGameLine() { return gameLine; }
+    bool getGameLine() const { return gameLine; }
     void setGameLine(bool value);
     
-    bool getExromLine() { return exromLine; }
+    bool getExromLine() const { return exromLine; }
     void setExromLine(bool value);
     
     void setGameAndExrom(bool game, bool exrom);
     
-    CartridgeMode getCartridgeMode();
-    void setCartridgeMode(CartridgeMode mode);
+    CRTMode getCartridgeMode() const;
+    void setCartridgeMode(CRTMode mode);
 
     
     //
@@ -137,12 +136,12 @@ public:
     //
     
     // Returns true if a cartridge is attached to the expansion port
-    bool getCartridgeAttached() { return cartridge != NULL; }
+    bool getCartridgeAttached() const { return cartridge != nullptr; }
 
     // Attaches a cartridge to the expansion port
+    bool attachCartridge(CRTFile *c, bool reset = true);
     void attachCartridge(Cartridge *c);
-    bool attachCartridgeAndReset(CRTFile *c);
-    bool attachGeoRamCartridge(u32 capacity);
+    void attachGeoRamCartridge(usize capacity);
     void attachIsepicCartridge();
 
     // Removes a cartridge from the expansion port (if any)
@@ -155,7 +154,7 @@ public:
     //
     
     // Returns true if the attached cartridge has a RAM backing battery
-    bool hasBattery();
+    bool hasBattery() const;
 
     // Enables or disables RAM backing during a reset.
     void setBattery(bool value);
@@ -166,10 +165,10 @@ public:
     //
     
     // Returns the number of available cartridge buttons
-    long numButtons();
+    long numButtons() const;
     
     // Returns a textual description for a button
-    const char *getButtonTitle(unsigned nr);
+    const char *getButtonTitle(unsigned nr) const;
     
     // Presses a button (make sure to call releaseButton() afterwards)
     void pressButton(unsigned nr);
@@ -183,20 +182,20 @@ public:
     //
     
     // Returns true if the cartridge has a switch
-    bool hasSwitch();
+    bool hasSwitch() const;
     
     // Returns the current switch position
-    i8 getSwitch();
-    bool switchIsNeutral();
-    bool switchIsLeft();
-    bool switchIsRight();
+    i8 getSwitch() const;
+    bool switchIsNeutral() const;
+    bool switchIsLeft() const;
+    bool switchIsRight() const;
     
-    /* Returns a textual description for a switch position or NULL if the
+    /* Returns a textual description for a switch position or nullptr if the
      * switch cannot be positioned this way.
      */
-    const char *getSwitchDescription(i8 pos);
-    const char *getSwitchDescription();
-    bool validSwitchPosition(i8 pos);
+    const char *getSwitchDescription(i8 pos) const;
+    const char *getSwitchDescription() const;
+    bool validSwitchPosition(i8 pos) const;
     
     // Puts the switch in the provided position
     void setSwitch(u8 pos) { if (cartridge) cartridge->setSwitch(pos); }
@@ -207,10 +206,10 @@ public:
     //
     
     // Returns true if the cartridge has a LED
-    bool hasLED();
+    bool hasLED() const;
     
     // Returns true if the LED is switched on
-    bool getLED();
+    bool getLED() const;
     
     // Switches the LED on or off
     void setLED(bool value);
@@ -240,5 +239,4 @@ public:
     // Called after the C64 CPU has processed the NMI instruction
     void nmiDidTrigger();
 };
-    
-#endif
+ 

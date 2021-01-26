@@ -7,13 +7,12 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _C64_H
-#define _C64_H
+#pragma once
 
 // General
 #include "C64Component.h"
 #include "Serialization.h"
-#include "MessageQueue.h"
+#include "MsgQueue.h"
 
 // Configuration items
 #include "C64Config.h"
@@ -27,7 +26,7 @@
 #include "D64File.h"
 #include "G64File.h"
 #include "PRGFile.h"
-#include "PRGFolder.h"
+#include "Folder.h"
 #include "P00File.h"
 #include "RomFile.h"
 #include "TAPFile.h"
@@ -93,8 +92,8 @@ public:
     Keyboard keyboard = Keyboard(*this);
     
     // Ports
-    ControlPort port1 = ControlPort(1, *this);
-    ControlPort port2 = ControlPort(2, *this);
+    ControlPort port1 = ControlPort(*this, PORT_ONE);
+    ControlPort port2 = ControlPort(*this, PORT_TWO);
     ExpansionPort expansionport = ExpansionPort(*this);
     
     // Bus connecting the VC1541 floppy drives
@@ -106,14 +105,11 @@ public:
     
     // Datasette
     Datasette datasette = Datasette(*this);
-    
-    // Mouse
-    Mouse mouse = Mouse(*this);
-    
+        
     /* Communication channel to the GUI. The GUI registers a listener and a
      * callback function to retrieve messages.
      */
-    MessageQueue messageQueue;
+    MsgQueue messageQueue;
 
     
     //
@@ -210,8 +206,8 @@ public:
     
     C64();
     ~C64();
-    const char *getDescription() override { return "C64"; }
-    void prefix() override;
+    const char *getDescription() const override { return "C64"; }
+    void prefix() const override;
 
     void reset();
 
@@ -227,28 +223,28 @@ private:
 public:
     
     // Returns the currently set configuration
-    C64Configuration getConfig();
+    C64Configuration getConfig() const;
     
     // Gets a single configuration item
-    long getConfigItem(ConfigOption option);
-    long getConfigItem(ConfigOption option, long id);
+    long getConfigItem(Option option) const;
+    long getConfigItem(Option option, long id) const;
     
     // Sets a single configuration item
-    bool configure(ConfigOption option, long value);
-    bool configure(ConfigOption option, long id, long value);
+    bool configure(Option option, long value);
+    bool configure(Option option, long id, long value);
 
     // Configures the C64 to match a specific C64 model
     void configure(C64Model model);
 
     // Returns the C64 model matching the current configuration
-    C64Model getModel();
+    C64Model getModel() const;
         
     // Updates the VICII function table according to the selected model
     void updateVicFunctionTable();
 
 private:
 
-    bool setConfigItem(ConfigOption option, long value) override;
+    bool setConfigItem(Option option, long value) override;
 
     
     //
@@ -258,12 +254,13 @@ private:
 public:
        
     void inspect();
+    InspectionTarget getInspectionTarget() const;
     void setInspectionTarget(InspectionTarget target);
-    void clearInspectionTarget();
+    void clearInspectionTarget() { setInspectionTarget(INSPECTION_TARGET_NONE); }
     
 private:
     
-    void _dump() override;
+    void _dump() const override;
 
     
     
@@ -294,9 +291,9 @@ private:
         & ultimax;
     }
     
-    size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
@@ -311,13 +308,10 @@ public:
     void pause();
     
     void setWarp(bool enable);
-    bool inWarpMode() { return warpMode; }
-    void enableWarpMode() { setWarp(true); }
-    void disableWarpMode() { setWarp(false); }
+    bool inWarpMode() const { return warpMode; }
 
-    void enableDebugMode() { settrace(true); }
-    void disableDebugMode() { settrace(false); }
-    bool inDebugMode() { return debugMode; }
+    void setDebug(bool enable);
+    bool inDebugMode() const { return debugMode; }
     
 private:
 
@@ -326,7 +320,7 @@ private:
     void _run() override;
     void _pause() override;
     void _setWarp(bool enable) override;
-    void _settrace(bool enable) override;
+    void _setDebug(bool enable) override;
 
 
     //
@@ -345,7 +339,7 @@ public:
     /* Returns true if a call to powerOn() will be successful.
      * It returns false, e.g., if no Rom is installed.
      */
-    bool isReady(ErrorCode *error = nullptr);
+    bool isReady(ErrorCode *err = nullptr) const;
     
     
     //
@@ -368,7 +362,7 @@ public:
     Message getMessage() { return messageQueue.get(); }
     
     // Feeds a notification message into message queue
-    void putMessage(MessageType msg, u64 data = 0) { messageQueue.put(msg, data); }
+    void putMessage(MsgType msg, u64 data = 0) { messageQueue.put(msg, data); }
     
     
  
@@ -475,40 +469,19 @@ public:
     /* Sets or clears a run loop control flag. The functions are thread-safe
      * and can be called from inside or outside the emulator thread.
      */
-    void setControlFlags(u32 flags);
-    void clearControlFlags(u32 flags);
+    void setActionFlags(u32 flags);
+    void clearActionFlags(u32 flags);
     
     // Convenience wrappers for controlling the run loop
-    void signalAutoSnapshot() { setControlFlags(RL_AUTO_SNAPSHOT); }
-    void signalUserSnapshot() { setControlFlags(RL_USER_SNAPSHOT); }
-    void signalBreakpoint() { setControlFlags(RL_BREAKPOINT_REACHED); }
-    void signalWatchpoint() { setControlFlags(RL_WATCHPOINT_REACHED); }
-    void signalInspect() { setControlFlags(RL_INSPECT); }
-    void signalJammed() { setControlFlags(RL_CPU_JAMMED); }
-    void signalStop() { setControlFlags(RL_STOP); }
+    void signalAutoSnapshot() { setActionFlags(ACTION_FLAG_AUTO_SNAPSHOT); }
+    void signalUserSnapshot() { setActionFlags(ACTION_FLAG_USER_SNAPSHOT); }
+    void signalBreakpoint() { setActionFlags(ACTION_FLAG_BREAKPOINT); }
+    void signalWatchpoint() { setActionFlags(ACTION_FLAG_WATCHPOINT); }
+    void signalInspect() { setActionFlags(ACTION_FLAG_INSPECT); }
+    void signalJammed() { setActionFlags(ACTION_FLAG_CPU_JAMMED); }
+    void signalStop() { setActionFlags(ACTION_FLAG_STOP); }
 
-private:
 
-    /* Restarts the synchronization timer. The function is invoked at launch
-     * time to initialize the timer and reinvoked when the synchronization
-     * timer gets out of sync.
-     */
-    // void restartTimer();
-    
-    // Converts kernel time to nanoseconds
-    // u64 abs_to_nanos(u64 abs) { return abs * timebase.numer / timebase.denom; }
-    
-    // Converts nanoseconds to kernel time
-    // u64 nanos_to_abs(u64 nanos) { return nanos * timebase.denom / timebase.numer; }
- 
-    /* Puts the emulation the thread to sleep. This function is called inside
-     * endFrame(). It makes the emulation thread wait until nanoTargetTime has
-     * been reached. Before returning, nanoTargetTime is assigned with a new
-     * target value.
-     */
-    // void synchronizeTiming();
-    
-    
     //
     // Handling snapshots
     //
@@ -530,7 +503,7 @@ public:
     /* Loads the current state from a snapshot file. This function is not
      * thread-safe and must not be called on a running emulator.
      */
-    void loadFromSnapshot(Snapshot *snapshot);
+    bool loadFromSnapshot(Snapshot *snapshot);
     
     
     //
@@ -540,38 +513,36 @@ public:
 public:
     
     // Computes a Rom checksum
-    u32 romCRC32(RomType type);
-    u64 romFNV64(RomType type);
+    u32 romCRC32(RomType type) const;
+    u64 romFNV64(RomType type) const;
      
     // Returns a unique identifier for the installed ROMs
-    RomIdentifier romIdentifier(RomType type);
+    RomIdentifier romIdentifier(RomType type) const;
     
     // Returns printable titles for the installed ROMs
-    const char *romTitle(RomType type);
+    const char *romTitle(RomType type) const;
     
     // Returns printable sub titles for the installed ROMs
-    const char *romSubTitle(u64 fnv);
-    const char *romSubTitle(RomType type);
+    const char *romSubTitle(u64 fnv) const;
+    const char *romSubTitle(RomType type) const;
     
     // Returns printable revision strings or hash values for the installed ROMs
-    const char *romRevision(RomType type);
+    const char *romRevision(RomType type) const;
     
     // Checks if a certain Rom is present
-    bool hasRom(RomType type);
-    bool hasMega65Rom(RomType type);
+    bool hasRom(RomType type) const;
+    bool hasMega65Rom(RomType type) const;
 
 private:
     
     // Returns a revision string if a Mega65 Rom is installed
-    char *mega65BasicRev();
-    char *mega65KernalRev();
+    char *mega65BasicRev() const;
+    char *mega65KernalRev() const;
 
 public:
     
     // Installs a Rom
-    bool loadRom(RomType type, RomFile *file);
-    bool loadRomFromBuffer(RomType type, const u8 *buffer, size_t length);
-    bool loadRomFromFile(RomType type, const char *path);
+    void installRom(RomFile *file);
     
     // Erases an installed Rom
     void deleteRom(RomType type);
@@ -586,10 +557,8 @@ public:
     
     // Flashes a single file into memory
     bool flash(AnyFile *file);
-    
-    // Flashes a single item of an archive into memory
-    bool flash(AnyArchive *file, unsigned item);
-    
+    bool flash(AnyCollection *file, unsigned item);
+    bool flash(const FSDevice &fs, usize item);
     
     //
     // Set and query ultimax mode
@@ -598,7 +567,7 @@ public:
 public:
     
     // Returns the ultimax flag
-    bool getUltimax() { return ultimax; }
+    bool getUltimax() const { return ultimax; }
     
     /* Setter for ultimax mode. When the peek / poke lookup table is updated,
      * this function is called if a certain combination is present on the Game
@@ -606,5 +575,3 @@ public:
      */
     void setUltimax(bool b) { ultimax = b; }
 };
-
-#endif

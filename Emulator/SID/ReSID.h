@@ -7,6 +7,8 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#pragma once
+
 /* This class is a wrapper around the third-party reSID library.
  *
  *   List of modifications applied to reSID:
@@ -20,9 +22,6 @@
  *     - To Norah (Elysium)
  *     - Vortex (LMan)
  */
-
-#ifndef _RESID_H
-#define _RESID_H
 
 #include "C64Component.h"
 #include "SIDStreams.h"
@@ -72,7 +71,7 @@ public:
     
 	ReSID(C64 &ref, SIDBridge &bridgeref, int n);
 	~ReSID();
-    const char *getDescription() override { return "ReSID"; }
+    const char *getDescription() const override { return "ReSID"; }
 
 private:
     
@@ -85,19 +84,19 @@ private:
     
 public:
     
-    u32 getClockFrequency();
+    u32 getClockFrequency() const;
     void setClockFrequency(u32 frequency);
     
-    SIDRevision getRevision();
+    SIDRevision getRevision() const;
     void setRevision(SIDRevision m);
     
-    double getSampleRate() { return sampleRate; }
+    double getSampleRate() const { return sampleRate; }
     void setSampleRate(double rate);
     
-    bool getAudioFilter() { return emulateFilter; }
+    bool getAudioFilter() const { return emulateFilter; }
     void setAudioFilter(bool enable);
     
-    SamplingMethod getSamplingMethod();
+    SamplingMethod getSamplingMethod() const;
     void setSamplingMethod(SamplingMethod value);
     
     
@@ -201,11 +200,11 @@ private:
     {
     }
     
-    size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    size_t didLoadFromBuffer(u8 *buffer) override;
-    size_t willSaveToBuffer(u8 *buffer) override;
+    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize didLoadFromBuffer(u8 *buffer) override;
+    usize willSaveToBuffer(u8 *buffer) override;
 
 
     //
@@ -227,8 +226,6 @@ public:
      * samples are written into the provided ring buffer. The fuction returns
      * the number of written audio samples.
      */
-    i64 executeCycles(u64 numCycles, SampleStream &stream);
-    i64 executeCycles(u64 numCycles);
+    i64 executeCycles(usize numCycles, SampleStream &stream);
+    i64 executeCycles(usize numCycles);
 };
-
-#endif

@@ -7,10 +7,19 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef C64_PRIVATE_TYPES_H
-#define C64_PRIVATE_TYPES_H
+#pragma once
 
-#include "VICIIPrivateTypes.h"
-#include "DiskPrivateTypes.h"
+#include "C64Types.h"
+#include <exception>
 
-#endif
+struct VC64Error : public std::exception
+{
+    ErrorCode errorCode;
+    
+    VC64Error(ErrorCode code) : errorCode(code) { }
+    
+    const char *what() const throw() override {
+
+        return  ErrorCodeEnum::key(errorCode);
+    }
+};

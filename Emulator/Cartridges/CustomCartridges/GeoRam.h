@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _GEORAM_H
-#define _GEORAM_H
+#pragma once
 
 #include "Cartridge.h"
 
@@ -30,8 +29,8 @@ private:
 public:
     
     GeoRAM(C64 &ref) : Cartridge(ref) { };
-    const char *getDescription() override { return "GeoRam"; }
-    CartridgeType getCartridgeType() override { return CRT_GEO_RAM; }
+    const char *getDescription() const override { return "GeoRam"; }
+    CartridgeType getCartridgeType() const override { return CRT_GEO_RAM; }
     
 private:
     
@@ -58,13 +57,13 @@ private:
     {
     }
     
-    size_t __size() { COMPUTE_SNAPSHOT_SIZE }
-    size_t __load(u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
-    size_t __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
+    usize __size() { COMPUTE_SNAPSHOT_SIZE }
+    usize __load(u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
+    usize __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
     
-    size_t _size() override { return Cartridge::_size() + __size(); }
-    size_t _load(u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
-    size_t _save(u8 *buf) override { return Cartridge::_save(buf) + __save(buf); }
+    usize _size() override { return Cartridge::_size() + __size(); }
+    usize _load(u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
+    usize _save(u8 *buf) override { return Cartridge::_save(buf) + __save(buf); }
     
     
     //
@@ -74,14 +73,14 @@ private:
 public:
 
     u8 peekIO1(u16 addr) override;
+    u8 spypeekIO1(u16 addr) const override;
     u8 peekIO2(u16 addr) override;
+    u8 spypeekIO2(u16 addr) const override;
     void pokeIO1(u16 addr, u8 value) override;
     void pokeIO2(u16 addr, u8 value) override;
     
 private:
     
     // Maps an address to the proper position in cartridge RAM
-    unsigned offset(u8 addr);
+    unsigned offset(u8 addr) const;
 };
-
-#endif

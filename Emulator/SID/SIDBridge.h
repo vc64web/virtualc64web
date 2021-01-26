@@ -7,11 +7,10 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _SID_BRIDGE_H
-#define _SID_BRIDGE_H
+#pragma once
 
 #include "C64Component.h"
-#include "SIDTypes.h"
+#include "SIDPublicTypes.h"
 #include "Volume.h"
 #include "SIDStreams.h"
 #include "FastSID.h"
@@ -70,7 +69,7 @@ private:
     };
         
     // CPU cycle at the last call to executeUntil()
-    u64 cycles = 0;
+    Cycle cycles = 0;
     
     // Current CPU frequency
     u32 cpuFrequency = PAL_CLOCK_FREQUENCY;
@@ -127,7 +126,7 @@ public:
 public:
 	
 	SIDBridge(C64 &ref);
-    const char *getDescription() override { return "SIDBridge"; }
+    const char *getDescription() const override { return "SIDBridge"; }
 
 private:
     
@@ -140,39 +139,39 @@ private:
     
 public:
     
-    SIDConfig getConfig() { return config; }
+    SIDConfig getConfig() const { return config; }
     
-    long getConfigItem(ConfigOption option);
-    long getConfigItem(ConfigOption option, long id);
+    long getConfigItem(Option option) const;
+    long getConfigItem(Option option, long id) const;
 
-    bool setConfigItem(ConfigOption option, long value) override;
-    bool setConfigItem(ConfigOption option, long id, long value) override;
+    bool setConfigItem(Option option, long value) override;
+    bool setConfigItem(Option option, long id, long value) override;
 
-    bool isEnabled(int nr) { return GET_BIT(config.enabled, nr); }
+    bool isEnabled(usize nr) const { return GET_BIT(config.enabled, nr); }
     
-    bool isMuted();
+    bool isMuted() const;
 
     u32 getClockFrequency();
     void setClockFrequency(u32 frequency);
 
     // DEPRECATED: Use OPT_xxx
-    SIDRevision getRevision();
+    SIDRevision getRevision() const;
     void setRevision(SIDRevision revision);
     
-    double getSampleRate();
+    double getSampleRate() const;
     void setSampleRate(double rate);
     
     // DEPRECATED: Use OPT_xxx
-    bool getAudioFilter();
+    bool getAudioFilter() const;
     void setAudioFilter(bool enable);
 
     // DEPRECATED: Use OPT_xxx
-    SamplingMethod getSamplingMethod();
+    SamplingMethod getSamplingMethod() const;
     void setSamplingMethod(SamplingMethod method);
 
 private:
     
-    void _dumpConfig() override;
+    void _dumpConfig() const override;
     
     
     //
@@ -186,9 +185,9 @@ public:
     
 private:
     
-    void _dump() override;
-    void _dump(int nr);
-    void _dump(SIDInfo &info, VoiceInfo (&vinfo)[3]);
+    void _dump() const override;
+    void _dump(int nr) const;
+    void _dump(SIDInfo &info, VoiceInfo (&vinfo)[3]) const;
 
     
     //
@@ -229,10 +228,10 @@ private:
         & cycles;
     }
     
-    size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    size_t didLoadFromBuffer(u8 *buffer) override;
+    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize didLoadFromBuffer(u8 *buffer) override;
     
  
 private:
@@ -284,7 +283,7 @@ public:
     // float readData();
     
     // Reads a audio sample pair without moving the read pointer
-    void ringbufferData(size_t offset, float *left, float *right);
+    void ringbufferData(usize offset, float *left, float *right);
             
     /* Handles a buffer underflow condition.
      * A buffer underflow occurs when the computer's audio device needs sound
@@ -311,16 +310,16 @@ public:
     /* Executes SID until a certain cycle is reached.
      * // The function returns the number of produced sound samples (not yet).
      */
-    void executeUntil(u64 targetCycle);
+    void executeUntil(Cycle targetCycle);
 
     // Executes SID for a certain number of CPU cycles
-	i64 executeCycles(u64 numCycles);
+	usize executeCycles(usize numCycles);
 
-    /* Executes SID for a certain number of audio samples. The function returns
-     * the number of consumed CPU cycles.
-     */
-    // DEPRECATED
-    // i64 execute(u64 numSamples);
+private:
+    
+    // Called by executeCycles to produce the final stereo stream
+    void mixSingleSID(usize numSamples);
+    void mixMultiSID(usize numSamples);
 
     
     //
@@ -329,9 +328,9 @@ public:
     
 public:
     
-    void copyMono(float *buffer, size_t n);
-    void copyStereo(float *left, float *right, size_t n);
-    void copyInterleaved(float *buffer, size_t n);
+    void copyMono(float *buffer, usize n);
+    void copyStereo(float *left, float *right, usize n);
+    void copyInterleaved(float *buffer, usize n);
 
     
      
@@ -341,17 +340,19 @@ public:
     
 public:
     
-    // Translates a memory address to the mapped in SID
-    int mappedSID(u16 addr); 
+    // Translates a memory address to the mapped SID
+    usize mappedSID(u16 addr) const;
     
 	// Special peek function for the I/O memory range
 	u8 peek(u16 addr);
 	
     // Same as peek without side effects
-    u8 spypeek(u16 addr);
+    u8 spypeek(u16 addr) const;
+    
+    // Reads the pot bits that show up in register 0x19 and 0x1A
+    u8 readPotX() const;
+    u8 readPotY() const;
     
 	// Special poke function for the I/O memory range
 	void poke(u16 addr, u8 value);
 };
-
-#endif

@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _KINGSOFT_H
-#define _KINGSOFT_H
+#pragma once
 
 #include "Cartridge.h"
 
@@ -17,8 +16,8 @@ class Kingsoft : public Cartridge {
 public:
     
     Kingsoft(C64 &ref) : Cartridge(ref) { };
-    const char *getDescription() override { return "Kingsoft"; }
-    CartridgeType getCartridgeType() override { return CRT_KINGSOFT; }
+    const char *getDescription() const override { return "Kingsoft"; }
+    CartridgeType getCartridgeType() const override { return CRT_KINGSOFT; }
 
     void resetCartConfig() override;
 
@@ -30,6 +29,7 @@ public:
 public:
     
     u8 peekIO1(u16 addr) override;
+    u8 spypeekIO1(u16 addr) const override;
     void pokeIO1(u16 addr, u8 value) override;
 
     
@@ -41,7 +41,3 @@ public:
     
     void updatePeekPokeLookupTables() override;
 };
-
-
-
-#endif

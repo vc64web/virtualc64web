@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef C64CONFIG_H
-#define C64CONFIG_H
+#pragma once
 
 //
 // Release settings
@@ -17,10 +16,10 @@
 // Snapshot version number
 #define V_MAJOR 4
 #define V_MINOR 0
-#define V_SUBMINOR 1
+#define V_SUBMINOR 2
 
 // Uncomment these settings in a release build
-// #define RELEASEBUILD
+#define RELEASEBUILD
 // #define NDEBUG
 
 //
@@ -29,7 +28,6 @@
 
 // Uncomment to override a configuration setting
 // EMPTY LIST SO FAR
-
 
 //
 // Debug settings
@@ -41,9 +39,9 @@ static const int XFILES          = 0; // Report paranormal activity
 
 // Runloop
 static const int RUN_DEBUG       = 0; // Run loop, component states, timing
+static const int QUEUE_DEBUG     = 0; // Message queue
 static const int TIM_DEBUG       = 0; // Timing (thread synchronization)
 static const int SNP_DEBUG       = 0; // Serializing (snapshots)
-static const int MSG_DEBUG       = 0; // Message queue
 
 // CPU
 static const int CPU_DEBUG       = 0; // CPU
@@ -63,10 +61,6 @@ static const int SID_DEBUG       = 0; // Sound Interface Device
 static const int SID_EXEC        = 0; // Sound Interface Device (execution)
 static const int IEC_DEBUG       = 0; // IEC bus
 
-// Ports
-static const int PORT_DEBUG      = 0; // Control ports and connected devices
-static const int EXP_DEBUG       = 0; // Expansion port
-
 // Drive
 static const int DSK_DEBUG       = 0; // Disk controller execution
 static const int DSKCHG_DEBUG    = 0; // Disk changing procedure
@@ -79,26 +73,24 @@ static const int FILE_DEBUG      = 0; // Media files (D64,T64,...)
 
 // Peripherals
 static const int JOY_DEBUG       = 0; // Joystick
-static const int MOUSE_DEBUG     = 0; // Mouse
 static const int DRV_DEBUG       = 0; // Floppy drive
 static const int TAP_DEBUG       = 0; // Datasette
 static const int KBD_DEBUG       = 0; // Keyboard
+static const int PORT_DEBUG      = 0; // Control ports and connected devices
+static const int EXP_DEBUG       = 0; // Expansion port
 
 
-// Default debug level for all components (Set to 1 in release build)
-#define DEBUG_LEVEL 1
-
-#endif 
-
-
-// CLEANUP:
 //
-// OPTIMIZATION:
+// Forced error conditions
 //
-// Check, how -Ofast compares to -O3
-// Check how USE_OPTIMIZATION_PROFILE = true influences runtime
-//
-// 
+
+static const int FORCE_ROM_MISSING      = 0;
+static const int FORCE_MEGA64_MISMATCH  = 0;
+static const int FORCE_UNSUPPORTED_CRT  = 0;
+static const int FORCE_SNAPSHOT_TOO_OLD = 0;
+static const int FORCE_SNAPSHOT_TOO_NEW = 0;
+
+// IDEAS:
 // Update IEC bus inside CIA and VIA. Use delay flags if neccessary
 // Use a simpler implementation for the raster irq trigger. Edge sensitive matching value
 // Call CA1 action in VIA class only if the pin value really has changed.

@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _VC1541MEMORY_H
-#define _VC1541MEMORY_H
+#pragma once
 
 #include "DriveMemory.h"
 
@@ -33,7 +32,7 @@ public:
 public:
     
     DriveMemory(C64 &ref, Drive &drive);
-    const char *getDescription() override { return "DriveMemory"; }
+    const char *getDescription() const override { return "DriveMemory"; }
 
 private:
     
@@ -46,7 +45,7 @@ private:
     
 private:
     
-    void _dump() override;
+    void _dump() const override;
     
     
     //
@@ -69,9 +68,9 @@ private:
     {
     }
     
-    size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
@@ -92,12 +91,10 @@ public:
     void peekIOIdle(u16 addr) { }
     
     // Reads a value from memory without side effects
-    u8 spypeek(u16 addr);
-    
+    u8 spypeek(u16 addr) const;
+
     // Writes a value into memory
     void poke(u16 addr, u8 value);
     void pokeZP(u8 addr, u8 value) { ram[addr] = value; }
     void pokeStack(u8 sp, u8 value) { ram[0x100 + sp] = value; }
 };
-
-#endif

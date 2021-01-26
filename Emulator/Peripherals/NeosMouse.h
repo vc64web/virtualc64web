@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef NEOSMOUSE_H
-#define NEOSMOUSE_H
+#pragma once
 
 #include "C64Component.h"
 
@@ -55,7 +54,7 @@ class NeosMouse : public C64Component {
 public:
     
     NeosMouse(C64 &ref) : C64Component(ref) { }
-    const char *getDescription() override { return "NeosMouse"; }
+    const char *getDescription() const override { return "NeosMouse"; }
 
 private:
     
@@ -78,9 +77,9 @@ private:
     {
     }
     
-    size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
@@ -94,20 +93,21 @@ public:
     void setRightMouseButton(bool value) { rightButton = value; }
     
     // Returns the pot bits as set by the mouse
-    u8 readPotX();
-    u8 readPotY();
+    u8 readPotX() const;
+    u8 readPotY() const;
+    
+    // Updates the control port bits (must be called before reading)
+    void updateControlPort(i64 targetX, i64 targetY);
     
     // Returns the control port bits triggered by the mouse
-    u8 readControlPort(i64 targetX, i64 targetY);
+    u8 readControlPort() const;
         
     // Triggers a state change
-    void risingStrobe(int portNr, i64 targetX, i64 targetY);
-    void fallingStrobe(int portNr, i64 targetX, i64 targetY);
+    void risingStrobe(i64 targetX, i64 targetY);
+    void fallingStrobe(i64 targetX, i64 targetY);
     
 private:
     
     // Latches the current mouse position and computed the transmission deltas
     void latchPosition(i64 targetX, i64 targetY);
 };
-
-#endif

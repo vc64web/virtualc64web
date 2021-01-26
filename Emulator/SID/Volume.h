@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _VOLUME_H
-#define _VOLUME_H
+#pragma once
 
 /* An object of this class stores a single volume value and provides the means
  * to emulate a fading effect. Fading is utilized to avoid cracking noises if,
@@ -39,11 +38,11 @@ template <typename T> struct AudioVolume {
     }
     
     // Setter and getter
-    T get() { return current; }
+    T get() const { return current; }
     void set(T value) { current = normal = target[0] = value; }
     
     // Returns true if the volume is currently fading in or out
-    bool isFading() { return current != target[0]; }
+    bool isFading() const { return current != target[0]; }
 
     // Initiates a fading effect
     void fadeIn(int steps) {
@@ -86,5 +85,3 @@ template <typename T> struct AudioVolume {
 };
 
 typedef AudioVolume<float> Volume;
-
-#endif 

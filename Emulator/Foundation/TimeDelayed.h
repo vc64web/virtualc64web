@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _TIME_DELAYED_H
-#define _TIME_DELAYED_H
+#pragma once
 
 template <class T, int capacity> class TimeDelayed {
     
@@ -26,7 +25,7 @@ template <class T, int capacity> class TimeDelayed {
     u8 delay = 0;
     
     // Pointer to reference clock
-    i64 *clock = NULL;
+    i64 *clock = nullptr;
 
     
     //
@@ -45,7 +44,7 @@ public:
         clear();
     }
     
-    TimeDelayed(u8 delay) : TimeDelayed(delay, NULL) { };
+    TimeDelayed(u8 delay) : TimeDelayed(delay, nullptr) { };
           
     // Sets the reference clock (either the C64 clock or a drive clock)
     void setClock(u64 *clock) { this->clock = (i64 *)clock; }
@@ -60,14 +59,6 @@ public:
     void clear() { reset((T)0); }
     
     
-    //
-    // Analyzing
-    //
-    
-public:
-    
-    // void dump();
-
     //
     // Serializing
     //
@@ -106,11 +97,11 @@ public:
     }
     
     // Reads the most recent pipeline element
-    T current() { return pipeline[0]; }
+    T current() const { return pipeline[0]; }
     
     // Reads a value from the pipeline with the standard delay
     // T delayed() { return pipeline[MAX(0, timeStamp - *clock + delay)]; }
-    T delayed() {
+    T delayed() const {
         i64 offset = timeStamp - *clock + delay;
         if (__builtin_expect(offset <= 0, 1)) {
             return pipeline[0];
@@ -120,10 +111,8 @@ public:
     }
     
     // Reads a value from the pipeline with a custom delay
-    T readWithDelay(u8 delay) {
+    T readWithDelay(u8 delay) const {
         assert(delay <= this->capacity);
         return pipeline[MAX(0, timeStamp - *clock + delay)];
     }
 };
-
-#endif

@@ -21,7 +21,7 @@ Epyx::_reset()
 void
 Epyx::resetCartConfig()
 {
-    expansionport.setCartridgeMode(CRT_8K);
+    expansionport.setCartridgeMode(CRTMODE_8K);
 }
 
 u8
@@ -32,6 +32,12 @@ Epyx::peekRomL(u16 addr)
 }
 
 u8
+Epyx::spypeekRomL(u16 addr) const
+{
+    return Cartridge::spypeekRomL(addr);
+}
+
+u8
 Epyx::peekIO1(u16 addr)
 {
     dischargeCapacitor();
@@ -39,7 +45,19 @@ Epyx::peekIO1(u16 addr)
 }
 
 u8
+Epyx::spypeekIO1(u16 addr) const
+{
+    return 0;
+}
+
+u8
 Epyx::peekIO2(u16 addr)
+{
+    return const_cast<const Epyx*>(this)->spypeekIO2(addr);
+}
+
+u8
+Epyx::spypeekIO2(u16 addr) const
 {
     // I/O 2 mirrors the last 256 ROM bytes
     return packet[0]->peek(addr & 0x1FFF);
@@ -50,7 +68,7 @@ Epyx::execute()
 {
     // Switch cartridge off when the capacitor is fully charged
     if (cpu.cycle > cycle) {
-        expansionport.setCartridgeMode(CRT_OFF);
+        expansionport.setCartridgeMode(CRTMODE_OFF);
     }
 }
 
@@ -58,7 +76,7 @@ void
 Epyx::dischargeCapacitor()
 {
     // Switch on cartridge
-    expansionport.setCartridgeMode(CRT_8K);
+    expansionport.setCartridgeMode(CRTMODE_8K);
     
     // Schedule cartridge to be switched off in about 512 CPU cycles
     cycle = cpu.cycle + 512;

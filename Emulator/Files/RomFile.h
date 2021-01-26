@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _ROMFILE_H
-#define _ROMFILE_H
+#pragma once
 
 #include "AnyFile.h"
 
@@ -17,10 +16,10 @@ class RomFile : public AnyFile {
 private:
 
     // Accepted header signatures
-    static const size_t basicRomSignatureCnt  = 3;
-    static const size_t charRomSignatureCnt   = 10;
-    static const size_t kernalRomSignatureCnt = 4;
-    static const size_t vc1541RomSignatureCnt = 4;
+    static const usize basicRomSignatureCnt  = 3;
+    static const usize charRomSignatureCnt   = 10;
+    static const usize kernalRomSignatureCnt = 4;
+    static const usize vc1541RomSignatureCnt = 4;
 
     static const u8 magicBasicRomBytes[basicRomSignatureCnt][3];
     static const u8 magicCharRomBytes[charRomSignatureCnt][4];
@@ -28,7 +27,7 @@ private:
     static const u8 magicVC1541RomBytes[vc1541RomSignatureCnt][3];
 
     // Rom type (Basic, Character, Kernal, or VC1541)
-    FileType romtype = FILETYPE_UNKNOWN;
+    FileType romType = FILETYPE_UNKNOWN;
         
 public:
     
@@ -36,26 +35,32 @@ public:
     // Class methods
     //
     
-    // Returns true if buffer contains a ROM image
-    static bool isRomBuffer(const u8 *buffer, size_t length);
-    static bool isBasicRomBuffer(const u8 *buffer, size_t length);
-    static bool isCharRomBuffer(const u8 *buffer, size_t length);
-    static bool isKernalRomBuffer(const u8 *buffer, size_t length);
-    static bool isVC1541RomBuffer(const u8 *buffer, size_t length);
-
-    // Returns true if path points to a ROM image
-    static bool isRomFile(const char *path);
+    static bool isCompatibleName(const std::string &name);
+    static bool isCompatibleStream(std::istream &stream);
+    
+    static bool isRomStream(RomType type, std::istream &stream);
+    static bool isBasicRomStream(std::istream &stream);
+    static bool isCharRomStream(std::istream &stream);
+    static bool isKernalRomStream(std::istream &stream);
+    static bool isVC1541RomStream(std::istream &stream);
+    
+    static bool isRomFile(RomType type, const char *path);
     static bool isBasicRomFile(const char *path);
     static bool isCharRomFile(const char *path);
     static bool isKernalRomFile(const char *path);
     static bool isVC1541RomFile(const char *path);
-    
+
+    static bool isRomBuffer(RomType type, const u8 *buf, usize len);
+    static bool isBasicRomBuffer(const u8 *buf, usize len);
+    static bool isCharRomBuffer(const u8 *buf, usize len);
+    static bool isKernalRomBuffer(const u8 *buf, usize len);
+    static bool isVC1541RomBuffer(const u8 *buf, usize len);
+
     // Translates a FNV1A checksum (64 bit) into a ROM identifier
     static RomIdentifier identifier(u64 fnv);
 
     // Classifies a ROM identifier by type
     static bool isCommodoreRom(RomIdentifier rev);
-    static bool isMega65Rom(RomIdentifier rev);
     static bool isPatchedRom(RomIdentifier rev);
 
     // Provides information about known ROMs
@@ -63,26 +68,18 @@ public:
     static const char *subTitle(RomIdentifier rev);
     static const char *revision(RomIdentifier rev);
 
-    
+  
     //
-    // Creating and destructing
+    // Methods from C64Object
     //
     
-    RomFile() { };
-    const char *getDescription() override { return "RomFile"; }
-
-    // Factory methods
-    static RomFile *makeWithBuffer(const u8 *buffer, size_t length);
-    static RomFile *makeWithFile(const char *filename);
+    const char *getDescription() const override { return "RomFile"; }
     
     
     //
-    // Methods from AnyC64File
+    // Methods from AnyFile
     //
     
-    FileType type() override { return romtype; }
-    bool hasSameType(const char *filename) override { return isRomFile(filename); }
-    bool readFromBuffer(const u8 *buffer, size_t length) override;
-    
+    FileType type() const override { return romType; }
+    usize readFromStream(std::istream &stream) override;
 };
-#endif

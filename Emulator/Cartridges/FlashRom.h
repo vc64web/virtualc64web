@@ -7,11 +7,10 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _FLASHROM_H
-#define _FLASHROM_H
+#pragma once
 
 #include "C64Component.h"
-#include "CartridgeTypes.h"
+#include "CartridgePublicTypes.h"
 
 /* This class implements a Flash Rom module of type Am29F040B. Flash Roms
  * of this type are used, e.g., by the EasyFlash cartridge. The implementation
@@ -23,19 +22,19 @@
 class FlashRom : public C64Component {
             
     // Number of sectors in this Flash Rom
-    static const size_t numSectors = 8;
+    static const usize numSectors = 8;
     
     // Size of a single sector in bytes (64 KB)
-    static const size_t sectorSize = 0x10000;
+    static const usize sectorSize = 0x10000;
     
     // Total size of the Flash Rom in bytes (512 KB)
-    static const size_t romSize = 0x80000;
+    static const usize romSize = 0x80000;
 
     // Current Flash Rom state
-    FlashRomState state;
+    FlashState state;
 
     // State taken after an operations has been completed
-    FlashRomState baseState;
+    FlashState baseState;
     
     // Flash Rom data
     u8 *rom = nullptr;
@@ -51,7 +50,7 @@ public:
     static bool isBankNumber(unsigned bank) { return bank < 64; }
     
     // Converts a Flash Rom state to a string
-    static const char *getStateAsString(FlashRomState state);
+    static const char *getStateAsString(FlashState state);
     
     
     //
@@ -62,7 +61,7 @@ public:
     
     FlashRom(C64 &ref);
     ~FlashRom();
-    const char *getDescription() override { return "FlashRom"; }
+    const char *getDescription() const override { return "FlashRom"; }
 
     /* Loads an 8 KB chunk of Rom data from a buffer. This method is used when
      * loading the contents from a CRT file.
@@ -80,7 +79,7 @@ private:
     
 private:
     
-    void _dump() override;
+    void _dump() const override;
 
     
     //
@@ -103,12 +102,12 @@ private:
     {
     }
     
-    size_t __size() { COMPUTE_SNAPSHOT_SIZE }
-    size_t _size() override { return __size() + romSize; }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    size_t didLoadFromBuffer(u8 *buffer) override;
-    size_t didSaveToBuffer(u8 *buffer) override;
+    usize __size() { COMPUTE_SNAPSHOT_SIZE }
+    usize _size() override { return __size() + romSize; }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize didLoadFromBuffer(u8 *buffer) override;
+    usize didSaveToBuffer(u8 *buffer) override;
 
     
     //
@@ -121,9 +120,9 @@ public:
     u8 peek(unsigned bank, u16 addr) {
         assert(isBankNumber(bank)); return peek(bank * 0x2000 + addr); }
     
-    u8 spypeek(u32 addr) { return peek(addr); }
-    u8 spypeek(unsigned bank, u16 addr) {
-        assert(isBankNumber(bank)); return peek(bank * 0x2000 + addr); }
+    u8 spypeek(u32 addr) const;
+    u8 spypeek(unsigned bank, u16 addr) const {
+        assert(isBankNumber(bank)); return spypeek(bank * 0x2000 + addr); }
     
     void poke(u32 addr, u8 value);
     void poke(unsigned bank, u16 addr, u8 value) {
@@ -157,5 +156,3 @@ public:
     // Performs a "Chip Erase" operation
     void doChipErase();
 };
-
-#endif 

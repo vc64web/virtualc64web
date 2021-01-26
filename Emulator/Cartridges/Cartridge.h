@@ -7,13 +7,12 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _CARTRIDGE_H
-#define _CARTRIDGE_H
+#pragma once
 
 #include "C64Component.h"
-#include "CartridgeTypes.h"
-#include "CRTFile.h"
+#include "CartridgePublicTypes.h"
 #include "CartridgeRom.h"
+#include "CRTFile.h"
 
 class Cartridge : public C64Component {
     
@@ -48,7 +47,7 @@ private:
 protected:
 
     u8 numPackets = 0;
-    CartridgeRom *packet[MAX_PACKETS];
+    CartridgeRom *packet[MAX_PACKETS] = {};
     
     // Indicates which packets are currently mapped to ROML and ROMH
     u8 chipL = 0;
@@ -74,17 +73,13 @@ private:
     // On-board RAM
     //
     
-    /* Additional RAM. Some cartridges such as ActionReplay contain additional
-     * RAM. By default, this variable is NULL.
-     */
-    u8 *externalRam = NULL;
+    // Additional RAM
+    u8 *externalRam = nullptr;
     
-    /* Capacity of the additional RAM in bytes. This value is 0 if and only if
-     * externaRam is NULL.
-     */
-    u32 ramCapacity = 0;
+    // RAM capacity in bytes
+    u64 ramCapacity = 0;
     
-    // Indicates if the RAM contents is preserved during a reset
+    // Indicates whether RAM data is preserved during a reset
     bool battery = false;
 
     
@@ -125,12 +120,12 @@ public:
     static bool isSupportedType(CartridgeType type);
     
     // Returns true if addr is located in the ROML or the ROMH address space
-    static bool isROMLaddr (u16 addr);
-    static bool isROMHaddr (u16 addr);
+    static bool isROMLaddr(u16 addr);
+    static bool isROMHaddr(u16 addr);
 
     // Factory methods
-    static Cartridge *makeWithType(C64 &c64, CartridgeType type);
-    static Cartridge *makeWithCRTFile(C64 &c64, CRTFile *file);
+    static Cartridge *makeWithType(C64 &c64, CartridgeType type) throws;
+    static Cartridge *makeWithCRTFile(C64 &c64, CRTFile &file) throws;
 
     
     //
@@ -141,7 +136,7 @@ public:
     
     Cartridge(C64 &ref);
     ~Cartridge();
-    const char *getDescription() override { return "Cartridge"; }
+    const char *getDescription() const override { return "Cartridge"; }
 
     /* Resets the Game and the Exrom line. The default implementation resets
      * the values to ones found in the CRT file. A few custom cartridges need
@@ -162,11 +157,15 @@ protected:
 
 public:
     
-    virtual CartridgeType getCartridgeType() { return CRT_NORMAL; }
-
+    // Returns the cartridge type
+    virtual CartridgeType getCartridgeType() const { return CRT_NORMAL; }
+    
+    // Checks whether this cartridge is supported by the emulator yet
+    bool isSupported() const { return isSupportedType(getCartridgeType()); }
+    
 protected:
     
-    void _dump() override;
+    void _dump() const override;
         
     
     //
@@ -205,9 +204,9 @@ private:
     
 protected:
     
-    size_t _size() override;
-    size_t _load(u8 *buffer) override;
-    size_t _save(u8 *buffer) override;
+    usize _size() override;
+    usize _load(u8 *buffer) override;
+    usize _save(u8 *buffer) override;
         
         
     //
@@ -226,7 +225,7 @@ public:
     //
     
     // Reads in a chip packet from a CRT file
-    virtual void loadChip(unsigned nr, CRTFile *c);
+    virtual void loadChip(unsigned nr, const CRTFile &c);
     
     // Banks in a rom chip into the ROML or the ROMH space
     void bankInROML(unsigned nr, u16 size, u16 offset);
@@ -254,9 +253,9 @@ public:
     virtual u8 peekRomL(u16 addr);
     virtual u8 peekRomH(u16 addr);
 
-    virtual u8 spypeek(u16 addr) { return peek(addr); }
-    virtual u8 spypeekRomL(u16 addr) { return peekRomL(addr); }
-    virtual u8 spypeekRomH(u16 addr) { return peekRomH(addr); }
+    virtual u8 spypeek(u16 addr) const;
+    virtual u8 spypeekRomL(u16 addr) const;
+    virtual u8 spypeekRomH(u16 addr) const;
 
     virtual void poke(u16 addr, u8 value);
     virtual void pokeRomL(u16 addr, u8 value) { return; }
@@ -266,8 +265,8 @@ public:
     virtual u8 peekIO1(u16 addr) { return 0; }
     virtual u8 peekIO2(u16 addr) { return 0; }
 
-    virtual u8 spypeekIO1(u16 addr) { return peekIO1(addr); }
-    virtual u8 spypeekIO2(u16 addr) { return peekIO2(addr); }
+    virtual u8 spypeekIO1(u16 addr) const { return 0; }
+    virtual u8 spypeekIO2(u16 addr) const { return 0; }
     
     virtual void pokeIO1(u16 addr, u8 value) { }
     virtual void pokeIO2(u16 addr, u8 value) { }
@@ -278,22 +277,22 @@ public:
     //
     
     // Returns the RAM size in bytes
-    u32 getRamCapacity(); 
+    usize getRamCapacity() const;
 
     /* Assigns external RAM to this cartridge. This functions frees any
      * previously assigned RAM and allocates memory of the specified size. The
      * size is stored in variable ramCapacity.
      */
-    void setRamCapacity(u32 size);
+    void setRamCapacity(usize size);
 
     // Returns true if RAM data is preserved during a reset
-    bool getBattery() { return battery; }
+    bool getBattery() const { return battery; }
 
     // Enables or disables persistent RAM
     void setBattery(bool value) { battery = value; }
 
     // Reads or write RAM cells
-    u8 peekRAM(u16 addr);
+    u8 peekRAM(u16 addr) const;
     void pokeRAM(u16 addr, u8 value);
     void eraseRAM(u8 value);
 
@@ -303,12 +302,12 @@ public:
     //
 
     // Returns the number of available cartridge buttons
-    virtual long numButtons() { return 0; }
+    virtual long numButtons() const { return 0; }
     
-    /* Returns a textual description for a button or NULL, if there is no
+    /* Returns a textual description for a button or nullptr, if there is no
      * button with the specified number.
      */
-    virtual const char *getButtonTitle(unsigned nr) { return NULL; }
+    virtual const char *getButtonTitle(unsigned nr) const { return nullptr; }
     
     // Presses a button (make sure to call releaseButton() afterwards)
     virtual void pressButton(unsigned nr) { }
@@ -322,20 +321,20 @@ public:
     //
     
     // Returns true if the cartridge has a switch
-    virtual bool hasSwitch() { return false; }
+    virtual bool hasSwitch() const { return false; }
 
     // Returns the current switch position
-    virtual i8 getSwitch() { return switchPos; }
-    bool switchIsNeutral() { return getSwitch() == 0; }
-    bool switchIsLeft() { return getSwitch() < 0; }
-    bool switchIsRight() { return getSwitch() > 0; }
+    virtual i8 getSwitch() const { return switchPos; }
+    bool switchIsNeutral() const { return getSwitch() == 0; }
+    bool switchIsLeft() const { return getSwitch() < 0; }
+    bool switchIsRight() const { return getSwitch() > 0; }
     
-    /* Returns a textual description for a switch position or NULL if the
+    /* Returns a textual description for a switch position or nullptr if the
      * switch cannot be positioned this way.
      */
-    virtual const char *getSwitchDescription(i8 pos) { return NULL; }
-    const char *getSwitchDescription() { return getSwitchDescription(getSwitch()); }
-    bool validSwitchPosition(i8 pos) { return getSwitchDescription(pos) != NULL; }
+    virtual const char *getSwitchDescription(i8 pos) const { return nullptr; }
+    const char *getSwitchDescription() const { return getSwitchDescription(getSwitch()); }
+    bool validSwitchPosition(i8 pos) const { return getSwitchDescription(pos) != nullptr; }
     
     // Puts the switch in a certain position
     virtual void setSwitch(i8 pos);
@@ -346,10 +345,10 @@ public:
     //
     
     // Returns true if the cartridge has a LED
-    virtual bool hasLED() { return false; }
+    virtual bool hasLED() const { return false; }
     
     // Returns true if the LED is switched on
-    virtual bool getLED() { return led; }
+    virtual bool getLED() const { return led; }
     
     // Switches the LED on or off
     virtual void setLED(bool value) { led = value; }
@@ -373,5 +372,3 @@ public:
     // Called after the C64 CPU has processed the NMI instruction
     virtual void nmiDidTrigger() { }
 };
-
-#endif 

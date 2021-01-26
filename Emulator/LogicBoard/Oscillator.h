@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _OSCILLATOR_H
-#define _OSCILLATOR_H
+#pragma once
 
 #include "C64Component.h"
 
@@ -52,7 +51,7 @@ class Oscillator : public C64Component {
 public:
     
     Oscillator(C64& ref);
-    const char *getDescription() override;
+    const char *getDescription() const override;
 
 private:
     
@@ -81,9 +80,9 @@ private:
     {
     }
 
-    size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
@@ -111,5 +110,3 @@ private:
     // Puts the thread to rest until the target time has been reached
     void waitUntil(u64 deadline);
 };
-
-#endif

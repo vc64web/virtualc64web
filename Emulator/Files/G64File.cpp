@@ -9,80 +9,41 @@
 
 #include "G64File.h"
 
-const u8 /* "GCR-1541" */
-G64File::magicBytes[] = { 0x47, 0x43, 0x52, 0x2D, 0x31, 0x35, 0x34, 0x31 };
-
 bool
-G64File::isG64Buffer(const u8 *buffer, size_t length)
+G64File::isCompatibleName(const std::string &name)
 {
-    if (length < 0x02AC) return false;
-    return matchingBufferHeader(buffer, magicBytes, sizeof(magicBytes));
+    auto s = suffix(name);
+    return s == "g64" || s == "G64";
 }
 
 bool
-G64File::isG64File(const char *filename)
+G64File::isCompatibleStream(std::istream &stream)
 {
-    assert(filename != NULL);
-    
-    if (!checkFileSuffix(filename, ".G64") && !checkFileSuffix(filename, ".g64"))
-        return false;
-    
-    if (!checkFileSize(filename, 0x02AC, -1))
-        return false;
-    
-    if (!matchingFileHeader(filename, magicBytes, sizeof(magicBytes)))
-        return false;
-    
-    return true;
+    // const u8 magicBytes[] = { 0x47, 0x43, 0x52, 0x2D, 0x31, 0x35, 0x34, 0x31 };
+    const u8 magicBytes[] = { 'G', 'C', 'R', '-', '1', '5', '4', '1' };
+
+    if (streamLength(stream) < 0x2AC) return false;
+    return matchingStreamHeader(stream, magicBytes, sizeof(magicBytes));
 }
 
-G64File::G64File(size_t capacity)
+G64File::G64File(usize capacity)
 {
     assert(capacity > 0);
-    assert(data == NULL);
     
-    size = capacity; 
     data = new u8[capacity];
+    size = capacity;
 }
 
 G64File *
-G64File::makeWithBuffer(const u8 *buffer, size_t length)
+G64File::makeWithDisk(Disk &disk)
 {
-    G64File *archive = new G64File();
-    
-    if (!archive->readFromBuffer(buffer, length)) {
-        delete archive;
-        return NULL;
-    }
-    
-    return archive;
-}
-
-G64File *
-G64File::makeWithFile(const char *filename)
-{
-    G64File *archive = new G64File();
-    
-    if (!archive->readFromFile(filename)) {
-        delete archive;
-        return NULL;
-    }
-    
-    return archive;
-}
-
-G64File *
-G64File::makeWithDisk(Disk *disk)
-{
-    assert(disk != NULL);
-    
-    // Determine empty (half)tracks
+    // Determine empty halftracks
     bool empty[85];
     for (Halftrack ht = 1; ht <= 84; ht++) {
-        empty[ht] = disk->halftrackIsEmpty(ht);
+        empty[ht] = disk.halftrackIsEmpty(ht);
     }
     
-    // Determine file offsets for all (half)tracks
+    // Determine file offsets for all halftracks
     u32 offset[85];
     unsigned pos = 0x015C;
     for (Halftrack ht = 1; ht <= 84; ht++) {
@@ -95,13 +56,13 @@ G64File::makeWithDisk(Disk *disk)
     }
     
     // Allocate memory
-    size_t length = pos + 84 * 4; /* speed zones entries */
+    usize length = pos + 84 * 4; // Speed zones entries
     u8 *buffer = new u8[length];
     
     // Write header, number of tracks, and track length
     pos = 0;
-    memcpy(buffer, G64File::magicBytes, 9);
-    buffer[9]  = 84; // 0x54 (Number of tracks)
+    strcpy((char *)buffer, "GCR-1541");
+    buffer[9]  = 84;                       // 0x54 (Number of tracks)
     buffer[10] = LO_BYTE(maxBytesOnTrack); // 0xF8
     buffer[11] = HI_BYTE(maxBytesOnTrack); // 0x1E
 
@@ -119,10 +80,10 @@ G64File::makeWithDisk(Disk *disk)
         
         if (!empty[ht]) {
 
-            u16 numDataBytes = disk->lengthOfHalftrack(ht) / 8;
+            u16 numDataBytes = disk.lengthOfHalftrack(ht) / 8;
             u16 numFillBytes = maxBytesOnTrack - numDataBytes;
 
-            if (disk->lengthOfHalftrack(ht) % 8 != 0) {
+            if (disk.lengthOfHalftrack(ht) % 8 != 0) {
                 printf("WARNING: Size of halftrack %d is not a multiple of 8\n", ht);
             }
             assert(pos == offset[ht]);
@@ -130,7 +91,7 @@ G64File::makeWithDisk(Disk *disk)
             buffer[pos++] = HI_BYTE(numDataBytes);
             
             for (unsigned i = 0; i < numDataBytes; i++) {
-                buffer[pos++] = disk->data.halftrack[ht][i];
+                buffer[pos++] = disk.data.halftrack[ht][i];
             }
             for (unsigned i = 0; i < numFillBytes; i++) {
                 buffer[pos++] = 0xFF;
@@ -147,45 +108,49 @@ G64File::makeWithDisk(Disk *disk)
     }
     assert(pos == length);
     
-    return G64File::makeWithBuffer(buffer, length);
+    std::stringstream stream;
+    stream.write((char *)buffer, length);
+    stream.seekg(0, std::ios::beg);
+    
+    return make <G64File> (stream);
 }
 
-void
-G64File::selectHalftrack(Halftrack ht)
+G64File *
+G64File::makeWithDisk(class Disk &disk, ErrorCode *err)
+{
+    *err = ERROR_OK;
+    
+    try { return makeWithDisk(disk); }
+    catch (VC64Error &exception) { *err = exception.errorCode; }
+    return nullptr;
+}
+
+usize
+G64File::getSizeOfHalftrack(Halftrack ht) const
 {
     assert(isHalftrackNumber(ht));
     
-    selectedHalftrack = ht;
-    tFp = getStartOfHalftrack(ht) + 2 /* length info */;
-    tEof = tFp + getSizeOfHalftrack();
-}
-
-void
-G64File::seekHalftrack(long offset)
-{
-    assert(isHalftrackNumber(selectedHalftrack));
-    
-    tFp = getStartOfHalftrack(selectedHalftrack) + 2 + offset;
-    
-    if (tFp >= (long)size)
-        tFp = -1;
-}
-
-size_t
-G64File::getSizeOfHalftrack()
-{
-    assert(isHalftrackNumber(selectedHalftrack));
-    
-    long offset = getStartOfHalftrack(selectedHalftrack);
+    usize offset = getStartOfHalftrack(ht);
     return offset ? LO_HI(data[offset], data[offset+1]) : 0;
 }
 
-long
-G64File::getStartOfHalftrack(Halftrack ht)
+void
+G64File::copyHalftrack(Halftrack ht, u8 *buf) const
+{
+    assert(buf);
+
+    usize start = getStartOfHalftrack(ht) + 2;
+    usize len = getSizeOfHalftrack(ht);
+    
+    memcpy(buf, data + start, len);
+}
+
+usize
+G64File::getStartOfHalftrack(Halftrack ht) const
 {
     assert(isHalftrackNumber(ht));
     
-    int offset = 0x008 + (4 * ht);
+    usize offset = 0x008 + (4 * ht);
     return LO_LO_HI_HI(data[offset], data[offset+1], data[offset+2], data[offset+3]);
 }
 

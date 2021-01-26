@@ -25,7 +25,7 @@ CartridgeRom::CartridgeRom(C64 &ref, u16 size, u16 loadAddress, const u8 *buffer
 
 CartridgeRom::~CartridgeRom()
 {
-    assert(rom != NULL);
+    assert(rom);
     delete[] rom;
 }
 
@@ -35,7 +35,7 @@ CartridgeRom::_reset()
     RESET_SNAPSHOT_ITEMS
 }
 
-size_t
+usize
 CartridgeRom::_size()
 {
     SerCounter counter;
@@ -45,7 +45,7 @@ CartridgeRom::_size()
     return size + counter.count;
 }
 
-size_t
+usize
 CartridgeRom::_load(u8 *buffer)
 {
     SerReader reader(buffer);
@@ -63,7 +63,7 @@ CartridgeRom::_load(u8 *buffer)
     return reader.ptr - buffer;
 }
 
-size_t
+usize
 CartridgeRom::_save(u8 *buffer)
 {
     SerWriter writer(buffer);
@@ -78,25 +78,32 @@ CartridgeRom::_save(u8 *buffer)
 }
 
 bool
-CartridgeRom::mapsToL() {
-    assert(rom != NULL);
+CartridgeRom::mapsToL() const {
+    assert(rom);
     return loadAddress == 0x8000 && size <= 0x2000;
 }
 
 bool
-CartridgeRom::mapsToLH() {
-    assert(rom != NULL);
+CartridgeRom::mapsToLH() const {
+    assert(rom);
     return loadAddress == 0x8000 && size > 0x2000;
 }
 
 bool
-CartridgeRom::mapsToH() {
-    assert(rom != NULL);
+CartridgeRom::mapsToH() const {
+    assert(rom);
     return loadAddress == 0xA000 || loadAddress == 0xE000;
 }
 
 u8
 CartridgeRom::peek(u16 addr)
+{
+    assert(addr < size);
+    return rom[addr];
+}
+
+u8
+CartridgeRom::spypeek(u16 addr) const
 {
     assert(addr < size);
     return rom[addr];

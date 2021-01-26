@@ -8,281 +8,161 @@
 // -----------------------------------------------------------------------------
 
 #include "AnyFile.h"
-#include "FSObjects.h"
+#include "Snapshot.h"
+#include "RomFile.h"
+#include "TAPFile.h"
+#include "CRTFile.h"
+#include "T64File.h"
+#include "PRGFile.h"
+#include "P00File.h"
+#include "D64File.h"
+#include "G64File.h"
 
-AnyFile::AnyFile()
+AnyFile::AnyFile(usize capacity)
 {
-    const char *defaultName = "HELLO VIRTUALC64";
-    memcpy(name, defaultName, strlen(defaultName) + 1);
-    
-    memset(name, 0, sizeof(name));
-    memset(unicode, 0, sizeof(unicode));
+    data = new u8[capacity]();
+    size = capacity;
 }
 
 AnyFile::~AnyFile()
 {
-    dealloc();
-
-    if (path)
-		free(path);
+    if (data) delete[] data;
 }
 
-void
-AnyFile::dealloc()
+PETName<16>
+AnyFile::getName() const
 {
-    if (data == NULL) {
-        assert(size == 0);
-        return;
-    }
+    auto idx = path.rfind('/');
+    usize start = idx != std::string::npos ? idx + 1 : 0;
     
-    delete[] data;
-    data = NULL;
-    size = 0;
-    fp = -1;
-    eof = -1;
-}
-
-/*
-bool
-AnyC64File::checkBufferHeader(const u8 *buffer, size_t length, const u8 *header)
-{
-    assert(buffer != NULL);
-    assert(header != NULL);
+    idx = path.rfind('.');
+    usize len = idx != std::string::npos ? idx - start : std::string::npos;
     
-    unsigned i;
-    
-    for (i = 0; i < length && header[i] != 0; i++) {
-        if (header[i] != buffer[i])
-            return false;
-    }
- 
-    return header[i] == 0;
-}
-*/
-
-void
-AnyFile::setPath(const char *str)
-{
-    assert(str != NULL);
-    
-    // Set path
-    if (path) free(path);
-    path = strdup(str);
-    
-    // Set default name (path without suffix)
-    memset(name, 0, sizeof(name));
-    char *filename = extractFilenameWithoutSuffix(path);
-    strncpy(name, filename, sizeof(name) - 1);
-    free(filename);
-    ascii2petStr(name);
-}
-
-FSName
-AnyFile::getFSName()
-{
-    return FSName(getName());
-}
-
-const unsigned short *
-AnyFile::getUnicodeName()
-{
-    translateToUnicode(getName(), unicode, 0xE000, sizeof(unicode) / 2);
-    return unicode;
+    return PETName<16>(path.substr(start, len));
 }
 
 u64
-AnyFile::fnv()
+AnyFile::fnv() const
 {
     return data ? fnv_1a_64(data, size) : 0;    
 }
 
 void
-AnyFile::seek(long offset)
+AnyFile::flash(u8 *buffer, usize offset)
 {
-    fp = (offset < (long)size) ? offset : -1;
+    assert(buffer);
+    memcpy(buffer + offset, data, size);
 }
 
-int
-AnyFile::read()
+usize
+AnyFile::readFromStream(std::istream &stream)
 {
-    int result;
-    
-    assert(eof <= (long)size);
-    
-    if (fp < 0)
-        return -1;
-    
-    // Get byte
-    result = data[fp++];
-    
-    // Check for end of file
-    if (fp == eof)
-        fp = -1;
+    // Get stream size
+    auto fsize = stream.tellg();
+    stream.seekg(0, std::ios::end);
+    fsize = stream.tellg() - fsize;
+    stream.seekg(0, std::ios::beg);
 
-    return result;
-}
+    // Allocate memory
+    assert(data == nullptr);
+    data = new u8[fsize]();
+    size = fsize;
 
-const char *
-AnyFile::readHex(size_t num)
-{
-    assert(sizeof(name) > 3 * num);
+    // Fix known inconsistencies
+    stream.read((char *)data, size);
     
-    for (unsigned i = 0; i < num; i++) {
-        
-        int byte = read();
-        if (byte == EOF) break;
-        sprintf(name + (3 * i), "%02X ", byte);
-    }
+    // Repair the file (if applicable)
+    repair();
     
-    return name;
-}
-
-void
-AnyFile::flash(u8 *buffer, size_t offset)
-{
-    int byte;
-    assert(buffer != NULL);
-    
-    seek(0);
-
-    while ((byte = read()) != EOF) {
-        if (offset <= 0xFFFF) {
-            buffer[offset++] = (u8)byte;
-        } else {
-            break;
-        }
-    }
-}
-
-bool
-AnyFile::readFromBuffer(const u8 *buffer, size_t length)
-{
-    assert (buffer != NULL);
-    
-    dealloc();
-    if ((data = new u8[length]) == NULL)
-        return false;
-    
-    memcpy(data, buffer, length);
-    size = length;
-    eof = length;
-    fp = 0;
-    return true;
-}
-
-bool
-AnyFile::readFromFile(const char *filename)
-{
-    assert (filename != NULL);
-    
-    bool success = false;
-	u8 *buffer = NULL;
-	FILE *file = NULL;
-	struct stat fileProperties;
-	
-	// Check file type
-    if (!hasSameType(filename)) {
-		goto exit;
-	}
-	
-	// Get file properties
-    if (stat(filename, &fileProperties) != 0) {
-		goto exit;
-	}
-		
-	// Open file
-	if (!(file = fopen(filename, "r"))) {
-		goto exit;
-	}
-
-	// Allocate memory
-	if (!(buffer = new u8[fileProperties.st_size])) {
-		goto exit;
-	}
-	
-	// Read from file
-	int c;
-	for (unsigned i = 0; i < fileProperties.st_size; i++) {
-		c = fgetc(file);
-		if (c == EOF)
-			break;
-		buffer[i] = (u8)c;
-	}
-	
-	// Read from buffer (subclass specific behaviour)
-	dealloc();
-	if (!readFromBuffer(buffer, (unsigned)fileProperties.st_size)) {
-		goto exit;
-	}
-
-    setPath(filename);
-    success = true;
-    
-    trace(FILE_DEBUG, "File %s read successfully\n", path);
-	
-exit:
-	
-    if (file)
-		fclose(file);
-	if (buffer)
-		delete[] buffer;
-
-	return success;
-}
-
-size_t
-AnyFile::writeToBuffer(u8 *buffer)
-{
-    assert(data != NULL);
-    
-    if (buffer) {
-        memcpy(buffer, data, size);
-    }
     return size;
 }
 
-bool 
-AnyFile::writeToFile(const char *filename)
+usize
+AnyFile::readFromFile(const char *path)
 {
-	bool success = false;
-	u8 *data = NULL;
-	FILE *file;
-	size_t filesize;
-   
-    // Determine file size
-    filesize = writeToBuffer(NULL);
-    if (filesize == 0)
-        return false;
+    assert(path);
+        
+    std::ifstream stream(path);
+
+    if (!stream.is_open()) {
+        throw VC64Error(ERROR_FILE_CANT_READ);
+    }
     
-	// Open file
-    assert (filename != NULL);
-	if (!(file = fopen(filename, "w"))) {
-		goto exit;
-	}
-		
-	// Allocate memory
-    if (!(data = new u8[filesize])) {
-		goto exit;
-	}
-	
-	// Write to buffer 
-	if (!writeToBuffer(data)) {
-		goto exit;
-	}
+    usize result = readFromStream(stream);
+    assert(result == size);
+    
+    this->path = string(path);
+    return size;
+}
 
-	// Write to file
-	for (unsigned i = 0; i < filesize; i++) {
-		fputc(data[i], file);
-	}	
-	
-	success = true;
+usize
+AnyFile::readFromBuffer(const u8 *buf, usize len)
+{
+    assert(buf);
 
-exit:
-		
-	if (file)
-        fclose(file);
-	if (data)
-        delete[] data;
-		
-	return success;
+    std::istringstream stream(std::string((const char *)buf, len));
+    
+    usize result = readFromStream(stream);
+    assert(result == size);
+    return size;
+}
+
+usize
+AnyFile::writeToStream(std::ostream &stream)
+{
+    stream.write((char *)data, size);
+    return size;
+}
+
+usize
+AnyFile::writeToStream(std::ostream &stream, ErrorCode *err)
+{
+    *err = ERROR_OK;
+    try { return writeToStream(stream); }
+    catch (VC64Error &exception) { *err = exception.errorCode; }
+    return 0;
+}
+
+usize
+AnyFile::writeToFile(const char *path)
+{
+    assert(path);
+        
+    std::ofstream stream(path);
+
+    if (!stream.is_open()) {
+        throw VC64Error(ERROR_FILE_CANT_WRITE);
+    }
+    
+    usize result = writeToStream(stream);
+    assert(result == size);
+    
+    return size;
+}
+
+usize
+AnyFile::writeToFile(const char *path, ErrorCode *err)
+{
+    *err = ERROR_OK;
+    try { return writeToFile(path); }
+    catch (VC64Error &exception) { *err = exception.errorCode; }
+    return 0;
+}
+
+usize
+AnyFile::writeToBuffer(u8 *buf)
+{
+    assert(buf);
+
+    memcpy(buf, data, size);
+    return size;
+}
+
+usize
+AnyFile::writeToBuffer(u8 *buf, ErrorCode *err)
+{
+    *err = ERROR_OK;
+    try { return writeToBuffer(buf); }
+    catch (VC64Error &exception) { *err = exception.errorCode; }
+    return 0;
 }

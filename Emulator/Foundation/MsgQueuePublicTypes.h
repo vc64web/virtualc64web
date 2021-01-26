@@ -6,15 +6,18 @@
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
+// THIS FILE MUST CONFORM TO ANSI-C TO BE COMPATIBLE WITH SWIFT
+// -----------------------------------------------------------------------------
 
-// This file must conform to standard ANSI-C to be compatible with Swift.
+#pragma once
 
-#ifndef _MESSAGE_QUEUE_T_H
-#define _MESSAGE_QUEUE_T_H
-
-enum_long(MessageType)
+enum_long(MSG)
 {
     MSG_NONE = 0,
+    
+    // Message queue
+    MSG_REGISTER,
+    MSG_UNREGISTER,
     
     // Emulator state
     MSG_CONFIG,
@@ -76,28 +79,31 @@ enum_long(MessageType)
     MSG_VC1530_PROGRESS,
 
     // Peripherals (Expansion port)
-    MSG_CARTRIDGE,
-    MSG_NO_CARTRIDGE,
+    MSG_CRT_UNSUPPORTED,
+    MSG_CRT_ATTACHED,
+    MSG_CRT_DETACHED,
     MSG_CART_SWITCH,
 
     // Peripherals (Keyboard)
     MSG_KB_AUTO_RELEASE,
     
     // Snapshots
+    MSG_SNAPSHOT_TOO_OLD,
+    MSG_SNAPSHOT_TOO_NEW,
     MSG_AUTO_SNAPSHOT_TAKEN,
     MSG_USER_SNAPSHOT_TAKEN,
     MSG_SNAPSHOT_RESTORED,
-    MSG_READY_TO_RUN
+    
+    MSG_COUNT
 };
+typedef MSG MsgType;
 
 typedef struct
 {
-    MessageType type;
+    MsgType type;
     long data;
 }
 Message;
 
 // Callback function signature
 typedef void Callback(const void *, long, long);
-
-#endif 

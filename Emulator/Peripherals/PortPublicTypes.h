@@ -7,41 +7,24 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _PORT_TYPES_H
-#define _PORT_TYPES_H
+#pragma once
 
 //
 // Enumerations
 //
 
-typedef enum : long
+enum_long(CPDEVICE)
 {
-    CPD_NONE,
-    CPD_MOUSE,
-    CPD_JOYSTICK
-}
-ControlPortDevice;
+    CPDEVICE_NONE,
+    CPDEVICE_MOUSE,
+    CPDEVICE_JOYSTICK,
+    CPDEVICE_COUNT
+};
+typedef CPDEVICE ControlPortDevice;
 
-inline bool isControlPortDevice(long value) {
-    return value >= 0 && value <= CPD_JOYSTICK;
-}
-
-// DEPRECATED
-/*
-typedef enum {
-    
-    JOYSTICK_UP,
-    JOYSTICK_DOWN,
-    JOYSTICK_LEFT,
-    JOYSTICK_RIGHT,
-    JOYSTICK_FIRE
-    
-} JoystickDirection;
-*/
-
-enum_long(GamePadAction)
+enum_long(GAME_PAD_ACTION)
 {
-    PULL_UP = 0,   // Pull the joystick up
+    PULL_UP,       // Pull the joystick up
     PULL_DOWN,     // Pull the joystick down
     PULL_LEFT,     // Pull the joystick left
     PULL_RIGHT,    // Pull the joystick right
@@ -55,18 +38,14 @@ enum_long(GamePadAction)
     RELEASE_LEFT,  // Release the left mouse button
     RELEASE_RIGHT  // Release the right mouse button
 };
+typedef GAME_PAD_ACTION GamePadAction;
 
-inline bool isGamePadAction(long value) {
-    return value >= 0 && value <= RELEASE_RIGHT;
-}
-
-enum_long(CartridgeMode)
+enum_long(CRTMODE)
 {
-    CRT_16K,
-    CRT_8K,
-    CRT_ULTIMAX,
-    CRT_OFF
-    
+    CRTMODE_16K,
+    CRTMODE_8K,
+    CRTMODE_ULTIMAX,
+    CRTMODE_OFF,
+    CRTMODE_COUNT
 };
-
-#endif
+typedef CRTMODE CRTMode;

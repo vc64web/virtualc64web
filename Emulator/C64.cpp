@@ -97,7 +97,6 @@ C64::C64()
         &drive8,
         &drive9,
         &datasette,
-        &mouse,
         &oscillator
     };
     
@@ -122,7 +121,7 @@ C64::~C64()
 }
 
 void
-C64::prefix()
+C64::prefix() const
 {
     fprintf(stderr, "[%lld] (%3d,%3d) %04X ", frame, rasterLine, rasterCycle, cpu.getPC0());
 }
@@ -159,21 +158,29 @@ C64::_reset()
     rasterCycle = 1;
 }
 
+InspectionTarget
+C64::getInspectionTarget() const
+{
+    return inspectionTarget;
+}
+
 void
 C64::setInspectionTarget(InspectionTarget target)
 {
-    assert(isInspectionTarget(target));
+    assert_enum(InspectionTarget, target);
     inspectionTarget = target;
 }
 
+/*
 void
 C64::clearInspectionTarget()
 {
-    inspectionTarget = INSPECT_NONE;
+    inspectionTarget = INSPECTION_TARGET_NONE;
 }
+*/
 
 C64Configuration
-C64::getConfig()
+C64::getConfig() const
 {
     C64Configuration config;
     
@@ -191,7 +198,7 @@ C64::getConfig()
 }
 
 long
-C64::getConfigItem(ConfigOption option)
+C64::getConfigItem(Option option) const
 {
     switch (option) {
             
@@ -245,7 +252,7 @@ C64::getConfigItem(ConfigOption option)
 }
 
 long
-C64::getConfigItem(ConfigOption option, long id)
+C64::getConfigItem(Option option, long id) const
 {
     switch (option) {
             
@@ -262,7 +269,7 @@ C64::getConfigItem(ConfigOption option, long id)
         case OPT_DRIVE_POWER_SWITCH:
         {
             assert(isDriveID(id));
-            Drive &drive = id == DRIVE8 ? drive8 : drive9;
+            const Drive &drive = id == DRIVE8 ? drive8 : drive9;
             return drive.getConfigItem(option);
         }
         default:
@@ -272,9 +279,9 @@ C64::getConfigItem(ConfigOption option, long id)
 }
 
 bool
-C64::configure(ConfigOption option, long value)
+C64::configure(Option option, long value)
 {
-    trace(CNF_DEBUG, "configure(option: %ld, value: %ld\n", option, value);
+    trace(CNF_DEBUG, "configure(option: %lld, value: %ld\n", option, value);
 
     // Propagate configuration request to all components
     bool changed = HardwareComponent::configure(option, value);
@@ -289,9 +296,9 @@ C64::configure(ConfigOption option, long value)
 }
 
 bool
-C64::configure(ConfigOption option, long id, long value)
+C64::configure(Option option, long id, long value)
 {
-    trace(CNF_DEBUG, "configure(option: %ld, id: %ld, value: %ld\n", option, id, value);
+    trace(CNF_DEBUG, "configure(option: %lld, id: %ld, value: %ld\n", option, id, value);
     
     // Propagate configuration request to all components
     bool changed = HardwareComponent::configure(option, id, value);
@@ -308,7 +315,7 @@ C64::configure(ConfigOption option, long id, long value)
 void
 C64::configure(C64Model model)
 {
-    if (model != C64_CUSTOM) {
+    if (model != C64_MODEL_CUSTOM) {
         
         suspend();
         configure(OPT_VIC_REVISION, configurations[model].vic);
@@ -324,7 +331,7 @@ C64::configure(C64Model model)
 }
 
 bool
-C64::setConfigItem(ConfigOption option, long value)
+C64::setConfigItem(Option option, long value)
 {
     switch (option) {
             
@@ -347,7 +354,7 @@ C64::setConfigItem(ConfigOption option, long value)
 }
 
 C64Model
-C64::getModel()
+C64::getModel() const
 {
     VICRevision vicref = (VICRevision)vic.getConfigItem(OPT_VIC_REVISION);
     bool grayDotBug    = vic.getConfigItem(OPT_GRAY_DOT_BUG);
@@ -371,7 +378,7 @@ C64::getModel()
         if (pattern    != configurations[i].pattern) continue;
         return (C64Model)i;
     }
-    return C64_CUSTOM;
+    return C64_MODEL_CUSTOM;
 }
 
 void
@@ -410,9 +417,9 @@ C64::updateVicFunctionTable()
     // Assign model specific execution functions
     switch (vic.getRevision()) {
             
-        case PAL_6569_R1:
-        case PAL_6569_R3:
-        case PAL_8565:
+        case VICREV_PAL_6569_R1:
+        case VICREV_PAL_6569_R3:
+        case VICREV_PAL_8565:
             
             if (dmaDebug) {
                 vicfunc[1] = &VICII::cycle1<PAL_DEBUG_CYCLE>;
@@ -459,7 +466,7 @@ C64::updateVicFunctionTable()
             vicfunc[65] = nullptr;
             break;
             
-        case NTSC_6567_R56A:
+        case VICREV_NTSC_6567_R56A:
             
             if (dmaDebug) {
                 vicfunc[1] = &VICII::cycle1<PAL_DEBUG_CYCLE>;
@@ -507,8 +514,8 @@ C64::updateVicFunctionTable()
             vicfunc[65] = nullptr;
             break;
             
-        case NTSC_6567:
-        case NTSC_8562:
+        case VICREV_NTSC_6567:
+        case VICREV_NTSC_8562:
             
             if (dmaDebug) {
                 vicfunc[1] = &VICII::cycle1<NTSC_DEBUG_CYCLE>;
@@ -571,6 +578,14 @@ C64::setWarp(bool enable)
 }
 
 void
+C64::setDebug(bool enable)
+{
+    suspend();
+    HardwareComponent::setDebug(enable);
+    resume();
+}
+
+void
 C64::powerOn()
 {
     trace(RUN_DEBUG, "powerOn()\n");
@@ -593,8 +608,7 @@ void
 C64::_powerOn()
 {
     trace(RUN_DEBUG, "_powerOn()\n");
-    
-    
+        
     putMessage(MSG_POWER_ON);
 }
 
@@ -706,11 +720,11 @@ C64::inspect()
 {
     switch(inspectionTarget) {
             
-        case INSPECT_CPU: cpu.inspect(); break;
-        case INSPECT_MEM: mem.inspect(); break;
-        case INSPECT_CIA: cia1.inspect(); cia2.inspect(); break;
-        case INSPECT_VIC: vic.inspect(); break;
-        case INSPECT_SID: sid.inspect(); break;
+        case INSPECTION_TARGET_CPU: cpu.inspect(); break;
+        case INSPECTION_TARGET_MEM: mem.inspect(); break;
+        case INSPECTION_TARGET_CIA: cia1.inspect(); cia2.inspect(); break;
+        case INSPECTION_TARGET_VIC: vic.inspect(); break;
+        case INSPECTION_TARGET_SID: sid.inspect(); break;
         default: break;
     }
 }
@@ -731,7 +745,7 @@ C64::_pause()
 }
 
 void
-C64::_dump()
+C64::_dump() const
 {
     msg("C64:\n");
     msg("----\n\n");
@@ -764,7 +778,7 @@ C64::_setWarp(bool enable)
 }
 
 void
-C64::_settrace(bool enable)
+C64::_setDebug(bool enable)
 {
     suspend();
     updateVicFunctionTable();
@@ -817,7 +831,7 @@ void
 C64::acquireThreadLock()
 {
     // Free the lock
-    if (state == STATE_RUNNING) {
+    if (state == EMULATOR_STATE_RUNNING) {
         
         // Assure the emulator thread exists
         assert(p != (pthread_t)0);
@@ -839,20 +853,29 @@ C64::acquireThreadLock()
 }
 
 bool
-C64::isReady(ErrorCode *error)
+C64::isReady(ErrorCode *err) const
 {
-    if (!hasRom(ROM_BASIC) || !hasRom(ROM_CHAR) || !hasRom(ROM_KERNAL)) {
-        if (error) *error = ERR_ROM_MISSING;
+    bool mega = hasMega65Rom(ROM_TYPE_BASIC) && hasMega65Rom(ROM_TYPE_KERNAL);
+    
+    if (!hasRom(ROM_TYPE_BASIC)) {
+        if (err) *err = ERROR_ROM_BASIC_MISSING;
+        return false;
+    }
+    if (!hasRom(ROM_TYPE_CHAR)) {
+        if (err) *err = ERROR_ROM_CHAR_MISSING;
+        return false;
+    }
+    if (!hasRom(ROM_TYPE_KERNAL) || FORCE_ROM_MISSING) {
+        if (err) *err = ERROR_ROM_KERNAL_MISSING;
+        return false;
+    }
+    if (FORCE_MEGA64_MISMATCH ||
+        (mega && strcmp(mega65BasicRev(), mega65KernalRev()) != 0)) {
+        if (err) *err = ERROR_ROM_MEGA65_MISMATCH;
         return false;
     }
     
-    if (hasMega65Rom(ROM_BASIC) && hasMega65Rom(ROM_KERNAL)) {
-        if (strcmp(mega65BasicRev(), mega65KernalRev()) != 0) {
-            if (error) *error = ERR_ROM_MEGA65_MISMATCH;
-            return false;
-        }
-    }
-    
+    if (err) *err = ERROR_OK;
     return true;
 }
 
@@ -900,54 +923,54 @@ C64::runLoop()
         if (runLoopCtrl) {
             
             // Are we requested to take a snapshot?
-            if (runLoopCtrl & RL_AUTO_SNAPSHOT) {
+            if (runLoopCtrl & ACTION_FLAG_AUTO_SNAPSHOT) {
                 trace(RUN_DEBUG, "RL_AUTO_SNAPSHOT\n");
                 autoSnapshot = Snapshot::makeWithC64(this);
                 putMessage(MSG_AUTO_SNAPSHOT_TAKEN);
-                clearControlFlags(RL_AUTO_SNAPSHOT);
+                clearActionFlags(ACTION_FLAG_AUTO_SNAPSHOT);
             }
-            if (runLoopCtrl & RL_USER_SNAPSHOT) {
+            if (runLoopCtrl & ACTION_FLAG_USER_SNAPSHOT) {
                 trace(RUN_DEBUG, "RL_USER_SNAPSHOT\n");
                 userSnapshot = Snapshot::makeWithC64(this);
                 putMessage(MSG_USER_SNAPSHOT_TAKEN);
-                clearControlFlags(RL_USER_SNAPSHOT);
+                clearActionFlags(ACTION_FLAG_USER_SNAPSHOT);
             }
             
             // Are we requested to update the debugger info structs?
-            if (runLoopCtrl & RL_INSPECT) {
+            if (runLoopCtrl & ACTION_FLAG_INSPECT) {
                 trace(RUN_DEBUG, "RL_INSPECT\n");
                 inspect();
-                clearControlFlags(RL_INSPECT);
+                clearActionFlags(ACTION_FLAG_INSPECT);
             }
             
             // Did we reach a breakpoint?
-            if (runLoopCtrl & RL_BREAKPOINT_REACHED) {
+            if (runLoopCtrl & ACTION_FLAG_BREAKPOINT) {
                 putMessage(MSG_BREAKPOINT_REACHED);
                 trace(RUN_DEBUG, "BREAKPOINT_REACHED pc: %x\n", cpu.getPC0());
-                clearControlFlags(RL_BREAKPOINT_REACHED);
+                clearActionFlags(ACTION_FLAG_BREAKPOINT);
                 break;
             }
             
             // Did we reach a watchpoint?
-            if (runLoopCtrl & RL_WATCHPOINT_REACHED) {
+            if (runLoopCtrl & ACTION_FLAG_WATCHPOINT) {
                 putMessage(MSG_WATCHPOINT_REACHED);
                 trace(RUN_DEBUG, "WATCHPOINT_REACHED pc: %x\n", cpu.getPC0());
-                clearControlFlags(RL_WATCHPOINT_REACHED);
+                clearActionFlags(ACTION_FLAG_WATCHPOINT);
                 break;
             }
             
             // Are we requested to terminate the run loop?
-            if (runLoopCtrl & RL_STOP) {
-                clearControlFlags(RL_STOP);
+            if (runLoopCtrl & ACTION_FLAG_STOP) {
+                clearActionFlags(ACTION_FLAG_STOP);
                 trace(RUN_DEBUG, "RL_STOP\n");
                 break;
             }
             
             // Is the CPU jammed due the execution of an illegal instruction?
-            if (runLoopCtrl & RL_CPU_JAMMED) {
+            if (runLoopCtrl & ACTION_FLAG_CPU_JAMMED) {
                 putMessage(MSG_CPU_JAMMED);
                 trace(RUN_DEBUG, "RL_CPU_JAMMED\n");
-                clearControlFlags(RL_CPU_JAMMED);
+                clearActionFlags(ACTION_FLAG_CPU_JAMMED);
                 break;
             }
             
@@ -1099,6 +1122,11 @@ void
 C64::endFrame()
 {
     frame++;
+    
+    /*
+    if ((frame % 50) == 0) printf("Ping %p\n", this);
+    */
+    
     vic.endFrame();
     
     // Increment time of day clocks every tenth of a second
@@ -1116,9 +1144,6 @@ C64::endFrame()
     keyboard.vsyncHandler();
     drive8.vsyncHandler();
     drive9.vsyncHandler();
-
-    // Update mouse coordinates
-    mouse.execute();
     
     // Check if the run loop is requested to stop
     if (stopFlag) { stopFlag = false; signalStop(); }
@@ -1138,65 +1163,16 @@ C64::endFrame()
 }
 
 void
-C64::setControlFlags(u32 flags)
+C64::setActionFlags(u32 flags)
 {
     synchronized { runLoopCtrl |= flags; }
 }
 
 void
-C64::clearControlFlags(u32 flags)
+C64::clearActionFlags(u32 flags)
 {
     synchronized { runLoopCtrl &= ~flags; }
 }
-
-/*
-void
-C64::restartTimer()
-{
-    u64 kernelNow = mach_absolute_time();
-    u64 nanoNow = abs_to_nanos(kernelNow);
-    
-    nanoTargetTime = nanoNow + vic.getFrameDelay();
-}
-*/
-
-/*
-void
-C64::synchronizeTiming()
-{
-    const u64 earlyWakeup = 1500000;
-    
-    // Get current time in nano seconds
-    u64 nanoAbsTime = abs_to_nanos(mach_absolute_time());
-    
-    // Check how long we're supposed to sleep
-    i64 timediff = (i64)nanoTargetTime - (i64)nanoAbsTime;
-    if (timediff > 200000000 || timediff < -200000000) {
-        
-        // The emulator seems to be out of sync, so we better reset the
-        // synchronization timer
-        
-        debug(RUN_DEBUG, "Synchronization lost: (%lld)\n", timediff);
-        restartTimer();
-    }
-    
-    // Convert nanoTargetTime into kernel unit
-    i64 kernelTargetTime = nanos_to_abs(nanoTargetTime);
-    
-    // Sleep and update target timer
-    i64 jitter = sleepUntil(kernelTargetTime, earlyWakeup);
-    nanoTargetTime += vic.getFrameDelay();
-    
-    if (jitter > 1000000000) {
-        
-        // The emulator did not keep up with the real time clock. Instead of
-        // running behind for a long time, we reset the synchronization timer
-        
-        debug(RUN_DEBUG, "Jitter exceeds limit: (%lld)\n", jitter);
-        restartTimer();
-    }
-}
-*/
 
 void
 C64::requestAutoSnapshot()
@@ -1246,126 +1222,110 @@ C64::latestUserSnapshot()
     return result;
 }
 
-void C64::loadFromSnapshot(Snapshot *snapshot)
-{    
-    u8 *ptr;
+bool
+C64::loadFromSnapshot(Snapshot *snapshot)
+{
+    assert(snapshot);
+    assert(snapshot->getData());
+    assert(!isRunning());
     
-    if (snapshot && (ptr = snapshot->getData())) {
-        
-        // Make sure the emulator is not running
-        assert(!isRunning());
-        
-        // Restore the saved state
-        load(ptr);
-        
-        // Clear the keyboard matrix to avoid constantly pressed keys
-        keyboard.releaseAll();
-        
-        // Inform the GUI
-        messageQueue.put(MSG_SNAPSHOT_RESTORED);
+    // Check if this snapshot is compatible with the emulator
+    if (snapshot->isTooOld() || FORCE_SNAPSHOT_TOO_OLD) {
+        messageQueue.put(MSG_SNAPSHOT_TOO_OLD);
+        return false;
     }
+    if (snapshot->isTooNew() || FORCE_SNAPSHOT_TOO_NEW) {
+        messageQueue.put(MSG_SNAPSHOT_TOO_NEW);
+        return false;
+    }
+    
+    // Restore the saved state
+    load(snapshot->getData());
+    
+    // Clear the keyboard matrix to avoid constantly pressed keys
+    keyboard.releaseAll();
+    
+    // Inform the GUI
+    messageQueue.put(MSG_SNAPSHOT_RESTORED);
+    
+    if (SNP_DEBUG) dump();
+    return true;
 }
 
 u32
-C64::romCRC32(RomType type)
+C64::romCRC32(RomType type) const
 {
     switch (type) {
             
-        case ROM_BASIC:
-            return hasRom(ROM_BASIC)  ? crc32(mem.rom + 0xA000, 0x2000) : 0;
-        case ROM_CHAR:
-            return hasRom(ROM_CHAR)   ? crc32(mem.rom + 0xD000, 0x1000) : 0;
-        case ROM_KERNAL:
-            return hasRom(ROM_KERNAL) ? crc32(mem.rom + 0xE000, 0x2000) : 0;
-        case ROM_VC1541:
-            return hasRom(ROM_VC1541) ? crc32(drive8.mem.rom, 0x4000) : 0;
+        case ROM_TYPE_BASIC:
+            return hasRom(ROM_TYPE_BASIC)  ? crc32(mem.rom + 0xA000, 0x2000) : 0;
+        case ROM_TYPE_CHAR:
+            return hasRom(ROM_TYPE_CHAR)   ? crc32(mem.rom + 0xD000, 0x1000) : 0;
+        case ROM_TYPE_KERNAL:
+            return hasRom(ROM_TYPE_KERNAL) ? crc32(mem.rom + 0xE000, 0x2000) : 0;
+        case ROM_TYPE_VC1541:
+            return hasRom(ROM_TYPE_VC1541) ? crc32(drive8.mem.rom, 0x4000) : 0;
         default:
             assert(false);
     }
 }
 
-/*
-u32
-C64::basicRomCRC32()
-{
-    return hasBasicRom() ? crc32(mem.rom + 0xA000, 0x2000) : 0;
-}
-
-u32
-C64::charRomCRC32()
-{
-    return hasCharRom() ? crc32(mem.rom + 0xD000, 0x1000) : 0;
-}
-
-u32
-C64::kernalRomCRC32()
-{
-    return hasKernalRom() ? crc32(mem.rom + 0xE000, 0x2000) : 0;
-}
-
-u32
-C64::vc1541RomCRC32()
-{
-    return hasVC1541Rom() ? crc32(drive8.mem.rom, 0x4000) : 0;
-}
-*/
-
 u64
-C64::romFNV64(RomType type)
+C64::romFNV64(RomType type) const
 {
     switch (type) {
             
-        case ROM_BASIC:
-            return hasRom(ROM_BASIC)  ? fnv_1a_64(mem.rom + 0xA000, 0x2000) : 0;
-        case ROM_CHAR:
-            return hasRom(ROM_CHAR)   ? fnv_1a_64(mem.rom + 0xD000, 0x1000) : 0;
-        case ROM_KERNAL:
-            return hasRom(ROM_KERNAL) ? fnv_1a_64(mem.rom + 0xE000, 0x2000) : 0;
-        case ROM_VC1541:
-            return hasRom(ROM_VC1541) ? fnv_1a_64(drive8.mem.rom, 0x4000) : 0;
+        case ROM_TYPE_BASIC:
+            return hasRom(ROM_TYPE_BASIC)  ? fnv_1a_64(mem.rom + 0xA000, 0x2000) : 0;
+        case ROM_TYPE_CHAR:
+            return hasRom(ROM_TYPE_CHAR)   ? fnv_1a_64(mem.rom + 0xD000, 0x1000) : 0;
+        case ROM_TYPE_KERNAL:
+            return hasRom(ROM_TYPE_KERNAL) ? fnv_1a_64(mem.rom + 0xE000, 0x2000) : 0;
+        case ROM_TYPE_VC1541:
+            return hasRom(ROM_TYPE_VC1541) ? fnv_1a_64(drive8.mem.rom, 0x4000) : 0;
         default:
             assert(false);
     }
 }
 
 RomIdentifier
-C64::romIdentifier(RomType type)
+C64::romIdentifier(RomType type) const
 {
     return RomFile::identifier(romFNV64(type));
 }
 
 const char *
-C64::romTitle(RomType type)
+C64::romTitle(RomType type) const
 {
     switch (type) {
             
-        case ROM_BASIC:
+        case ROM_TYPE_BASIC:
         {
             // Intercept if a MEGA65 Rom is installed
-            if (hasMega65Rom(ROM_BASIC)) return "M.E.G.A. C64 OpenROM";
+            if (hasMega65Rom(ROM_TYPE_BASIC)) return "M.E.G.A. C64 OpenROM";
             
-            RomIdentifier rev = romIdentifier(ROM_BASIC);
+            RomIdentifier rev = romIdentifier(ROM_TYPE_BASIC);
             return rev == ROM_UNKNOWN ? "Unknown Basic Rom" : RomFile::title(rev);
         }
-        case ROM_CHAR:
+        case ROM_TYPE_CHAR:
         {
             // Intercept if a MEGA65 Rom is installed
-            if (hasMega65Rom(ROM_CHAR)) return "M.E.G.A. C64 OpenROM";
+            if (hasMega65Rom(ROM_TYPE_CHAR)) return "M.E.G.A. C64 OpenROM";
             
-            RomIdentifier rev = romIdentifier(ROM_CHAR);
+            RomIdentifier rev = romIdentifier(ROM_TYPE_CHAR);
             return rev == ROM_UNKNOWN ? "Unknown Character Rom" : RomFile::title(rev);
         }
-        case ROM_KERNAL:
+        case ROM_TYPE_KERNAL:
         {
             // Intercept if a MEGA65 Rom is installed
-            if (hasMega65Rom(ROM_KERNAL)) return "M.E.G.A. C64 OpenROM";
+            if (hasMega65Rom(ROM_TYPE_KERNAL)) return "M.E.G.A. C64 OpenROM";
             
-            RomIdentifier rev = romIdentifier(ROM_KERNAL);
+            RomIdentifier rev = romIdentifier(ROM_TYPE_KERNAL);
             return rev == ROM_UNKNOWN ? "Unknown Kernal Rom" : RomFile::title(rev);
         }
-        case ROM_VC1541:
+        case ROM_TYPE_VC1541:
         {
-            RomIdentifier rev = romIdentifier(ROM_VC1541);
+            RomIdentifier rev = romIdentifier(ROM_TYPE_VC1541);
             return rev == ROM_UNKNOWN ? "Unknown Kernal Rom" : RomFile::title(rev);
         }
         default: assert(false);
@@ -1374,7 +1334,7 @@ C64::romTitle(RomType type)
 }
 
 const char *
-C64::romSubTitle(u64 fnv)
+C64::romSubTitle(u64 fnv) const
 {
     RomIdentifier rev = RomFile::identifier(fnv);
     
@@ -1386,34 +1346,34 @@ C64::romSubTitle(u64 fnv)
 }
 
 const char *
-C64::romSubTitle(RomType type)
+C64::romSubTitle(RomType type) const
 {
     switch (type) {
             
-        case ROM_BASIC:
+        case ROM_TYPE_BASIC:
         {
             // Intercept if a MEGA65 Rom is installed
-            if (hasMega65Rom(ROM_BASIC)) return "Free Basic Replacement";
+            if (hasMega65Rom(ROM_TYPE_BASIC)) return "Free Basic Replacement";
             
-            return romSubTitle(romFNV64(ROM_BASIC));
+            return romSubTitle(romFNV64(ROM_TYPE_BASIC));
         }
-        case ROM_CHAR:
+        case ROM_TYPE_CHAR:
         {
             // Intercept if a MEGA65 Rom is installed
-            if (hasMega65Rom(ROM_CHAR)) return "Free Charset Replacement";
+            if (hasMega65Rom(ROM_TYPE_CHAR)) return "Free Charset Replacement";
             
-            return romSubTitle(romFNV64(ROM_CHAR));
+            return romSubTitle(romFNV64(ROM_TYPE_CHAR));
         }
-        case ROM_KERNAL:
+        case ROM_TYPE_KERNAL:
         {
             // Intercept if a MEGA65 Rom is installed
-            if (hasMega65Rom(ROM_KERNAL)) return "Free Kernal Replacement";
+            if (hasMega65Rom(ROM_TYPE_KERNAL)) return "Free Kernal Replacement";
             
-            return romSubTitle(romFNV64(ROM_KERNAL));
+            return romSubTitle(romFNV64(ROM_TYPE_KERNAL));
         }
-        case ROM_VC1541:
+        case ROM_TYPE_VC1541:
         {
-            return romSubTitle(romFNV64(ROM_VC1541));
+            return romSubTitle(romFNV64(ROM_TYPE_VC1541));
         }
         default: assert(false);
     }
@@ -1421,31 +1381,31 @@ C64::romSubTitle(RomType type)
 }
 
 const char *
-C64::romRevision(RomType type)
+C64::romRevision(RomType type) const
 {
     switch (type) {
              
-         case ROM_BASIC:
+         case ROM_TYPE_BASIC:
          {
              // Intercept if a MEGA65 Rom is installed
-             if (hasMega65Rom(ROM_BASIC)) return mega65BasicRev();
+             if (hasMega65Rom(ROM_TYPE_BASIC)) return mega65BasicRev();
              
-             return RomFile::revision(romIdentifier(ROM_BASIC));
+             return RomFile::revision(romIdentifier(ROM_TYPE_BASIC));
          }
-         case ROM_CHAR:
+         case ROM_TYPE_CHAR:
          {
-             return RomFile::revision(romIdentifier(ROM_CHAR));
+             return RomFile::revision(romIdentifier(ROM_TYPE_CHAR));
          }
-         case ROM_KERNAL:
+         case ROM_TYPE_KERNAL:
          {
              // Intercept if a MEGA65 Rom is installed
-             if (hasMega65Rom(ROM_KERNAL)) return mega65KernalRev();
+             if (hasMega65Rom(ROM_TYPE_KERNAL)) return mega65KernalRev();
              
-             return RomFile::revision(romIdentifier(ROM_KERNAL));
+             return RomFile::revision(romIdentifier(ROM_TYPE_KERNAL));
          }
-         case ROM_VC1541:
+         case ROM_TYPE_VC1541:
          {
-             return RomFile::revision(romIdentifier(ROM_VC1541));
+             return RomFile::revision(romIdentifier(ROM_TYPE_VC1541));
          }
          default: assert(false);
      }
@@ -1453,23 +1413,23 @@ C64::romRevision(RomType type)
 }
 
 bool
-C64::hasRom(RomType type)
+C64::hasRom(RomType type) const
 {
     switch (type) {
             
-        case ROM_BASIC:
+        case ROM_TYPE_BASIC:
         {
             return (mem.rom[0xA000] | mem.rom[0xA001]) != 0x00;
         }
-        case ROM_CHAR:
+        case ROM_TYPE_CHAR:
         {
             return (mem.rom[0xD000] | mem.rom[0xD001]) != 0x00;
         }
-        case ROM_KERNAL:
+        case ROM_TYPE_KERNAL:
         {
             return (mem.rom[0xE000] | mem.rom[0xE001]) != 0x00;
         }
-        case ROM_VC1541:
+        case ROM_TYPE_VC1541:
         {
             assert(drive8.mem.rom[0] == drive9.mem.rom[0]);
             assert(drive8.mem.rom[1] == drive9.mem.rom[1]);
@@ -1481,23 +1441,24 @@ C64::hasRom(RomType type)
 }
 
 bool
-C64::hasMega65Rom(RomType type)
+C64::hasMega65Rom(RomType type) const
 {
     switch (type) {
             
-        case ROM_BASIC:
+        case ROM_TYPE_BASIC:
         {
             return mem.rom[0xBF52] == 'O' && mem.rom[0xBF53] == 'R';
         }
-        case ROM_CHAR:
+        case ROM_TYPE_CHAR:
         {
-            return RomFile::isMega65Rom(romIdentifier(ROM_CHAR));
+            auto id = romIdentifier(ROM_TYPE_CHAR);
+            return id == CHAR_MEGA65 || id == CHAR_PXLFONT_V23;
         }
-        case ROM_KERNAL:
+        case ROM_TYPE_KERNAL:
         {
             return mem.rom[0xE4B9] == 'O' && mem.rom[0xE4BA] == 'R';
         }
-        case ROM_VC1541:
+        case ROM_TYPE_VC1541:
         {
             return false;
         }
@@ -1507,172 +1468,68 @@ C64::hasMega65Rom(RomType type)
 }
 
 char *
-C64::mega65BasicRev()
+C64::mega65BasicRev() const
 {
     static char rev[17];
     rev[0] = 0;
     
-    if (hasMega65Rom(ROM_BASIC)) memcpy(rev, &mem.rom[0xBF55], 16);
+    if (hasMega65Rom(ROM_TYPE_BASIC)) memcpy(rev, &mem.rom[0xBF55], 16);
     rev[16] = 0;
     
     return rev;
 }
 
 char *
-C64::mega65KernalRev()
+C64::mega65KernalRev() const
 {
     static char rev[17];
     rev[0] = 0;
     
-    if (hasMega65Rom(ROM_KERNAL)) memcpy(rev, &mem.rom[0xE4BC], 16);
+    if (hasMega65Rom(ROM_TYPE_KERNAL)) memcpy(rev, &mem.rom[0xE4BC], 16);
     rev[16] = 0;
     
     return rev;
 }
 
-bool
-C64::loadRom(RomType type, RomFile *file)
+void
+C64::installRom(RomFile *file)
 {
-    assert(file != nullptr);
+    assert(file);
     
-    switch (type) {
+    switch (file->type()) {
             
-        case ROM_BASIC:
-        {
-            if (file->type() == FILETYPE_BASIC_ROM) {
-                trace(MEM_DEBUG, "Flashing Basic Rom\n");
-                file->flash(mem.rom, 0xA000);
-                
-                trace(MEM_DEBUG, "hasMega65Rom() = %d\n", hasMega65Rom(ROM_BASIC));
-                trace(MEM_DEBUG, "mega65BasicRev() = %s\n", mega65BasicRev());
-                
-                return true;
-            }
-            return false;
-        }
-        case ROM_CHAR:
-        {
-            if (file->type() == FILETYPE_CHAR_ROM) {
-                trace(MEM_DEBUG, "Flashing Character Rom\n");
-                file->flash(mem.rom, 0xD000);
-                return true;
-            }
-            return false;
-        }
-        case ROM_KERNAL:
-        {
-            if (file->type() == FILETYPE_KERNAL_ROM) {
-                trace(MEM_DEBUG, "Flashing Kernal Rom\n");
-                file->flash(mem.rom, 0xE000);
-                
-                trace(MEM_DEBUG, "hasMega65Rom() = %d\n", hasMega65Rom(ROM_KERNAL));
-                trace(MEM_DEBUG, "mega65KernalRev() = %s\n", mega65KernalRev());
-                
-                return true;
-            }
-            return false;
-        }
-        case ROM_VC1541:
-        {
-            if (file->type() == FILETYPE_VC1541_ROM) {
-                trace(MEM_DEBUG, "Flashing VC1541 Rom\n");
-                file->flash(drive8.mem.rom);
-                file->flash(drive9.mem.rom);
-                return true;
-            }
-            return false;
-        }
-        default: assert(false);
-    }
-    return false;
-}
-
-bool
-C64::loadRomFromBuffer(RomType type, const u8 *buffer, size_t length)
-{
-    assert(buffer != nullptr);
-
-    switch (type) {
+        case FILETYPE_BASIC_ROM:
             
-        case ROM_BASIC:
-        {
-            if (RomFile *file = RomFile::makeWithBuffer(buffer, length)) {
-                return loadRom(ROM_BASIC, file);
-            }
-            msg("Failed to read Basic Rom from buffer\n");
-            return false;
-        }
-        case ROM_CHAR:
-        {
-            if (RomFile *file = RomFile::makeWithBuffer(buffer, length)) {
-                return loadRom(ROM_CHAR, file);
-            }
-            msg("Failed to read Character Rom from buffer\n");
-            return false;
-        }
-        case ROM_KERNAL:
-        {
-            if (RomFile *file = RomFile::makeWithBuffer(buffer, length)) {
-                return loadRom(ROM_KERNAL, file);
-            }
-            msg("Failed to read Kernal Rom from buffer\n");
-            return false;
-        }
-        case ROM_VC1541:
-        {
-            if (RomFile *file = RomFile::makeWithBuffer(buffer, length)) {
-                return loadRom(ROM_VC1541, file);
-            }
-            msg("Failed to read VC1541 Rom from buffer\n");
-            return false;
-        }
-        default: assert(false);
-    }
-    return false;
-}
-
-bool
-C64::loadRomFromFile(RomType type, const char *path)
-{
-    assert(path != nullptr);
-
-    switch (type) {
+            file->flash(mem.rom, 0xA000);
+            debug(MEM_DEBUG, "Basic Rom flashed\n");
+            debug(MEM_DEBUG, "hasMega65Rom() = %d\n", hasMega65Rom(ROM_TYPE_BASIC));
+            debug(MEM_DEBUG, "mega65BasicRev() = %s\n", mega65BasicRev());
+            break;
             
-        case ROM_BASIC:
-        {
-            if (RomFile *file = RomFile::makeWithFile(path)) {
-                return loadRom(ROM_BASIC, file);
-            }
-            msg("Failed to read Basic Rom from %s\n", path);
-            return false;
-        }
-        case ROM_CHAR:
-        {
-            if (RomFile *file = RomFile::makeWithFile(path)) {
-                return loadRom(ROM_CHAR, file);
-            }
-            msg("Failed to read Character Rom from %s\n", path);
-            return false;
-        }
-        case ROM_KERNAL:
-        {
-            if (RomFile *file = RomFile::makeWithFile(path)) {
-                return loadRom(ROM_KERNAL, file);
-            }
-            msg("Failed to read Kernal Rom from %s\n", path);
-            return false;
-        }
-        case ROM_VC1541:
-        {
-            if (RomFile *file = RomFile::makeWithFile(path)) {
-                return loadRom(ROM_VC1541, file);
-            }
-            msg("Failed to read VC1541 Rom from %s\n", path);
-            return false;
-        }
-        default: assert(false);
+        case FILETYPE_CHAR_ROM:
+            
+            file->flash(mem.rom, 0xD000);
+            debug(MEM_DEBUG, "Character Rom flashed\n");
+            break;
+            
+        case FILETYPE_KERNAL_ROM:
+            
+            file->flash(mem.rom, 0xE000);
+            debug(MEM_DEBUG, "Kernal Rom flashed\n");
+            debug(MEM_DEBUG, "hasMega65Rom() = %d\n", hasMega65Rom(ROM_TYPE_KERNAL));
+            debug(MEM_DEBUG, "mega65KernalRev() = %s\n", mega65KernalRev());
+            break;
+            
+        case FILETYPE_VC1541_ROM:
+            
+            file->flash(drive8.mem.rom);
+            file->flash(drive9.mem.rom);
+            debug(MEM_DEBUG, "VC1541 Rom flashed\n");
+            break;
+            
+        default:
+            assert(false);
     }
-    return false;
 }
 
 void
@@ -1680,22 +1537,26 @@ C64::deleteRom(RomType type)
 {
     switch (type) {
             
-        case ROM_BASIC:
+        case ROM_TYPE_BASIC:
         {
             memset(mem.rom + 0xA000, 0, 0x2000);
+            break;
         }
-        case ROM_CHAR:
+        case ROM_TYPE_CHAR:
         {
             memset(mem.rom + 0xD000, 0, 0x1000);
+            break;
         }
-        case ROM_KERNAL:
+        case ROM_TYPE_KERNAL:
         {
             memset(mem.rom + 0xE000, 0, 0x2000);
+            break;
         }
-        case ROM_VC1541:
+        case ROM_TYPE_VC1541:
         {
             memset(drive8.mem.rom, 0, 0x4000);
             memset(drive9.mem.rom, 0, 0x4000);
+            break;
         }
         default: assert(false);
     }
@@ -1706,32 +1567,36 @@ C64::saveRom(RomType type, const char *path)
 {
     switch (type) {
             
-        case ROM_BASIC:
+        case ROM_TYPE_BASIC:
         {
-            if (!hasRom(ROM_BASIC)) return false;
+            if (!hasRom(ROM_TYPE_BASIC)) return false;
             
-            RomFile *file = RomFile::makeWithBuffer(mem.rom + 0xA000, 0x2000);
+            // RomFile *file = RomFile::makeWithBuffer(mem.rom + 0xA000, 0x2000);
+            RomFile *file = RomFile::make <RomFile> (mem.rom + 0xA000, 0x2000);
             return file && file->writeToFile(path);
         }
-        case ROM_CHAR:
+        case ROM_TYPE_CHAR:
         {
-            if (!hasRom(ROM_CHAR)) return false;
+            if (!hasRom(ROM_TYPE_CHAR)) return false;
             
-            RomFile *file = RomFile::makeWithBuffer(mem.rom + 0xD000, 0x1000);
+            // RomFile *file = RomFile::makeWithBuffer(mem.rom + 0xD000, 0x1000);
+            RomFile *file = RomFile::make <RomFile> (mem.rom + 0xD000, 0x1000);
             return file && file->writeToFile(path);
         }
-        case ROM_KERNAL:
+        case ROM_TYPE_KERNAL:
         {
-            if (!hasRom(ROM_KERNAL)) return false;
+            if (!hasRom(ROM_TYPE_KERNAL)) return false;
             
-            RomFile *file = RomFile::makeWithBuffer(mem.rom + 0xE000, 0x2000);
+            // RomFile *file = RomFile::makeWithBuffer(mem.rom + 0xE000, 0x2000);
+            RomFile *file = RomFile::make <RomFile> (mem.rom + 0xE000, 0x2000);
             return file && file->writeToFile(path);
         }
-        case ROM_VC1541:
+        case ROM_TYPE_VC1541:
         {
-            if (!hasRom(ROM_VC1541)) return false;
+            if (!hasRom(ROM_TYPE_VC1541)) return false;
             
-            RomFile *file = RomFile::makeWithBuffer(drive8.mem.rom, 0x4000);
+            // RomFile *file = RomFile::makeWithBuffer(drive8.mem.rom, 0x4000);
+            RomFile *file = RomFile::make <RomFile> (drive8.mem.rom, 0x4000);
             return file && file->writeToFile(path);
         }
         default: assert(false);
@@ -1742,6 +1607,8 @@ C64::saveRom(RomType type, const char *path)
 bool
 C64::flash(AnyFile *file)
 {
+    assert(file);
+    
     bool result = true;
     
     suspend();
@@ -1765,7 +1632,7 @@ C64::flash(AnyFile *file)
             break;
             
         case FILETYPE_V64:
-            loadFromSnapshot((Snapshot *)file);
+            result = loadFromSnapshot((Snapshot *)file);
             break;
             
         default:
@@ -1777,21 +1644,26 @@ C64::flash(AnyFile *file)
 }
 
 bool
-C64::flash(AnyArchive *file, unsigned item)
+C64::flash(AnyCollection *file, unsigned nr)
 {
     bool result = true;
     
+    u16 addr = file->itemLoadAddr(nr);
+    u64 size = file->itemSize(nr);
+    if (size <= 2) return false;
+    
     suspend();
+    
     switch (file->type()) {
             
         case FILETYPE_D64:
         case FILETYPE_T64:
         case FILETYPE_P00:
         case FILETYPE_PRG:
-        case FILETYPE_PRG_FOLDER:
+        case FILETYPE_FOLDER:
             
-            file->selectItem(item);
-            file->flashItem(mem.ram);
+            size = MIN(size - 2, 0x10000 - addr);
+            file->copyItem(nr, mem.ram + addr, size, 2);
             break;
             
         default:
@@ -1799,7 +1671,27 @@ C64::flash(AnyArchive *file, unsigned item)
             result = false;
     }
     resume();
-    messageQueue.put(MSG_FILE_FLASHED);
     
+    messageQueue.put(MSG_FILE_FLASHED);
+    return result;
+}
+
+bool
+C64::flash(const FSDevice &fs, usize nr)
+{
+    bool result = true;
+    
+    u16 addr = fs.loadAddr(nr);
+    u64 size = fs.fileSize(nr);
+    if (size <= 2) return false;
+    
+    suspend();
+                
+    size = MIN(size - 2, 0x10000 - addr);
+    fs.copyFile(nr, mem.ram + addr, size, 2);
+
+    resume();
+    
+    messageQueue.put(MSG_FILE_FLASHED);
     return result;
 }

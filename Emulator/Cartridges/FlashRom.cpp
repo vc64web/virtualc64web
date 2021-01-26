@@ -10,7 +10,7 @@
 #include "FlashRom.h"
 
 const char *
-FlashRom::getStateAsString(FlashRomState state)
+FlashRom::getStateAsString(FlashState state)
 {
     switch(state) {
         case FLASH_READ:return "FLASH_READ";
@@ -48,7 +48,7 @@ FlashRom::~FlashRom()
 void
 FlashRom::loadBank(unsigned bank, u8 *data)
 {
-    assert(data != NULL);
+    assert(data);
     memcpy(rom + bank * 0x2000, data, 0x2000);
 }
 
@@ -64,7 +64,7 @@ FlashRom::_reset()
 }
 
 void
-FlashRom::_dump()
+FlashRom::_dump() const
 {
     msg("FlashRom\n");
     msg("--------\n\n");
@@ -76,7 +76,7 @@ FlashRom::_dump()
     msg("       rom: %p\n\n", rom);
 }
 
-size_t
+usize
 FlashRom::didLoadFromBuffer(u8 *buffer)
 {
     SerReader reader(buffer);
@@ -85,7 +85,7 @@ FlashRom::didLoadFromBuffer(u8 *buffer)
     return romSize;
 }
 
-size_t
+usize
 FlashRom::didSaveToBuffer(u8 *buffer)
 {
     SerWriter writer(buffer);
@@ -96,6 +96,12 @@ FlashRom::didSaveToBuffer(u8 *buffer)
 
 u8
 FlashRom::peek(u32 addr)
+{
+    return const_cast<const FlashRom*>(this)->spypeek(addr);
+}
+
+u8
+FlashRom::spypeek(u32 addr) const
 {
     assert(addr < romSize);
     

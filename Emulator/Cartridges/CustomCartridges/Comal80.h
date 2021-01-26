@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _COMAL80_H
-#define _COMAL80_H
+#pragma once
 
 #include "Cartridge.h"
 
@@ -17,14 +16,14 @@ class Comal80 : public Cartridge {
 public:
     
     Comal80(C64 &ref) : Cartridge(ref) { };
-    const char *getDescription() override { return "Comal80"; }
-    CartridgeType getCartridgeType() override { return CRT_COMAL80; }
+    const char *getDescription() const override { return "Comal80"; }
+    CartridgeType getCartridgeType() const override { return CRT_COMAL80; }
     
     void _reset() override;
 
     u8 peekIO1(u16 addr) override { return control; }
+    u8 spypeekIO1(u16 addr) const override { return control; }
     u8 peekIO2(u16 addr) override { return 0; }
+    u8 spypeekIO2(u16 addr) const override { return 0; }
     void pokeIO1(u16 addr, u8 value) override;
 };
-
-#endif

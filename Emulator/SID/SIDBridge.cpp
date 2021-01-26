@@ -23,8 +23,12 @@ SIDBridge::SIDBridge(C64 &ref) : C64Component(ref)
         &fastsid[3]
     };
     
-    config.engine = ENGINE_RESID;
+    config.engine = SIDENGINE_RESID;
     config.enabled = 1;
+    config.address[0] = 0xD400;
+    config.address[1] = 0xD420;
+    config.address[2] = 0xD440;
+    config.address[3] = 0xD460;
     
     for (int i = 0; i < 4; i++) {
         resid[i].setClockFrequency(PAL_CLOCK_FREQUENCY);
@@ -41,7 +45,7 @@ SIDBridge::_reset()
 }
 
 long
-SIDBridge::getConfigItem(ConfigOption option)
+SIDBridge::getConfigItem(Option option) const
 {
     switch (option) {
             
@@ -65,11 +69,12 @@ SIDBridge::getConfigItem(ConfigOption option)
             
         default:
             assert(false);
+            return 0;
     }
 }
 
 long
-SIDBridge::getConfigItem(ConfigOption option, long id)
+SIDBridge::getConfigItem(Option option, long id) const
 {
     
     switch (option) {
@@ -88,11 +93,12 @@ SIDBridge::getConfigItem(ConfigOption option, long id)
                         
         default:
             assert(false);
+            return 0;
     }
 }
 
 bool
-SIDBridge::setConfigItem(ConfigOption option, long value)
+SIDBridge::setConfigItem(Option option, long value)
 {
     bool wasMuted = isMuted();
         
@@ -111,13 +117,9 @@ SIDBridge::setConfigItem(ConfigOption option, long value)
             
         case OPT_SID_REVISION:
             
-            if (!isSIDRevision(value)) {
-                warn("Invalid SID revision: %ld\n", value);
-                return false;
-            }
-            if (config.revision == value) {
-                return false;
-            }
+            
+            if (!SIDRevisionEnum::verify(value)) return false;
+            if (config.revision == value) return false;
             
             suspend();
             config.revision = (SIDRevision)value;
@@ -141,13 +143,9 @@ SIDBridge::setConfigItem(ConfigOption option, long value)
             
         case OPT_SID_ENGINE:
             
-            if (!isAudioEngine(value)) {
-                warn("Invalid SID engine: %ld\n", value);
-                return false;
-            }
-            if (config.engine == value) {
-                return false;
-            }
+            if (!SIDEngineEnum::verify(value)) return false;
+            if (config.engine == value) return false;
+
             suspend();
             config.engine = (SIDEngine)value;
             resume();
@@ -156,13 +154,9 @@ SIDBridge::setConfigItem(ConfigOption option, long value)
             
         case OPT_SID_SAMPLING:
             
-            if (!isSamplingMethod(value)) {
-                warn("Invalid sampling method: %ld\n", value);
-                return false;
-            }
-            if (config.sampling == value) {
-                return false;
-            }
+            if (!SamplingMethodEnum::verify(value)) return false;
+            if (config.sampling == value)  return false;
+
             suspend();
             config.sampling = (SamplingMethod)value;
             setSamplingMethod((SamplingMethod)value);
@@ -196,7 +190,7 @@ SIDBridge::setConfigItem(ConfigOption option, long value)
 }
 
 bool
-SIDBridge::setConfigItem(ConfigOption option, long id, long value)
+SIDBridge::setConfigItem(Option option, long id, long value)
 {
     bool wasMuted = isMuted();
 
@@ -256,7 +250,7 @@ SIDBridge::setConfigItem(ConfigOption option, long id, long value)
             assert(id >= 0 && id <= 3);
 
             config.vol[id] = MIN(100, MAX(0, value));
-            vol[id] = pow((double)config.vol[id] / 100, 1.4) * 0.0000125;
+            vol[id] = pow((double)config.vol[id] / 100, 1.4) * 0.000025;
 
             if (wasMuted != isMuted()) {
                 messageQueue.put(isMuted() ? MSG_MUTE_ON : MSG_MUTE_OFF);
@@ -286,7 +280,7 @@ SIDBridge::setConfigItem(ConfigOption option, long id, long value)
 }
 
 bool
-SIDBridge::isMuted()
+SIDBridge::isMuted() const
 {
     if (config.volL == 0 && config.volR == 0) return true;
     
@@ -324,7 +318,7 @@ SIDBridge::setClockFrequency(u32 frequency)
 }
 
 SIDRevision
-SIDBridge::getRevision()
+SIDBridge::getRevision() const
 {
     SIDRevision result = resid[0].getRevision();
     
@@ -339,7 +333,7 @@ SIDBridge::getRevision()
 void
 SIDBridge::setRevision(SIDRevision revision)
 {
-    trace(SID_DEBUG, "Setting SID revision to %s\n", sidRevisionName(revision));
+    trace(SID_DEBUG, "Setting SID revision to %s\n", SIDRevisionEnum::key(revision));
 
     for (int i = 0; i < 4; i++) {
         resid[i].setRevision(revision);
@@ -348,7 +342,7 @@ SIDBridge::setRevision(SIDRevision revision)
 }
 
 double
-SIDBridge::getSampleRate()
+SIDBridge::getSampleRate() const
 {
     double result = resid[0].getSampleRate();
     
@@ -374,7 +368,7 @@ SIDBridge::setSampleRate(double rate)
 }
 
 bool
-SIDBridge::getAudioFilter()
+SIDBridge::getAudioFilter() const
 {
     bool result = resid[0].getAudioFilter();
     
@@ -398,7 +392,7 @@ SIDBridge::setAudioFilter(bool enable)
 }
 
 SamplingMethod
-SIDBridge::getSamplingMethod()
+SIDBridge::getSamplingMethod() const
 {
     SamplingMethod result = resid[0].getSamplingMethod();
     
@@ -413,7 +407,7 @@ SIDBridge::getSamplingMethod()
 void
 SIDBridge::setSamplingMethod(SamplingMethod method)
 {
-    trace(SID_DEBUG, "Setting sampling method to %s\n",sidSamplingMethodName(method));
+    trace(SID_DEBUG, "Setting sampling method to %s\n",SamplingMethodEnum::key(method));
 
     for (int i = 0; i < 4; i++) {
         resid[i].setSamplingMethod(method);
@@ -422,24 +416,29 @@ SIDBridge::setSamplingMethod(SamplingMethod method)
 }
 
 void
-SIDBridge::_dumpConfig()
+SIDBridge::_dumpConfig() const
 {
-    msg(" Chip revision : %lld (%s)\n", config.revision, sidRevisionName(config.revision));
-    msg("   Enable mask : %x\n", config.enabled);
-    msg("       Address : %x %x %x\n", config.address[1], config.address[2], config.address[3]);
-    msg("        Filter : %s\n", config.filter ? "yes" : "no");
-    msg("        Engine : %lld (%s)\n", config.engine, sidEngineName(config.engine));
-    msg("      Sampling : %lld (%s)\n", config.sampling, sidSamplingMethodName(config.sampling));
-    msg("Channel volume : %lld %lld %lld %lld\n",
-        config.vol[0], config.vol[1], config.vol[2], config.vol[3]);
-    msg(" Master volume : %lld %lld\n", config.volL, config.volR);
+    msg("  Chip revision : %s\n",   SIDRevisionEnum::key(config.revision));
+    msg("    Enable mask : %x\n",   config.enabled);
+    msg("  1st extra SID : %x\n",   config.address[1]);
+    msg("  2nd extra SID : %x\n",   config.address[2]);
+    msg("  3rd extra SID : %x\n",   config.address[3]);
+    msg("         Filter : %s\n",   config.filter ? "yes" : "no");
+    msg("         Engine : %s\n",   SIDEngineEnum::key(config.engine));
+    msg("       Sampling : %s\n",   SamplingMethodEnum::key(config.sampling));
+    msg("       Volume 1 : %lld\n", config.vol[0]);
+    msg("       Volume 2 : %lld\n", config.vol[1]);
+    msg("       Volume 3 : %lld\n", config.vol[2]);
+    msg("       Volume 4 : %lld\n", config.vol[3]);
+    msg("       Volume L : %lld\n", config.volL);
+    msg("       Volume R : %lld\n", config.volR);
 }
 
-size_t
+usize
 SIDBridge::didLoadFromBuffer(u8 *buffer)
 {
     clearRingbuffer();
-    for (int i = 0; i < 4; i++) sidStream[i].clear(0);
+    for (usize i = 0; i < 4; i++) sidStream[i].clear(0);
     return 0;
 }
 
@@ -456,52 +455,54 @@ SIDBridge::_pause()
 }
 
 void 
-SIDBridge::_dump()
+SIDBridge::_dump() const
 {
     _dump(0);
 }
 
 void
-SIDBridge::_dump(int nr)
+SIDBridge::_dump(int nr) const
 {
-    resid[nr].inspect();
-    
-    SIDInfo sidinfo;
-    VoiceInfo voiceinfo[3];
+    // SIDInfo sidinfo;
+    // VoiceInfo voiceinfo[3];
     SIDRevision residRev = resid[nr].getRevision();
     SIDRevision fastsidRev = fastsid[nr].getRevision();
     
     msg("ReSID:\n");
     msg("------\n");
-    msg("    Chip model: %lld (%s)\n", residRev, sidRevisionName(residRev));
-    msg(" Sampling rate: %f\n", resid[nr].getSampleRate());
-    msg(" CPU frequency: %d\n", resid[nr].getClockFrequency());
-    msg("Emulate filter: %s\n", resid[nr].getAudioFilter() ? "yes" : "no");
+    msg("    Chip model : %s\n", SIDRevisionEnum::key(residRev));
+    msg(" Sampling rate : %f\n", resid[nr].getSampleRate());
+    msg(" CPU frequency : %d\n", resid[nr].getClockFrequency());
+    msg("Emulate filter : %s\n", resid[nr].getAudioFilter() ? "yes" : "no");
     msg("\n");
 
+    /*
     sidinfo = resid[nr].getInfo();
     voiceinfo[0] = resid[nr].getVoiceInfo(0);
     voiceinfo[1] = resid[nr].getVoiceInfo(1);
     voiceinfo[2] = resid[nr].getVoiceInfo(2);
     _dump(sidinfo, voiceinfo);
-
+    */
+    
     msg("FastSID:\n");
     msg("--------\n");
-    msg("    Chip model: %lld (%s)\n", fastsidRev, sidRevisionName(fastsidRev));
-    msg(" Sampling rate: %f\n", fastsid[nr].getSampleRate());
-    msg(" CPU frequency: %d\n", fastsid[nr].getClockFrequency());
-    msg("Emulate filter: %s\n", fastsid[nr].getAudioFilter() ? "yes" : "no");
+    msg("    Chip model : %s\n", SIDRevisionEnum::key(fastsidRev));
+    msg(" Sampling rate : %f\n", fastsid[nr].getSampleRate());
+    msg(" CPU frequency : %d\n", fastsid[nr].getClockFrequency());
+    msg("Emulate filter : %s\n", fastsid[nr].getAudioFilter() ? "yes" : "no");
     msg("\n");
         
+    /*
     sidinfo = fastsid[nr].getInfo();
     voiceinfo[0] = fastsid[nr].getVoiceInfo(0);
     voiceinfo[1] = fastsid[nr].getVoiceInfo(1);
     voiceinfo[2] = fastsid[nr].getVoiceInfo(2);
     _dump(sidinfo, voiceinfo);
+    */
 }
 
 void
-SIDBridge::_dump(SIDInfo &info, VoiceInfo (&vinfo)[3])
+SIDBridge::_dump(SIDInfo &info, VoiceInfo (&vinfo)[3]) const
 {
     u8 ft = info.filterType;
     msg("        Volume: %d\n", info.volume);
@@ -558,12 +559,13 @@ SIDBridge::getInfo(unsigned nr)
     
     switch (config.engine) {
             
-        case ENGINE_FASTSID: info = fastsid[nr].getInfo(); break;
-        case ENGINE_RESID:   info = resid[nr].getInfo(); break;
+        case SIDENGINE_FASTSID: info = fastsid[nr].getInfo(); break;
+        case SIDENGINE_RESID:   info = resid[nr].getInfo(); break;
+        default: assert(false);
     }
     
-    info.potX = mouse.readPotX();
-    info.potY = mouse.readPotY();
+    info.potX = port1.mouse.readPotX() & port2.mouse.readPotX();
+    info.potY = port1.mouse.readPotY() & port2.mouse.readPotY();
     
     return info;
 }
@@ -577,8 +579,9 @@ SIDBridge::getVoiceInfo(unsigned nr, unsigned voice)
     
     switch (config.engine) {
             
-        case ENGINE_FASTSID: info = fastsid[nr].getVoiceInfo(voice); break;
-        case ENGINE_RESID:   info = resid[nr].getVoiceInfo(voice); break;
+        case SIDENGINE_FASTSID: info = fastsid[nr].getVoiceInfo(voice); break;
+        case SIDENGINE_RESID:   info = resid[nr].getVoiceInfo(voice); break;
+        default: assert(false);
     }
     
     return info;
@@ -613,8 +616,8 @@ SIDBridge::rampDown()
     ignoreNextUnderOrOverflow();
 }
 
-int
-SIDBridge::mappedSID(u16 addr)
+usize
+SIDBridge::mappedSID(u16 addr) const
 {
     addr &= 0xFFE0;
     
@@ -632,18 +635,30 @@ SIDBridge::peek(u16 addr)
     executeUntil(cpu.cycle);
  
     // Select the target SID
-    int sidNr = config.enabled > 1 ? mappedSID(addr) : 0;
+    usize sidNr = config.enabled > 1 ? mappedSID(addr) : 0;
 
     addr &= 0x1F;
 
     if (sidNr == 0) {
-        if (addr == 0x19) return mouse.readPotX();
-        if (addr == 0x1A) return mouse.readPotY();
+        
+        if (addr == 0x19) {
+            
+            port1.updatePotX();
+            port2.updatePotX();
+            return readPotX();
+        }
+        if (addr == 0x1A) {
+
+            port1.updatePotY();
+            port2.updatePotY();
+            return readPotY();
+        }
     }
     
     switch (config.engine) {
-        case ENGINE_FASTSID: return fastsid[sidNr].peek(addr);
-        case ENGINE_RESID:   return resid[sidNr].peek(addr);
+        case SIDENGINE_FASTSID: return fastsid[sidNr].peek(addr);
+        case SIDENGINE_RESID:   return resid[sidNr].peek(addr);
+        default: assert(false);
     }
     
     assert(false);
@@ -651,9 +666,45 @@ SIDBridge::peek(u16 addr)
 }
 
 u8
-SIDBridge::spypeek(u16 addr)
+SIDBridge::spypeek(u16 addr) const
 {
-    return peek(addr);
+    // Select the target SID
+    usize sidNr = config.enabled > 1 ? mappedSID(addr) : 0;
+
+    addr &= 0x1F;
+
+    if (sidNr == 0) {
+        if (addr == 0x19) { return port1.readPotX() & port2.readPotX(); }
+        if (addr == 0x1A) { return port1.readPotY() & port2.readPotY(); }
+    }
+
+    /* At the moment, only FastSID allows us to peek into the SID registers
+     * without causing side effects. Hence, we get the return value from there,
+     * regardless of the selected SID engine.
+     */
+    return fastsid[sidNr].spypeek(addr);
+}
+
+u8
+SIDBridge::readPotX() const
+{
+    u8 result = 0xFF;
+
+    if (GET_BIT(cia1.getPA(), 7) == 0) result &= port1.readPotX();
+    if (GET_BIT(cia1.getPA(), 6) == 0) result &= port2.readPotX();
+
+    return result;
+}
+
+u8
+SIDBridge::readPotY() const
+{
+    u8 result = 0xFF;
+
+    if (GET_BIT(cia1.getPA(), 7) == 0) result &= port1.readPotY();
+    if (GET_BIT(cia1.getPA(), 6) == 0) result &= port2.readPotY();
+
+    return result;
 }
 
 void 
@@ -663,7 +714,7 @@ SIDBridge::poke(u16 addr, u8 value)
     executeUntil(cpu.cycle);
  
     // Select the target SID
-    int sidNr = config.enabled > 1 ? mappedSID(addr) : 0;
+    usize sidNr = config.enabled > 1 ? mappedSID(addr) : 0;
 
     addr &= 0x1F;
     
@@ -673,35 +724,24 @@ SIDBridge::poke(u16 addr, u8 value)
 }
 
 void
-SIDBridge::executeUntil(u64 targetCycle)
+SIDBridge::executeUntil(Cycle targetCycle)
 {
-    i64 missingCycles  = targetCycle - cycles;
-    i64 consumedCycles = executeCycles(missingCycles);
+    assert(targetCycle >= cycles);
+    
+    usize missingCycles  = targetCycle - cycles;
+    usize consumedCycles = executeCycles(missingCycles);
 
     cycles += consumedCycles;
     
     debug(SID_EXEC,
-          "target: %lld missing: %lld consumed: %lld reached: %lld still missing: %lld\n",
+          "target: %lld missing: %zd consumed: %zd reached: %lld still missing: %lld\n",
           targetCycle, missingCycles, consumedCycles, cycles, targetCycle - cycles);
-
-    /*
-    i64 missingCycles  = targetCycle - cycles;
-    i64 missingSamples = i64(missingCycles * sampleRate / cpuFrequency);
-    i64 consumedCycles = execute(missingSamples);
-
-    cycles += consumedCycles;
-    
-    debug(SID_EXEC,
-          "target: %lld missing: %lld consumed: %lld reached: %lld still missing: %lld\n",
-          targetCycle, missingCycles, consumedCycles, cycles, targetCycle - cycles);
-    */
 }
 
-i64 SIDBridge::executeCycles(u64 numCycles)
+usize
+SIDBridge::executeCycles(usize numCycles)
 {
-    // TODO: ADD A QUICK PATH FOR THE SINGLE-SID STANDARD CASE
-
-    u64 numSamples;
+    usize numSamples;
     
     // Run reSID for at least one cycle to make pipelined writes work
     if (numCycles == 0) {
@@ -716,39 +756,35 @@ i64 SIDBridge::executeCycles(u64 numCycles)
         handleBufferUnderflow();
     }
 
-    //
-    // Synthesize samples
-    //
-    
     switch (config.engine) {
             
-        case ENGINE_FASTSID:
+        case SIDENGINE_FASTSID:
 
             // Run the primary SID (which is always enabled)
             numSamples = fastsid[0].executeCycles(numCycles, sidStream[0]);
             
             // Run all other SIDS (if any)
             if (config.enabled > 1) {
-                for (int i = 1; i < 4; i++) {
+                for (usize i = 1; i < 4; i++) {
                     if (isEnabled(i)) {
                         u64 numSamples2 = fastsid[i].executeCycles(numCycles, sidStream[i]);
-                        numSamples = min(numSamples, numSamples2);
+                        numSamples = MIN(numSamples, numSamples2);
                     }
                 }
             }
             break;
 
-        case ENGINE_RESID:
+        case SIDENGINE_RESID:
 
             // Run the primary SID (which is always enabled)
             numSamples = resid[0].executeCycles(numCycles, sidStream[0]);
             
             // Run all other SIDS (if any)
             if (config.enabled > 1) {
-                for (int i = 1; i < 4; i++) {
+                for (usize i = 1; i < 4; i++) {
                     if (isEnabled(i)) {
                         u64 numSamples2 = resid[i].executeCycles(numCycles, sidStream[i]);
-                        numSamples = min(numSamples, numSamples2);
+                        numSamples = MIN(numSamples, numSamples2);
                     }
                 }
             }
@@ -758,10 +794,15 @@ i64 SIDBridge::executeCycles(u64 numCycles)
             assert(false);
     }
     
-    //
-    // Mix channels
-    //
+    // Produce the final stereo stream
+    (config.enabled > 1) ? mixMultiSID(numSamples) : mixSingleSID(numSamples);
     
+    return numCycles;
+}
+
+void
+SIDBridge::mixSingleSID(usize numSamples)
+{    
     stream.lock();
     
     // Check for buffer overflow
@@ -772,60 +813,73 @@ i64 SIDBridge::executeCycles(u64 numCycles)
     debug(SID_EXEC, "vol0: %f pan0: %f volL: %f volR: %f\n",
           vol[0], pan[0], volL.current, volR.current);
 
-
-    if(config.enabled == 1)
-    {//optimized route if only one SID configured
-        float vol_l= vol[0] *  volL.current * (1 - pan[0]);
-        float vol_r= vol[0] *  volR.current * pan[0] ;
+    // Convert sound samples to floating point values and write into ringbuffer
+    for (usize i = 0; i < numSamples; i++) {
         
-        // Convert sound samples to floating point values and write into ringbuffer
-        for (unsigned i = 0; i < numSamples; i++) {
-            float ch0 = (float)sidStream[0].read();
-            float l = ch0 * vol_l;
-            float r = ch0 * vol_r;
+        // Read SID sample from ring buffer
+        float ch0 = (float)sidStream[0].read() * vol[0];
+        
+        // Compute left and right channel output
+        float l = ch0 * (1 - pan[0]);
+        float r = ch0 * pan[0];
 
-            // Apply ear protection
-            //assert(abs(l) < 0.5);
-            //assert(abs(r) < 0.5);
-
-            stream.write(SamplePair { l, r } );
-        }
-    }
-    else
-    {
-        // Convert sound samples to floating point values and write into ringbuffer
-        for (unsigned i = 0; i < numSamples; i++) {
-            float l,r , ch0, ch1, ch2, ch3;
-            
-            ch0 = (float)sidStream[0].read()    * vol[0];
-            ch1 = (float)sidStream[1].read(0.0) * vol[1];
-            ch2 = (float)sidStream[2].read(0.0) * vol[2];
-            ch3 = (float)sidStream[3].read(0.0) * vol[3];
-
-            // Compute left channel output
-            l =
-            ch0 * (1 - pan[0]) + ch1 * (1 - pan[1]) +
-            ch2 * (1 - pan[2]) + ch3 * (1 - pan[3]);
-
-            // Compute right channel output
-            r =
-            ch0 * pan[0] + ch1 * pan[1] +
-            ch2 * pan[2] + ch3 * pan[3];
-
-            // Apply master volume
-            l *= volL.current;
-            r *= volR.current;
-                    
-            // Apply ear protection
-            //assert(abs(l) < 0.5);
-            //assert(abs(r) < 0.5);
-
-            stream.write(SamplePair { l, r } );
-        }
+        // Apply master volume
+        l *= volL.current;
+        r *= volR.current;
+        
+        // Apply ear protection
+        assert(abs(l) < 2.0);
+        assert(abs(r) < 2.0);
+        
+        stream.write(SamplePair { l, r } );
     }
     stream.unlock();
+}
+        
+void
+SIDBridge::mixMultiSID(usize numSamples)
+{
+    stream.lock();
     
-    return numCycles;
+    // Check for buffer overflow
+    if (stream.free() < numSamples) {
+        handleBufferOverflow();
+    }
+    
+    debug(SID_EXEC, "vol0: %f pan0: %f volL: %f volR: %f\n",
+          vol[0], pan[0], volL.current, volR.current);
+
+    // Convert sound samples to floating point values and write into ringbuffer
+    for (usize i = 0; i < numSamples; i++) {
+        
+        float ch0, ch1, ch2, ch3, l, r;
+        
+        ch0 = (float)sidStream[0].read()    * vol[0];
+        ch1 = (float)sidStream[1].read(0.0) * vol[1];
+        ch2 = (float)sidStream[2].read(0.0) * vol[2];
+        ch3 = (float)sidStream[3].read(0.0) * vol[3];
+
+        // Compute left channel output
+        l =
+        ch0 * (1 - pan[0]) + ch1 * (1 - pan[1]) +
+        ch2 * (1 - pan[2]) + ch3 * (1 - pan[3]);
+
+        // Compute right channel output
+        r =
+        ch0 * pan[0] + ch1 * pan[1] +
+        ch2 * pan[2] + ch3 * pan[3];
+
+        // Apply master volume
+        l *= volL.current;
+        r *= volR.current;
+        
+        // Apply ear protection
+        assert(abs(l) < 2.0);
+        assert(abs(r) < 2.0);
+
+        stream.write(SamplePair { l, r } );
+    }
+    stream.unlock();
 }
 
 void
@@ -843,14 +897,13 @@ SIDBridge::clearSampleBuffer(long nr)
 void
 SIDBridge::clearRingbuffer()
 {
-    // stream.clear();
     alignWritePtr();
 }
 
 void
-SIDBridge::ringbufferData(size_t offset, float *left, float *right)
+SIDBridge::ringbufferData(usize offset, float *left, float *right)
 {
-    SamplePair &pair = stream.current((int)offset);
+    const SamplePair &pair = stream.current((int)offset);
     *left = pair.left;
     *right = pair.right;
 }
@@ -920,7 +973,7 @@ SIDBridge::ignoreNextUnderOrOverflow()
 }
 
 void
-SIDBridge::copyMono(float *target, size_t n)
+SIDBridge::copyMono(float *target, usize n)
 {
     stream.lock();
     
@@ -934,7 +987,7 @@ SIDBridge::copyMono(float *target, size_t n)
 }
 
 void
-SIDBridge::copyStereo(float *target1, float *target2, size_t n)
+SIDBridge::copyStereo(float *target1, float *target2, usize n)
 {
     stream.lock();
     
@@ -948,7 +1001,7 @@ SIDBridge::copyStereo(float *target1, float *target2, size_t n)
 }
 
 void
-SIDBridge::copyInterleaved(float *target, size_t n)
+SIDBridge::copyInterleaved(float *target, usize n)
 {
     stream.lock();
     

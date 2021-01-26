@@ -7,144 +7,210 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _ANYC64FILE_H
-#define _ANYC64FILE_H
+#pragma once
 
 #include "C64Object.h"
+#include "FileTypes.h"
+#include "PETName.h"
 
-// Base class for all supported file types
+/* All media files are organized in the class hierarchy displayed below. Two
+ * abstract classes are involed: AnyFile and AnyCollection. AnyFiles provides
+ * basic functionality for reading and writing files, streams, and buffers.
+ * AnyCollection provides an abstract interface for accessing single files.
+ * This interface is implemented for those formats that organize their contents
+ * as a collection of files (in contrast to those formats that organzie their
+ * contents as a collection of tracks or sectors, or do not store files at all).
+ *
+ *     ---------
+ *    | AnyFile |
+ *     ---------
+ *         |
+ *         |--------------------------------------------------
+ *         |         |       |       |       |       |        |
+ *         |     ---------   |   ---------   |   ---------    |
+ *         |    | ROMFile |  |  |TAPFile  |  |  | D64File |   |
+ *         |     ---------   |   ---------   |   ---------    |
+ *         |             ----------      ----------       ---------
+ *         |            | Snapshot |    | CRTFile  |     | G64File |
+ *         |             ----------      ----------       ---------
+ *         |
+ *  ---------------
+ * | AnyCollection |
+ *  ---------------
+ *         |
+ *         |-----------------------------------------------
+ *                   |           |            |            |
+ *               ---------   ---------    ---------    ---------
+ *              | T64File | | PRGFile |  | P00File |  | Folder  |
+ *               ---------   ---------    ---------    ---------
+ */
+  
 class AnyFile : public C64Object {
     
-protected:
+public:
 	     
-    // The physical name (full path) of this file
-    char *path = NULL;
+    // Physical location of this file
+    string path = "";
     
-    /* The logical name of this file. Some archives store a logical name in the
-     * header section. If no name is stored, the logical name is constructed
-     * out of the physical name by stripping off path and extension.
-     */
-    char name[256];
-    
-    /* Unicode representation of the logical name. The provides unicode format
-     * is compatible with font C64ProMono which is used, e.g., in the mount
-     * dialogs preview panel.
-     */
-
-    unsigned short unicode[256];
-    
-    // The size of this file in bytes
-    size_t size = 0;
-
     // The raw data of this file
     u8 *data = nullptr;
     
-    // File pointer (an offset into the data array)
-    long fp = -1;
+    // The size of this file in bytes
+    usize size = 0;
     
-    // End of file position (equals the last valid offset plus 1)
-    long eof = -1;
+
+    //
+    // Creating
+    //
     
- 
+public:
+    
+    template <class T> static T *make(std::istream &stream) throws
+    {
+        if (!T::isCompatibleStream(stream)) throw VC64Error(ERROR_FILE_TYPE_MISMATCH);
+        
+        T *obj = new T();
+        
+        try { obj->readFromStream(stream); } catch (VC64Error &err) {
+            delete obj;
+            throw err;
+        }
+        return obj;
+    }
+
+    template <class T> static T *make(std::istream &stream, ErrorCode *err)
+    {
+        *err = ERROR_OK;
+        try { return make <T> (stream); }
+        catch (VC64Error &exception) { *err = exception.errorCode; }
+        return nullptr;
+    }
+        
+    template <class T> static T *make(const u8 *buf, usize len) throws
+    {
+        std::stringstream stream;
+        stream.write((const char *)buf, len);
+        return make <T> (stream);
+    }
+    
+    template <class T> static T *make(const u8 *buf, usize len, ErrorCode *err)
+    {
+        *err = ERROR_OK;
+        try { return make <T> (buf, len); }
+        catch (VC64Error &exception) { *err = exception.errorCode; }
+        return nullptr;
+    }
+    
+    template <class T> static T *make(const string &path) throws
+    {
+        if (!T::isCompatibleName(path)) throw VC64Error(ERROR_FILE_TYPE_MISMATCH);
+        
+        std::ifstream stream(path);
+        if (!stream.is_open()) throw VC64Error(ERROR_FILE_NOT_FOUND);
+        return make <T> (stream);
+    }
+
+    template <class T> static T *make(const string &path, ErrorCode *err)
+    {
+        *err = ERROR_OK;
+        try { return make <T> (path); }
+        catch (VC64Error &exception) { *err = exception.errorCode; }
+        return nullptr;
+    }
+    
+    template <class T> static T *make(class Disk &disk) throws
+    {
+        return T::makeWithDisk(disk);
+    }
+
+    template <class T> static T *make(class Disk &disk, ErrorCode *err)
+    {
+        *err = ERROR_OK;
+        try { return make <T> (disk); }
+        catch (VC64Error &exception) { *err = exception.errorCode; }
+        return nullptr;
+    }
+
+    template <class T> static T *make(class FSDevice &fs) throws
+    {
+        return T::makeWithFileSystem(fs);
+    }
+
+    template <class T> static T *make(class FSDevice &fs, ErrorCode *err)
+    {
+        *err = ERROR_OK;
+        try { return make <T> (fs); }
+        catch (VC64Error &exception) { *err = exception.errorCode; }
+        return nullptr;
+    }
+    
+    
     //
     // Initializing
     //
     
 public:
     
-    AnyFile();
+    AnyFile() { };
+    AnyFile(usize capacity);
     virtual ~AnyFile();
 
     
-    // Frees the memory allocated by this object
-    virtual void dealloc();
-
-    
     //
-    // Accessing file attributes
+    // Accessing
     //
     
 public:
     
-    // Returns the type of this file
-    virtual FileType type() { return FILETYPE_UNKNOWN; }
-
-    // Returns a string representation for the type of this file
-    const char *typeString() { return fileTypeString(type()); }
-    
-	// Returns the physical name of this file
-    const char *getPath() { return path ? path : ""; }
-
-    // Sets the physical name of this file
-    void setPath(const char *path);
-
     // Returns the logical name of this file
-    virtual const char *getName() { return name; }
-    virtual struct FSName getFSName();
+    virtual PETName<16> getName() const;
 
-    // Returns the logical name as a unicode character array
-    const unsigned short *getUnicodeName();
-	
-    // Returns a unique fingerprint for this file
-    u64 fnv();
+    // Returns the media type of this file
+    virtual FileType type() const { return FILETYPE_UNKNOWN; }
+     
+    // Returns a fingerprint (hash value) for this file
+    u64 fnv() const;
     
     
     //
-    // Reading file data
+    // Flashing data
     //
 
-    // Returns a pointer to the raw data of this file
-    u8 *getData() { return data; }
-
-    // Returns the file size in bytes
-    virtual size_t getSize() { return size; }
-
-    /* Moves the file pointer to the specified offset. seek(0) returns to the
-     * beginning of the file.
-     */
-    virtual void seek(long offset);
-    
-    // Reads a byte (-1 = EOF)
-    virtual int read();
-
-    // Reads multiple bytes (1 to 85) in form of a hex dump string
-    const char *readHex(size_t num = 1);
-
-    /* Copies the file contents into C64 memory starting at 'offset'. 'buffer'
-     * must be a pointer to RAM or ROM.
-     */
-    virtual void flash(u8 *buffer, size_t offset = 0);
+    // Copies the file contents into a buffer starting at the provided offset
+    void flash(u8 *buf, usize offset = 0);
 
     
     //
     // Serializing
     //
     
-    // Required buffer size for this file
-    size_t sizeOnDisk() { return writeToBuffer(NULL); }
+protected:
 
-    /* Checks whether this file has the same type as the file stored in the
-     * specified file.
+    virtual usize readFromStream(std::istream &stream) throws;
+    usize readFromFile(const char *path) throws;
+    usize readFromBuffer(const u8 *buf, usize len) throws;
+
+public:
+    
+    virtual usize writeToStream(std::ostream &stream) throws;
+    usize writeToStream(std::ostream &stream, ErrorCode *err);
+
+    usize writeToFile(const char *path) throws;
+    usize writeToFile(const char *path, ErrorCode *err);
+    
+    usize writeToBuffer(u8 *buf) throws;
+    usize writeToBuffer(u8 *buf, ErrorCode *err);
+
+
+    //
+    // Repairing
+    //
+    
+public:
+    
+    /* This function is called in the default implementation of readFromStream.
+     * It can be overwritten to fix known inconsistencies in certain media
+     * files.
      */
-    virtual bool hasSameType(const char *path) { return false; }
-
-    // Reads the file contents from a memory buffer
-    virtual bool readFromBuffer(const u8 *buffer, size_t length);
-	
-    // Reads the file contents from a file
-	bool readFromFile(const char *path);
-
-    /* Writes the file contents into a memory buffer. By passing a null pointer,
-     * a test run is performed. Test runs are used to determine how many bytes
-     * will be written.
-     */
-	virtual size_t writeToBuffer(u8 *buffer);
-
-    /* Writes the file contents to a file. This function requires no custom
-     * implementation. It invokes writeToBuffer first and writes the data to
-     * disk afterwards.
-     */
-	bool writeToFile(const char *path);
+    virtual void repair() { };    
 };
-
-#endif

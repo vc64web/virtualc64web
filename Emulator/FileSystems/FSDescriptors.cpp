@@ -7,22 +7,23 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#include "FSDescriptors.h"
+// #include "FSDescriptors.h"
+#include "C64.h"
 
-FSDeviceDescriptor::FSDeviceDescriptor(DiskType type, FSVolumeType dos)
+FSDeviceDescriptor::FSDeviceDescriptor(DiskType type, DOSType dos)
 {
-    assert(dos == FS_CBM_DOS);
+    assert(dos == DOS_TYPE_CBM);
  
     this->dos = dos;
     
     switch (type) {
             
-        case DISK_SS_SD:
+        case DISK_TYPE_SS_SD:
             numCyls = 35;
             numHeads = 1;
             break;
             
-        case DISK_DS_SD:
+        case DISK_TYPE_DS_SD:
             numCyls = 35;
             numHeads = 2;
             break;
@@ -32,20 +33,21 @@ FSDeviceDescriptor::FSDeviceDescriptor(DiskType type, FSVolumeType dos)
     }
 }
 
-bool
-FSDeviceDescriptor::isTrackSectorPair(Track t, Sector s)
-{
-    return isTrackNr(t) && s >= 0 && s < numSectors(t);
+FSDeviceDescriptor::FSDeviceDescriptor(D64File &d64)
+{    
+    this->dos = DOS_TYPE_CBM;
+    numCyls = d64.numTracks();
+    numHeads = 1;
 }
 
 bool
-FSDeviceDescriptor::isValidRef(BlockRef ref)
+FSDeviceDescriptor::isValidLink(TSLink ref) const
 {
     return isTrackNr(ref.t) && ref.s >= 0 && ref.s < numSectors(ref.t);
 }
 
 u32
-FSDeviceDescriptor::speedZone(Track t)
+FSDeviceDescriptor::speedZone(Track t) const
 {
     assert(isTrackNr(t));
     
@@ -60,7 +62,7 @@ FSDeviceDescriptor::speedZone(Track t)
 }
 
 u32
-FSDeviceDescriptor::numSectors(Track t)
+FSDeviceDescriptor::numSectors(Track t) const
 {
     if (!isTrackNr(t)) return 0;
     
@@ -77,7 +79,7 @@ FSDeviceDescriptor::numSectors(Track t)
 }
 
 u32
-FSDeviceDescriptor::numBlocks()
+FSDeviceDescriptor::numBlocks() const
 {
     u32 result = 0;
     
@@ -88,112 +90,36 @@ FSDeviceDescriptor::numBlocks()
     return result;
 }
 
-Cylinder
-FSDeviceDescriptor::cylNr(Track t)
-{
-    return t <= numCyls ? t : t - numCyls;
-}
-
-Head
-FSDeviceDescriptor::headNr(Track t)
-{
-    return t <= numCyls ? 0 : 1;
-}
-
-Track
-FSDeviceDescriptor::trackNr(Cylinder c, Head h)
-{
-    return c + h * numTracks();
-}
-
-Track
-FSDeviceDescriptor::trackNr(Block b)
-{
-    Track t; Sector s;
-    translateBlockNr(b, &t, &s);
-    return t;
-}
-
-Sector
-FSDeviceDescriptor::sectorNr(Block b)
-{
-    Track t; Sector s;
-    translateBlockNr(b, &t, &s);
-    return s;
-}
-
-Block
-FSDeviceDescriptor::blockNr(Track t, Sector s)
-{
-    Block b;
-    translateBlockNr(&b, t, s);
-    return b;
-}
-
-Block
-FSDeviceDescriptor::blockNr(Cylinder c, Head h, Sector s)
-{
-    Block b;
-    translateBlockNr(&b, c, h, s);
-    return b;
-}
-
-Block
-FSDeviceDescriptor::blockNr(BlockRef ts)
-{
-    return blockNr(ts.t, ts.s);
-}
-
-void
-FSDeviceDescriptor::translateBlockNr(Block b, Track *t, Sector *s)
+TSLink
+FSDeviceDescriptor::tsLink(Block b) const
 {
     for (Track i = 1; i <= numTracks(); i++) {
 
         u32 num = numSectors(i);
-        if (b < num) { *t = i; *s = b; return; }
+        if (b < num) return TSLink{i,b};
         b -= num;
     }
     
-    *t = *s = 0; // Invalid
+    return TSLink{0,0};
 }
 
-void
-FSDeviceDescriptor::translateBlockNr(Block b, Cylinder *c, Head *h, Sector *s)
+Block
+FSDeviceDescriptor::blockNr(TSLink ts) const
 {
-    Track t;
-    translateBlockNr(b, &t, s);
+    if (!isValidLink(ts)) return (Block)(-1);
     
-    if (t <= numCyls) {
-        *h = 0; *c = t;
-    } else {
-        *h = 1; *c = t - numCyls;
-    }
-}
-
-void
-FSDeviceDescriptor::translateBlockNr(Block *b, Track t, Sector s)
-{
-    if (!isTrackSectorPair(t, s)) { *b = (Block)(-1); return; }
-    
-    u32 cnt = s;
-    
-    for (Track i = 1; i < t; i++) {
+    u32 cnt = ts.s;
+    for (Track i = 1; i < ts.t; i++) {
         cnt += numSectors(i);
     }
     
-    *b = cnt;
+    return cnt;
 }
 
-void
-FSDeviceDescriptor::translateBlockNr(Block *b, Cylinder c, Head h, Sector s)
+TSLink
+FSDeviceDescriptor::nextBlockRef(TSLink ref) const
 {
-    translateBlockNr(b, c + h * numTracks(), s);
-}
-
-BlockRef
-FSDeviceDescriptor::nextBlockRef(BlockRef ref)
-{
-    assert(isValidRef(ref));
+    assert(isValidLink(ref));
     
     Track t = ref.t;
     Sector s = ref.s;
@@ -232,53 +158,6 @@ FSDeviceDescriptor::nextBlockRef(BlockRef ref)
         }
     }
     
-    assert(isTrackSectorPair(t, s));
-    return {t,s};
-}
-
-bool
-FSDeviceDescriptor::nextTrackAndSector(Track t, Sector s, Track *nt, Sector *ns)
-{
-    assert(isTrackSectorPair(t, s));
-    assert(nt);
-    assert(ns);
-    
-    // Lookup table for the next sector (interleave patterns)
-    Sector next[5][21] = {
-
-        // Speed zone 0 - 3
-        { 10,11,12,13,14,15,16, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
-        { 10,11,12,13,14,15,16,17, 1, 0, 2, 3, 4, 5, 6, 7, 8, 9 },
-        { 10,11,12,13,14,15,16,17,18, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-        { 10,11,12,13,14,15,16,17,18,19,20, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
-        
-        // Directory track
-        {  3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18, 0, 1, 2 }
-    };
-
-    if (t == 18) {
-
-        // Take care of the directory track
-        s = next[4][s];
-
-        // Return false if we've wrapped over (directory track is full)
-        if (s == 0) return false;
-    
-    } else {
-            
-        // Take care of all other tracks
-        s = next[speedZone(t)][s];
-        
-        // Move to the next track if we've wrapped over
-        if (s == 0) {
-            
-            if (t >= numTracks()) return false;
-            t = t == 17 ? 19 : t + 1;
-        }
-    }
-    
-    assert(isTrackSectorPair(t, s));
-    *nt = t;
-    *ns = s;
-    return true;
+    assert(isValidLink(TSLink{t,s}));
+    return TSLink{t,s};
 }

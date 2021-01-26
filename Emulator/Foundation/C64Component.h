@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _C64_COMPONENT_H
-#define _C64_COMPONENT_H
+#pragma once
 
 #include "HardwareComponent.h"
 
@@ -36,10 +35,12 @@ class Mouse;
 class Mouse1350;
 class Mouse1351;
 class NeosMouse;
-class MessageQueue;
+class MsgQueue;
 class Oscillator;
 
-class File;
+// class File;
+class AnyFile;
+class AnyCollection;
 class TAPFile;
 class T64File;
 class PRGFile;
@@ -73,8 +74,7 @@ protected:
     Drive &drive8;
     Drive &drive9;
     Datasette &datasette;
-    Mouse &mouse;
-    MessageQueue &messageQueue;
+    MsgQueue &messageQueue;
     Oscillator &oscillator;
     
     Drive *drive[2] = { &drive8, &drive9 };
@@ -86,7 +86,5 @@ public:
     void suspend();
     void resume();
     
-    void prefix() override;
+    void prefix() const override;
 };
-
-#endif

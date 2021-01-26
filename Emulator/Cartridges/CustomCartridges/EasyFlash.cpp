@@ -24,7 +24,7 @@ EasyFlash::EasyFlash(C64 &ref) : Cartridge(ref)
 void
 EasyFlash::resetCartConfig()
 {
-    expansionport.setCartridgeMode(CRT_ULTIMAX);
+    expansionport.setCartridgeMode(CRTMODE_ULTIMAX);
 }
 
 void
@@ -41,7 +41,7 @@ EasyFlash::_reset()
 }
 
 void
-EasyFlash::_dump()
+EasyFlash::_dump() const
 {
     Cartridge::_dump();
     
@@ -55,17 +55,17 @@ EasyFlash::_dump()
     }
     msg("\n");
     
-    flashRomL.dump();
-    flashRomH.dump();
+    // flashRomL.dump();
+    // flashRomH.dump();
 }
 
 void
-EasyFlash::loadChip(unsigned nr, CRTFile *c)
+EasyFlash::loadChip(unsigned nr, const CRTFile &crt)
 {
-    u16 chipSize = c->chipSize(nr);
-    u16 chipAddr = c->chipAddr(nr);
-    u16 chipBank = c->chipBank(nr);
-    u8 *chipData = c->chipData(nr);
+    u16 chipSize = crt.chipSize(nr);
+    u16 chipAddr = crt.chipAddr(nr);
+    u16 chipBank = crt.chipBank(nr);
+    u8 *chipData = crt.chipData(nr);
     
     if(chipSize != 0x2000) {
         warn("Package %d has chip size %04X. Expected 0x2000.\n", nr, chipSize);
@@ -139,11 +139,24 @@ EasyFlash::peekIO1(u16 addr)
 }
 
 u8
+EasyFlash::spypeekIO1(u16 addr) const
+{
+    u8 result = (addr & 2) ? (modeReg & 0x87) : bankReg;
+    return result;
+}
+
+u8
 EasyFlash::peekIO2(u16 addr)
 {
     u8 result = peekRAM(addr & 0xFF);
     trace(CRT_DEBUG, "peekIO2(%x): %x\n", addr & 0xFF, result);
-    
+    return result;
+}
+
+u8
+EasyFlash::spypeekIO2(u16 addr) const
+{
+    u8 result = peekRAM(addr & 0xFF);
     return result;
 }
 
@@ -151,7 +164,6 @@ void
 EasyFlash::pokeIO1(u16 addr, u8 value)
 {
     trace(CRT_DEBUG, "pokeIO1(%x,%x)\n", addr & 0xFF, value);
-    
     (addr & 2) ? pokeModeReg(value) : pokeBankReg(value);
 }
 
@@ -159,7 +171,6 @@ void
 EasyFlash::pokeIO2(u16 addr, u8 value)
 {
     trace(CRT_DEBUG, "pokeIO2(%x,%x)\n", addr & 0xFF, value);
-
     pokeRAM(addr & 0xFF, value);
 }
 

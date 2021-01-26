@@ -72,9 +72,9 @@ Datasette::ejectTape()
     
     pressStop();
     
-    assert(data != NULL);
+    assert(data);
     free(data);
-    data = NULL;
+    data = nullptr;
     size = 0;
     type = 0;
     durationInCycles = 0;
@@ -105,7 +105,7 @@ Datasette::advanceHead(bool silent)
 }
 
 int
-Datasette::pulseLength(int *skip)
+Datasette::pulseLength(int *skip) const
 {
     assert(head < size);
 
@@ -142,7 +142,7 @@ Datasette::pressPlay()
     playKey = true;
 
     // Schedule first pulse
-    uint64_t length = pulseLength();
+    usize length = pulseLength();
     nextRisingEdge = length / 2;
     nextFallingEdge = length;
     advanceHead();
@@ -174,7 +174,7 @@ Datasette::_execute()
         if (head < size) {
 
             // Schedule the next pulse
-            uint64_t length = pulseLength();
+            usize length = pulseLength();
             nextRisingEdge = length / 2;
             nextFallingEdge = length;
             advanceHead();

@@ -7,8 +7,7 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _EXPERT_H
-#define _EXPERT_H
+#pragma once
 
 #include "Cartridge.h"
 
@@ -25,8 +24,8 @@ class Expert : public Cartridge {
 public:
     
     Expert(C64 &ref);
-    const char *getDescription() override { return "Expert"; }
-    CartridgeType getCartridgeType() override { return CRT_EXPERT; }
+    const char *getDescription() const override { return "Expert"; }
+    CartridgeType getCartridgeType() const override { return CRT_EXPERT; }
 
 private:
     
@@ -37,7 +36,7 @@ private:
     // Initializing
     //
 
-    void _dump() override;
+    void _dump() const override;
 
     
     //
@@ -59,20 +58,20 @@ private:
     {
     }
     
-    size_t __size() { COMPUTE_SNAPSHOT_SIZE }
-    size_t __load(u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
-    size_t __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
+    usize __size() { COMPUTE_SNAPSHOT_SIZE }
+    usize __load(u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
+    usize __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
     
-    size_t _size() override { return Cartridge::_size() + __size(); }
-    size_t _load(u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
-    size_t _save(u8 *buf) override { return Cartridge::_save(buf) + __save(buf); }
+    usize _size() override { return Cartridge::_size() + __size(); }
+    usize _load(u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
+    usize _save(u8 *buf) override { return Cartridge::_save(buf) + __save(buf); }
 
    
     //
     // Handling ROM packets
     //
     
-    void loadChip(unsigned nr, CRTFile *c) override;
+    void loadChip(unsigned nr, const CRTFile &crt) override;
 
     
     //
@@ -82,20 +81,20 @@ private:
     void updatePeekPokeLookupTables() override;
     u8 peek(u16 addr) override;
     u8 peekIO1(u16 addr) override;
-    u8 spypeekIO1(u16 addr) override { return 0; }
+    u8 spypeekIO1(u16 addr) const override;
     void poke(u16 addr, u8 value) override;
     void pokeIO1(u16 addr, u8 value) override;
     
-    bool cartridgeRamIsVisible(u16 addr);
-    bool cartridgeRamIsWritable(u16 addr);
+    bool cartridgeRamIsVisible(u16 addr) const;
+    bool cartridgeRamIsWritable(u16 addr) const;
 
     
     //
     // Operating buttons
     //
     
-    long numButtons() override { return 2; }
-    const char *getButtonTitle(unsigned nr) override;
+    long numButtons() const override { return 2; }
+    const char *getButtonTitle(unsigned nr) const override;
     void pressButton(unsigned nr) override;
     
     
@@ -103,11 +102,11 @@ private:
     // Operating switches
     //
     
-    bool hasSwitch() override { return true; }
-    const char *getSwitchDescription(i8 pos) override;
-    bool switchInPrgPosition() { return switchIsLeft(); }
-    bool switchInOffPosition() { return switchIsNeutral(); }
-    bool switchInOnPosition() { return switchIsRight(); }
+    bool hasSwitch() const override { return true; }
+    const char *getSwitchDescription(i8 pos) const override;
+    bool switchInPrgPosition() const { return switchIsLeft(); }
+    bool switchInOffPosition() const { return switchIsNeutral(); }
+    bool switchInOnPosition() const { return switchIsRight(); }
     
     
     //
@@ -116,5 +115,3 @@ private:
     
     void nmiWillTrigger() override;
 };
-
-#endif

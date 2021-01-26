@@ -7,10 +7,10 @@
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#ifndef _DISK_H
-#define _DISK_H
+#pragma once
 
 #include "C64Component.h"
+#include "PETName.h"
 
 class Disk : public C64Component {
     
@@ -60,7 +60,7 @@ private:
     
     /* GCR encoding table. Maps 4 data bits to 5 GCR bits.
      */
-    const u8 gcr[16] = {
+    static constexpr u8 gcr[16] = {
         
         0x0a, 0x0b, 0x12, 0x13, /*  0 -  3 */
         0x0e, 0x0f, 0x16, 0x17, /*  4 -  7 */
@@ -71,7 +71,7 @@ private:
     /* Inverse GCR encoding table. Maps 5 GCR bits to 4 data bits. Invalid
      * patterns are marked with 255.
      */
-    const u8 invgcr[32] = {
+    static constexpr u8 invgcr[32] = {
         
         255, 255, 255, 255, /* 0x00 - 0x03 */
         255, 255, 255, 255, /* 0x04 - 0x07 */
@@ -130,10 +130,10 @@ private:
     std::vector<std::string> errorLog;
 
     // Stores the start offset of the erroneous bit sequence
-    std::vector<size_t> errorStartIndex;
+    std::vector<usize> errorStartIndex;
 
     // Stores the end offset of the erroneous bit sequence
-    std::vector<size_t> errorEndIndex;
+    std::vector<usize> errorEndIndex;
 
     // Textual representation of track data
     char text[maxBitsOnTrack + 1];
@@ -164,8 +164,10 @@ public:
     
 public:
     
-    static Disk *make(C64 &c64, FileSystemType type);
-    static Disk *makeWithArchive(C64 &c64, AnyArchive *archive);
+    static Disk *make(C64 &ref, DOSType type, PETName<16> name);
+    static Disk *makeWithFileSystem(C64 &ref, class FSDevice &device);
+    static Disk *makeWithG64(C64 &ref, G64File *g64);
+    static Disk *makeWithCollection(C64 &ref, AnyCollection &archive);
 
 
     //
@@ -175,7 +177,7 @@ public:
 public:
     
     Disk(C64 &ref);
-    const char *getDescription() override { return "Disk"; }
+    const char *getDescription() const override { return "Disk"; }
     
 private:
     
@@ -188,7 +190,7 @@ private:
     
 private:
     
-    void _dump() override;
+    void _dump() const override;
 
     
     //
@@ -213,9 +215,9 @@ private:
     {
     }
     
-    size_t _size() override { COMPUTE_SNAPSHOT_SIZE }
-    size_t _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    size_t _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
@@ -224,11 +226,11 @@ private:
 
 public:
     
-    bool isWriteProtected() { return writeProtected; }
+    bool isWriteProtected() const { return writeProtected; }
     void setWriteProtection(bool b) { writeProtected = b; }
     void toggleWriteProtection() { writeProtected = !writeProtected; }
 
-    bool isModified() { return modified; }
+    bool isModified() const { return modified; }
     void setModified(bool b);
     
     
@@ -239,18 +241,18 @@ public:
 public:
     
     // Converts a 4 bit binary value to a 5 bit GCR codeword or vice versa
-    u8 bin2gcr(u8 value) { assert(value < 16); return gcr[value]; }
-    u8 gcr2bin(u8 value) { assert(value < 32); return invgcr[value]; }
+    static u8 bin2gcr(u8 value) { assert(value < 16); return gcr[value]; }
+    static u8 gcr2bin(u8 value) { assert(value < 32); return invgcr[value]; }
 
     // Returns true if the provided 5 bit codeword is a valid GCR codeword
-    bool isGcr(u8 value) { assert(value < 32); return invgcr[value] != 0xFF; }
+    static bool isGcr(u8 value) { assert(value < 32); return invgcr[value] != 0xFF; }
     
     /* Encodes a byte stream as a GCR bit stream. The first function encodes
      * a single byte and the second functions encodes multiple bytes. For each
      * byte, 10 bits are written to the specified disk position.
      */
     void encodeGcr(u8 value, Track t, HeadPos offset);
-    void encodeGcr(u8 *values, size_t length, Track t, HeadPos offset);
+    void encodeGcr(u8 *values, usize length, Track t, HeadPos offset);
     
     
     /* Decodes a nibble (4 bit) from a previously encoded GCR bitstream.
@@ -269,10 +271,10 @@ public:
     //
     
     // Returns true if the provided drive head position is valid
-    bool isValidHeadPos(Halftrack ht, HeadPos pos);
+    bool isValidHeadPos(Halftrack ht, HeadPos pos) const;
     
     // Fixes a wrapped over head position
-    HeadPos wrap(Halftrack ht, HeadPos pos);
+    HeadPos wrap(Halftrack ht, HeadPos pos) const;
     
     /* Returns the duration of a single bit in 1/10 nano seconds. The returned
      * value is the time span the drive head resists over the specified bit.
@@ -280,18 +282,18 @@ public:
      * written to disk. Function "_bitDelay" expects the head position to be
      * inside the halftrack bounds.
      */
-    u64 _bitDelay(Halftrack ht, HeadPos pos);
-    u64 bitDelay(Halftrack ht, HeadPos pos) { return _bitDelay(ht, wrap(ht, pos)); }
+    u64 _bitDelay(Halftrack ht, HeadPos pos) const;
+    u64 bitDelay(Halftrack ht, HeadPos pos) const { return _bitDelay(ht, wrap(ht, pos)); }
     
     /* Reads or writes a single bit. The functions come in two variants. The
      * first variants expect the provided head position inside the valid
      * halftrack bounds. The other variants wrap over the head position first.
      */
-    u8 _readBitFromHalftrack(Halftrack ht, HeadPos pos) {
+    u8 _readBitFromHalftrack(Halftrack ht, HeadPos pos) const {
         assert(isValidHeadPos(ht, pos));
         return (data.halftrack[ht][pos / 8] & (0x80 >> (pos % 8))) != 0;
     }
-    u8 readBitFromHalftrack(Halftrack ht, HeadPos pos) {
+    u8 readBitFromHalftrack(Halftrack ht, HeadPos pos) const {
         return _readBitFromHalftrack(ht, wrap(ht, pos));
     }
     void _writeBitToHalftrack(Halftrack ht, HeadPos pos, bool bit) {
@@ -313,11 +315,11 @@ public:
     }
     
     // Writes a bit multiple times
-    void writeBitToHalftrack(Halftrack ht, HeadPos pos, bool bit, size_t count) {
-        for (size_t i = 0; i < count; i++)
+    void writeBitToHalftrack(Halftrack ht, HeadPos pos, bool bit, usize count) {
+        for (usize i = 0; i < count; i++)
             writeBitToHalftrack(ht, pos++, bit);
     }
-    void writeBitToTrack(Track t, HeadPos pos, bool bit, size_t count) {
+    void writeBitToTrack(Track t, HeadPos pos, bool bit, usize count) {
             writeBitToHalftrack(2 * t - 1, pos, bit, count);
     }
 
@@ -331,11 +333,11 @@ public:
     }
     
     // Writes a certain number of interblock bytes to disk
-    void writeGapToHalftrack(Halftrack ht, HeadPos pos, size_t length) {
-        for (size_t i = 0; i < length; i++, pos += 8)
+    void writeGapToHalftrack(Halftrack ht, HeadPos pos, usize length) {
+        for (usize i = 0; i < length; i++, pos += 8)
             writeByteToHalftrack(ht, pos, 0x55);
     }
-    void writeGapToTrack(Track t, HeadPos pos, size_t length) {
+    void writeGapToTrack(Track t, HeadPos pos, usize length) {
         writeGapToHalftrack(2 * t - 1, pos, length);
     }
 
@@ -350,9 +352,9 @@ public:
     /* Checks whether a track or halftrack is cleared. Avoid calling these
      * methods frequently, because they scan the whole track.
      */
-    bool trackIsEmpty(Track t);
-    bool halftrackIsEmpty(Halftrack ht);
-    unsigned nonemptyHalftracks();
+    bool trackIsEmpty(Track t) const;
+    bool halftrackIsEmpty(Halftrack ht) const;
+    unsigned nonemptyHalftracks() const;
 
     
     //
@@ -362,8 +364,8 @@ public:
 public:
     
     // Returns the length of a halftrack in bits
-    u16 lengthOfHalftrack(Halftrack ht);
-    u16 lengthOfTrack(Track t);
+    u16 lengthOfHalftrack(Halftrack ht) const;
+    u16 lengthOfTrack(Track t) const;
     
     /* Analyzes the sector layout. The functions determines the start and end
      * offsets of all sectors and writes them into variable trackLayout.
@@ -374,11 +376,11 @@ public:
 private:
     
     // Checks the integrity of a sector header or sector data block
-    void analyzeSectorHeaderBlock(size_t offset);
-    void analyzeSectorDataBlock(size_t offset);
+    void analyzeSectorHeaderBlock(usize offset);
+    void analyzeSectorDataBlock(usize offset);
 
     // Writes an error message into the error log
-    void log(size_t begin, size_t length, const char *fmt, ...);
+    void log(usize begin, usize length, const char *fmt, ...);
     
 public:
     
@@ -387,16 +389,16 @@ public:
         assert(isSectorNumber(nr)); return trackInfo.sectorInfo[nr]; }
     
     // Returns the number of entries in the error log
-    unsigned numErrors() { return (unsigned)errorLog.size(); }
+    usize numErrors() { return errorLog.size(); }
     
     // Reads an error message from the error log
-    std::string errorMessage(unsigned nr) { return errorLog.at(nr); }
+    std::string errorMessage(unsigned nr) const { return errorLog.at(nr); }
     
     // Reads the error begin index from the error log
-    size_t firstErroneousBit(unsigned nr) { return errorStartIndex.at(nr); }
+    usize firstErroneousBit(unsigned nr) const { return errorStartIndex.at(nr); }
     
     // Reads the error end index from the error log
-    size_t lastErroneousBit(unsigned nr) { return errorEndIndex.at(nr); }
+    usize lastErroneousBit(unsigned nr) const { return errorEndIndex.at(nr); }
     
     // Returns a textual representation of the disk name
     const char *diskNameAsString();
@@ -413,7 +415,7 @@ public:
 private:
     
     // Returns a textual representation
-    const char *sectorBytesAsString(u8 *buffer, size_t length, bool hex);
+    const char *sectorBytesAsString(u8 *buffer, usize length, bool hex);
     
     
     //
@@ -427,13 +429,13 @@ public:
      * passing a null pointer, a test run is performed. Test runs are used to
      * determine how many bytes will be written.
      */
-    size_t decodeDisk(u8 *dest);
+    usize decodeDisk(u8 *dest);
  
 private:
     
-    size_t decodeDisk(u8 *dest, unsigned numTracks);
-    size_t decodeTrack(Track t, u8 *dest);
-    size_t decodeSector(size_t offset, u8 *dest);
+    usize decodeDisk(u8 *dest, unsigned numTracks);
+    usize decodeTrack(Track t, u8 *dest);
+    usize decodeSector(usize offset, u8 *dest);
 
 
     //
@@ -443,14 +445,14 @@ private:
 public:
     
     // Encodes a G64 file
-    void encodeArchive(G64File *a);
+    void encodeG64(G64File *a);
     
-    /* Encodes a D64 file. The method creates sync marks, GRC encoded header
+    /* Encodes a file system. The method creates sync marks, GRC encoded header
      * and data blocks, checksums and gaps. If alignTracks is true, the first
      * sector always starts at the beginning of a track.
      */
-    void encodeArchive(D64File *a, bool alignTracks = false);
- 
+    void encode(FSDevice &fs, bool alignTracks = false);
+    
 private:
     
     /* Encode a single track. This function translates the logical byte
@@ -461,14 +463,13 @@ private:
      * follwowing sectors with odd sector numbers. The number of written bits
      * is returned.
      */
-    size_t encodeTrack(D64File *a, Track t, u8 tailGap, HeadPos start);
+    usize encodeTrack(FSDevice &fs, Track t, u8 tailGap, HeadPos start);
     
     /* Encode a single sector. This function translates the logical byte
      * sequence of a single sector into the native VC1541 byte representation.
      * The sector is closed by 'gap' tail gap bytes. The number of written bits
      * is returned.
      */
-    size_t encodeSector(D64File *a, Track t, Sector sector, HeadPos start, int gap);
+    usize encodeSector(FSDevice &fs, Track t, Sector sector, HeadPos start, int gap);
 };
-    
-#endif
+ 

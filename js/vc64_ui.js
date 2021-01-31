@@ -576,7 +576,7 @@ function configure_file_dialog(reset=false)
                         last_zip_archive = null; 
                     }
 
-                    if(mountable_count==1)
+                    if(mountable_count>=1)
                     {
                         $("#li_fileselect0").click();
                     }

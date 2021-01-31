@@ -529,14 +529,17 @@ function configure_file_dialog(reset=false)
                     var list='<ul id="ui_file_list" class="list-group">';
                     var mountable_count=0;
                     zip.forEach(function (relativePath, zipfile){
-                        var mountable = relativePath.toLowerCase().match(/[.](zip|prg|t64|d64|g64|tap|crt)$/i);
-                        list+='<li '+
-                        (mountable ? 'id="li_fileselect'+mountable_count+'"':'')
-                        +' class="list-group-item list-group-item-action'+ 
-                            (mountable ? '':' disabled')+'" data-toggle="list">'+relativePath+'</li>';
-                        if(mountable)
+                        if(!relativePath.startsWith("__MACOSX"))
                         {
-                            mountable_count++;
+                            var mountable = relativePath.toLowerCase().match(/[.](zip|prg|t64|d64|g64|tap|crt)$/i);
+                            list+='<li '+
+                            (mountable ? 'id="li_fileselect'+mountable_count+'"':'')
+                            +' class="list-group-item list-group-item-action'+ 
+                                (mountable ? '':' disabled')+'" data-toggle="list">'+relativePath+'</li>';
+                            if(mountable)
+                            {
+                                mountable_count++;
+                            }
                         }
                     });
                     list += '</ul>';
@@ -1070,6 +1073,23 @@ function InitWrappers() {
             }
             window.parent.postMessage({ msg: 'render_current_audio_state', 
                 value: audio_context == null ? 'suspended' : audio_context.state },"*");
+        }
+        else if(event.data == "open_zip()")
+        {
+            var modal = $('#modal_file_slot'); 
+            if(modal.is(':visible'))
+            {
+                modal.modal('hide');
+            }
+            else
+            {
+                if(required_roms_loaded && last_zip_archive_name != null)
+                {
+                    file_slot_file_name = last_zip_archive_name;
+                    file_slot_file = last_zip_archive;
+                    configure_file_dialog();
+                }
+            }
         }
     }); 
     

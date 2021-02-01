@@ -255,7 +255,12 @@ function load_roms(install_to_core){
             var restoredbytearray = Uint8Array.from(FromBase64(stored_item));
             if(install_to_core)
             {
-                wasm_loadfile(item_name, restoredbytearray, restoredbytearray.byteLength);
+                romtype = wasm_loadfile(item_name, restoredbytearray, restoredbytearray.byteLength);
+                if(!romtype.endsWith("rom"))
+                {//in case the core thinks rom is not valid anymore delete it
+                    localStorage.removeItem(item_name);
+                    return null;
+                }
             }
             return restoredbytearray;
         }

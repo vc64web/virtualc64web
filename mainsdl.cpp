@@ -783,10 +783,14 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
        //wrapper->c64->putMessage(MSG_READY_TO_RUN);
       const char* ready_msg= "READY_TO_RUN";
       printf("sending ready message %s.\n", ready_msg);
-      send_message_to_js(ready_msg);
-      
+      send_message_to_js(ready_msg);    
     }
-    
+    if(error != ERROR_OK)
+    {
+      printf("%s\n", ErrorCodeEnum::key(error));
+    }
+
+
     const char *rom_type="";
     if(rom->isRomBuffer(ROM_TYPE_KERNAL, blob,len))
     {

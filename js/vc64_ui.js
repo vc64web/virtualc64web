@@ -179,6 +179,7 @@ function message_handler(msg)
         setTimeout(async function() {
             if(load_roms(true) == false)
             {
+                get_parameter_link(); //just make sure the parameters are set
                 if(call_param_openROMS==true)
                 {
                     await fetchOpenROMS();        

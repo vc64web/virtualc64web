@@ -494,8 +494,8 @@ class C64Wrapper {
 
 
     // master Volumne
-    c64->configure(OPT_AUDVOLL, 60); 
-    c64->configure(OPT_AUDVOLR, 60);
+    c64->configure(OPT_AUDVOLL, 100); 
+    c64->configure(OPT_AUDVOLR, 100);
 
     //SID0 Volumne
     c64->configure(OPT_AUDVOL, 0, 100); 
@@ -510,7 +510,7 @@ class C64Wrapper {
 
 
     //c64->configure(OPT_HIDE_SPRITES, true); 
-    c64->dump();
+    //c64->dump();
 //    printf("is running = %u\n",c64->isRunning()); 
  //   c64->dump();
  //   c64->drive1.dump();

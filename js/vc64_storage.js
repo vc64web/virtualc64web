@@ -102,7 +102,7 @@ function get_stored_app_titles(callback_fn)
     };
 }
 
-function get_snapshots_for_app_title(app_title, callback_fn)
+function get_snapshots_for_app_title(context, app_title, callback_fn)
 {
     let transaction = db.transaction("snapshots"); 
     let snapshots = transaction.objectStore("snapshots");
@@ -111,7 +111,7 @@ function get_snapshots_for_app_title(app_title, callback_fn)
     let request = priceIndex.getAll(app_title);
 
     request.onsuccess = function() {
-        callback_fn(app_title, request.result);
+        callback_fn(context, app_title, request.result);
     };
 }
 
@@ -135,8 +135,8 @@ function delete_snapshot_per_id(the_id)
     let snapshots = transaction.objectStore("snapshots");
     snapshots.delete(parseInt(the_id));
     //check if this was the last snapshot of the game title 
-    get_snapshots_for_app_title(the_snapshot.title, 
-      function (app_title, snapshot_list) {
+    get_snapshots_for_app_title(0, the_snapshot.title, 
+      function (ctx, app_title, snapshot_list) {
         if(snapshot_list.length == 0)
         {//when it was the last one, then also delete the app title
           let tx_apps = db.transaction("apps", 'readwrite'); 

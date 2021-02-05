@@ -5,6 +5,8 @@ var current_browser_command=null;
 var already_loaded_collector = null;
 var snapshot_browser_first_click=true;
 var search_term='';
+var latest_load_query_context=0;
+
 function setup_browser_interface()
 {
     var search_func= async function(){
@@ -149,6 +151,8 @@ async function load_browser(datasource_name, command="feeds")
     }
 
     //empty all feeds
+    latest_load_query_context++;
+    //console.log(`empty grid container ctx=#${latest_load_query_context}`);
     $('#container_snapshots').empty();
 
     var render_persistent_snapshot=function(app_title, item){
@@ -183,7 +187,17 @@ async function load_browser(datasource_name, command="feeds")
         return the_html;
     }
 
-    var row_renderer = function(app_title, app_snaps) {
+    var row_renderer = function(ctx, app_title, app_snaps) {
+        if(latest_load_query_context != ctx)
+        {
+            //console.log(`abort grid container append ${app_title}`);
+            return;
+        }
+        else
+        {
+            //console.log(`grid container append ${app_title}`);
+        }       
+
         //app_title=app_title.split(' ').join('_');
         var the_grid ="";
         if(app_snaps.length>0)
@@ -197,6 +211,7 @@ async function load_browser(datasource_name, command="feeds")
             the_grid += render_persistent_snapshot(app_title, app_snaps[z]);
         }
         the_grid+='</div>';
+    
         $('#container_snapshots').append(the_grid);
         for(var z=0; z<app_snaps.length; z++)
         {
@@ -308,7 +323,7 @@ var collectors = {
                     new_item.internal_id=z;
                     auto_save_items.push(new_item);
                 }
-                row_renderer('auto_save',auto_save_items);
+                row_renderer(latest_load_query_context,'auto_save',auto_save_items);
 
                 this.total_count=auto_save_count;
 
@@ -321,9 +336,10 @@ var collectors = {
                         var app_title=app_titles[t];
                         if(search_term == '' || app_title.toLowerCase().indexOf(search_term.toLowerCase()) >= 0)
                         {
-                            get_snapshots_for_app_title(app_title, row_renderer);
+                            get_snapshots_for_app_title(latest_load_query_context, app_title, row_renderer);
                         }
                     }
+                    //das false flaggen ist hier zu früh, weil er noch die Daten holt und dann rendered
                     get_data_collector('snapshots').set_busy(false);
                 }
                 await get_stored_app_titles(store_renderer);
@@ -599,7 +615,7 @@ var collectors = {
                 }
                 for(row_type in type_rows)
                 {
-                    row_renderer(row_type,type_rows[row_type]);
+                    row_renderer(latest_load_query_context,row_type,type_rows[row_type]);
                 }
 
             }
@@ -660,7 +676,7 @@ var collectors = {
                         }
                         for(row_type in type_rows)
                         {
-                            row_renderer(row_type,type_rows[row_type]);
+                            row_renderer(latest_load_query_context, row_type,type_rows[row_type]);
                         }
 
                     }
@@ -702,7 +718,7 @@ var collectors = {
                         {
                             this.all_items[feed_item.id]=feed_item;
                         }
-                        row_renderer(row_key, this.loaded_feeds[row_key]);
+                        row_renderer(latest_load_query_context, row_key, this.loaded_feeds[row_key]);
                     }
                     return;
                 }
@@ -740,7 +756,7 @@ var collectors = {
                             }
                         }
                         this.loaded_feeds[this.row_name] = items;
-                        row_renderer(this.row_name,items);
+                        row_renderer(latest_load_query_context, this.row_name,items);
                     }
                     catch {}
                 }

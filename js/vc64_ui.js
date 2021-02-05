@@ -4,6 +4,8 @@ let call_param_2ndSID=null;
 let call_param_navbar=null;
 let call_param_wide=null;
 let call_param_border=null;
+let call_param_touch=null;
+
 
 function ToBase64(u8) 
 {
@@ -45,9 +47,14 @@ function get_parameter_link()
                     //for example #2ndSID=d420#http...
                     call_param_2ndSID = "enabled at $"+sid_addr; 
                 }
+                else if(token.match(/touch=true/i))
+                {
+                    call_param_touch=true;
+                    register_v_joystick();
+                }
                 else if(token.match(/port1=true/i))
                 {
-                    port1="keys";          
+                    port1=call_param_touch != true ? "keys":"touch";          
                     port2="none";     
                     $('#port1').val(port1);
                     $('#port2').val(port2);
@@ -55,7 +62,7 @@ function get_parameter_link()
                 else if(token.match(/port2=true/i))
                 {
                     port1="none";
-                    port2="keys";        
+                    port2=call_param_touch != true ? "keys":"touch";
                     $('#port1').val(port1);       
                     $('#port2').val(port2);
                 }
@@ -179,6 +186,7 @@ function message_handler(msg)
         setTimeout(async function() {
             if(load_roms(true) == false)
             {
+                get_parameter_link(); //just make sure the parameters are set
                 if(call_param_openROMS==true)
                 {
                     await fetchOpenROMS();        
@@ -255,7 +263,12 @@ function load_roms(install_to_core){
             var restoredbytearray = Uint8Array.from(FromBase64(stored_item));
             if(install_to_core)
             {
-                wasm_loadfile(item_name, restoredbytearray, restoredbytearray.byteLength);
+                romtype = wasm_loadfile(item_name, restoredbytearray, restoredbytearray.byteLength);
+                if(!romtype.endsWith("rom"))
+                {//in case the core thinks rom is not valid anymore delete it
+                    localStorage.removeItem(item_name);
+                    return null;
+                }
             }
             return restoredbytearray;
         }
@@ -529,14 +542,17 @@ function configure_file_dialog(reset=false)
                     var list='<ul id="ui_file_list" class="list-group">';
                     var mountable_count=0;
                     zip.forEach(function (relativePath, zipfile){
-                        var mountable = relativePath.toLowerCase().match(/[.](zip|prg|t64|d64|g64|tap|crt)$/i);
-                        list+='<li '+
-                        (mountable ? 'id="li_fileselect'+mountable_count+'"':'')
-                        +' class="list-group-item list-group-item-action'+ 
-                            (mountable ? '':' disabled')+'" data-toggle="list">'+relativePath+'</li>';
-                        if(mountable)
+                        if(!relativePath.startsWith("__MACOSX"))
                         {
-                            mountable_count++;
+                            var mountable = relativePath.toLowerCase().match(/[.](zip|prg|t64|d64|g64|tap|crt)$/i);
+                            list+='<li '+
+                            (mountable ? 'id="li_fileselect'+mountable_count+'"':'')
+                            +' class="list-group-item list-group-item-action'+ 
+                                (mountable ? '':' disabled')+'" data-toggle="list">'+relativePath+'</li>';
+                            if(mountable)
+                            {
+                                mountable_count++;
+                            }
                         }
                     });
                     list += '</ul>';
@@ -573,7 +589,7 @@ function configure_file_dialog(reset=false)
                         last_zip_archive = null; 
                     }
 
-                    if(mountable_count==1)
+                    if(mountable_count>=1)
                     {
                         $("#li_fileselect0").click();
                     }
@@ -1070,6 +1086,23 @@ function InitWrappers() {
             }
             window.parent.postMessage({ msg: 'render_current_audio_state', 
                 value: audio_context == null ? 'suspended' : audio_context.state },"*");
+        }
+        else if(event.data == "open_zip()")
+        {
+            var modal = $('#modal_file_slot'); 
+            if(modal.is(':visible'))
+            {
+                modal.modal('hide');
+            }
+            else
+            {
+                if(required_roms_loaded && last_zip_archive_name != null)
+                {
+                    file_slot_file_name = last_zip_archive_name;
+                    file_slot_file = last_zip_archive;
+                    configure_file_dialog();
+                }
+            }
         }
     }); 
     

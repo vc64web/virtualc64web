@@ -1,4 +1,4 @@
-const cache_name = 'vc64_app_cache_v2021_02_05';
+const cache_name = 'vc64_app_cache_v2021_02_06b';
 
 // install event
 self.addEventListener('install', evt => {
@@ -30,8 +30,10 @@ self.addEventListener('fetch', evt => {
             !evt.request.url.endsWith('cache_me=true')
             ||
             evt.request.url.startsWith('https://mega65.github.io/')
-	    ||
+	          ||
             evt.request.url.startsWith('https://dirkwhoffmann.github.io/virtualc64web/doc')
+            ||
+            evt.request.url.endsWith('vc64web_player.js')
           )
           {
             console.log('do not cache fetched resource: '+evt.request.url);

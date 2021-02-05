@@ -4,6 +4,8 @@ let call_param_2ndSID=null;
 let call_param_navbar=null;
 let call_param_wide=null;
 let call_param_border=null;
+let call_param_touch=null;
+
 
 function ToBase64(u8) 
 {
@@ -45,9 +47,14 @@ function get_parameter_link()
                     //for example #2ndSID=d420#http...
                     call_param_2ndSID = "enabled at $"+sid_addr; 
                 }
+                else if(token.match(/touch=true/i))
+                {
+                    call_param_touch=true;
+                    register_v_joystick();
+                }
                 else if(token.match(/port1=true/i))
                 {
-                    port1="keys";          
+                    port1=call_param_touch != true ? "keys":"touch";          
                     port2="none";     
                     $('#port1').val(port1);
                     $('#port2').val(port2);
@@ -55,7 +62,7 @@ function get_parameter_link()
                 else if(token.match(/port2=true/i))
                 {
                     port1="none";
-                    port2="keys";        
+                    port2=call_param_touch != true ? "keys":"touch";
                     $('#port1').val(port1);       
                     $('#port2').val(port2);
                 }

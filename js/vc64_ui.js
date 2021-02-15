@@ -202,6 +202,11 @@ function message_handler(msg)
     else if(msg == "MSG_RUN")
     {
         required_roms_loaded=true;
+        emulator_currently_runs=true;
+    }
+    else if(msg == "MSG_PAUSE")
+    {
+        emulator_currently_runs=false;
     }
     else if(msg == "MSG_IEC_BUS_IDLE")
     {
@@ -1335,6 +1340,7 @@ $('.layer').change( function(event) {
     }
 
     running=true;
+    emulator_currently_runs=false;
     $("#button_run").click(function() {
         hide_all_tooltips();
         if(running)

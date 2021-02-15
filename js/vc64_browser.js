@@ -1178,7 +1178,7 @@ function set_take_auto_snapshots(on) {
     else if(on && auto_snap_interval == null)
     {
         auto_snap_interval=setInterval(() => {
-            if(is_running())
+            if(is_running() && emulator_currently_runs==true)
             {
                 wasm_halt();
                 wasm_take_user_snapshot(); 

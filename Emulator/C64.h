@@ -480,7 +480,7 @@ public:
     void signalInspect() { setActionFlags(ACTION_FLAG_INSPECT); }
     void signalJammed() { setActionFlags(ACTION_FLAG_CPU_JAMMED); }
     void signalStop() { setActionFlags(ACTION_FLAG_STOP); }
-
+    void signalExpPortNmi() { setActionFlags(ACTION_FLAG_EXTERNAL_NMI); }
 
     //
     // Handling snapshots
@@ -548,8 +548,9 @@ public:
     void deleteRom(RomType type);
     
     // Saves a Rom to disk
-    bool saveRom(RomType rom, const char *path);
-    
+    void saveRom(RomType rom, const char *path) throws;
+    void saveRom(RomType rom, const char *path, ErrorCode *ec);
+
     
     //
     // Flashing files

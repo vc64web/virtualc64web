@@ -47,9 +47,7 @@ ExpansionPort::_load(u8 *buffer)
     
     // Load cartridge (if any)
     if (crtType != CRT_NONE) {
-        assert(cartridge);
-        delete cartridge;
-        cartridge = Cartridge::makeWithType(c64, crtType);
+        cartridge = std::unique_ptr<Cartridge>(Cartridge::makeWithType(c64, crtType));
         reader.ptr += cartridge->load(reader.ptr);
     }
     
@@ -205,10 +203,11 @@ void
 ExpansionPort::setCartridgeMode(CRTMode mode)
 {
     switch (mode) {
+            
         case CRTMODE_16K:     setGameAndExrom(0,0); return;
         case CRTMODE_8K:      setGameAndExrom(1,0); return;
         case CRTMODE_ULTIMAX: setGameAndExrom(0,1); return;
-        default:          setGameAndExrom(1,1);
+        default:              setGameAndExrom(1,1);
     }
 }
 
@@ -220,7 +219,7 @@ ExpansionPort::attachCartridge(Cartridge *c)
                
     // Remove old cartridge (if any) and assign new one
     detachCartridge();
-    cartridge = c;
+    cartridge = std::unique_ptr<Cartridge>(c);
     crtType = c->getCartridgeType();
     
     // Reset cartridge to update exrom and game line on the expansion port
@@ -237,9 +236,8 @@ ExpansionPort::attachGeoRamCartridge(usize kb)
 {
     debug(EXP_DEBUG, "Attaching GeoRAM cartridge (%zu KB)", kb);
 
-    if (kb != 64 && kb != 256 && kb != 512 && kb != 1024 && kb != 2048) {
-        assert(false);
-    }
+    // kb must be a power of two between 64 and 4096
+    if (kb < 64 || kb > 4096 || (kb & kb - 1)) assert(false);
     
     Cartridge *geoRAM = Cartridge::makeWithType(c64, CRT_GEO_RAM);
     geoRAM->setRamCapacity(kb * 1024);
@@ -288,7 +286,6 @@ ExpansionPort::detachCartridge()
         
         suspend();
         
-        delete cartridge;
         cartridge = nullptr;
         crtType = CRT_NONE;
         
@@ -308,6 +305,12 @@ ExpansionPort::detachCartridgeAndReset()
     detachCartridge();
     c64.reset();
     resume();
+}
+
+usize
+ExpansionPort::getRamCapacity() const
+{
+    return cartridge ? cartridge->getRamCapacity() : 0;
 }
 
 bool

@@ -962,14 +962,21 @@ C64::runLoop()
             // Are we requested to terminate the run loop?
             if (runLoopCtrl & ACTION_FLAG_STOP) {
                 clearActionFlags(ACTION_FLAG_STOP);
-                trace(RUN_DEBUG, "RL_STOP\n");
+                trace(RUN_DEBUG, "STOP\n");
                 break;
+            }
+            
+            // Are we requested to pull the NMI line down?
+            if (runLoopCtrl & ACTION_FLAG_EXTERNAL_NMI) {
+                cpu.pullDownNmiLine(INTSRC_EXP);
+                trace(RUN_DEBUG, "EXTERNAL_NMI\n");
+                clearActionFlags(ACTION_FLAG_EXTERNAL_NMI);
             }
             
             // Is the CPU jammed due the execution of an illegal instruction?
             if (runLoopCtrl & ACTION_FLAG_CPU_JAMMED) {
                 putMessage(MSG_CPU_JAMMED);
-                trace(RUN_DEBUG, "RL_CPU_JAMMED\n");
+                trace(RUN_DEBUG, "CPU_JAMMED\n");
                 clearActionFlags(ACTION_FLAG_CPU_JAMMED);
                 break;
             }
@@ -1562,46 +1569,60 @@ C64::deleteRom(RomType type)
     }
 }
 
-bool
+void
 C64::saveRom(RomType type, const char *path)
 {
     switch (type) {
             
         case ROM_TYPE_BASIC:
         {
-            if (!hasRom(ROM_TYPE_BASIC)) return false;
-            
-            // RomFile *file = RomFile::makeWithBuffer(mem.rom + 0xA000, 0x2000);
-            RomFile *file = RomFile::make <RomFile> (mem.rom + 0xA000, 0x2000);
-            return file && file->writeToFile(path);
+            if (hasRom(ROM_TYPE_BASIC)) {
+                RomFile *file = RomFile::make <RomFile> (mem.rom + 0xA000, 0x2000);
+                file->writeToFile(path);
+                delete file;
+            }
+            break;
         }
         case ROM_TYPE_CHAR:
         {
-            if (!hasRom(ROM_TYPE_CHAR)) return false;
-            
-            // RomFile *file = RomFile::makeWithBuffer(mem.rom + 0xD000, 0x1000);
-            RomFile *file = RomFile::make <RomFile> (mem.rom + 0xD000, 0x1000);
-            return file && file->writeToFile(path);
+            if (hasRom(ROM_TYPE_CHAR)) {
+                RomFile *file = RomFile::make <RomFile> (mem.rom + 0xD000, 0x1000);
+                file->writeToFile(path);
+                delete file;
+            }
+            break;
         }
         case ROM_TYPE_KERNAL:
         {
-            if (!hasRom(ROM_TYPE_KERNAL)) return false;
-            
-            // RomFile *file = RomFile::makeWithBuffer(mem.rom + 0xE000, 0x2000);
-            RomFile *file = RomFile::make <RomFile> (mem.rom + 0xE000, 0x2000);
-            return file && file->writeToFile(path);
+            if (hasRom(ROM_TYPE_KERNAL)) {
+                RomFile *file = RomFile::make <RomFile> (mem.rom + 0xE000, 0x2000);
+                file->writeToFile(path);
+                delete file;
+            }
+            break;
         }
         case ROM_TYPE_VC1541:
         {
-            if (!hasRom(ROM_TYPE_VC1541)) return false;
-            
-            // RomFile *file = RomFile::makeWithBuffer(drive8.mem.rom, 0x4000);
-            RomFile *file = RomFile::make <RomFile> (drive8.mem.rom, 0x4000);
-            return file && file->writeToFile(path);
+            if (hasRom(ROM_TYPE_VC1541)) {
+                RomFile *file = RomFile::make <RomFile> (drive8.mem.rom, 0x4000);
+                file->writeToFile(path);
+                delete file;
+            }
+            break;
         }
-        default: assert(false);
+            
+        default:
+            assert(false);
     }
-    return false;
+}
+
+void
+C64::saveRom(RomType type, const char *path, ErrorCode *ec)
+{
+    *ec = ERROR_OK;
+    
+    try { saveRom(type, path); }
+    catch (VC64Error &exception) { *ec = exception.errorCode; }
 }
 
 bool

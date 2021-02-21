@@ -830,8 +830,8 @@ SIDBridge::mixSingleSID(usize numSamples)
         r *= volR.current;
         
         // Apply ear protection
-        assert(abs(l) < 2.0);
-        assert(abs(r) < 2.0);
+        assert(abs(l) < 1.0);
+        assert(abs(r) < 1.0);
         
         stream.write(SamplePair { l, r } );
     }
@@ -876,9 +876,9 @@ SIDBridge::mixMultiSID(usize numSamples)
         r *= volR.current;
         
         // Apply ear protection
-        assert(abs(l) < 2.0);
-        assert(abs(r) < 2.0);
-
+        assert(abs(l) < 1.0);
+        assert(abs(r) < 1.0);
+        
         stream.write(SamplePair { l, r } );
     }
     stream.unlock();

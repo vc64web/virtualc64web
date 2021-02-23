@@ -1843,23 +1843,6 @@ $('.layer').change( function(event) {
             }
         );
 
-        var adjust_script_textbox_height= function ()
-        {
-            var action_script_val = $('#input_action_script').val();
-            if($('#button_script_language').val() == "javascript")
-            {
-                $('#input_action_script').css("min-height","300px");
-                $('#div_action_script').css("min-height","300px");
-           
-            }
-            else
-            {
-                $('#input_action_script').css("min-height","");
-                $('#div_action_script').css("min-height","");
-            }
-        }
-
-
         reconfig_editor = function(new_lang){
             if(typeof editor !== 'undefined' )
             {
@@ -1921,8 +1904,6 @@ $('.layer').change( function(event) {
             set_scope_label();
             $('#check_app_scope').change( set_scope_label );
             
-            adjust_script_textbox_height();
-
             if(is_running())
             {
                 wasm_halt();
@@ -2018,12 +1999,11 @@ $('.layer').change( function(event) {
                     if(action_script_val.trim().length==0)
                     {
                         if(txt=='simple while')                
-                            action_script_val = '\nwhile(not_stopped(this_id))\n{\n await action("A=>200ms")\n}';
+                            action_script_val = 'while(not_stopped(this_id))\n{\n await action("A=>200ms")\n}';
                         else if(txt=='API example')
                             action_script_val = '//example of the API\nwhile(not_stopped(this_id))\n{\n  //wait some time\n  await action("100ms");\n\n  //get information about the sprites 0..7\n  var y_light=sprite_ypos(0);\n  var y_dark=sprite_ypos(0);\n\n  //reserve exclusive port 1..2 access (manual joystick control is blocked)\n  set_port_owner(1,PORT_ACCESSOR.BOT);\n  await action(`j1left1=>j1up1=>400ms=>j1left0=>j1up0`);\n  //give control back to the user\n  set_port_owner(1,PORT_ACCESSOR.MANUAL);\n}';
                         else if(txt=='aimbot')
                             action_script_val = '//archon aimbot\nconst port_light=1, port_dark=2, sprite_light=0, sprite_dark=1;\n\nwhile(not_stopped(this_id))\n{\n  await aim_and_shoot( port_light /* change bot side here ;-) */ );\n  await action("100ms");\n}\n\nasync function aim_and_shoot(port)\n{ \n  var y_light=sprite_ypos(sprite_light);\n  var y_dark=sprite_ypos(sprite_dark);\n  var x_light=sprite_xpos(sprite_light);\n  var x_dark=sprite_xpos(sprite_dark);\n\n  var y_diff=Math.abs(y_light - y_dark);\n  var x_diff=Math.abs(x_light - x_dark);\n  var angle = shoot_angle(x_diff,y_diff);\n\n  var x_aim=null;\n  var y_aim=null;\n  if( y_diff<10 || 26<angle && angle<28 )\n  {\n     var x_rel = (port == port_dark) ? x_dark-x_light: x_light-x_dark;  \n     x_aim=x_rel > 0 ?"left":"right";   \n  }\n  if( x_diff <10 || 26<angle && angle<28)\n  {\n     var y_rel = (port == port_dark) ? y_dark-y_light: y_light-y_dark;  \n     y_aim=y_rel > 0 ?"up":"down";   \n  }\n  \n  if(x_aim != null || y_aim != null)\n  {\n    set_port_owner(port, \n      PORT_ACCESSOR.BOT);\n    await action(`j${port}left0=>j${port}up0`);\n\n    await action(`j${port}fire1`);\n    if(x_aim != null)\n     await action(`j${port}${x_aim}1`);\n    if(y_aim != null)\n      await action(`j${port}${y_aim}1`);\n    await action("60ms");\n    if(x_aim != null)\n      await action(`j${port}${x_aim}0`);\n    if(y_aim != null)\n      await action(`j${port}${y_aim}0`);\n    await action(`j${port}fire0`);\n    await action("60ms");\n\n    set_port_owner(\n      port,\n      PORT_ACCESSOR.MANUAL\n    );\n    await action("500ms");\n  }\n}\n\nfunction shoot_angle(x, y) {\n  return Math.atan2(y, x) * 180 / Math.PI;\n}';
-                       adjust_script_textbox_height();
                        set_script_language('javascript');
                     }
                     else
@@ -2051,7 +2031,7 @@ $('.layer').change( function(event) {
                 require(["codemirror", "codemirror/mode/javascript/javascript",
                             "codemirror/addon/hint/show-hint", "codemirror/addon/hint/javascript-hint",
                             "codemirror/addon/edit/closebrackets","codemirror/addon/edit/matchbrackets", 
-                            "codemirror/addon/selection/active-line", 
+                            "codemirror/addon/selection/active-line", "codemirror/addon/display/placeholder",
                             "codemirror/addon/lint/lint", "codemirror/addon/lint/javascript-lint",
       //                      "codemirror/lib/jshint", not working with require.js
                             ], function(CodeMirror) 
@@ -2091,7 +2071,7 @@ $('.layer').change( function(event) {
                         editor.setOption("theme", "vc64dark");
                     }
                     reconfig_editor($("#button_script_language").text());
-                    $(".CodeMirror").css("width","100%");
+                    $(".CodeMirror").css("width","100%").css("min-height","70px");
                 });
         }
 

@@ -1,5 +1,7 @@
  :root {
   --darkbg: #2d2d2d;
+  --lightbg: #e1dfe1;
+  --lighterbg: #f0f0f0;
 }
 
 
@@ -46,10 +48,17 @@ flex: 0 0 auto;
 flex: 0 0 auto;
 }
 
+body
+{
+    background-color: var(--lighterbg) !important;
+}
+
 [data-theme="dark"] {
-background-color: #2d2d2d !important;
+background-color: var(--darkbg) !important;
 color: var(--light) !important;
 }
+
+
 
 /* the filled circle in the switch was to high */
 .custom-switch .custom-control-label::before{
@@ -100,6 +109,9 @@ background-color: var(--gray) !important;
 color: var(--light) !important;
 }
 
+.modal-content {
+background-color: var(--lightbg) !important;
+}
 
 [data-theme="dark"] .modal-content {
 background-color: var(--darkbg) !important;
@@ -109,6 +121,9 @@ background-color: var(--darkbg) !important;
 color: var(--light) !important;
 }
 
+.card {
+background-color: var(--lighterbg) !important;
+}
 [data-theme="dark"] .card {
 background-color: #555 !important;
 }
@@ -133,7 +148,7 @@ color: #aaa !important;
     bottom:0;
     z-index:999;
     width:100%;
-    background-color: #bbb;
+    background-color: var(--lightbg);
 }
 
 [data-theme="dark"] #virtual_keyboard {
@@ -141,7 +156,7 @@ color: #aaa !important;
 }
 
 #navbar {
-    background-color: #bbb;
+    background-color: var(--lightbg);
 
     position: fixed; 
     top:0; 
@@ -211,11 +226,18 @@ color: #aaa !important;
     width: 100%;
     height: 100%;
     z-index: 2000;
-    background-color: var(--darkbg);
+    background-color: var(--lightbg);
     outline: none;
     overflow-y: auto;
     opacity: 1.0;
 }
+
+
+[data-theme="dark"] #view_detail {
+    background-color: var(--darkbg);
+}
+
+
 
 #detail_content{
     margin-top:45px;

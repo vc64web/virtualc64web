@@ -613,13 +613,23 @@
 
             <div class="input-group mb-3 mt-2">
               <div class="dropdown" style="display:flex;justify-content:space-between;width:100%">
-                <button id="button_script_language" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  actionscript
-                </button>
-                <div id="choose_script_language" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
-                  <a class="dropdown-item" href="#">actionscript</a>
-                  <a class="dropdown-item" href="#">javascript</a>
+                <div style="display:flex">
+                  <button id="button_script_language" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    actionscript
+                  </button>
+                  <div id="choose_script_language" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+                    <a class="dropdown-item" href="#">actionscript</a>
+                    <a class="dropdown-item" href="#">javascript</a>
+                  </div>
+                  
+                  <div class="custom-control-lg custom-control custom-checkbox ml-3 mt-2">
+                    <input id="check_livecomplete" class="custom-control-input" type="checkbox" value="">
+                    <label id="check_livecomplete_label" class="custom-control-label text-muted" for="check_livecomplete">
+                    live complete
+                    </label>
+                  </div> 
                 </div>
+
                 <div class="dropdown">
                   <button class="btn btn-primary dropdown-toggle" type="button" style="height:100%"
                   data-toggle="collapse" data-target="#predefined_actions" aria-controls="predefined_actions" aria-expanded="false" aria-label="predefined actions"                  

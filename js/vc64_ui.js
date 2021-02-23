@@ -2049,7 +2049,9 @@ $('.layer').change( function(event) {
                         extraKeys: {"Ctrl-Space": "autocomplete"}
                     });
                     editor.on("keyup", function (cm, event) {
-                        if($('#button_script_language').val() == "javascript")
+                        if($('#button_script_language').text() == "javascript"
+                        && $('#check_livecomplete').prop('checked')
+                        )
                         {
                             if (!cm.state.completionActive && 
                                 event.key.length == 1  &&

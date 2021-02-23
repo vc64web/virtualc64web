@@ -610,16 +610,23 @@
             <li>or a literal action enclosed in single quotes e.g. <b>'load"$",8'</b></li>
             <li>for more complex tasks you can also choose to add a javascript ...</li>
             </ul>
+
             <div class="input-group mb-3 mt-2">
-              <div class="input-group-prepend">
+              <div class="dropdown" style="display:flex;justify-content:space-between;width:100%">
+                <button id="button_script_language" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  actionscript
+                </button>
+                <div id="choose_script_language" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+                  <a class="dropdown-item" href="#">actionscript</a>
+                  <a class="dropdown-item" href="#">javascript</a>
+                </div>
                 <div class="dropdown">
                   <button class="btn btn-primary dropdown-toggle" type="button" style="height:100%"
                   data-toggle="collapse" data-target="#predefined_actions" aria-controls="predefined_actions" aria-expanded="false" aria-label="predefined actions"                  
                   >add 
                   </button>
                 </div>
-
-                <div class="collapse" id="predefined_actions" >
+                <div class="collapse" id="predefined_actions" style="position:absolute;z-index:2000;right:0;top:39px;">
                   <div>
                     <div class="dropdown">
                       <button class="btn btn-primary dropdown-toggle text-right" style="width:100%" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -665,11 +672,16 @@
                     </div>
                   </div>
                 </div>
-
               </div>
-              <textarea id="input_action_script" placeholder="type a single key like 'B' for bomb ... or compose a sequence of actions separated by comma" class="form-control" aria-label="action script" aria-describedby="inputGroup-sizing-default"></textarea>
-              <div id="action_button_syntax_error" class="invalid-feedback"></div>
+
+              <div style="width: 100%">
+                <textarea id="input_action_script" style="width: 100%;display:none" placeholder="type a single key like 'B' for bomb ... or compose a sequence of actions separated by comma" class="form-control" aria-label="action script" aria-describedby="inputGroup-sizing-default"></textarea>
+                <div id="action_button_syntax_error" class="invalid-feedback"></div>
+              </div>
+
             </div>
+
+              
             
              ...  after created you can change the position of the button by dragging ... when clicking a custom key with a long press it 
 goes into edit mode which takes you right back to here ...

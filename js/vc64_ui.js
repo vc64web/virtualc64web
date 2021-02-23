@@ -6,7 +6,6 @@ let call_param_wide=null;
 let call_param_border=null;
 let call_param_touch=null;
 
-
 function ToBase64(u8) 
 {
     return btoa(String.fromCharCode.apply(null, u8));
@@ -1847,26 +1846,60 @@ $('.layer').change( function(event) {
         var adjust_script_textbox_height= function ()
         {
             var action_script_val = $('#input_action_script').val();
-            if(action_script_val.startsWith('js:'))
+            if($('#button_script_language').val() == "javascript")
             {
                 $('#input_action_script').css("min-height","300px");
+                $('#div_action_script').css("min-height","300px");
+           
             }
             else
             {
                 $('#input_action_script').css("min-height","");
+                $('#div_action_script').css("min-height","");
+            }
+        }
+
+
+        reconfig_editor = function(new_lang){
+            if(typeof editor !== 'undefined' )
+            {
+                editor.setOption("lineNumbers", new_lang == 'javascript');
+                if(new_lang=='javascript')
+                {
+                    editor.setOption("gutters", ["CodeMirror-lint-markers"]);
+                    editor.setOption("lint", { esversion: 10});                 
+                }
+                else
+                {
+                    editor.setOption("gutters", false);
+                    editor.setOption("lint", false);
+                }
             }
         }
 
         $('#modal_custom_key').on('show.bs.modal', function () {
+            function set_script_language(script_language) {
+                $("#button_script_language").text(script_language);;
+            }
+            $('#choose_script_language a').click(function () 
+            {
+                let new_lang = $(this).text();
+                set_script_language(new_lang);
+                validate_action_script();
+
+                reconfig_editor(new_lang);
+            });
+
             if(create_new_custom_key)
             {
                 $('#button_delete_custom_button').hide();
-                 $('#check_app_scope').prop('checked',true);
+                $('#check_app_scope').prop('checked',true);
             }
             else
             {
                 var btn_def = custom_keys.find(el=> ('ck'+el.id) == haptic_touch_selected.id);
 
+                set_script_language(btn_def.lang);
                 $('#input_button_text').val(btn_def.title);
                 $('#input_button_shortcut').val(btn_def.key);
                 $('#check_app_scope').prop('checked',btn_def.app_scope);
@@ -1888,8 +1921,6 @@ $('.layer').change( function(event) {
             set_scope_label();
             $('#check_app_scope').change( set_scope_label );
             
-
-
             adjust_script_textbox_height();
 
             if(is_running())
@@ -1900,7 +1931,7 @@ $('.layer').change( function(event) {
             //click function
             var on_add_action = function() {
                 var txt= $(this).text();
-
+/*
                 var action_script_val = $('#input_action_script').val();
                 if(action_script_val.trim().length==0)
                 {
@@ -1914,8 +1945,13 @@ $('.layer').change( function(event) {
                 {
                     action_script_val += "=>"+txt;
                 }
+                editor.getDoc().setValue(action_script_val);
+*/
+                let doc = editor.getDoc();
+                let cursor = doc.getCursor();
+                doc.replaceRange(txt, cursor);
 
-                $('#input_action_script').val(action_script_val);
+                //$('#input_action_script').val(action_script_val);
                 validate_action_script();
             };
 
@@ -1982,33 +2018,135 @@ $('.layer').change( function(event) {
                     if(action_script_val.trim().length==0)
                     {
                         if(txt=='simple while')                
-                            action_script_val = 'js: \nwhile(not_stopped(this_id))\n{\n await action("A=>200ms")\n}';
+                            action_script_val = '\nwhile(not_stopped(this_id))\n{\n await action("A=>200ms")\n}';
                         else if(txt=='API example')
-                            action_script_val = 'js://example of the API\nwhile(not_stopped(this_id))\n{\n  //wait some time\n  await action("100ms");\n\n  //get information about the sprites 0..7\n  var y_light=sprite_ypos(0);\n  var y_dark=sprite_ypos(0);\n\n  //reserve exclusive port 1..2 access (manual joystick control is blocked)\n  set_port_owner(1,PORT_ACCESSOR.BOT);\n  await action(`j1left1=>j1up1=>400ms=>j1left0=>j1up0`);\n  //give control back to the user\n  set_port_owner(1,PORT_ACCESSOR.MANUAL);\n}';
+                            action_script_val = '//example of the API\nwhile(not_stopped(this_id))\n{\n  //wait some time\n  await action("100ms");\n\n  //get information about the sprites 0..7\n  var y_light=sprite_ypos(0);\n  var y_dark=sprite_ypos(0);\n\n  //reserve exclusive port 1..2 access (manual joystick control is blocked)\n  set_port_owner(1,PORT_ACCESSOR.BOT);\n  await action(`j1left1=>j1up1=>400ms=>j1left0=>j1up0`);\n  //give control back to the user\n  set_port_owner(1,PORT_ACCESSOR.MANUAL);\n}';
                         else if(txt=='aimbot')
-                            action_script_val = 'js://archon aimbot\nconst port_light=1, port_dark=2, sprite_light=0, sprite_dark=1;\n\nwhile(not_stopped(this_id))\n{\n  await aim_and_shoot( port_light /* change bot side here ;-) */ );\n  await action("100ms");\n}\n\nasync function aim_and_shoot(port)\n{ \n  var y_light=sprite_ypos(sprite_light);\n  var y_dark=sprite_ypos(sprite_dark);\n  var x_light=sprite_xpos(sprite_light);\n  var x_dark=sprite_xpos(sprite_dark);\n\n  var y_diff=Math.abs(y_light - y_dark);\n  var x_diff=Math.abs(x_light - x_dark);\n  var angle = shoot_angle(x_diff,y_diff);\n\n  var x_aim=null;\n  var y_aim=null;\n  if( y_diff<10 || 26<angle && angle<28 )\n  {\n     var x_rel = (port == port_dark) ? x_dark-x_light: x_light-x_dark;  \n     x_aim=x_rel > 0 ?"left":"right";   \n  }\n  if( x_diff <10 || 26<angle && angle<28)\n  {\n     var y_rel = (port == port_dark) ? y_dark-y_light: y_light-y_dark;  \n     y_aim=y_rel > 0 ?"up":"down";   \n  }\n  \n  if(x_aim != null || y_aim != null)\n  {\n    set_port_owner(port, \n      PORT_ACCESSOR.BOT);\n    await action(`j${port}left0=>j${port}up0`);\n\n    await action(`j${port}fire1`);\n    if(x_aim != null)\n     await action(`j${port}${x_aim}1`);\n    if(y_aim != null)\n      await action(`j${port}${y_aim}1`);\n    await action("60ms");\n    if(x_aim != null)\n      await action(`j${port}${x_aim}0`);\n    if(y_aim != null)\n      await action(`j${port}${y_aim}0`);\n    await action(`j${port}fire0`);\n    await action("60ms");\n\n    set_port_owner(\n      port,\n      PORT_ACCESSOR.MANUAL\n    );\n    await action("500ms");\n  }\n}\n\nfunction shoot_angle(x, y) {\n  return Math.atan2(y, x) * 180 / Math.PI;\n}';
+                            action_script_val = '//archon aimbot\nconst port_light=1, port_dark=2, sprite_light=0, sprite_dark=1;\n\nwhile(not_stopped(this_id))\n{\n  await aim_and_shoot( port_light /* change bot side here ;-) */ );\n  await action("100ms");\n}\n\nasync function aim_and_shoot(port)\n{ \n  var y_light=sprite_ypos(sprite_light);\n  var y_dark=sprite_ypos(sprite_dark);\n  var x_light=sprite_xpos(sprite_light);\n  var x_dark=sprite_xpos(sprite_dark);\n\n  var y_diff=Math.abs(y_light - y_dark);\n  var x_diff=Math.abs(x_light - x_dark);\n  var angle = shoot_angle(x_diff,y_diff);\n\n  var x_aim=null;\n  var y_aim=null;\n  if( y_diff<10 || 26<angle && angle<28 )\n  {\n     var x_rel = (port == port_dark) ? x_dark-x_light: x_light-x_dark;  \n     x_aim=x_rel > 0 ?"left":"right";   \n  }\n  if( x_diff <10 || 26<angle && angle<28)\n  {\n     var y_rel = (port == port_dark) ? y_dark-y_light: y_light-y_dark;  \n     y_aim=y_rel > 0 ?"up":"down";   \n  }\n  \n  if(x_aim != null || y_aim != null)\n  {\n    set_port_owner(port, \n      PORT_ACCESSOR.BOT);\n    await action(`j${port}left0=>j${port}up0`);\n\n    await action(`j${port}fire1`);\n    if(x_aim != null)\n     await action(`j${port}${x_aim}1`);\n    if(y_aim != null)\n      await action(`j${port}${y_aim}1`);\n    await action("60ms");\n    if(x_aim != null)\n      await action(`j${port}${x_aim}0`);\n    if(y_aim != null)\n      await action(`j${port}${y_aim}0`);\n    await action(`j${port}fire0`);\n    await action("60ms");\n\n    set_port_owner(\n      port,\n      PORT_ACCESSOR.MANUAL\n    );\n    await action("500ms");\n  }\n}\n\nfunction shoot_angle(x, y) {\n  return Math.atan2(y, x) * 180 / Math.PI;\n}';
                        adjust_script_textbox_height();
+                       set_script_language('javascript');
                     }
                     else
                     {
                         alert('first empty manually the existing script code then try again to insert '+txt+' template')
                     }
 
-                    $('#input_action_script').val(action_script_val);
+                    editor.getDoc().setValue(action_script_val);
+                    //$('#input_action_script').val(action_script_val);
+
                     validate_action_script();
                 }
-             );
-
-
+            );
         });
 
+        turn_on_full_editor = ()=>{
+            require.config(
+                {
+                    packages: [{
+                        name: "codemirror",
+                        location: "js/cm",
+                        main: "lib/codemirror"
+                    }]
+                });
+                require(["codemirror", "codemirror/mode/javascript/javascript",
+                            "codemirror/addon/hint/show-hint", "codemirror/addon/hint/javascript-hint",
+                            "codemirror/addon/edit/closebrackets","codemirror/addon/edit/matchbrackets", 
+                            "codemirror/addon/selection/active-line", 
+                            "codemirror/addon/lint/lint", "codemirror/addon/lint/javascript-lint",
+      //                      "codemirror/lib/jshint", not working with require.js
+                            ], function(CodeMirror) 
+                {
+                    editor = CodeMirror.fromTextArea(document.getElementById("input_action_script"), {
+                        lineNumbers: true,
+                        styleActiveLine: true,
+                        mode:  {name: "javascript", globalVars: true},
+                        lineWrapping: true,
+                        autoCloseBrackets: true,
+                        matchBrackets: true,
+                        tabSize: 2,
+                        gutters: ["CodeMirror-lint-markers"],
+                        lint: { esversion: 10},
+                        extraKeys: {"Ctrl-Space": "autocomplete"}
+                    });
+                    editor.on("keyup", function (cm, event) {
+                        if($('#button_script_language').val() == "javascript")
+                        {
+                            if (!cm.state.completionActive && 
+                                event.key.length == 1  &&
+                                event.key != ';' && event.key != ' ' && event.key != '(' 
+                                &&event.key != ')' && event.key != '{' && event.key != '}'  
+                                ) 
+                            {
+                                cm.showHint({completeSingle: false});
+                            }
+                        }
+                    });
+                    editor.on("change", (cm) => {
+                        cm.save();
+                        validate_action_script();
+                    });
+
+                    if(load_setting('dark_switch', true))
+                    {
+                        editor.setOption("theme", "vc64dark");
+                    }
+                    reconfig_editor($("#button_script_language").text());
+                    $(".CodeMirror").css("width","100%");
+                });
+        }
+
+
+
+        $('#modal_custom_key').on('shown.bs.modal', function () 
+        {
+            if(typeof jshint_loaded != 'undefined')
+            {
+                turn_on_full_editor();
+            }
+            else
+            {   
+                //lazy load full editor now
+                var load_script= function (url, callback){
+                    var script = document.createElement("script")
+                    script.type = "text/javascript";
+                    script.onload = callback;
+                    script.src = url;
+                    document.getElementsByTagName("head")[0].appendChild(script);
+                }
+                load_script("js/cm/lib/jshint.js",
+                ()=>{ 
+                    jshint_loaded=true;  
+                    load_script("js/cm/lib/require.js",
+                ()=>{
+                    turn_on_full_editor();
+                });
+                });            
+
+                function load_css(url) {
+                    var link = document.createElement("link");
+                    link.type = "text/css";
+                    link.rel = "stylesheet";
+                    link.href = url;
+                    document.getElementsByTagName("head")[0].appendChild(link);
+                }
+                load_css("css/cm/codemirror.css");
+                load_css("css/cm/lint.css");
+                load_css("css/cm/show-hint.css");
+                load_css("css/cm/theme/vc64dark.css");
+            }
+        });
+
+
+
         $('#modal_custom_key').on('hidden.bs.modal', function () {
+            editor.toTextArea();
             create_new_custom_key=false;
         
             if(is_running())
             {
                 wasm_run();
             }
+
         });
 
 
@@ -2017,6 +2155,7 @@ $('.layer').change( function(event) {
 
         $('#button_save_custom_button').click(async function(e) 
         {
+            editor.save();
             if( (await validate_custom_key_form()) == false)
                 return;
 
@@ -2029,7 +2168,9 @@ $('.layer').change( function(event) {
                       ,key: $('#input_button_shortcut').val()
                       ,app_scope: $('#check_app_scope').prop('checked')
                       ,script:  $('#input_action_script').val()
-                      ,position: "top:50%;left:50%" });
+                      ,position: "top:50%;left:50%"
+                      ,lang: $('#button_script_language').text()
+                    });
 
                 install_custom_keys();
                 create_new_custom_key=false;
@@ -2041,6 +2182,7 @@ $('.layer').change( function(event) {
                 btn_def.key = $('#input_button_shortcut').val();
                 btn_def.app_scope = $('#check_app_scope').prop('checked');
                 btn_def.script = $('#input_action_script').val();
+                btn_def.lang = $('#button_script_language').text();
 
                 install_custom_keys();
             }
@@ -2102,7 +2244,7 @@ $('.layer').change( function(event) {
             $('#ck'+element.id).click(function() 
             {       
                 var action_script = action_scripts['ck'+element.id];
-                execute_script(element.id, action_script);
+                execute_script(element.id, element.lang, action_script);
             });
         });
 

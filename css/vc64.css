@@ -1,8 +1,13 @@
+ :root {
+  --darkbg: #2d2d2d;
+}
+
+
 #canvas {
     position:fixed;
     left:0;
     right:0;
-    background-color: var(--dark);
+    background-color: var(--darkbg);
  }
 
 .pixel_art{
@@ -18,7 +23,7 @@
 }
 
 [data-theme="dark"] #drop_zone {
-    background-color: var(--dark);
+    background-color: var(--darkbg);
     border: 3px dashed var(--blue);
     height: 30px;
 }
@@ -42,7 +47,7 @@ flex: 0 0 auto;
 }
 
 [data-theme="dark"] {
-background-color:var(--dark) !important;
+background-color: #2d2d2d !important;
 color: var(--light) !important;
 }
 
@@ -63,8 +68,8 @@ background-color: var(--green) !important;
     padding-top: .165rem;
     margin-top: 1px; 
     background-color: inherit !important;
-    border-color: var(--dark);
-    color: var(--dark) !important;
+    border-color: var(--darkbg);
+    color: var(--darkbg) !important;
 }
 
     
@@ -95,8 +100,9 @@ background-color: var(--gray) !important;
 color: var(--light) !important;
 }
 
+
 [data-theme="dark"] .modal-content {
-background-color: #333 !important;
+background-color: var(--darkbg) !important;
 }
 
 [data-theme="dark"] .close {
@@ -131,7 +137,7 @@ color: #aaa !important;
 }
 
 [data-theme="dark"] #virtual_keyboard {
-    background-color:var(--gray-dark);
+    background-color:var(--darkbg);
 }
 
 #navbar {
@@ -144,7 +150,7 @@ color: #aaa !important;
 }
 
 [data-theme="dark"] #navbar {
-    background-color:var(--gray-dark);
+    background-color:var(--darkbg);
 }
     
     
@@ -205,7 +211,7 @@ color: #aaa !important;
     width: 100%;
     height: 100%;
     z-index: 2000;
-    background-color: var(--dark);
+    background-color: var(--darkbg);
     outline: none;
     overflow-y: auto;
     opacity: 1.0;
@@ -225,7 +231,7 @@ color: #aaa !important;
     width: 100%;
     height: 45px;
     text-align: left;
-    background-color: var(--dark);
+    background-color: var(--darkbg);
     opacity: 0.6;
     font-size: larger;
     border: none;
@@ -238,21 +244,21 @@ button[id^="detail_run"] {
 }
 
 .copy-btn {
-    background-color: var(--dark);
-    border-color: var(--dark);
+    background-color: var(--darkbg);
+    border-color: var(--darkbg);
     color: var(--blue);
 }
 
 .copy_run_link {
     width: 94%;
     font-size: xx-small;
-    background-color: var(--dark);
+    background-color: var(--darkbg);
     color: var(--secondary);
     border: none;
 }
 
 [data-theme="dark"] #search {
-    background-color: var(--dark);
+    background-color: var(--darkbg);
     color: var(--light);
     border-color: var(--blue);
     border-left: none;
@@ -271,4 +277,10 @@ button[id^="detail_run"] {
     position: absolute;
     width: 70%;
     opacity: 0.83;
+}
+
+
+[data-theme="dark"] textarea {
+    background-color: var(--darkbg);
+    color: var(--light);
 }

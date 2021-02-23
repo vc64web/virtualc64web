@@ -288,6 +288,19 @@ function get_custom_buttons_app_scope(the_app_title, callback_fn)
           {
             action_button.app_scope= true;
           }
+          if(action_button.lang === undefined)
+          {
+            //migration of js: prefix to lang property, can be removed in a later version ... 
+            if(action_button.script.startsWith("js:"))
+            {
+              action_button.script = action_button.script.substring(3);
+              action_button.lang = "javascript";
+            }
+            else
+            {
+              action_button.lang = "actionscript";
+            }
+          }
         }
 
         callback_fn(request.result);

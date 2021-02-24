@@ -5,6 +5,7 @@ let call_param_navbar=null;
 let call_param_wide=null;
 let call_param_border=null;
 let call_param_touch=null;
+let call_param_dark=null;
 
 function ToBase64(u8) 
 {
@@ -76,6 +77,10 @@ function get_parameter_link()
                 else if(token.match(/border=(true|false)/i))
                 {
                     call_param_border=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
+                }
+                else if(token.match(/dark=(true|false)/i))
+                {
+                    call_param_dark=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
                 }
             }
         }
@@ -650,6 +655,9 @@ joystick_keyup_map = {
 
 function is_any_text_input_active()
 {
+    if(typeof editor !== 'undefined' && editor.hasFocus())
+        return true;
+
     var active = false;
     var element = document.activeElement;
     if(element != null)
@@ -1898,6 +1906,7 @@ $('.layer').change( function(event) {
                 validate_action_script();
 
                 reconfig_editor(new_lang);
+                editor.focus();
             });
 
             if(create_new_custom_key)
@@ -2427,10 +2436,15 @@ $('.layer').change( function(event) {
 //---- end custom key ----
 
 function loadTheme() {
-  const dark_theme_selected = load_setting('dark_switch', true);
-  dark_switch.checked = dark_theme_selected;
-  dark_theme_selected ? document.body.setAttribute('data-theme', 'dark') :
-    document.body.removeAttribute('data-theme');
+    var dark_theme_selected = load_setting('dark_switch', true);;
+    get_parameter_link();
+    if(call_param_dark!=null)
+    {
+        dark_theme_selected= call_param_dark;
+    }
+    dark_switch.checked = dark_theme_selected;
+    dark_theme_selected ? document.body.setAttribute('data-theme', 'dark') :
+        document.body.removeAttribute('data-theme');
 }
 
 function setTheme() {

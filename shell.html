@@ -33,7 +33,7 @@
       div.emscripten_border { border: 0px solid black; }
       /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
       canvas.emscripten 
-      { border: 0px none; background-color: black; }
+      { border: 0px none; }
       .spinner {
         height: 50px;
         width: 50px;
@@ -751,9 +751,13 @@ goes into edit mode which takes you right back to here ...
     <!--file slot modal-->
 
 
-
-
     <script type='text/javascript'>
+      if(window.location.href.indexOf('#dark=false') >=0)
+      {
+        $("#canvas").css("background-color", "var(--lighterbg)");
+        $("body").removeAttr( "data-theme").css("background-color", "var(--lighterbg) !important");
+      }
+
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');
       var spinnerElement = document.getElementById('spinner');

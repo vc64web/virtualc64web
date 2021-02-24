@@ -669,6 +669,14 @@ function keydown(e) {
 
     e.preventDefault();
 
+    for(action_button of custom_keys)
+    {
+        if(action_button.key == e.key)
+        {
+            return;
+        }
+    }
+
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keydown_map[e.code];
@@ -696,7 +704,8 @@ function keyup(e) {
     {
         if(action_button.key == e.key)
         {
-            execute_script(action_button.id, action_button.script);
+            execute_script(action_button.id, action_button.lang, action_button.script);
+            return;
         }
     }
 
@@ -1869,12 +1878,16 @@ $('.layer').change( function(event) {
         }
         $('#check_livecomplete').change( function(){ 
             set_complete_label();
-            //$('.CodeMirror').focus();
+            editor.focus();
         });
             
 
 
         $('#modal_custom_key').on('show.bs.modal', function () {
+
+
+
+
             function set_script_language(script_language) {
                 $("#button_script_language").text(script_language);;
             }
@@ -1945,9 +1958,10 @@ $('.layer').change( function(event) {
                 let doc = editor.getDoc();
                 let cursor = doc.getCursor();
                 doc.replaceRange(txt, cursor);
-
+                editor.focus();
                 //$('#input_action_script').val(action_script_val);
                 validate_action_script();
+
             };
 
             $('#predefined_actions').collapse('hide');
@@ -2027,7 +2041,7 @@ $('.layer').change( function(event) {
 
                     editor.getDoc().setValue(action_script_val);
                     //$('#input_action_script').val(action_script_val);
-
+                    editor.focus();
                     validate_action_script();
                 }
             );
@@ -2098,6 +2112,12 @@ $('.layer').change( function(event) {
                     }
                     reconfig_editor($("#button_script_language").text());
                     $(".CodeMirror").css("width","100%").css("min-height","70px");
+
+                    $("#button_script_add, #button_script_language").each(function(){
+                        $(this).prop('disabled', false).
+                        removeClass( "btn-secondary" ).
+                        addClass("btn-primary");
+                    });
                 });
         }
 
@@ -2111,6 +2131,11 @@ $('.layer').change( function(event) {
             }
             else
             {   
+                $("#button_script_add, #button_script_language").each(function(){
+                    $(this).prop('disabled', true).
+                    removeClass( "btn-primary" ).
+                    addClass("btn-secondary");
+                });
                 //lazy load full editor now
                 var load_script= function (url, callback){
                     var script = document.createElement("script")

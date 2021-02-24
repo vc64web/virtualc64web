@@ -1850,15 +1850,29 @@ $('.layer').change( function(event) {
                 if(new_lang=='javascript')
                 {
                     editor.setOption("gutters", ["CodeMirror-lint-markers"]);
-                    editor.setOption("lint", { esversion: 10});                 
+                    editor.setOption("lint", { esversion: 10});
+                    $('#check_autocomplete').show();
+                    $('#check_livecomplete').prop('checked', true);                 
                 }
                 else
                 {
                     editor.setOption("gutters", false);
                     editor.setOption("lint", false);
+                    $('#check_autocomplete').hide();
                 }
             }
         }
+        set_complete_label = function(){
+          $('#check_livecomplete_label').text(  
+              $('#check_livecomplete').prop('checked') ?
+              "live complete":"autocomplete on ctrl+space");
+        }
+        $('#check_livecomplete').change( function(){ 
+            set_complete_label();
+            //$('.CodeMirror').focus();
+        });
+            
+
 
         $('#modal_custom_key').on('show.bs.modal', function () {
             function set_script_language(script_language) {
@@ -2048,7 +2062,17 @@ $('.layer').change( function(event) {
                         lint: { esversion: 10},
                         extraKeys: {"Ctrl-Space": "autocomplete"}
                     });
-                    editor.on("keyup", function (cm, event) {
+
+
+                    editor.on("keydown",function( cm, event ) {
+                        if(event.key === "Escape")
+                        {//prevent that ESC closes the complete modal when in editor
+                            event.stopPropagation();
+                            return false;
+                        }
+                    });
+
+                    editor.on("keyup", function (cm, event) {                        
                         if($('#button_script_language').text() == "javascript"
                         && $('#check_livecomplete').prop('checked')
                         )

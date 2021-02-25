@@ -2115,7 +2115,8 @@ $('.layer').change( function(event) {
                         validate_action_script();
                     });
 
-                    if(load_setting('dark_switch', true))
+                    if( (call_param_dark == null || call_param_dark)
+                       && load_setting('dark_switch', true))
                     {
                         editor.setOption("theme", "vc64dark");
                     }

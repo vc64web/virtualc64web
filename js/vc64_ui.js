@@ -1870,12 +1870,14 @@ $('.layer').change( function(event) {
                     editor.setOption("lint", { esversion: 10});
                     $('#check_autocomplete').show();
                     $('#check_livecomplete').prop('checked', true);                 
+                    editor.setOption('placeholder', "add example code with the menu button 'add'->'javascript'");
                 }
                 else
                 {
                     editor.setOption("gutters", false);
                     editor.setOption("lint", false);
                     $('#check_autocomplete').hide();
+                    editor.setOption('placeholder', "type a single key like 'B' for bomb ... or compose a sequence of actions separated by '=>'");
                 }
             }
         }
@@ -2036,7 +2038,7 @@ $('.layer').change( function(event) {
                     if(action_script_val.trim().length==0)
                     {
                         if(txt=='simple while')                
-                            action_script_val = 'while(not_stopped(this_id))\n{\n await action("A=>200ms")\n}';
+                            action_script_val = 'while(not_stopped(this_id))\n{\n  await action("A=>200ms")\n}';
                         else if(txt=='API example')
                             action_script_val = '//example of the API\nwhile(not_stopped(this_id))\n{\n  //wait some time\n  await action("100ms");\n\n  //get information about the sprites 0..7\n  var y_light=sprite_ypos(0);\n  var y_dark=sprite_ypos(0);\n\n  //reserve exclusive port 1..2 access (manual joystick control is blocked)\n  set_port_owner(1,PORT_ACCESSOR.BOT);\n  await action(`j1left1=>j1up1=>400ms=>j1left0=>j1up0`);\n  //give control back to the user\n  set_port_owner(1,PORT_ACCESSOR.MANUAL);\n}';
                         else if(txt=='aimbot')
@@ -2121,7 +2123,8 @@ $('.layer').change( function(event) {
                         editor.setOption("theme", "vc64dark");
                     }
                     reconfig_editor($("#button_script_language").text());
-                    $(".CodeMirror").css("width","100%").css("min-height","70px");
+                    $(".CodeMirror").css("width","100%").css("min-height","60px");
+                    editor.setSize("100%", 'auto');
 
                     $("#button_script_add, #button_script_language").each(function(){
                         $(this).prop('disabled', false).

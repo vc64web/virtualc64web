@@ -266,6 +266,12 @@ button[id^="detail_run"] {
 }
 
 .copy-btn {
+    background-color: var(--lightbg);
+    border-color: var(--lightbg);
+    color: var(--blue);
+}
+
+[data-theme="dark"] .copy-btn {
     background-color: var(--darkbg);
     border-color: var(--darkbg);
     color: var(--blue);
@@ -274,10 +280,16 @@ button[id^="detail_run"] {
 .copy_run_link {
     width: 94%;
     font-size: xx-small;
-    background-color: var(--darkbg);
-    color: var(--secondary);
+    background-color: var(--lightbg);
+    /*color: var(--dark);*/
     border: none;
 }
+
+[data-theme="dark"] .copy_run_link {
+    background-color: var(--darkbg);
+    color: var(--secondary);
+}
+
 
 [data-theme="dark"] #search {
     background-color: var(--darkbg);

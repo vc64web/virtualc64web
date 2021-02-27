@@ -4,7 +4,7 @@ const sleep = (milliseconds) => {
 
 var map_of_running_scripts = [];
 var map_of_running_scripts_stop_request = [];
-var execute_script = function(id, action_script) {    
+var execute_script = function(id, script_lang, action_script) {    
     if(map_of_running_scripts[id] == true)
     {
         //alert("action script with "+id+" is still running, double execution is prevented... requesting stop");
@@ -18,7 +18,7 @@ var execute_script = function(id, action_script) {
             map_of_running_scripts[id]=true;
             map_of_running_scripts_stop_request[id]=false;
             try{
-              await parse_script(action_script, true, id);
+              await parse_script(script_lang, action_script, true, id);
             }
             finally
             {
@@ -46,18 +46,17 @@ function not_stopped(id)
     return id<0 ? true : map_of_running_scripts_stop_request[id] != true;
 }
 
-async function parse_script(action_script, execute = false, execution_id = -1) {
+async function parse_script(script_lang, action_script, execute = false, execution_id = -1) {
     action_script = action_script.trim();
     if(action_script.length==0)
     {
         $('#action_button_syntax_error').html('you have to enter at least one action ...');
         return false;
     }
-
-    if(action_script.startsWith("js:"))
+    if(script_lang == 'javascript')
     {
         var valid = true;
-        var js_script=action_script.substring(3);
+        var js_script=action_script;
         var js_script_function;
         let AsyncFunction = Object.getPrototypeOf(async function(){}).constructor
         try {            
@@ -303,10 +302,11 @@ async function validate_custom_key(){
 };
 async function validate_action_script()
 {
-    var is_valid=true;
-    var input_action_script=$('#input_action_script');
+    let is_valid=true;
+    let input_action_script=$('#input_action_script');
+    let script_lang = $('#button_script_language').text();
     input_action_script.removeClass("is-valid").removeClass("is-invalid");
-    if( (await parse_script(input_action_script.val())) == false)
+    if( (await parse_script(script_lang, input_action_script.val())) == false)
     {
         input_action_script.addClass("is-invalid");
         is_valid=false;

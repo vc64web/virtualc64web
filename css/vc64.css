@@ -1,8 +1,15 @@
+ :root {
+  --darkbg: #2d2d2d;
+  --lightbg: #e1dfe1;
+  --lighterbg: #f0f0f0;
+}
+
+
 #canvas {
     position:fixed;
     left:0;
     right:0;
-    background-color: var(--dark);
+    background-color: var(--darkbg);
  }
 
 .pixel_art{
@@ -18,7 +25,7 @@
 }
 
 [data-theme="dark"] #drop_zone {
-    background-color: var(--dark);
+    background-color: var(--darkbg);
     border: 3px dashed var(--blue);
     height: 30px;
 }
@@ -41,10 +48,17 @@ flex: 0 0 auto;
 flex: 0 0 auto;
 }
 
+body
+{
+    background-color: var(--lighterbg) !important;
+}
+
 [data-theme="dark"] {
-background-color:var(--dark) !important;
+background-color: var(--darkbg) !important;
 color: var(--light) !important;
 }
+
+
 
 /* the filled circle in the switch was to high */
 .custom-switch .custom-control-label::before{
@@ -63,8 +77,8 @@ background-color: var(--green) !important;
     padding-top: .165rem;
     margin-top: 1px; 
     background-color: inherit !important;
-    border-color: var(--dark);
-    color: var(--dark) !important;
+    border-color: var(--darkbg);
+    color: var(--darkbg) !important;
 }
 
     
@@ -95,14 +109,21 @@ background-color: var(--gray) !important;
 color: var(--light) !important;
 }
 
+.modal-content {
+background-color: var(--lightbg) !important;
+}
+
 [data-theme="dark"] .modal-content {
-background-color: #333 !important;
+background-color: var(--darkbg) !important;
 }
 
 [data-theme="dark"] .close {
 color: var(--light) !important;
 }
 
+.card {
+background-color: var(--lighterbg) !important;
+}
 [data-theme="dark"] .card {
 background-color: #555 !important;
 }
@@ -127,15 +148,15 @@ color: #aaa !important;
     bottom:0;
     z-index:999;
     width:100%;
-    background-color: #bbb;
+    background-color: var(--lightbg);
 }
 
 [data-theme="dark"] #virtual_keyboard {
-    background-color:var(--gray-dark);
+    background-color:var(--darkbg);
 }
 
 #navbar {
-    background-color: #bbb;
+    background-color: var(--lightbg);
 
     position: fixed; 
     top:0; 
@@ -144,7 +165,7 @@ color: #aaa !important;
 }
 
 [data-theme="dark"] #navbar {
-    background-color:var(--gray-dark);
+    background-color:var(--darkbg);
 }
     
     
@@ -205,11 +226,18 @@ color: #aaa !important;
     width: 100%;
     height: 100%;
     z-index: 2000;
-    background-color: var(--dark);
+    background-color: var(--lightbg);
     outline: none;
     overflow-y: auto;
     opacity: 1.0;
 }
+
+
+[data-theme="dark"] #view_detail {
+    background-color: var(--darkbg);
+}
+
+
 
 #detail_content{
     margin-top:45px;
@@ -225,7 +253,7 @@ color: #aaa !important;
     width: 100%;
     height: 45px;
     text-align: left;
-    background-color: var(--dark);
+    background-color: var(--darkbg);
     opacity: 0.6;
     font-size: larger;
     border: none;
@@ -238,27 +266,43 @@ button[id^="detail_run"] {
 }
 
 .copy-btn {
-    background-color: var(--dark);
-    border-color: var(--dark);
+    background-color: var(--lightbg);
+    border-color: var(--lightbg);
+    color: var(--blue);
+}
+
+[data-theme="dark"] .copy-btn {
+    background-color: var(--darkbg);
+    border-color: var(--darkbg);
     color: var(--blue);
 }
 
 .copy_run_link {
     width: 94%;
     font-size: xx-small;
-    background-color: var(--dark);
-    color: var(--secondary);
+    background-color: var(--lightbg);
+    /*color: var(--dark);*/
     border: none;
 }
 
+[data-theme="dark"] .copy_run_link {
+    background-color: var(--darkbg);
+    color: var(--secondary);
+}
+
+#search {
+    border-color: var(--blue);
+    border-left: none;
+}
+
 [data-theme="dark"] #search {
-    background-color: var(--dark);
+    background-color: var(--darkbg);
     color: var(--light);
     border-color: var(--blue);
     border-left: none;
 }
 
-[data-theme="dark"] #search_symbol {
+#search_symbol {
     background-color: #0062cc;
     border: none;
     color: var(--light);
@@ -271,4 +315,10 @@ button[id^="detail_run"] {
     position: absolute;
     width: 70%;
     opacity: 0.83;
+}
+
+
+[data-theme="dark"] textarea {
+    background-color: var(--darkbg);
+    color: var(--light);
 }

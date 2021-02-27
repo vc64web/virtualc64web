@@ -290,6 +290,10 @@ button[id^="detail_run"] {
     color: var(--secondary);
 }
 
+#search {
+    border-color: var(--blue);
+    border-left: none;
+}
 
 [data-theme="dark"] #search {
     background-color: var(--darkbg);
@@ -298,7 +302,7 @@ button[id^="detail_run"] {
     border-left: none;
 }
 
-[data-theme="dark"] #search_symbol {
+#search_symbol {
     background-color: #0062cc;
     border: none;
     color: var(--light);

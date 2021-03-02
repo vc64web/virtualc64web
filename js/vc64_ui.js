@@ -1061,8 +1061,11 @@ function InitWrappers() {
     wasm_get_cpu_cycles = Module.cwrap('wasm_get_cpu_cycles', 'number');
     wasm_set_color_palette = Module.cwrap('wasm_set_color_palette', 'undefined', ['string']);
 
-
     wasm_schedule_key = Module.cwrap('wasm_schedule_key', 'undefined', ['number', 'number', 'number', 'number']);
+
+    wasm_peek = Module.cwrap('wasm_peek', 'number', ['number']);
+    wasm_poke = Module.cwrap('wasm_poke', 'undefined', ['number', 'number']);
+
 
     get_audio_context=function() {
         if (typeof Module === 'undefined'
@@ -2024,7 +2027,7 @@ $('.layer').change( function(event) {
             $('#add_system_action a').click(on_add_action);
 
             //script action
-            var list_actions=['simple while', 'API example', 'aimbot'];
+            var list_actions=['simple while', 'peek & poke', 'API example', 'aimbot'];
             html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
@@ -2039,6 +2042,17 @@ $('.layer').change( function(event) {
                     {
                         if(txt=='simple while')                
                             action_script_val = 'while(not_stopped(this_id))\n{\n  await action("A=>200ms");\n}';
+                        else if(txt=='peek & poke')
+                        {
+                            action_script_val = 
+`let orig_color = wasm_peek(0xD020);
+for(let i=0;not_stopped(this_id);i++)
+{
+	wasm_poke( 0xD020, i%15);
+	await action("200ms");
+}
+wasm_poke(0xD020, orig_color);`;
+                        }
                         else if(txt=='API example')
                             action_script_val = '//example of the API\nwhile(not_stopped(this_id))\n{\n  //wait some time\n  await action("100ms");\n\n  //get information about the sprites 0..7\n  var y_light=sprite_ypos(0);\n  var y_dark=sprite_ypos(0);\n\n  //reserve exclusive port 1..2 access (manual joystick control is blocked)\n  set_port_owner(1,PORT_ACCESSOR.BOT);\n  await action(`j1left1=>j1up1=>400ms=>j1left0=>j1up0`);\n  //give control back to the user\n  set_port_owner(1,PORT_ACCESSOR.MANUAL);\n}';
                         else if(txt=='aimbot')
@@ -2088,25 +2102,23 @@ $('.layer').change( function(event) {
                         extraKeys: {"Ctrl-Space": "autocomplete"}
                     });
 
-
+                    let check_livecomplete=$('#check_livecomplete'); 
                     editor.on("keydown",function( cm, event ) {
                         if(event.key === "Escape")
                         {//prevent that ESC closes the complete modal when in editor
                             event.stopPropagation();
                             return false;
                         }
-                    });
-
-                    editor.on("keyup", function (cm, event) {                        
-                        if($('#button_script_language').text() == "javascript"
-                        && $('#check_livecomplete').prop('checked')
-                        )
+                        if (!cm.state.completionActive && 
+                            event.key.length == 1  &&
+                            event.metaKey == false && event.ctrlKey == false &&
+                            event.key != ';' && event.key != ' ' && event.key != '(' 
+                            && event.key != ')' && 
+                            event.key != '{' && event.key != '}'
+                            ) 
                         {
-                            if (!cm.state.completionActive && 
-                                event.key.length == 1  &&
-                                event.key != ';' && event.key != ' ' && event.key != '(' 
-                                &&event.key != ')' && event.key != '{' && event.key != '}'  
-                                ) 
+                            if(check_livecomplete.is(":visible") && 
+                               check_livecomplete.prop('checked'))
                             {
                                 cm.showHint({completeSingle: false});
                             }

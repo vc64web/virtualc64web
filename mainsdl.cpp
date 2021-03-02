@@ -1105,3 +1105,13 @@ extern "C" u64 wasm_get_cpu_cycles()
 {
   return wrapper->c64->cpu.cycle;
 }
+
+extern "C" u8 wasm_peek(u16 addr)
+{
+  return wrapper->c64->mem.spypeek(addr);
+}
+
+extern "C" void wasm_poke(u16 addr, u8 value)
+{
+  return wrapper->c64->mem.poke(addr, value);
+}

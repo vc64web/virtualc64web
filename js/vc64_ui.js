@@ -2299,6 +2299,10 @@ wasm_poke(0xD020, orig_color);`;
 
             $('#ck'+element.id).click(function() 
             {       
+                //at the end of a drag ignore the click
+                if(just_dragged)
+                    return;
+
                 var action_script = action_scripts['ck'+element.id];
                 execute_script(element.id, element.lang, action_script);
             });
@@ -2405,7 +2409,8 @@ wasm_poke(0xD020, orig_color);`;
 
         var ckdef = custom_keys.find(el => ('ck'+el.id) == dragItem.id); 
         
-        if(ckdef.currentX != currentX || ckdef.currentY != currentY)
+        just_dragged = ckdef.currentX != currentX || ckdef.currentY != currentY;
+        if(just_dragged)
         {
             ckdef.currentX = currentX;
             ckdef.currentY = currentY;
@@ -2413,8 +2418,7 @@ wasm_poke(0xD020, orig_color);`;
             //save new position
             save_custom_buttons(global_apptitle, custom_keys);
         }
-
-
+        
         dragItem = null;
         active = false;
       }

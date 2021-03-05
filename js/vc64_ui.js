@@ -38,6 +38,15 @@ function get_parameter_link()
             return value;
         });
         parameter_link = call_obj.url;
+        
+        call_param_openROMS=call_obj.openROMS === undefined ? null : call_obj.openROMS.toLowerCase() == "true";
+        call_param_2ndSID = call_obj._2ndSID === undefined ? null : "enabled at $"+call_obj._2ndSID;
+        call_param_navbar = call_obj.navbar === undefined ? null : call_obj.navbar;
+        call_param_wide=call_obj.wide === undefined ? null : call_obj.wide.toLowerCase() == "true";
+        call_param_border=call_obj.border === undefined ? null : call_obj.border.toLowerCase() == "true";
+        call_param_touch=call_obj.touch === undefined ? null : call_obj.touch.toLowerCase() == "true";
+        call_param_dark=call_obj.dark === undefined ? null : call_obj.dark.toLowerCase() == "true";
+        
         if(call_obj.buttons !== null && call_param_buttons.length==0)
         {
             for(let b of call_obj.buttons)

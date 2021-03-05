@@ -26,8 +26,8 @@ function get_parameter_link()
     param_part.endsWith("}"))
     {//json notation 
         /*
-        #{"url":"http://csdb.dk/getinternalfile.php/205771/CopperBooze.prg","buttons": [{"title":"hello","key":"h","script": "alert('hallo');"}] }
-        #{"buttons": [{"title":"hello","key":"h","run":true,"script":"d2hpbGUobm90X3N0b3BwZWQodGhpc19pZCkpIHthd2FpdCBhY3Rpb24oIkE9Pjk5OW1zIik7fQ=="}]}
+        #{"url":"http://csdb.dk/getinternalfile.php/205771/CopperBooze.prg","buttons": [{"title":"hello","key":"h","script": "alert('d2hpbGUobm90X3N0b3BwZWQodGhpc19pZCkpIHthd2FpdCBhY3Rpb24oIkE9Pjk5OW1zIik7fQ');"}] }
+        #{"buttons":[{"position":"top:10vh;left:90vw","title":"hello","key":"h","run":true,"script":"d2hpbGUobm90X3N0b3BwZWQodGhpc19pZCkpIHthd2FpdCBhY3Rpb24oIkE9Pjk5OW1zIik7fQ=="}]}
         */
         call_obj = JSON.parse(param_part.substring(1), (key, value) => {            
             console.log(key); 
@@ -42,7 +42,10 @@ function get_parameter_link()
         {
             for(let b of call_obj.buttons)
             {
-                b.position = "top:50%;left:50%";
+                if(b.position === undefined)
+                {
+                    b.position = "top:50vh;left:50vw";
+                }
                 b.lang = "javascript";
                 b.transient = true;
                 b.app_scope = true;
@@ -2341,7 +2344,12 @@ wasm_poke(0xD020, orig_color);`;
         //insert the new buttons
         custom_keys.forEach(function (element, i) {
             element.id = element.transient !== undefined && element.transient ? element.id : i;
-            
+
+            if(element.transient && element.run && element.title == undefined)
+            {//don't render transient autorun buttons if no title
+                return;
+            }
+
             var btn_html='<button id="ck'+element.id+'" class="btn btn-secondary custom_key" style="position:absolute;'+element.position+';';
             if(element.currentX)
             {

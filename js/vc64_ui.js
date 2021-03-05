@@ -6,6 +6,7 @@ let call_param_wide=null;
 let call_param_border=null;
 let call_param_touch=null;
 let call_param_dark=null;
+let call_param_buttons=[];
 
 function ToBase64(u8) 
 {
@@ -18,69 +19,104 @@ function FromBase64(str) {
 
 function get_parameter_link()
 {
-    var call_url = window.location.href.split('#');
-    var parameter_link=null;
-    if(call_url.length>1)
-    {//there are # inside the URL
-        //process settings 
-        for(var i=1; i<call_url.length;i++)
-        {//in case there was a # inside the parameter link ... rebuild that
-            var token = call_url[i]; 
-            
-            if(parameter_link != null)
-            {
-                parameter_link+="#"+token;
+    let parameter_link=null;
+    let param_pos = window.location.href.indexOf('#');
+    let param_part = decodeURIComponent(window.location.href.substring(param_pos));
+    if( param_pos >= 0 && param_part.startsWith("#{") &&
+    param_part.endsWith("}"))
+    {//json notation 
+        /*
+        #{"url":"http://csdb.dk/getinternalfile.php/205771/CopperBooze.prg","buttons": [{"title":"hello","key":"h","script": "alert('hallo');"}] }
+        #{"buttons": [{"title":"hello","key":"h","run":true,"script":"d2hpbGUobm90X3N0b3BwZWQodGhpc19pZCkpIHthd2FpdCBhY3Rpb24oIkE9Pjk5OW1zIik7fQ=="}]}
+        */
+        call_obj = JSON.parse(param_part.substring(1), (key, value) => {            
+            console.log(key); 
+            if(key=='script')
+            {//base64decode
+                return atob(value);
             }
-            else if(token.startsWith("http"))
+            return value;
+        });
+        parameter_link = call_obj.url;
+        if(call_obj.buttons !== null && call_param_buttons.length==0)
+        {
+            for(let b of call_obj.buttons)
             {
-                parameter_link=token;
+                b.position = "top:50%;left:50%";
+                b.lang = "javascript";
+                b.transient = true;
+                b.app_scope = true;
+                b.id = 1000+call_param_buttons.length;
+                call_param_buttons.push( b );
             }
-            else
-            { // it must be a setting
-                if(token.match(/openROMS=true/i))
+        }
+    }
+    else
+    {
+        //hash style notation
+        var call_url = window.location.href.split('#');
+        if(call_url.length>1)
+        {//there are # inside the URL
+            //process settings 
+            for(var i=1; i<call_url.length;i++)
+            {//in case there was a # inside the parameter link ... rebuild that
+                var token = call_url[i]; 
+                
+                if(parameter_link != null)
                 {
-                    call_param_openROMS=true;
+                    parameter_link+="#"+token;
                 }
-                else if(token.match(/2ndSID=.*/i))
+                else if(token.startsWith("http"))
                 {
-                    var sid_addr=token.replace(/2ndSID=/i,"");
-                    //for example #2ndSID=d420#http...
-                    call_param_2ndSID = "enabled at $"+sid_addr; 
+                    parameter_link=token;
                 }
-                else if(token.match(/touch=true/i))
-                {
-                    call_param_touch=true;
-                    register_v_joystick();
-                }
-                else if(token.match(/port1=true/i))
-                {
-                    port1=call_param_touch != true ? "keys":"touch";          
-                    port2="none";     
-                    $('#port1').val(port1);
-                    $('#port2').val(port2);
-                }
-                else if(token.match(/port2=true/i))
-                {
-                    port1="none";
-                    port2=call_param_touch != true ? "keys":"touch";
-                    $('#port1').val(port1);       
-                    $('#port2').val(port2);
-                }
-                else if(token.match(/navbar=hidden/i))
-                {
-                    call_param_navbar='hidden';
-                }
-                else if(token.match(/wide=(true|false)/i))
-                {
-                    call_param_wide=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
-                }
-                else if(token.match(/border=(true|false)/i))
-                {
-                    call_param_border=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
-                }
-                else if(token.match(/dark=(true|false)/i))
-                {
-                    call_param_dark=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
+                else
+                { // it must be a setting
+                    if(token.match(/openROMS=true/i))
+                    {
+                        call_param_openROMS=true;
+                    }
+                    else if(token.match(/2ndSID=.*/i))
+                    {
+                        var sid_addr=token.replace(/2ndSID=/i,"");
+                        //for example #2ndSID=d420#http...
+                        call_param_2ndSID = "enabled at $"+sid_addr; 
+                    }
+                    else if(token.match(/touch=true/i))
+                    {
+                        call_param_touch=true;
+                        register_v_joystick();
+                    }
+                    else if(token.match(/port1=true/i))
+                    {
+                        port1=call_param_touch != true ? "keys":"touch";          
+                        port2="none";     
+                        $('#port1').val(port1);
+                        $('#port2').val(port2);
+                    }
+                    else if(token.match(/port2=true/i))
+                    {
+                        port1="none";
+                        port2=call_param_touch != true ? "keys":"touch";
+                        $('#port1').val(port1);       
+                        $('#port2').val(port2);
+                    }
+                    else if(token.match(/navbar=hidden/i))
+                    {
+                        call_param_navbar='hidden';
+                    }
+                    else if(token.match(/wide=(true|false)/i))
+                    {
+                        call_param_wide=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
+                    }
+                    else if(token.match(/border=(true|false)/i))
+                    {
+                        call_param_border=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
+                    }
+                    else if(token.match(/dark=(true|false)/i))
+                    {
+                        call_param_dark=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
+                    }
                 }
             }
         }
@@ -1435,6 +1471,10 @@ $('.layer').change( function(event) {
             get_custom_buttons(global_apptitle, 
                 function(the_buttons) {
                     custom_keys = the_buttons;
+                    for(let param_button of call_param_buttons)
+                    {
+                        custom_keys.push(param_button);
+                    }
                     install_custom_keys();
                 }
             );
@@ -1898,9 +1938,6 @@ $('.layer').change( function(event) {
 
         $('#modal_custom_key').on('show.bs.modal', function () {
 
-
-
-
             function set_script_language(script_language) {
                 $("#button_script_language").text(script_language);;
             }
@@ -1935,15 +1972,27 @@ $('.layer').change( function(event) {
                 validate_action_script();
             }
 
-            set_scope_label = function (){
+            if(btn_def.transient)
+            {
                 $('#check_app_scope_label').html(
-                    $('#check_app_scope').prop('checked') ? 
-                    '[ currently visible only for '+global_apptitle+' ]' :
-                    '[ currently globally visible ]'
+                    '[ transient button from preconfig, globally visible ]'
                 );
+                $('#check_app_scope').prop("disabled",true);
             }
-            set_scope_label();
-            $('#check_app_scope').change( set_scope_label );
+            else
+            {
+                $('#check_app_scope').prop("disabled",false);
+                set_scope_label = function (){
+                    $('#check_app_scope_label').html(
+                        $('#check_app_scope').prop('checked') ? 
+                        '[ currently visible only for '+global_apptitle+' ]' :
+                        '[ currently globally visible ]'
+                    );
+                }
+                set_scope_label();
+                $('#check_app_scope').change( set_scope_label ); 
+            }
+
             
             if(is_running())
             {
@@ -2248,7 +2297,13 @@ wasm_poke(0xD020, orig_color);`;
 
         $('#button_delete_custom_button').click(function(e) 
         {
-            custom_keys=custom_keys.filter(el=> ('ck'+el.id) != haptic_touch_selected.id);            
+            let id_to_delete =haptic_touch_selected.id.substring(2);
+            if(map_of_running_scripts[id_to_delete] == true)
+            {
+                map_of_running_scripts_stop_request[id_to_delete]=true;
+            }
+
+            custom_keys =custom_keys.filter(el=> +el.id != id_to_delete);            
             install_custom_keys();
             $('#modal_custom_key').modal('hide');
             save_custom_buttons(global_apptitle, custom_keys);
@@ -2259,11 +2314,15 @@ wasm_poke(0xD020, orig_color);`;
 
         get_custom_buttons(global_apptitle, 
             function(the_buttons) {
-                custom_keys = the_buttons;
+                custom_keys = the_buttons;                
+                for(let param_button of call_param_buttons)
+                {
+                    custom_keys.push(param_button);
+                }
                 install_custom_keys();
             }
         );
-        install_custom_keys();
+        //install_custom_keys();
     }
 
     $("#button_show_menu").click();
@@ -2281,16 +2340,24 @@ wasm_poke(0xD020, orig_color);`;
         
         //insert the new buttons
         custom_keys.forEach(function (element, i) {
-            element.id = i;
+            element.id = element.transient !== undefined && element.transient ? element.id : i;
+            
             var btn_html='<button id="ck'+element.id+'" class="btn btn-secondary custom_key" style="position:absolute;'+element.position+';';
             if(element.currentX)
             {
                 btn_html += 'transform:translate3d(' + element.currentX + 'px,' + element.currentY + 'px,0);';
             } 
-            if(element.app_scope==false)
+            if(element.transient)
+            {
+                btn_html += 'border-width:4px;border-color: rgb(100, 133, 188);'; //cornflowerblue=#6495ED
+            }
+            else if(element.app_scope==false)
             {
                 btn_html += 'border-width:4px;border-color: #99999999;';
             }
+
+
+
             btn_html += 'touch-action:none">'+element.title+'</button>';
 
             $('#div_canvas').append(btn_html);
@@ -2309,6 +2376,22 @@ wasm_poke(0xD020, orig_color);`;
         });
 
         install_drag();
+
+        for(b of call_param_buttons)
+        {   //start automatic run actions built from a call param
+            if(b.run)
+            {
+                if(b.auto_started === undefined)
+                {//only start one time
+                    execute_script(b.id, b.lang, b.script);
+                    b.auto_started = true;
+                }
+                if(map_of_running_scripts[b.id])
+                {//if it still runs  
+                    $('#ck'+b.id).css("background-color", "var(--red)");
+                }
+            }
+        }
     }
 
 
@@ -2409,6 +2492,12 @@ wasm_poke(0xD020, orig_color);`;
 
         var ckdef = custom_keys.find(el => ('ck'+el.id) == dragItem.id); 
         
+        if(ckdef.currentX === undefined)
+        {
+            ckdef.currentX = 0;
+            ckdef.currentY = 0;
+        }
+
         just_dragged = ckdef.currentX != currentX || ckdef.currentY != currentY;
         if(just_dragged)
         {

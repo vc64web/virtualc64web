@@ -12,17 +12,22 @@ var execute_script = function(id, script_lang, action_script) {
     }
     else
     {
+        map_of_running_scripts[id]=true;
+        map_of_running_scripts_stop_request[id]=false;
+
         setTimeout(async function() { 
-            var dom_el=$('#ck'+id);
-            dom_el.css("background-color", "var(--red)");
-            map_of_running_scripts[id]=true;
-            map_of_running_scripts_stop_request[id]=false;
+            let button_element=$('#ck'+id);
+            button_element.css("background-color", "var(--red)");
             try{
               await parse_script(script_lang, action_script, true, id);
             }
             finally
             {
-              dom_el.css("background-color", "");
+              if(button_element[0].parentElement == null)
+              {//if the button_element is decoupled because button was redrawn as a new DOM instance
+                  button_element=$('#ck'+id); //then get the new dom element
+              }
+              button_element.css("background-color", "");
               map_of_running_scripts[id]=false;
               map_of_running_scripts_stop_request[id]=false;
             }
@@ -34,6 +39,13 @@ function stop_all_scripts()
 {
     for(id in map_of_running_scripts)
     {
+        let action_button = custom_keys.find(el => el.id == id); 
+        if(action_button === undefined ||
+           action_button.auto_started !== undefined) 
+        {//skip auto started scripts
+            continue;
+        }
+
         if(map_of_running_scripts[id]==true)
         {
             map_of_running_scripts_stop_request[id]=true;

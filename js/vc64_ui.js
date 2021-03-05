@@ -31,7 +31,7 @@ function get_parameter_link()
         */
         call_obj = JSON.parse(param_part.substring(1), (key, value) => {            
             console.log(key); 
-            if(key=='script')
+            if(key=='script_base64')
             {//base64decode
                 return atob(value);
             }
@@ -54,6 +54,9 @@ function get_parameter_link()
                 if(b.position === undefined)
                 {
                     b.position = "top:50vh;left:50vw";
+                }
+                if(b.script_base64 !== undefined){
+                    b.script=b.script_base64;
                 }
                 b.lang = "javascript";
                 b.transient = true;

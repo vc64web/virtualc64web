@@ -39,13 +39,33 @@ function get_parameter_link()
         });
         parameter_link = call_obj.url;
         
-        call_param_openROMS=call_obj.openROMS === undefined ? null : call_obj.openROMS.toLowerCase() == "true";
+        call_param_openROMS=call_obj.openROMS === undefined ? null : call_obj.openROMS;
         call_param_2ndSID = call_obj._2ndSID === undefined ? null : "enabled at $"+call_obj._2ndSID;
-        call_param_navbar = call_obj.navbar === undefined ? null : call_obj.navbar;
-        call_param_wide=call_obj.wide === undefined ? null : call_obj.wide.toLowerCase() == "true";
-        call_param_border=call_obj.border === undefined ? null : call_obj.border.toLowerCase() == "true";
-        call_param_touch=call_obj.touch === undefined ? null : call_obj.touch.toLowerCase() == "true";
-        call_param_dark=call_obj.dark === undefined ? null : call_obj.dark.toLowerCase() == "true";
+        call_param_navbar = call_obj.navbar === undefined ? null : call_obj.navbar==false ? "hidden": null;
+        call_param_wide=call_obj.wide === undefined ? null : call_obj.wide;
+        call_param_border=call_obj.border === undefined ? null : call_obj.border;
+        call_param_touch=call_obj.touch === undefined ? null : call_obj.touch;
+        call_param_dark=call_obj.dark === undefined ? null : call_obj.dark;
+        if(call_obj.touch)
+        {
+            call_param_touch=true;
+            register_v_joystick();   
+        }
+        if(call_obj.port1)
+        {
+            port1=call_param_touch != true ? "keys":"touch";          
+            port2="none";
+            $('#port1').val(port1);
+            $('#port2').val(port2);
+        }
+        if(call_obj.port2)
+        {
+            port1="none";
+            port2=call_param_touch != true ? "keys":"touch";
+            $('#port1').val(port1);       
+            $('#port2').val(port2);
+        }
+        
         
         if(call_obj.buttons !== null && call_param_buttons.length==0)
         {

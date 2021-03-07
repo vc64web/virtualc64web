@@ -752,7 +752,22 @@ goes into edit mode which takes you right back to here ...
 
 
     <script type='text/javascript'>
+      let light_mode = false;
       if(window.location.href.indexOf('#dark=false') >=0)
+      {
+        light_mode=true;
+      }
+      else 
+      {
+        let start_pos=window.location.href.indexOf('#{');
+        if(start_pos >0 && window.location.href.endsWith('}'))
+        {
+          let param_part = decodeURIComponent(window.location.href.substring(start_pos+1));
+          let dark_conf = JSON.parse(param_part).dark;
+          light_mode = dark_conf !== undefined && dark_conf == false;   
+        }
+      }
+      if(light_mode)
       {
         $("#canvas").css("background-color", "var(--lighterbg)");
         $("body").removeAttr( "data-theme").css("background-color", "var(--lighterbg) !important");

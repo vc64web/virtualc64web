@@ -67,7 +67,7 @@ function get_parameter_link()
         }
         
         
-        if(call_obj.buttons !== null && call_param_buttons.length==0)
+        if(call_obj.buttons !== undefined && call_param_buttons.length==0)
         {
             for(let b of call_obj.buttons)
             {

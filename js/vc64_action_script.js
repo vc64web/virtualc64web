@@ -23,7 +23,7 @@ var execute_script = function(id, script_lang, action_script) {
             }
             finally
             {
-              if(button_element[0].parentElement == null)
+              if(button_element.length >0 && button_element[0].parentElement == null)
               {//if the button_element is decoupled because button was redrawn as a new DOM instance
                   button_element=$('#ck'+id); //then get the new dom element
               }

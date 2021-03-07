@@ -13,6 +13,11 @@ var vc64web_player={
         document.getElementsByTagName("head")[0].appendChild(script);
     },
     load: function(element, params, address) {
+        if(address === undefined)
+        {
+            address = params;
+            params = '';
+        }
         if(this.listens == false)
         {
             window.addEventListener('message', event => {

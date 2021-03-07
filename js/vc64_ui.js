@@ -78,7 +78,10 @@ function get_parameter_link()
                 if(b.script_base64 !== undefined){
                     b.script=b.script_base64;
                 }
-                b.lang = "javascript";
+                if(b.lang === undefined)
+                {
+                    b.lang = "javascript";
+                }
                 b.transient = true;
                 b.app_scope = true;
                 b.id = 1000+call_param_buttons.length;
@@ -2007,7 +2010,7 @@ $('.layer').change( function(event) {
                 validate_action_script();
             }
 
-            if(btn_def.transient)
+            if(btn_def !== undefined && btn_def.transient !== undefined && btn_def.transient)
             {
                 $('#check_app_scope_label').html(
                     '[ transient button from preconfig, globally visible ]'

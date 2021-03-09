@@ -190,7 +190,11 @@ function save_custom_buttons(the_name, the_data) {
   for(button_def_id in the_data)
   {
     var button_def=the_data[button_def_id];
-    if(button_def.app_scope)
+    if(button_def.transient !== undefined && button_def.transient)
+    {
+      //don't save transient buttons
+    }
+    else if(button_def.app_scope)
     {
       app_specific_data.push(button_def);
     }

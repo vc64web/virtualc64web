@@ -88,7 +88,14 @@ symbolic_map = {
     '$': ['ShiftLeft','Digit4'],
     "1": 'Digit1',
     "2": 'Digit2',
+    "3": 'Digit3',
+    "4": 'Digit4',
+    "5": 'Digit5',
+    "6": 'Digit6',
+    "7": 'Digit7',
     "8": 'Digit8',
+    "9": 'Digit9',
+    "0": 'Digit0',
     '"': ['ShiftLeft','Digit2'],
     'shiftrunstop': ['ShiftLeft','runStop']   //load from tape shortcut
 }

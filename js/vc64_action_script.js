@@ -591,3 +591,20 @@ class FalconBot extends Bot {
     }
 }
 
+function wasm_runstop_restore()
+{
+    wasm_schedule_key(7, 7, 1, 0); //press runstop 
+    wasm_schedule_key(9, 9, 1, 2); //press restore 
+    wasm_schedule_key(9, 9, 0, 4); //release restore
+    wasm_schedule_key(7, 7, 0, 6); //release runstop
+}
+
+async function wasm_ready_after_reset()
+{
+    let mega_roms=JSON.parse(wasm_rom_info()).kernal.startsWith("mega");
+    //mega roms is ready after 500000 cycles, original C= Rom is ready after 2700000 cycles
+    while(wasm_get_cpu_cycles()<(mega_roms?500000:2700000)) 
+    {
+        await sleep(50);
+    }    
+}

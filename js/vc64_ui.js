@@ -410,7 +410,7 @@ function load_roms(install_to_core){
         if (the_rom==null){
             var param_link=get_parameter_link();
             if( 
-                param_link == null ||
+                param_link != null &&
                 param_link.match(/[.](d64|g64)$/i) != null 
             )
             {

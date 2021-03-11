@@ -63,6 +63,7 @@ symbolic_map = {
     m: 'KeyM',
     n: 'KeyN',
     o: 'KeyO',
+    p: 'KeyP',
     q: 'KeyQ',
     r: 'KeyR',
     s: 'KeyS',
@@ -71,7 +72,6 @@ symbolic_map = {
     v: 'KeyV',
     w: 'KeyW',
     x: 'KeyX',
-
     z: 'KeyZ',
     y: 'KeyY',
 
@@ -96,6 +96,11 @@ symbolic_map = {
     "8": 'Digit8',
     "9": 'Digit9',
     "0": 'Digit0',
+    ' ': 'Space',
+    ':': 'Semicolon',
+    '.': 'Period',
+    ';': 'Quote',
+    '=': 'Backslash', 
     '"': ['ShiftLeft','Digit2'],
     'shiftrunstop': ['ShiftLeft','runStop']   //load from tape shortcut
 }

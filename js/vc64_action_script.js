@@ -171,12 +171,15 @@ async function execute_single_action(cmd, execute=true)
     var joy_cmd_tokens=null;
     if(cmd.match(/^'.+?'$/) != null)
     {
-        var chars = cmd.substring(1,cmd.length-1).split("");
-        var time_to_emit_next_char = 100;
-        emit_string(chars,0,time_to_emit_next_char);
+        if(execute)
+        {
+            var chars = cmd.substring(1,cmd.length-1).split("");
+            var time_to_emit_next_char = 100;
+            emit_string(chars,0,time_to_emit_next_char);
 
-        //blocking execution of action script and wait for all keys emitted
-        await sleep(time_to_emit_next_char*chars.length);                  
+            //blocking execution of action script and wait for all keys emitted
+            await sleep(time_to_emit_next_char*chars.length);                  
+        }
     }
     else if(cmd == 'pause')
     {

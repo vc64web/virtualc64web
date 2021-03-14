@@ -646,19 +646,19 @@ extern "C" void wasm_set_warp(unsigned on)
 }
 
 
-extern "C" void wasm_set_borderless(unsigned on)
+extern "C" void wasm_set_borderless(float on)
 {
   //NTSC_PIXEL=428
   //PAL_RASTERLINES=284 
 
-  eat_border_width = on*(35 /* v4 */ -4);
-  xOff = 12 + eat_border_width /*v4*/ +92;
-  clipped_width  = TEX_WIDTH -12 -24 -2*eat_border_width /*v4*/ -100; //392
+  eat_border_width = 31 * on;
+  xOff = 12 + eat_border_width + 92;
+  clipped_width  = TEX_WIDTH -112 -24 -2*eat_border_width; //392
 //428-12-24-2*33 =326
 
-  eat_border_height = on*(24 /*v4*/ + 10);
-  yOff = 10 + eat_border_height /*v4*/ +5;
-  clipped_height = TEX_HEIGHT -10 -24 -2*eat_border_height  /*v4*/ -8; //248
+  eat_border_height = 34 * on ;
+  yOff = 15 + eat_border_height;
+  clipped_height = TEX_HEIGHT -42  -2*eat_border_height; //248
 //284-11-24-2*22=205
  
   SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);

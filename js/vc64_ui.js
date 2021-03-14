@@ -250,7 +250,7 @@ function message_handler(msg)
                 }
                 if(call_param_border != null)
                 {
-                    use_borderless = !call_param_border;
+                    use_borderless = 1-call_param_border;
                     wasm_set_borderless(use_borderless);
                     borderless_switch.prop('checked', use_borderless);
                 }
@@ -564,12 +564,8 @@ function configure_file_dialog(reset=false)
 
             if(file_slot_file_name.match(/[.](prg|t64)$/i)) 
             {
-                $("#div_auto_load").hide();
-                $("#div_auto_press_play").hide();
-                $("#div_auto_run").show(); 
                 auto_run = true;
                 reset_before_load = true; //when flashing a prg always reset
-                $("#button_insert_file").html("flash program "+return_icon);
             }
             else if(file_slot_file_name.match(/[.]tap$/i)) 
             {
@@ -577,6 +573,7 @@ function configure_file_dialog(reset=false)
                 $("#div_auto_press_play").show(); auto_press_play = true;
                 $("#div_auto_run").hide(); auto_run = false;
                 $("#button_insert_file").html("insert tape"+return_icon);
+                $("#modal_file_slot").modal();
             }
             else if(file_slot_file_name.match(/[.](d64|g64)$/i)) 
             {
@@ -590,13 +587,10 @@ function configure_file_dialog(reset=false)
                     $("#no_disk_rom_msg").show();
                     $("#button_insert_file").attr("disabled", true);
                 }
+                $("#modal_file_slot").modal();
             }
             else if(file_slot_file_name.match(/[.](crt)$/i)) 
             {
-                $("#div_auto_load").hide();
-                $("#div_auto_press_play").hide();
-                $("#div_auto_run").hide();
-                $("#button_insert_file").html("insert cartridge"+return_icon);
             }
             else if(file_slot_file_name.match(/[.](zip)$/i)) 
             {
@@ -617,7 +611,6 @@ function configure_file_dialog(reset=false)
                     $("#drop_zone").html("file slot");
                     $("#drop_zone").css("border", "");
 
-                    //$("#drop_zone").click(); this only works robust on firefox ... so better don't do it
                 });
 
                 var zip = new JSZip();
@@ -652,6 +645,11 @@ function configure_file_dialog(reset=false)
                             }).then(function (u8) {
                                 file_slot_file_name=path;
                                 file_slot_file=u8;
+
+                                if(mountable_count==1)
+                                {//in case that there was only one mountable file in the zip, auto mount it
+                                    configure_file_dialog(true);
+                                }        
                             });
                         $("#button_insert_file").removeAttr("disabled");
                     });
@@ -676,6 +674,10 @@ function configure_file_dialog(reset=false)
                     {
                         $("#li_fileselect0").click();
                     }
+                    if(mountable_count>1)
+                    {
+                        $("#modal_file_slot").modal();
+                    }
                 });
 
                 $("#button_insert_file").html("mount file"+return_icon);
@@ -684,16 +686,11 @@ function configure_file_dialog(reset=false)
 
             $("#auto_load").prop('checked', auto_load);
             $("#auto_press_play").prop('checked', auto_press_play);
-            $("#auto_run").prop('checked', auto_run);
-
+            $("#auto_run").prop('checked', auto_run);    
 
             if(file_slot_file_name.match(/[.](prg|t64|crt)$/i))
             {
                 insert_file();
-            }
-            else
-            { //when tap,g64,d64 or zip show file options dialog
-                $("#modal_file_slot").modal();
             }
         }    
 
@@ -1327,9 +1324,9 @@ function InitWrappers() {
 borderless_switch = $('#borderless_switch');
 var use_borderless=load_setting('borderless', false);
 borderless_switch.prop('checked', use_borderless);
-wasm_set_borderless(use_borderless ? 1:0);
+wasm_set_borderless(use_borderless);
 borderless_switch.change( function() {
-    wasm_set_borderless(this.checked ? 1:0);
+    wasm_set_borderless(this.checked);
     save_setting('borderless', this.checked);
 });
 
@@ -2385,18 +2382,18 @@ wasm_poke(0xD020, orig_color);`;
                 return;
             }
 
-            var btn_html='<button id="ck'+element.id+'" class="btn btn-secondary custom_key" style="position:absolute;'+element.position+';';
+            var btn_html='<button id="ck'+element.id+'" class="btn btn-secondary btn-sm custom_key" style="position:absolute;'+element.position+';';
             if(element.currentX)
             {
                 btn_html += 'transform:translate3d(' + element.currentX + 'px,' + element.currentY + 'px,0);';
             } 
             if(element.transient)
             {
-                btn_html += 'border-width:4px;border-color: rgb(100, 133, 188);'; //cornflowerblue=#6495ED
+                btn_html += 'border-width:3px;border-color: rgb(100, 133, 188);'; //cornflowerblue=#6495ED
             }
             else if(element.app_scope==false)
             {
-                btn_html += 'border-width:4px;border-color: #99999999;';
+                btn_html += 'border-width:3px;border-color: #99999999;';
             }
 
 

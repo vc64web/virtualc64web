@@ -151,6 +151,10 @@ function get_parameter_link()
                     {
                         call_param_border=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
                     }
+                    else if(token.match(/border=([01]([.][0-9]*)?)/i))
+                    {//border=0.3
+                        call_param_border=token.match(/border=([01]([.][0-9]*)?)/i)[1];
+                    }
                     else if(token.match(/dark=(true|false)/i))
                     {
                         call_param_dark=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';

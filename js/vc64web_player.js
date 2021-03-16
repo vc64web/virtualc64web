@@ -3,7 +3,7 @@
  * checks whether jquery is already there, if not lazy loads it when emulator is started
  */
 
-var vc64web_player={
+ var vc64web_player={
     listens: false,
     loadScript: function (url, callback){
         var script = document.createElement("script")
@@ -180,16 +180,15 @@ ${this.overlay_on_icon}
         var w1=window.innerWidth/window.innerWidth;
         var w2=window.innerHeight * ratio /window.innerWidth;
         var width_percent = Math.min(w1,w2)*100;
-        var margin_left = Math.round((100-width_percent)/2);
         var calc_pixel_height = window.innerWidth*width_percent/100 / ratio;
         var height_percent = calc_pixel_height/window.innerHeight *100;
         var margin_top  = Math.round((100 -  height_percent )/2);
-        width_percent = Math.round(width_percent);
         if(margin_top<5)
         {//give some extra room for height of player bottom bar controls 
-            width_percent -= 6; 
-            margin_left += 3;
+            width_percent -= 4.6; 
         }
+        var margin_left = (100-width_percent)/2;
+
         $('#player_container').css({"position": "fixed", "top": `${margin_top}vh`, "left": `${margin_left}vw`, "width": `${width_percent}vw`, "z-index": 1000});
     },
     toggle_run: function () {

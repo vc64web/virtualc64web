@@ -5,14 +5,56 @@
 
  var vc64web_player={
     listens: false,
-    loadScript: function (url, callback){
+    loadScript: async function (url, callback){
         var script = document.createElement("script")
         script.type = "text/javascript";
         script.onload = callback;
         script.src = url;
         document.getElementsByTagName("head")[0].appendChild(script);
     },
-    load: function(element, params, address) {
+    samesite_file: null,
+    inject_samesite_app_into_iframe: async function (){
+        let ssfile = this.samesite_file;
+        this.samesite_file= null;
+        let vc64web_window = document.getElementById("vc64web").contentWindow;
+        if(ssfile.bin !== undefined)
+        {
+            vc64web_window.postMessage(
+                {
+                    cmd: "load", 
+                    file: ssfile.bin,
+                    file_name: ssfile.name
+                }, "*"
+            );
+        }
+        else if(ssfile.base64 !== undefined)
+        {
+            function FromBase64(str) {
+                return atob(str).split('').map(function (c) { return c.charCodeAt(0); });
+            }
+            vc64web_window.postMessage(
+                {
+                    cmd: "load", 
+                    file: Uint8Array.from(FromBase64(ssfile.base64)),
+                    file_name: ssfile.name
+                }, "*"
+            );
+        }
+        else if(ssfile.url !== undefined)
+        {
+            const response = await fetch(ssfile.url);
+            vc64web_window.postMessage(
+                {
+                    cmd: "load", 
+                    file: new Uint8Array( await response.arrayBuffer()),
+                    file_name: ssfile.name
+                }, "*"
+            );
+        }
+        $("#btn_open_in_extra_tab").hide();
+        $("#btn_overlay").css("margin-right", "0px");
+    },
+    load: async function(element, params, address) {
         if(address === undefined)
         {
             address = params;
@@ -24,6 +66,10 @@
                 if(event.data.msg == "render_run_state")
                 {
                     this.render_run_state(event.data.value);
+                    if(event.data.value == true && this.samesite_file != null)
+                    {
+                        this.inject_samesite_app_into_iframe();
+                    }
                 }
                 else if(event.data.msg == "render_current_audio_state")
                 {
@@ -185,7 +231,7 @@ ${this.overlay_on_icon}
         var margin_top  = Math.round((100 -  height_percent )/2);
         if(margin_top<5)
         {//give some extra room for height of player bottom bar controls 
-            width_percent -= 4.6; 
+            width_percent -= 5.2; 
         }
         var margin_left = (100-width_percent)/2;
 

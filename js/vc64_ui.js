@@ -1203,6 +1203,14 @@ function InitWrappers() {
                 }
             }
         }
+        else if(event.data.cmd == "load")
+        {
+            file_slot_file_name = event.data.file_name;
+            file_slot_file = event.data.file;//new Uint8Array( await response.arrayBuffer());
+            //if there is still a zip file in the fileslot, eject it now
+            $("#button_eject_zip").click();
+            configure_file_dialog(reset=false);
+        }
     }); 
     
     dark_switch = document.getElementById('dark_switch');

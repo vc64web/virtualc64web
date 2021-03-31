@@ -2389,8 +2389,8 @@ wasm_poke(0xD020, orig_color);`;
         custom_keys.forEach(function (element, i) {
             element.id = element.transient !== undefined && element.transient ? element.id : i;
 
-            if(element.transient && element.run && element.title == undefined)
-            {//don't render transient autorun buttons if no title
+            if(element.transient && element.title == undefined)
+            {//don't render transient buttons if no title
                 return;
             }
 

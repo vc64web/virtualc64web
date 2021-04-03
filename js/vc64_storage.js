@@ -102,18 +102,20 @@ function get_stored_app_titles(callback_fn)
     };
 }
 
-function get_snapshots_for_app_title(context, app_title, callback_fn)
+function get_snapshots_for_app_title(app_title)
 {
-    let transaction = db.transaction("snapshots"); 
-    let snapshots = transaction.objectStore("snapshots");
-    let priceIndex = snapshots.index("title");
+    return new Promise((resolve, reject) => {
+      let transaction = db.transaction("snapshots"); 
+      let snapshots = transaction.objectStore("snapshots");
+      let titleIndex = snapshots.index("title");
+      let request = titleIndex.getAll(app_title);
 
-    let request = priceIndex.getAll(app_title);
-
-    request.onsuccess = function() {
-        callback_fn(context, app_title, request.result);
-    };
+      request.onsuccess = function() {
+          resolve(request.result);
+      };
+    });
 }
+
 
 function get_snapshot_per_id(the_id, callback_fn)
 {

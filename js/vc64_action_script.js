@@ -72,7 +72,7 @@ async function parse_script(script_lang, action_script, execute = false, executi
         var js_script_function;
         let AsyncFunction = Object.getPrototypeOf(async function(){}).constructor
         try {            
-            js_script_function=new AsyncFunction("var this_id="+execution_id+";"+js_script);
+            js_script_function=new AsyncFunction(`let this_id=${execution_id};let still_active=function(){return not_stopped(this_id);};${js_script}`);
         } catch (error) {
             valid=false;
             if(execute==false)
@@ -611,3 +611,7 @@ async function wasm_ready_after_reset()
         await sleep(50);
     }    
 }
+
+//the following line is only there for codemirrors jshint autocomplete feature
+//this_id and still_active will be overscoped by their equal named pendants in the action blocks 
+var this_id=0; var still_active=function(){alert("NEVER CALLED!!")}

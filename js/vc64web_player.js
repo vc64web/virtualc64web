@@ -17,40 +17,68 @@
         let ssfile = this.samesite_file;
         this.samesite_file= null;
         let vc64web_window = document.getElementById("vc64web").contentWindow;
+        
+        function FromBase64(str) {
+                return atob(str).split('').map(function (c) { return c.charCodeAt(0); });
+        }
+        let file_descriptor={
+                cmd: "load"
+        }
+        if(ssfile.floppy_rom_base64 !== undefined)
+        {
+            file_descriptor.floppy_rom = Uint8Array.from(FromBase64(ssfile.floppy_rom_base64));
+        }
+        if(ssfile.kernal_rom_base64 !== undefined)
+        {
+            file_descriptor.kernal_rom = Uint8Array.from(FromBase64(ssfile.kernal_rom_base64));
+        }
+        if(ssfile.basic_rom_base64 !== undefined)
+        {
+            file_descriptor.basic_rom = Uint8Array.from(FromBase64(ssfile.basic_rom_base64));
+        }
+        if(ssfile.charset_rom_base64 !== undefined)
+        {
+            file_descriptor.charset_rom = Uint8Array.from(FromBase64(ssfile.charset_rom_base64));
+        }
+        if(ssfile.floppy_rom_url !== undefined)
+        {
+            file_descriptor.floppy_rom = new Uint8Array(await (await fetch(ssfile.floppy_rom_url)).arrayBuffer());
+        }
+        if(ssfile.kernal_rom_url !== undefined)
+        {
+            file_descriptor.kernal_rom = new Uint8Array(await (await fetch(ssfile.kernal_rom_url)).arrayBuffer());
+        }
+        if(ssfile.basic_rom_url !== undefined)
+        {
+            file_descriptor.basic_rom = new Uint8Array(await (await fetch(ssfile.basic_rom_url)).arrayBuffer());
+        }
+        if(ssfile.charset_rom_url !== undefined)
+        {
+            file_descriptor.charset_rom = new Uint8Array(await (await fetch(ssfile.charset_rom_url)).arrayBuffer());
+        }
+
+        if(ssfile.name !== undefined)
+        {
+            file_descriptor.file_name = ssfile.name;
+        }
         if(ssfile.bin !== undefined)
         {
-            vc64web_window.postMessage(
-                {
-                    cmd: "load", 
-                    file: ssfile.bin,
-                    file_name: ssfile.name
-                }, "*"
-            );
+            file_descriptor.file = ssfile.bin;
         }
         else if(ssfile.base64 !== undefined)
         {
-            function FromBase64(str) {
-                return atob(str).split('').map(function (c) { return c.charCodeAt(0); });
-            }
-            vc64web_window.postMessage(
-                {
-                    cmd: "load", 
-                    file: Uint8Array.from(FromBase64(ssfile.base64)),
-                    file_name: ssfile.name
-                }, "*"
-            );
+            file_descriptor.file = Uint8Array.from(FromBase64(ssfile.base64));
         }
         else if(ssfile.url !== undefined)
         {
             const response = await fetch(ssfile.url);
-            vc64web_window.postMessage(
-                {
-                    cmd: "load", 
-                    file: new Uint8Array( await response.arrayBuffer()),
-                    file_name: ssfile.name
-                }, "*"
-            );
+            file_descriptor.file = new Uint8Array(await response.arrayBuffer());
         }
+
+        vc64web_window.postMessage(
+            file_descriptor, "*"
+        );
+
         $("#btn_open_in_extra_tab").hide();
         $("#btn_overlay").css("margin-right", "0px");
     },
@@ -120,6 +148,7 @@
         this.preview_pic_width= emu_container.children(":first").width();
 
         var vc64web_url = "https://dirkwhoffmann.github.io/virtualc64web/";
+
         //turn picture into iframe
         var emuview_html = `
 <div id="player_container" style="display:flex;flex-direction:column;">

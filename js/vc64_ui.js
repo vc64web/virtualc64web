@@ -7,6 +7,8 @@ let call_param_border=null;
 let call_param_touch=null;
 let call_param_dark=null;
 let call_param_buttons=[];
+let call_param_dialog_on_missing_roms=null;
+let call_param_dialog_on_disk=null;
 
 function ToBase64(u8) 
 {
@@ -40,6 +42,8 @@ function get_parameter_link()
         parameter_link = call_obj.url;
         
         call_param_openROMS=call_obj.openROMS === undefined ? null : call_obj.openROMS;
+        call_param_dialog_on_missing_roms = call_obj.dialog_on_missing_roms === undefined ? null : call_obj.dialog_on_missing_roms;
+        call_param_dialog_on_disk = call_obj.dialog_on_disk === undefined ? null : call_obj.dialog_on_disk;
         call_param_2ndSID = call_obj._2ndSID === undefined ? null : "enabled at $"+call_obj._2ndSID;
         call_param_navbar = call_obj.navbar === undefined ? null : call_obj.navbar==false ? "hidden": null;
         call_param_wide=call_obj.wide === undefined ? null : call_obj.wide;
@@ -273,7 +277,7 @@ function message_handler(msg)
                 {
                     await fetchOpenROMS();        
                 }
-                else
+                else if(call_param_dialog_on_missing_roms != false)
                 {
                     $('#modal_roms').modal();
                 }
@@ -586,12 +590,20 @@ function configure_file_dialog(reset=false)
                 $("#div_auto_run").show(); auto_run = true;
                 $("#button_insert_file").html("insert disk"+return_icon);
                 
-                if (localStorage.getItem('vc1541_rom.bin')==null)
+                if (/*!JSON.parse(wasm_rom_info()).has_floppy_rom //is 1541.rom loaded ?*/
+                    localStorage.getItem('vc1541_rom.bin')==null)
                 {
                     $("#no_disk_rom_msg").show();
                     $("#button_insert_file").attr("disabled", true);
                 }
-                $("#modal_file_slot").modal();
+                if(call_param_dialog_on_disk == false)
+                {
+                    insert_file();
+                }
+                else
+                {
+                    $("#modal_file_slot").modal();
+                }
             }
             else if(file_slot_file_name.match(/[.](crt)$/i)) 
             {
@@ -1205,11 +1217,56 @@ function InitWrappers() {
         }
         else if(event.data.cmd == "load")
         {
-            file_slot_file_name = event.data.file_name;
-            file_slot_file = event.data.file;//new Uint8Array( await response.arrayBuffer());
-            //if there is still a zip file in the fileslot, eject it now
-            $("#button_eject_zip").click();
-            configure_file_dialog(reset=false);
+            function copy_to_local_storage(romtype, byteArray)
+            {
+                if(romtype != "")
+                {
+                    localStorage.setItem(romtype+".bin", ToBase64(byteArray));
+                    load_roms(false);
+                }
+            }
+
+            let with_reset=false;
+            //check if any roms should be preloaded first... 
+            if(event.data.floppy_rom !== undefined)
+            {
+                let byteArray = event.data.floppy_rom;
+                let rom_type=wasm_loadfile("1541.rom", byteArray, byteArray.byteLength);
+                copy_to_local_storage(rom_type, byteArray);
+                with_reset=true;
+            }
+            if(event.data.basic_rom !== undefined)
+            {
+                let byteArray = event.data.basic_rom;
+                let rom_type=wasm_loadfile("basic.rom", byteArray, byteArray.byteLength);
+                copy_to_local_storage(rom_type, byteArray);
+                with_reset=true;
+            }
+            if(event.data.kernal_rom !== undefined)
+            {
+                let byteArray = event.data.kernal_rom;
+                let rom_type=wasm_loadfile("kernal.rom", byteArray, byteArray.byteLength);
+                copy_to_local_storage(rom_type, byteArray);
+                with_reset=true;
+            }
+            if(event.data.charset_rom !== undefined)
+            {
+                let byteArray = event.data.charset_rom;
+                let rom_type=wasm_loadfile("charset.rom", byteArray, byteArray.byteLength);
+                copy_to_local_storage(rom_type, byteArray);
+                with_reset=true;
+            }
+            if(with_reset){
+                wasm_reset();
+            }
+            if(event.data.file_name !== undefined && event.data.file !== undefined)
+            {
+                file_slot_file_name = event.data.file_name;
+                file_slot_file = event.data.file;
+                //if there is still a zip file in the fileslot, eject it now
+                $("#button_eject_zip").click();
+                configure_file_dialog(reset=false);
+            }
         }
     }); 
     

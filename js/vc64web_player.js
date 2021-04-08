@@ -155,7 +155,7 @@
 <iframe id="vc64web" width="100%" height="100%" src="${vc64web_url}${params}#${address}"
 >
 </iframe>
-<div style="display: flex"><svg  class="player_icon_btn" onclick="vc64web_player.stop_emu_view();return false;" xmlns="http://www.w3.org/2000/svg" width="2.0em" height="2.0em" fill="currentColor" class="bi bi-pause-btn" viewBox="0 0 16 16">
+<div style="display: flex"><svg id="stop_icon" class="player_icon_btn" onclick="vc64web_player.stop_emu_view();return false;" xmlns="http://www.w3.org/2000/svg" width="2.0em" height="2.0em" fill="currentColor" class="bi bi-pause-btn" viewBox="0 0 16 16">
     <path d="M6.5 5A1.5 1.5 0 0 0 5 6.5v3A1.5 1.5 0 0 0 6.5 11h3A1.5 1.5 0 0 0 11 9.5v-3A1.5 1.5 0 0 0 9.5 5h-3z"/>
     <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4zm15 0a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z"/>
 </svg>
@@ -189,13 +189,13 @@ ${this.overlay_on_icon}
         $('#player_container').css("width",this.preview_pic_width);
 
         $vc64web = $('#vc64web');
-        $vc64web.height($vc64web.width() * 200/320);
+        $vc64web.height($vc64web.width() * 212/320);
         $(window).bind('resize', function() { 
             if( vc64web_player.is_overlay)
             {
                 vc64web_player.scale_overlay();
             }
-            $vc64web.height($vc64web.width() * 200/320); 
+            $vc64web.height($vc64web.width() * 212/320); 
         });
 
         document.addEventListener("click", this.grab_focus);
@@ -243,7 +243,7 @@ ${this.overlay_on_icon}
             this.scale_overlay();
             this.is_overlay=true;
         }
-        $vc64web.height($vc64web.width() * 200/320);
+        $vc64web.height($vc64web.width() * 212/320);
         
         let vc64web=document.getElementById("vc64web");
         //the blur and refocus is only needed for safari, when it goes into overlay
@@ -251,13 +251,13 @@ ${this.overlay_on_icon}
         vc64web.focus();
     },
     scale_overlay: function(){
-        var ratio=1.6;
+        var ratio=320/212; //1.6;
         var w1=window.innerWidth/window.innerWidth;
         var w2=window.innerHeight * ratio /window.innerWidth;
         var width_percent = Math.min(w1,w2)*100;
         var calc_pixel_height = window.innerWidth*width_percent/100 / ratio;
         var height_percent = calc_pixel_height/window.innerHeight *100;
-        var margin_top  = Math.round((100 -  height_percent )/2);
+        var margin_top  = /*Math.round*/((100 -  height_percent )/2);
         if(margin_top<5)
         {//give some extra room for height of player bottom bar controls 
             width_percent -= 5.2; 

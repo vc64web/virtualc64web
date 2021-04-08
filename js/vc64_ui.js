@@ -9,6 +9,8 @@ let call_param_dark=null;
 let call_param_buttons=[];
 let call_param_dialog_on_missing_roms=null;
 let call_param_dialog_on_disk=null;
+let call_param_SID=null;
+
 
 function ToBase64(u8) 
 {
@@ -45,6 +47,7 @@ function get_parameter_link()
         call_param_dialog_on_missing_roms = call_obj.dialog_on_missing_roms === undefined ? null : call_obj.dialog_on_missing_roms;
         call_param_dialog_on_disk = call_obj.dialog_on_disk === undefined ? null : call_obj.dialog_on_disk;
         call_param_2ndSID = call_obj._2ndSID === undefined ? null : "enabled at $"+call_obj._2ndSID;
+        call_param_SID = call_obj.SID === undefined ? null : call_obj.SID;
         call_param_navbar = call_obj.navbar === undefined ? null : call_obj.navbar==false ? "hidden": null;
         call_param_wide=call_obj.wide === undefined ? null : call_obj.wide;
         call_param_border=call_obj.border === undefined ? null : call_obj.border;
@@ -243,7 +246,11 @@ function message_handler(msg)
                 if(call_param_2ndSID!=null)
                 {
                     set_2nd_sid(call_param_2ndSID);
-                }    
+                }
+                if(call_param_SID!=null)
+                {
+                    set_sid_model(call_param_SID);
+                }
                 if(call_param_navbar=='hidden')
                 {
                     setTimeout(function(){
@@ -1744,11 +1751,12 @@ $('.layer').change( function(event) {
     delete_cache();
 */    
 
-    set_sid_model(load_setting('sid_model', '8580'));
-    function set_sid_model(sid_model) {
+    set_sid_model = function (sid_model) {
         $("#button_sid_model").text("sid model "+sid_model);
         wasm_set_sid_model(parseInt(sid_model));
     }
+    set_sid_model(load_setting('sid_model', '8580'));
+
     $('#choose_sid_model a').click(function () 
     {
         var sid_model=$(this).text();

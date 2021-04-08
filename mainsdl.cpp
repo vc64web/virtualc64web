@@ -680,7 +680,15 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
   bool file_still_unprocessed=true;   
   if (D64File::isCompatibleName(filename)) {
     printf("try to build D64File\n");
-    D64File *file = D64File::make<D64File>(blob, len, &error);
+    
+    //D64File *file = D64File::make<D64File>(blob, len, &error);
+    D64File *file = NULL;
+    try{
+      file = D64File::make<D64File>(blob, len);
+    } catch(VC64Error &exception) {
+      ErrorCode ec=exception.errorCode;
+      printf("%s\n", ErrorCodeEnum::key(ec));
+    }
     if(file != NULL)
     {
       printf("isD64\n");  

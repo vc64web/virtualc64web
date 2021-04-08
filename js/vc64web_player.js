@@ -288,7 +288,7 @@ ${this.overlay_on_icon}
     toggle_keyboard: function()
     {			
         var vc64web = document.getElementById("vc64web").contentWindow;
-        vc64web.postMessage({cmd:"script", script:"action('keyboard');"}, "*");
+        vc64web.postMessage({cmd:"script", script:"virtual_keyboard_clipping=false;action('keyboard');"}, "*");
     },
     toggle_audio: function()
     {			

@@ -1228,6 +1228,11 @@ function InitWrappers() {
             let js_script_function=new AsyncFunction(event.data.script);
             js_script_function();
         }
+        else if(event.data.cmd == "exec")
+        {
+            let js_script_function=event.data.function;
+            js_script_function();
+        }
         else if(event.data.cmd == "load")
         {
             function copy_to_local_storage(romtype, byteArray)

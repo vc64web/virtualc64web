@@ -321,5 +321,14 @@ ${this.overlay_on_icon}
         this.last_audio_state=null;
 
         document.removeEventListener("click", this.grab_focus);
+    },
+    send_script: function(the_script) { 
+        let vc64web = document.getElementById("vc64web").contentWindow;
+        vc64web.postMessage({cmd:"script", script: the_script}, "*");
+    },
+    exec: function(the_function) { 
+        let function_as_string=`(${the_function.toString()})();`;
+        this.send_script(function_as_string);  
     }
+
 }

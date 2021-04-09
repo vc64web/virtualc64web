@@ -680,7 +680,15 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
   bool file_still_unprocessed=true;   
   if (D64File::isCompatibleName(filename)) {
     printf("try to build D64File\n");
-    D64File *file = D64File::make<D64File>(blob, len, &error);
+    
+    //D64File *file = D64File::make<D64File>(blob, len, &error);
+    D64File *file = NULL;
+    try{
+      file = D64File::make<D64File>(blob, len);
+    } catch(VC64Error &exception) {
+      ErrorCode ec=exception.errorCode;
+      printf("%s\n", ErrorCodeEnum::key(ec));
+    }
     if(file != NULL)
     {
       printf("isD64\n");  
@@ -978,38 +986,16 @@ extern "C" void wasm_cut_layers(unsigned cut_layers)
 char json_result[255];
 extern "C" const char* wasm_rom_info()
 {
-  sprintf(json_result, "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\"}",
+  sprintf(json_result, "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\", \"has_floppy_rom\":%s}",
   wrapper->c64->hasMega65Rom(ROM_TYPE_KERNAL) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_KERNAL) ? "commodore": "none", 
   wrapper->c64->hasMega65Rom(ROM_TYPE_BASIC) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_BASIC) ? "commodore": "none", 
-  wrapper->c64->hasMega65Rom(ROM_TYPE_CHAR) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_CHAR) ? "commodore": "none"
+  wrapper->c64->hasMega65Rom(ROM_TYPE_CHAR) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_CHAR) ? "commodore": "none",
+  wrapper->c64->hasRom(ROM_TYPE_VC1541) /*&& 
+  wrapper->c64->drive8.getConfigItem(OPT_DRIVE_CONNECT)*/ ? "true":"false"
   );
   return json_result;
 }
 
-
-/*
-extern "C" const char* wasm_rom_classifier(Uint8 *blob, long len)
-{
-  const char *rom_class = "unknown";
- 
-   u64 _fnv = fnv_1a_64(blob, len);
-  RomIdentifier _identifier = RomFile::identifier(_fnv);
-  if(RomFile::isCommodoreRom(_identifier))
-  {
-    rom_class="commodore";
-  }
-  else if(RomFile::isMega65Rom(_identifier))
-  {
-    rom_class="mega";
-  }
-  printf("wasm_rom_classifier = %s, %s, %s, 0x%llx\n",
-              rom_class, 
-              RomFile::title(_identifier), 
-              RomFile::subTitle(_identifier), 
-              _fnv);
-  return rom_class;
-}
-*/
 
 extern "C" void wasm_set_2nd_sid(long address)
 {

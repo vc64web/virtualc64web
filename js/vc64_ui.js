@@ -7,6 +7,10 @@ let call_param_border=null;
 let call_param_touch=null;
 let call_param_dark=null;
 let call_param_buttons=[];
+let call_param_dialog_on_missing_roms=null;
+let call_param_dialog_on_disk=null;
+let call_param_SID=null;
+let virtual_keyboard_clipping = true; //keyboard scrolls when it clips
 
 function ToBase64(u8) 
 {
@@ -40,7 +44,10 @@ function get_parameter_link()
         parameter_link = call_obj.url;
         
         call_param_openROMS=call_obj.openROMS === undefined ? null : call_obj.openROMS;
+        call_param_dialog_on_missing_roms = call_obj.dialog_on_missing_roms === undefined ? null : call_obj.dialog_on_missing_roms;
+        call_param_dialog_on_disk = call_obj.dialog_on_disk === undefined ? null : call_obj.dialog_on_disk;
         call_param_2ndSID = call_obj._2ndSID === undefined ? null : "enabled at $"+call_obj._2ndSID;
+        call_param_SID = call_obj.SID === undefined ? null : call_obj.SID;
         call_param_navbar = call_obj.navbar === undefined ? null : call_obj.navbar==false ? "hidden": null;
         call_param_wide=call_obj.wide === undefined ? null : call_obj.wide;
         call_param_border=call_obj.border === undefined ? null : call_obj.border;
@@ -239,7 +246,11 @@ function message_handler(msg)
                 if(call_param_2ndSID!=null)
                 {
                     set_2nd_sid(call_param_2ndSID);
-                }    
+                }
+                if(call_param_SID!=null)
+                {
+                    set_sid_model(call_param_SID);
+                }
                 if(call_param_navbar=='hidden')
                 {
                     setTimeout(function(){
@@ -273,7 +284,7 @@ function message_handler(msg)
                 {
                     await fetchOpenROMS();        
                 }
-                else
+                else if(call_param_dialog_on_missing_roms != false)
                 {
                     $('#modal_roms').modal();
                 }
@@ -586,12 +597,20 @@ function configure_file_dialog(reset=false)
                 $("#div_auto_run").show(); auto_run = true;
                 $("#button_insert_file").html("insert disk"+return_icon);
                 
-                if (localStorage.getItem('vc1541_rom.bin')==null)
+                if (/*!JSON.parse(wasm_rom_info()).has_floppy_rom //is 1541.rom loaded ?*/
+                    localStorage.getItem('vc1541_rom.bin')==null)
                 {
                     $("#no_disk_rom_msg").show();
                     $("#button_insert_file").attr("disabled", true);
                 }
-                $("#modal_file_slot").modal();
+                if(call_param_dialog_on_disk == false)
+                {
+                    insert_file();
+                }
+                else
+                {
+                    $("#modal_file_slot").modal();
+                }
             }
             else if(file_slot_file_name.match(/[.](crt)$/i)) 
             {
@@ -1203,13 +1222,64 @@ function InitWrappers() {
                 }
             }
         }
+        else if(event.data.cmd == "script")
+        {
+            let AsyncFunction = Object.getPrototypeOf(async function(){}).constructor
+            let js_script_function=new AsyncFunction(event.data.script);
+            js_script_function();
+        }
         else if(event.data.cmd == "load")
         {
-            file_slot_file_name = event.data.file_name;
-            file_slot_file = event.data.file;//new Uint8Array( await response.arrayBuffer());
-            //if there is still a zip file in the fileslot, eject it now
-            $("#button_eject_zip").click();
-            configure_file_dialog(reset=false);
+            function copy_to_local_storage(romtype, byteArray)
+            {
+                if(romtype != "")
+                {
+                    localStorage.setItem(romtype+".bin", ToBase64(byteArray));
+                    load_roms(false);
+                }
+            }
+
+            let with_reset=false;
+            //check if any roms should be preloaded first... 
+            if(event.data.floppy_rom !== undefined)
+            {
+                let byteArray = event.data.floppy_rom;
+                let rom_type=wasm_loadfile("1541.rom", byteArray, byteArray.byteLength);
+                copy_to_local_storage(rom_type, byteArray);
+                with_reset=true;
+            }
+            if(event.data.basic_rom !== undefined)
+            {
+                let byteArray = event.data.basic_rom;
+                let rom_type=wasm_loadfile("basic.rom", byteArray, byteArray.byteLength);
+                copy_to_local_storage(rom_type, byteArray);
+                with_reset=true;
+            }
+            if(event.data.kernal_rom !== undefined)
+            {
+                let byteArray = event.data.kernal_rom;
+                let rom_type=wasm_loadfile("kernal.rom", byteArray, byteArray.byteLength);
+                copy_to_local_storage(rom_type, byteArray);
+                with_reset=true;
+            }
+            if(event.data.charset_rom !== undefined)
+            {
+                let byteArray = event.data.charset_rom;
+                let rom_type=wasm_loadfile("charset.rom", byteArray, byteArray.byteLength);
+                copy_to_local_storage(rom_type, byteArray);
+                with_reset=true;
+            }
+            if(with_reset){
+                wasm_reset();
+            }
+            if(event.data.file_name !== undefined && event.data.file !== undefined)
+            {
+                file_slot_file_name = event.data.file_name;
+                file_slot_file = event.data.file;
+                //if there is still a zip file in the fileslot, eject it now
+                $("#button_eject_zip").click();
+                configure_file_dialog(reset=false);
+            }
         }
     }); 
     
@@ -1232,7 +1302,27 @@ function InitWrappers() {
     });
     
     installKeyboard();
-    $("#button_keyboard").click(function(){setTimeout( scaleVMCanvas, 500);});
+    $("#button_keyboard").click(function(){
+        if(virtual_keyboard_clipping==false)
+        {
+            let body_width =$("body").innerWidth();
+            let vk_abs_width=750+25; //+25 border
+            let vk=$("#virtual_keyboard");
+
+            //calculate scaled width
+            let scaled= vk_abs_width/body_width;
+            if(scaled < 1)
+            {
+                scaled = 1;
+            }
+            vk.css("width", `${scaled*100}vw`);
+            vk.css("transform", `scale(${1/scaled})`);
+            vk.css("transform-origin", `left bottom`);    
+        }
+        setTimeout( scaleVMCanvas, 500);
+    });
+
+
 
     window.addEventListener("orientationchange", function() {
       setTimeout( scaleVMCanvas, 500);
@@ -1687,11 +1777,12 @@ $('.layer').change( function(event) {
     delete_cache();
 */    
 
-    set_sid_model(load_setting('sid_model', '8580'));
-    function set_sid_model(sid_model) {
+    set_sid_model = function (sid_model) {
         $("#button_sid_model").text("sid model "+sid_model);
         wasm_set_sid_model(parseInt(sid_model));
     }
+    set_sid_model(load_setting('sid_model', '8580'));
+
     $('#choose_sid_model a').click(function () 
     {
         var sid_model=$(this).text();
@@ -2077,7 +2168,7 @@ $('.layer').change( function(event) {
             $('#predefined_actions').collapse('hide');
 
             //Special Keys action
-            var list_actions=['Space','Comma','F1','F3','F5','F8','runStop','restore','commodore', 'Delete','Enter'];
+            var list_actions=['Space','Comma','F1','F3','F5','F8','runStop','restore','commodore', 'Delete','Enter','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'];
             var html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';

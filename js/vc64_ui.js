@@ -1228,11 +1228,6 @@ function InitWrappers() {
             let js_script_function=new AsyncFunction(event.data.script);
             js_script_function();
         }
-        else if(event.data.cmd == "exec")
-        {
-            let js_script_function=event.data.function;
-            js_script_function();
-        }
         else if(event.data.cmd == "load")
         {
             function copy_to_local_storage(romtype, byteArray)
@@ -2173,7 +2168,7 @@ $('.layer').change( function(event) {
             $('#predefined_actions').collapse('hide');
 
             //Special Keys action
-            var list_actions=['Space','Comma','F1','F3','F5','F8','runStop','restore','commodore', 'Delete','Enter'];
+            var list_actions=['Space','Comma','F1','F3','F5','F8','runStop','restore','commodore', 'Delete','Enter','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'];
             var html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';

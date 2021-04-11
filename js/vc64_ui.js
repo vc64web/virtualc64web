@@ -10,6 +10,7 @@ let call_param_buttons=[];
 let call_param_dialog_on_missing_roms=null;
 let call_param_dialog_on_disk=null;
 let call_param_SID=null;
+
 let virtual_keyboard_clipping = true; //keyboard scrolls when it clips
 
 function ToBase64(u8) 
@@ -127,6 +128,11 @@ function get_parameter_link()
                         //for example #2ndSID=d420#http...
                         call_param_2ndSID = "enabled at $"+sid_addr; 
                     }
+                    else if(token.match(/SID=.*/i))
+                    {
+                        var sid_addr=token.replace(/SID=/i,"");
+                        call_param_SID = sid_addr; 
+                    }
                     else if(token.match(/touch=true/i))
                     {
                         call_param_touch=true;
@@ -165,6 +171,14 @@ function get_parameter_link()
                     else if(token.match(/dark=(true|false)/i))
                     {
                         call_param_dark=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
+                    }
+                    else if(token.match(/dialog_on_missing_roms=(true|false)/i))
+                    {
+                        call_param_dialog_on_missing_roms=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
+                    }
+                    else if(token.match(/dialog_on_disk=(true|false)/i))
+                    {
+                        call_param_dialog_on_disk=token.match(/.*(true|false)/i)[1].toLowerCase() == 'true';
                     }
                 }
             }

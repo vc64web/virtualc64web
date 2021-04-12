@@ -223,6 +223,11 @@ function fire_on_message( msg, callback_fn)
     msg_callback_stack.push(handler); 
 }
 
+function wait_on_message(msg)
+{
+    return new Promise(resolve => fire_on_message(msg, resolve));
+}
+
 function check_ready_to_fire(msg)
 {
     var execute_stack = [];
@@ -246,6 +251,15 @@ function check_ready_to_fire(msg)
         callback_fn();
     }
 }
+
+async function disk_loading_finished()
+{//await disk_loading_finished() before typing 'run'
+    await wait_on_message("MSG_IEC_BUS_BUSY");
+    await wait_on_message("MSG_IEC_BUS_IDLE");
+    await wait_on_message("MSG_IEC_BUS_BUSY");
+    await wait_on_message("MSG_IEC_BUS_IDLE");
+}   
+
 
 function message_handler(msg)
 {
@@ -1605,7 +1619,7 @@ $('.layer').change( function(event) {
 
         $('#modal_file_slot').modal('hide');
 
-        var execute_load = function(){
+        var execute_load = async function(){
             var filetype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
 
             //if it is a disk from a multi disk zip file, apptitle should be the name of the zip file only
@@ -1655,15 +1669,16 @@ $('.layer').change( function(event) {
                     emit_string(['Enter','l','o','a','d','"','*','"',',','8',',', '1', 'Enter']);
                     if(do_auto_run)
                     {
-                        fire_on_message("MSG_IEC_BUS_BUSY",function() {
+                        await disk_loading_finished();
+                        /*fire_on_message("MSG_IEC_BUS_BUSY",function() {
                             fire_on_message("MSG_IEC_BUS_IDLE", function() {
                                 fire_on_message("MSG_IEC_BUS_BUSY",function() {
-                                    fire_on_message("MSG_IEC_BUS_IDLE", function() {
+                                    fire_on_message("MSG_IEC_BUS_IDLE", function() {*/
                                         emit_string(['r','u','n','Enter'],0);
-                                    })
+                                    /*})
                                 })               
                             })
-                        });
+                        });*/
                     }
                 }
             }

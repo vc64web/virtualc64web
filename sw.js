@@ -1,4 +1,4 @@
-const cache_name = 'vc64_app_cache_v2021_04_12';
+const cache_name = 'vc64_app_cache_v2021_04_16';
 
 // install event
 self.addEventListener('install', evt => {
@@ -18,38 +18,45 @@ self.addEventListener('activate', evt => {
   );
 });
 
-// fetch event
-self.addEventListener('fetch', evt => {
-  //console.log('fetch event', evt);
-  evt.respondWith(
-    caches.match(evt.request).then(cache_res => {
-      return cache_res || fetch(evt.request).then(fetch_res => {
-        return caches.open(cache_name).then(cache => {
-          if(
-            evt.request.url.startsWith('https://csdb.dk/webservice/') && 
-            !evt.request.url.endsWith('cache_me=true')
-            ||
-            evt.request.url.startsWith('https://mega65.github.io/')
-	          ||
-            evt.request.url.startsWith('https://dirkwhoffmann.github.io/virtualc64web/doc')
-            ||
-            evt.request.url.endsWith('vc64web_player.js')
-          )
-          {
-            console.log('do not cache fetched resource: '+evt.request.url);
-          }
-          else
-          {
-            console.log('into '+cache_name+' putting fetched resource: '+evt.request.url);
-            cache.put(evt.request.url, fetch_res.clone());
-          }
-          return fetch_res;
-        })
-      });
-    }).catch(() => {
-        console.log('sw: can not load '+evt.request.url+' from server.');
-    })
-  );
-});
+self.addEventListener('fetch', function(event){
+  event.respondWith(async function () {
+      //is this url one that should not be cached at all ? 
+      if(
+        event.request.url.startsWith('https://csdb.dk/webservice/') && 
+        !event.request.url.endsWith('cache_me=true')
+        ||
+        event.request.url.startsWith('https://mega65.github.io/')
+        ||
+        event.request.url.startsWith('https://dirkwhoffmann.github.io/virtualc64web/doc')
+        ||
+        event.request.url.endsWith('vc64web_player.js')
+      )
+      {
+        console.log('sw: do not cache fetched resource: '+event.request.url);
+        return fetch(event.request);
+      }
+      else
+      {
+        //try to get it from the cache
+        var cache = await caches.open(cache_name);
+        var cachedResponsePromise = await cache.match(event.request);
+        if(cachedResponsePromise)
+        {
+          console.log('sw: get from '+cache_name+' cached resource: '+event.request.url);
+          return cachedResponsePromise;
+        }
 
-//to test in chrome chrome://flags/#unsafely-treat-insecure-origin-as-secure
+        //if not in cache try to fetch 
+        var networkResponsePromise = fetch(event.request);
+        event.waitUntil(
+          async function () 
+          {
+            var networkResponse = await networkResponsePromise;
+            console.log('sw: into '+cache_name+' putting fetched resource: '+event.request.url);
+            await cache.put(event.request, networkResponse.clone());
+          }()
+        );   
+        return networkResponsePromise;
+      }
+   }());
+});

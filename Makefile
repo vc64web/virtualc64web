@@ -9,8 +9,9 @@ WARNINGS  = -Wall -Wno-unused-variable
 STD       = -std=c++17
 OPTIMIZE  = -O2
 WASM_EXPORTS= -s EXTRA_EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS="['_main', '_wasm_toggleFullscreen', '_wasm_loadFile', '_wasm_key', '_wasm_joystick', '_wasm_reset', '_wasm_halt', '_wasm_run', '_wasm_take_user_snapshot', '_wasm_create_renderer', '_wasm_set_warp', '_wasm_pull_user_snapshot_file','_wasm_set_borderless', '_wasm_press_play', '_wasm_sprite_info', '_wasm_set_sid_model', '_wasm_cut_layers', '_wasm_rom_info', '_wasm_set_2nd_sid', '_wasm_set_sid_engine', '_wasm_get_cpu_cycles', '_wasm_set_color_palette', '_wasm_schedule_key', '_wasm_peek', '_wasm_poke']"
-CFLAGS    = $(INCLUDE) $(WARNINGS) $(STD) $(OPTIMIZE) -s USE_SDL=2 $(WASM_EXPORTS) -s DISABLE_EXCEPTION_CATCHING=0
+CFLAGS    = $(INCLUDE) $(WARNINGS) $(STD) $(OPTIMIZE) -s USE_SDL=2 $(WASM_EXPORTS) -s DISABLE_EXCEPTION_CATCHING=0 -s BINARYEN_EXTRA_PASSES=--one-caller-inline-max-function-size=19307
 #-s ASSERTIONS=1
+PUBLISH_FOLDER=../app
 
 .PHONY: all clean
 
@@ -32,22 +33,22 @@ main:
 	mv vC64.html index.html
 
 publish:
-	rm -rf ../gh-pages/roms
-	rm -rf ../gh-pages/css
-	rm -rf ../gh-pages/js
-	rm -rf ../gh-pages/img
-	rm -f  ../gh-pages/vC64.*
-	rm -f  ../gh-pages/*.js
-	rm -f  ../gh-pages/*.json
-	rm -f  ../gh-pages/index.html
-	cp vC64.* ../gh-pages
-	cp -r js ../gh-pages
-	cp -r css ../gh-pages
-	cp -r img ../gh-pages/
-	cp -r roms ../gh-pages/
-	cp index.html ../gh-pages 
-	cp sw.js ../gh-pages
-	cp manifest.json ../gh-pages
+	rm -rf $(PUBLISH_FOLDER)/roms
+	rm -rf $(PUBLISH_FOLDER)/css
+	rm -rf $(PUBLISH_FOLDER)/js
+	rm -rf $(PUBLISH_FOLDER)/img
+	rm -f  $(PUBLISH_FOLDER)/vC64.*
+	rm -f  $(PUBLISH_FOLDER)/*.js
+	rm -f  $(PUBLISH_FOLDER)/*.json
+	rm -f  $(PUBLISH_FOLDER)/index.html
+	cp vC64.* $(PUBLISH_FOLDER)
+	cp -r js $(PUBLISH_FOLDER)
+	cp -r css $(PUBLISH_FOLDER)
+	cp -r img $(PUBLISH_FOLDER)
+	cp -r roms $(PUBLISH_FOLDER)
+	cp index.html $(PUBLISH_FOLDER)
+	cp sw.js $(PUBLISH_FOLDER)
+	cp manifest.json $(PUBLISH_FOLDER)
 
 $(OBJECTS): %.o: %.cpp
 	$(CC) -c $(CFLAGS) $< -o $(OBJDIR)/$(@F)

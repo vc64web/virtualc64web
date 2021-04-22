@@ -1868,15 +1868,13 @@ $('.layer').change( function(event) {
     });
 
 
-    document.getElementById('button_update').onclick = function() 
+    document.getElementById('button_update').onclick = async function() 
     {
-        caches.keys().then(keys => {
-            console.log('deleting cache files:'+keys);
-            return Promise.all(keys
-              .map(key => caches.delete(key))
-            );
-          });
-          window.location.reload(true);
+        let keys = await caches.keys();
+        console.log('deleting cache files:'+keys);
+        await Promise.all(keys.map(key => caches.delete(key)));
+
+        window.location.reload(true);
     }
 
     setup_browser_interface();

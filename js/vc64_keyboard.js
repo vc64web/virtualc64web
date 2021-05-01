@@ -2,45 +2,70 @@ function translateKey(keycode, key)
 {
     console.log('keycode='+keycode + ', key='+key);
     var mapindex;
-    var sym_key = symbolic_map[key];
-    if(sym_key!== undefined && !Array.isArray(sym_key))
+    var sym_key = symbolic_map[key.toLowerCase()];
+    var c64code;
+    if(sym_key!== undefined) // && !Array.isArray(sym_key))
     {//if there is a symbolic mapping ... use it instead of the positional mapping
-        mapindex=key_translation_map[ sym_key ];
+        var raw_key_with_modifier=create_key_composition(sym_key);
+        c64code=raw_key_with_modifier.raw_key;
     } 
     else
     {//when there is no symbolic mapping fall back to positional mapping
         mapindex=key_translation_map[ keycode ];
+        c64code=c64keymap[mapindex];
     }
-    c64code=c64keymap[mapindex];
     return c64code;
 }
 
-function translateKey2(keycode, key)
+function translateKey2(keycode, key, use_positional_mapping=false)
 {
     console.log('keycode='+keycode + ', key='+key);
-    var mapindex;
-    var sym_key = symbolic_map[key];
-    var raw_key_with_modifier = { modifier: null,  raw_key: null };
+    let mapindex;
+    let raw_key_with_modifier = null;
+    let sym_key = symbolic_map[key.toLowerCase()];
+
+
+    if(use_positional_mapping)
+    {
+        if(sym_key !== undefined && !key.match(/ArrowLeft|ArrowUp|y|z/i))
+        {
+            sym_key=undefined;
+        }
+    }
 
     if(sym_key!== undefined)
     {//if there is a symbolic mapping ... use it instead of the positional mapping
-        if(Array.isArray(sym_key))
-        {
-            mapindex=key_translation_map[ sym_key[0] ];
-            raw_key_with_modifier.modifier = c64keymap[mapindex];
-
-            mapindex=key_translation_map[ sym_key[1] ];
-            raw_key_with_modifier.raw_key = c64keymap[mapindex];
-        }
-        else
-        {
-            mapindex=key_translation_map[ sym_key];
-            raw_key_with_modifier.raw_key = c64keymap[mapindex];
-        }
+        raw_key_with_modifier = create_key_composition(sym_key);
     } 
     else
     {//when there is no symbolic mapping fall back to positional mapping
+        raw_key_with_modifier = { modifier: null,  raw_key: null }
         mapindex=key_translation_map[ keycode ];
+        raw_key_with_modifier.raw_key = c64keymap[mapindex];
+    }
+
+    return raw_key_with_modifier.raw_key === undefined ?
+            undefined:
+            raw_key_with_modifier;
+}
+
+
+function create_key_composition(entry_from_symbolic_map)
+{
+    var mapindex;
+    var raw_key_with_modifier = { modifier: null,  raw_key: null };
+
+    if(Array.isArray(entry_from_symbolic_map))
+    {
+        mapindex=key_translation_map[ entry_from_symbolic_map[0] ];
+        raw_key_with_modifier.modifier = c64keymap[mapindex];
+
+        mapindex=key_translation_map[ entry_from_symbolic_map[1] ];
+        raw_key_with_modifier.raw_key = c64keymap[mapindex];
+    }
+    else
+    {
+        mapindex=key_translation_map[ entry_from_symbolic_map];
         raw_key_with_modifier.raw_key = c64keymap[mapindex];
     }
     return raw_key_with_modifier;
@@ -104,6 +129,7 @@ symbolic_map = {
     '"': ['ShiftLeft','Digit2'],
     '#': ['ShiftLeft','Digit3'],
     '!': ['ShiftLeft','Digit1'],
+    '+': 'Minus',
     'shiftrunstop': ['ShiftLeft','runStop'],   //load from tape shortcut
     'arrowleft': ['ShiftLeft','ArrowRight'],
     'arrowup': ['ShiftLeft','ArrowDown']

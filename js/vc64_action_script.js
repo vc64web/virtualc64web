@@ -261,7 +261,7 @@ async function execute_single_action(cmd, execute=true)
             execute_joystick_script(joy_cmd_tokens);
         }
     }
-    else if(translateKey2(cmd,cmd.toLowerCase()).raw_key !== undefined)
+    else if(translateKey2(cmd,cmd) !== undefined)
     {
         if(execute)
         {            

@@ -339,8 +339,8 @@ ${this.overlay_on_icon}
         let vc64web = document.getElementById("vc64web").contentWindow;
         vc64web.postMessage({cmd:"script", script: the_script}, "*");
     },
-    exec: function(the_function) { 
-        let function_as_string=`(${the_function.toString()})();`;
+    exec: function(the_function, the_param) { 
+        let function_as_string=`(${the_function.toString()})(${the_param == undefined?'':"'"+the_param+"'"});`;
         this.send_script(function_as_string);  
     }
 

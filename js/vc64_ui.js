@@ -1659,7 +1659,10 @@ $('.layer').change( function(event) {
                 }
             );
 
-            if(do_auto_load)
+            if(call_param_dialog_on_disk == false)
+            {//loading is probably done by scripting
+            }
+            else if(do_auto_load)
             {
                 if(file_slot_file_name.endsWith('.tap'))
                 {

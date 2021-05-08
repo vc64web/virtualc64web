@@ -1193,6 +1193,7 @@ function InitWrappers() {
 
     wasm_peek = Module.cwrap('wasm_peek', 'number', ['number']);
     wasm_poke = Module.cwrap('wasm_poke', 'undefined', ['number', 'number']);
+    wasm_export_disk = Module.cwrap('wasm_export_disk', 'string');
 
 
     get_audio_context=function() {

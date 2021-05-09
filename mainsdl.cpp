@@ -600,9 +600,16 @@ char wasm_pull_user_snapshot_file_json_result[255];
 
 extern "C" char* wasm_export_disk()
 {
+  if(!wrapper->c64->drive8.hasDisk())
+  {
+    printf("no disk in drive8\n");
+    sprintf(wasm_pull_user_snapshot_file_json_result, "{\"size\": 0 }");
+    return wasm_pull_user_snapshot_file_json_result;
+  }
+
   FSDevice *fs = FSDevice::makeWithDisk(wrapper->c64->drive8.disk);    
-  D64File *d64 =  D64File::makeWithFileSystem(*fs);
- 
+  D64File *d64 = D64File::makeWithFileSystem(*fs);
+
   size_t size = d64->size;
   uint8_t *buffer = new uint8_t[size];
   d64->writeToBuffer(buffer);

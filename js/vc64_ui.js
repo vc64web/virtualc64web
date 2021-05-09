@@ -1780,7 +1780,35 @@ $('.layer').change( function(event) {
         $("#modal_take_snapshot").modal('show');
         $("#input_app_title").val(global_apptitle);
         $("#input_app_title").focus();
+
+        let d64_json = wasm_export_disk();
+        let d64_obj = JSON.parse(d64_json);
+
+        if(d64_obj.size>0)
+        {
+            $("#button_export_disk").show();
+        }
+        else
+        {
+            $("#button_export_disk").hide();
+        }
     }
+    $('#button_export_disk').click(function() 
+    {
+        let d64_json = wasm_export_disk();
+        let d64_obj = JSON.parse(d64_json);
+        let d64_buffer = new Uint8Array(Module.HEAPU8.buffer, d64_obj.address, d64_obj.size);
+        let filebuffer = d64_buffer.slice(0,d64_obj.size);
+        let blob_data = new Blob([filebuffer], {type: 'application/octet-binary'});
+        const url = window.URL.createObjectURL(blob_data);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'disk_in_drive8.d64';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+    });
 
     $('#button_save_snapshot').click(function() 
     {       

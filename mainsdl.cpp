@@ -596,10 +596,36 @@ extern "C" void wasm_schedule_key(int code1, int code2, int pressed, int frame_d
 }
 
 
-
-
 char wasm_pull_user_snapshot_file_json_result[255];
-//extern "C" Uint8 *wasm_pull_user_snapshot_file()
+
+extern "C" char* wasm_export_disk()
+{
+  if(!wrapper->c64->drive8.hasDisk())
+  {
+    printf("no disk in drive8\n");
+    sprintf(wasm_pull_user_snapshot_file_json_result, "{\"size\": 0 }");
+    return wasm_pull_user_snapshot_file_json_result;
+  }
+
+  FSDevice *fs = FSDevice::makeWithDisk(wrapper->c64->drive8.disk);    
+  D64File *d64 = D64File::makeWithFileSystem(*fs);
+
+  size_t size = d64->size;
+  uint8_t *buffer = new uint8_t[size];
+  d64->writeToBuffer(buffer);
+  for(int i=0; i < 30; i++)
+  {
+    printf("%d",buffer[i]);
+  }
+  printf("\n");
+  sprintf(wasm_pull_user_snapshot_file_json_result, "{\"address\":%lu, \"size\": %lu }",
+  (unsigned long)buffer, 
+  size
+  );
+  printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
+  return wasm_pull_user_snapshot_file_json_result;
+}
+
 extern "C" char* wasm_pull_user_snapshot_file()
 {
   printf("wasm_pull_user_snapshot_file\n");

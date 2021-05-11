@@ -1412,7 +1412,7 @@ function InitWrappers() {
 
 //----
     symbolic_mapping_switch = $('#symbolic_mapping_switch');
-    use_symbolic_map=load_setting('use_symbolic_map', false);
+    use_symbolic_map=load_setting('use_symbolic_map', true);
     symbolic_mapping_switch.prop('checked', use_symbolic_map);
     symbolic_mapping_switch.change( function() {
         use_symbolic_map=this.checked;

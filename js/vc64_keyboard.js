@@ -21,28 +21,27 @@ function translateKey2(keycode, key, use_positional_mapping=false)
 {
     console.log('keycode='+keycode + ', key='+key);
     let mapindex;
-    let raw_key_with_modifier = null;
-    let sym_key = symbolic_map[key.toLowerCase()];
-
+    let raw_key_with_modifier = { modifier: null,  raw_key: undefined }
 
     if(use_positional_mapping)
     {
-        if(sym_key !== undefined && !key.match(/ArrowLeft|ArrowUp|y|z/i))
-        {
-            sym_key=undefined;
-        }
-    }
-
-    if(sym_key!== undefined)
-    {//if there is a symbolic mapping ... use it instead of the positional mapping
-        raw_key_with_modifier = create_key_composition(sym_key);
-    } 
-    else
-    {//when there is no symbolic mapping fall back to positional mapping
-        raw_key_with_modifier = { modifier: null,  raw_key: null }
         mapindex=key_translation_map[ keycode ];
         raw_key_with_modifier.raw_key = c64keymap[mapindex];
     }
+    else
+    {
+        let sym_key = symbolic_map[key.toLowerCase()];
+        if(sym_key!== undefined)
+        {
+            raw_key_with_modifier = create_key_composition(sym_key);
+        } 
+        else if(!keycode.toLowerCase().startsWith('shift'))
+        {//do map all other special keys except shift
+            mapindex=key_translation_map[ keycode ];
+            raw_key_with_modifier.raw_key = c64keymap[mapindex];
+        }
+    }
+
 
     return raw_key_with_modifier.raw_key === undefined ?
             undefined:
@@ -110,7 +109,6 @@ symbolic_map = {
     f8: 'F8',
     ',': 'Comma',
     '*': 'BracketRight', 
-    '$': ['ShiftLeft','Digit4'],
     "1": 'Digit1',
     "2": 'Digit2',
     "3": 'Digit3',
@@ -126,10 +124,24 @@ symbolic_map = {
     '.': 'Period',
     ';': 'Quote',
     '=': 'Backslash', 
+    '!': ['ShiftLeft','Digit1'],
     '"': ['ShiftLeft','Digit2'],
     '#': ['ShiftLeft','Digit3'],
-    '!': ['ShiftLeft','Digit1'],
+    '$': ['ShiftLeft','Digit4'],
+    '%': ['ShiftLeft','Digit5'],
+    '&': ['ShiftLeft','Digit6'],
+    "'": ['ShiftLeft','Digit7'],
+    '(': ['ShiftLeft','Digit8'],
+    ')': ['ShiftLeft','Digit9'],
     '+': 'Minus',
+    '/': 'Slash',
+    '?':  ['ShiftLeft','Slash'],
+    '-': 'Equal',
+    '@': 'BracketLeft',
+    '[': ['ShiftLeft','Semicolon'],
+    ']': ['ShiftLeft','Quote'],
+    '<': ['ShiftLeft','Comma'],
+    '>': ['ShiftLeft','Period'],
     'shiftrunstop': ['ShiftLeft','runStop'],   //load from tape shortcut
     'arrowleft': ['ShiftLeft','ArrowRight'],
     'arrowup': ['ShiftLeft','ArrowDown']

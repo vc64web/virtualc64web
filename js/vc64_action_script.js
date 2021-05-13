@@ -268,6 +268,28 @@ async function execute_single_action(cmd, execute=true)
             emit_string([cmd],0,100); 
         }
     }
+    else if(
+        cmd.startsWith("press")
+        &&
+        translateKey2(cmd.replace("press",""),cmd.replace("press","")) !== undefined        
+    )
+    {
+        if(execute)
+        {            
+            press_key(cmd.replace("press","")); 
+        }
+    }
+    else if(
+        cmd.startsWith("release")
+        &&
+        translateKey2(cmd.replace("release",""),cmd.replace("release","")) !== undefined        
+    )
+    {
+        if(execute)
+        {            
+            release_key(cmd.replace("release","")); 
+        }
+    }
     else
     {
         valid=false;

@@ -602,6 +602,32 @@ function wasm_runstop_restore()
     wasm_schedule_key(7, 7, 0, 6); //release runstop
 }
 
+
+function press_key(key)
+{
+    let c64code=translateKey2(key, key);
+    if(c64code !== undefined )
+    {
+        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 1, 1);
+        if(c64code.modifier != null)
+        {
+            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 1, 1);
+        }
+    }
+}
+function release_key(key)
+{
+    let c64code=translateKey2(key, key);
+    if(c64code !== undefined )
+    {
+        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 1);
+        if(c64code.modifier != null)
+        {
+            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, 1);
+        }
+    }
+}
+
 async function wasm_ready_after_reset()
 {
     let mega_roms=JSON.parse(wasm_rom_info()).kernal.startsWith("mega");

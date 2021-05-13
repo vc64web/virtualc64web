@@ -35,8 +35,8 @@ function translateKey2(keycode, key, use_positional_mapping=false)
         {
             raw_key_with_modifier = create_key_composition(sym_key);
         } 
-        else if(!keycode.toLowerCase().startsWith('shift'))
-        {//do map all other special keys except shift
+        else
+        {
             mapindex=key_translation_map[ keycode ];
             raw_key_with_modifier.raw_key = c64keymap[mapindex];
         }

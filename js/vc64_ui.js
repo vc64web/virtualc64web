@@ -1429,6 +1429,16 @@ function InitWrappers() {
     });
 
 //----
+    lock_action_button_switch = $('#lock_action_button_switch');
+    lock_action_button=load_setting('lock_action_button', false);
+    lock_action_button_switch.prop('checked', lock_action_button);
+    lock_action_button_switch.change( function() {
+        lock_action_button=this.checked;
+        install_custom_keys();
+        save_setting('lock_action_button', lock_action_button);
+    });
+
+//----
     webgl_switch = $('#webgl_switch');
     var use_webgl=load_setting('use_webgl', false);
     webgl_switch.prop('checked', use_webgl);
@@ -2223,29 +2233,12 @@ $('.layer').change( function(event) {
             //click function
             var on_add_action = function() {
                 var txt= $(this).text();
-/*
-                var action_script_val = $('#input_action_script').val();
-                if(action_script_val.trim().length==0)
-                {
-                    action_script_val = txt;
-                }
-                else if(action_script_val.trim().endsWith('{') || txt == '}')
-                {
-                    action_script_val += txt;
-                }
-                else
-                {
-                    action_script_val += "=>"+txt;
-                }
-                editor.getDoc().setValue(action_script_val);
-*/
+
                 let doc = editor.getDoc();
                 let cursor = doc.getCursor();
                 doc.replaceRange(txt, cursor);
                 editor.focus();
-                //$('#input_action_script').val(action_script_val);
                 validate_action_script();
-
             };
 
             $('#predefined_actions').collapse('hide');
@@ -2506,6 +2499,9 @@ release_key('ControlLeft');`;
                       ,lang: $('#button_script_language').text()
                     });
 
+                $('#lock_action_button_switch').prop('checked', false);
+                lock_action_button=false;
+
                 install_custom_keys();
                 create_new_custom_key=false;
             }
@@ -2601,7 +2597,7 @@ release_key('ControlLeft');`;
             $('#ck'+element.id).click(function() 
             {       
                 //at the end of a drag ignore the click
-                if(just_dragged)
+                if(lock_action_button==false && just_dragged)
                     return;
 
                 var action_script = action_scripts['ck'+element.id];
@@ -2609,8 +2605,10 @@ release_key('ControlLeft');`;
             });
         });
 
-        install_drag();
-
+        if(lock_action_button==false)
+        {
+            install_drag();
+        }
         for(b of call_param_buttons)
         {   //start automatic run actions built from a call param
             if(b.run)

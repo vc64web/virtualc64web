@@ -268,6 +268,28 @@ async function execute_single_action(cmd, execute=true)
             emit_string([cmd],0,100); 
         }
     }
+    else if(
+        cmd.startsWith("press")
+        &&
+        translateKey2(cmd.replace("press",""),cmd.replace("press","")) !== undefined        
+    )
+    {
+        if(execute)
+        {            
+            press_key(cmd.replace("press","")); 
+        }
+    }
+    else if(
+        cmd.startsWith("release")
+        &&
+        translateKey2(cmd.replace("release",""),cmd.replace("release","")) !== undefined        
+    )
+    {
+        if(execute)
+        {            
+            release_key(cmd.replace("release","")); 
+        }
+    }
     else
     {
         valid=false;
@@ -600,6 +622,32 @@ function wasm_runstop_restore()
     wasm_schedule_key(9, 9, 1, 2); //press restore 
     wasm_schedule_key(9, 9, 0, 4); //release restore
     wasm_schedule_key(7, 7, 0, 6); //release runstop
+}
+
+
+function press_key(key)
+{
+    let c64code=translateKey2(key, key);
+    if(c64code !== undefined )
+    {
+        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 1, 1);
+        if(c64code.modifier != null)
+        {
+            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 1, 1);
+        }
+    }
+}
+function release_key(key)
+{
+    let c64code=translateKey2(key, key);
+    if(c64code !== undefined )
+    {
+        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 1);
+        if(c64code.modifier != null)
+        {
+            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, 1);
+        }
+    }
 }
 
 async function wasm_ready_after_reset()

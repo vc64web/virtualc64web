@@ -2323,10 +2323,10 @@ wasm_poke(0xD020, orig_color);`;
                         else if(txt=='keyboard combos')
                             action_script_val =
 `//example for key combinations
-//here CTRL+2
+//here CTRL+1 which gives a black cursor
 press_key('ControlLeft');
-press_key('2');
-release_key('2');
+press_key('1');
+release_key('1');
 release_key('ControlLeft');`;
                         set_script_language('javascript');
                     }
@@ -2593,16 +2593,30 @@ release_key('ControlLeft');`;
             $('#div_canvas').append(btn_html);
             action_scripts["ck"+element.id] = element.script;
 
+            if(lock_action_button == true)
+            {
+                let action_function = function(e) 
+                {   
+                    e.preventDefault();
+                    var action_script = action_scripts['ck'+element.id];
+                    execute_script(element.id, element.lang, action_script);
+                };
+                $('#ck'+element.id).mousedown(action_function).on({'touchstart' : action_function});
+            }
+            else
+            {
+                $('#ck'+element.id).click(function() 
+                {       
+                    //at the end of a drag ignore the click
+                    if(just_dragged)
+                        return;
+    
+                    var action_script = action_scripts['ck'+element.id];
+                    execute_script(element.id, element.lang, action_script);
+                });
+            }
 
-            $('#ck'+element.id).click(function() 
-            {       
-                //at the end of a drag ignore the click
-                if(lock_action_button==false && just_dragged)
-                    return;
 
-                var action_script = action_scripts['ck'+element.id];
-                execute_script(element.id, element.lang, action_script);
-            });
         });
 
         if(lock_action_button==false)

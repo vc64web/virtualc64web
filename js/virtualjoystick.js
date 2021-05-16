@@ -255,7 +255,7 @@ VirtualJoystick.prototype._onTouchStart	= function(event)
 	// if there is already a touch inprogress do nothing
 	if( this._touchIdx !== null )	return;
 
-	if(dragItems.includes(event.target)) return;
+	if(typeof dragItems !== 'undefined' && dragItems.includes(event.target)) return;
 
 	// notify event for validation
 	var isValid	= this.dispatchEvent('touchStartValidation', event);

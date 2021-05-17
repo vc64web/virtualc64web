@@ -426,7 +426,7 @@
             </div>
             <div class="custom-control custom-switch mt-1">
               <input type="checkbox" class="custom-control-input" id="lock_action_button_switch" />
-              <label class="custom-control-label" for="lock_action_button_switch">lock action buttons (prevent dragging and long press)</label>
+              <label class="custom-control-label" for="lock_action_button_switch" data-toggle="tooltip" data-placement="top" title="only when locked no gestures detection is done and therefore events like touchstart/end mousedown/up are processed correctly.">lock action buttons (prevent dragging and long press)</label>
             </div>
 
             <div class="container row justify-content-start mt-2">
@@ -633,6 +633,7 @@ The operators or creators of external web resources are soley responsible for th
             <li><b><i>loop5{j2fire1=>120ms=>j2fire0=>90ms}</i></b>&nbsp;which will shoot 5 times</li>
             <li>or a literal action enclosed in single quotes e.g. <b>'load"$",8'</b></li>
             <li>or key combos e.g. CTRL+W &nbsp;<b>pressControlLeft=>W=>releaseControlLeft</b></li>
+            <li>or&nbsp;<b>A=>await_action_button_released=>B</li> for A on button down and B on button up in locked mode (see settings)</li> 
             <li>for more complex tasks you can also choose to add a javascript ...</li>
             </ul>
 

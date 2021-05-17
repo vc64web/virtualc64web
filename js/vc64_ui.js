@@ -803,6 +803,19 @@ function keydown(e) {
     {
         if(action_button.key == e.key)
         {
+            if(e.repeat)
+            {
+              //if a key is being pressed for a long enough time, it starts to auto-repeat: 
+              //the keydown triggers again and again, and then when it’s released we finally get keyup
+              //we just have to ignore the autorepeats here
+              return;
+            }
+            let running_script=get_running_script(action_button.id);                    
+            if(running_script.running == false)
+            {
+                running_script.action_button_released = false;
+            }
+            execute_script(action_button.id, action_button.lang, action_button.script);
             return;
         }
     }
@@ -842,7 +855,7 @@ function keyup(e) {
     {
         if(action_button.key == e.key)
         {
-            execute_script(action_button.id, action_button.lang, action_button.script);
+            get_running_script(action_button.id).action_button_released = true;
             return;
         }
     }
@@ -2272,7 +2285,7 @@ $('.layer').change( function(event) {
             $('#add_joystick2_action a').click(on_add_action);
 
             //timer action
-            var list_actions=['100ms','300ms','1000ms', 'loop2{','loop3{','loop6{', '}'];
+            var list_actions=['100ms','300ms','1000ms', 'loop2{','loop3{','loop6{', '}','await_action_button_released'];
             html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';
@@ -2523,10 +2536,8 @@ release_key('ControlLeft');`;
         $('#button_delete_custom_button').click(function(e) 
         {
             let id_to_delete =haptic_touch_selected.id.substring(2);
-            if(map_of_running_scripts[id_to_delete] == true)
-            {
-                map_of_running_scripts_stop_request[id_to_delete]=true;
-            }
+
+            get_running_script(id_to_delete).stop_request=true;
 
             custom_keys =custom_keys.filter(el=> +el.id != id_to_delete);            
             install_custom_keys();
@@ -2594,14 +2605,28 @@ release_key('ControlLeft');`;
             action_scripts["ck"+element.id] = element.script;
 
             if(lock_action_button == true)
-            {
+            {//when action buttons locked
+             //process the mouse/touch events immediatly, there is no need to guess the gesture
                 let action_function = function(e) 
                 {   
                     e.preventDefault();
                     var action_script = action_scripts['ck'+element.id];
+
+                    let running_script=get_running_script(element.id);                    
+                    if(running_script.running == false)
+                    {
+                      running_script.action_button_released = false;
+                    }
                     execute_script(element.id, element.lang, action_script);
+
                 };
+                let mark_as_released = function(e) 
+                {
+                    get_running_script(element.id).action_button_released = true;
+                };
+
                 $('#ck'+element.id).mousedown(action_function).on({'touchstart' : action_function});
+                $('#ck'+element.id).mouseup(mark_as_released).on({'touchend' : mark_as_released});
             }
             else
             {
@@ -2612,6 +2637,7 @@ release_key('ControlLeft');`;
                         return;
     
                     var action_script = action_scripts['ck'+element.id];
+                    get_running_script(element.id).action_button_released = true;
                     execute_script(element.id, element.lang, action_script);
                 });
             }
@@ -2632,7 +2658,8 @@ release_key('ControlLeft');`;
                     execute_script(b.id, b.lang, b.script);
                     b.auto_started = true;
                 }
-                if(map_of_running_scripts[b.id])
+
+                if(get_running_script(b.id).running)
                 {//if it still runs  
                     $('#ck'+b.id).css("background-color", "var(--red)");
                 }

@@ -803,6 +803,19 @@ function keydown(e) {
     {
         if(action_button.key == e.key)
         {
+            if(e.repeat)
+            {
+              //if a key is being pressed for a long enough time, it starts to auto-repeat: 
+              //the keydown triggers again and again, and then when it’s released we finally get keyup
+              //we just have to ignore the autorepeats here
+              return;
+            }
+            let running_script=get_running_script(action_button.id);                    
+            if(running_script.running == false)
+            {
+                running_script.action_button_released = false;
+            }
+            execute_script(action_button.id, action_button.lang, action_button.script);
             return;
         }
     }
@@ -842,7 +855,7 @@ function keyup(e) {
     {
         if(action_button.key == e.key)
         {
-            execute_script(action_button.id, action_button.lang, action_button.script);
+            get_running_script(action_button.id).action_button_released = true;
             return;
         }
     }

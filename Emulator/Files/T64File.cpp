@@ -2,24 +2,21 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#include "TAPFile.h"
+#include "config.h"
 #include "T64File.h"
 #include "FSDevice.h"
-
-/* "Anmerkung: Der String muß nicht wortwörtlich so vorhanden sein. Man sollte nach den
- *  Substrings 'C64' und 'tape' suchen." [Power64 doc]
- */
-// const u8 T64File::magicBytes[] = { 0x43, 0x36, 0x34 };
+#include "IO.h"
+#include "Macros.h"
 
 bool
 T64File::isCompatibleName(const std::string &name)
 {
-    auto s = suffix(name);
+    auto s = util::extractSuffix(name);
     return s == "t64" || s == "T64";
 }
 
@@ -29,19 +26,17 @@ T64File::isCompatibleStream(std::istream &stream)
     const u8 magicT64[] = { 'C', '6', '4' };
     const u8 magicTAP[] = { 'C', '6', '4', '-', 'T', 'A', 'P', 'E' };
 
-    if (streamLength(stream) < 0x40) return false;
+    if (util::streamLength(stream) < 0x40) return false;
     
     // T64 files must begin with "C64" and must not begin with "C64-TAPE"
     return
-    !matchingStreamHeader(stream, magicTAP, sizeof(magicTAP)) &&
-    matchingStreamHeader(stream, magicT64, sizeof(magicT64));
+    !util::matchingStreamHeader(stream, magicTAP, sizeof(magicTAP)) &&
+    util::matchingStreamHeader(stream, magicT64, sizeof(magicT64));
 }
 
 T64File *
 T64File::makeWithFileSystem(class FSDevice &fs)
 {
-    debug(FILE_DEBUG, "Creating T64 archive...\n");
-    
     // Analyze the file system
     u16 numFiles = (u16)fs.numFiles();
     std::vector<u64> length(numFiles);
@@ -52,7 +47,7 @@ T64File::makeWithFileSystem(class FSDevice &fs)
     }
     
     // Create new archive
-    u16 maxFiles = MAX(numFiles, 30);
+    u16 maxFiles = std::max(numFiles, (u16)30);
     usize fileSize = 64 + maxFiles * 32 + dataLength;
     T64File *t64 = new T64File(fileSize);
     
@@ -145,8 +140,6 @@ T64File::makeWithFileSystem(class FSDevice &fs)
         ptr += length[n];
     }
 
-    debug(FILE_DEBUG, "T64 file created");
-
     return t64;
 }
 
@@ -162,14 +155,14 @@ T64File::collectionName()
     return PETName<16>(data + 0x28, 0x20);
 }
 
-u64
+isize
 T64File::collectionCount() const
 {
     return LO_HI(data[0x24], data[0x25]);
 }
 
 PETName<16>
-T64File::itemName(unsigned nr) const
+T64File::itemName(isize nr) const
 {
     assert(nr < collectionCount());
     
@@ -178,16 +171,16 @@ T64File::itemName(unsigned nr) const
 }
 
 u64
-T64File::itemSize(unsigned nr) const
+T64File::itemSize(isize nr) const
 {
     assert(nr < collectionCount());
     
     // Return the number of data bytes plus 2 (for the loading address header)
-    return memEnd(nr) - memStart(nr) + 2;
+    return (u64)(memEnd(nr) - memStart(nr) + 2);
 }
 
 u8
-T64File::readByte(unsigned nr, u64 pos) const
+T64File::readByte(isize nr, u64 pos) const
 {
     assert(nr < collectionCount());
     assert(pos < itemSize(nr));
@@ -196,7 +189,7 @@ T64File::readByte(unsigned nr, u64 pos) const
     if (pos <= 1) return pos ? HI_BYTE(memStart(nr)) : LO_BYTE(memStart(nr));
     
     // Locate the first byte of the requested file
-    unsigned i = 0x48 + (nr * 0x20);
+    isize i = 0x48 + (nr * 0x20);
     u64 start = LO_LO_HI_HI(data[i], data[i+1], data[i+2], data[i+3]);
 
     // Locate the requested byte
@@ -207,26 +200,26 @@ T64File::readByte(unsigned nr, u64 pos) const
 }
 
 u16
-T64File::memStart(unsigned nr) const
+T64File::memStart(isize nr) const
 {
     return LO_HI(data[0x42 + nr * 0x20], data[0x43 + nr * 0x20]);
 }
 
 u16
-T64File::memEnd(unsigned nr) const
+T64File::memEnd(isize nr) const
 {
     return LO_HI(data[0x44 + nr * 0x20], data[0x45 + nr * 0x20]);
 }
 
 bool
-T64File::directoryItemIsPresent(int item)
+T64File::directoryItemIsPresent(isize item)
 {
-    int first = 0x40 + (item * 0x20);
-    int last  = 0x60 + (item * 0x20);
-    int i;
+    isize first = 0x40 + (item * 0x20);
+    isize last  = 0x60 + (item * 0x20);
+    isize i;
     
     // check for zeros...
-    if (last < (long)size)
+    if (last < (isize)size)
         for (i = first; i < last; i++)
             if (data[i] != 0)
                 return true;
@@ -237,8 +230,8 @@ T64File::directoryItemIsPresent(int item)
 void
 T64File::repair()
 {
-    unsigned i, n;
-    u16 noOfItems = collectionCount();
+    isize i, n;
+    isize noOfItems = collectionCount();
 
     //
     // 1. Repair number of items, if this value is zero
@@ -249,10 +242,10 @@ T64File::repair()
         while (directoryItemIsPresent(noOfItems))
             noOfItems++;
 
-        u16 noOfItemsStatedInHeader = collectionCount();
+        isize noOfItemsStatedInHeader = collectionCount();
         if (noOfItems != noOfItemsStatedInHeader) {
             
-            warn("T64: Changing number of items from %d to %d.\n",
+            warn("T64: Changing number of items from %zd to %zd.\n",
                   noOfItemsStatedInHeader, noOfItems);
             
             data[0x24] = LO_BYTE(noOfItems);
@@ -294,7 +287,7 @@ T64File::repair()
             // Let's assume that the rest of the file data belongs to this file ...
             u16 fixedEndAddrInMemory = startAddrInMemory + (size - startAddrInContainer);
 
-            warn("T64: Changing end address of item %d from %04X to %04X.\n",
+            warn("T64: Changing end address of item %zd from %04X to %04X.\n",
                  i, endAddrInMemory, fixedEndAddrInMemory);
 
             data[n] = LO_BYTE(fixedEndAddrInMemory);

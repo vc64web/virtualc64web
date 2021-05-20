@@ -2,13 +2,21 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
 #include "FSDevice.h"
 #include "Disk.h"
+#include "IO.h"
+#include "PRGFile.h"
+#include "P00File.h"
+#include "T64File.h"
+
+#include <limits.h>
+#include <set>
 
 FSDevice *
 FSDevice::makeWithFormat(FSDeviceDescriptor &layout)
@@ -57,7 +65,7 @@ FSDevice::makeWithD64(D64File &d64, ErrorCode *err)
 {
     *err = ERROR_OK;
     try { return makeWithD64(d64); }
-    catch (VC64Error &exception) { *err = exception.errorCode; }
+    catch (VC64Error &exception) { *err = exception.data; }
     return nullptr;
 }
   
@@ -95,7 +103,7 @@ FSDevice::makeWithDisk(class Disk &disk, ErrorCode *err)
 {
     *err = ERROR_OK;
     try { return makeWithDisk(disk); }
-    catch (VC64Error &exception) { *err = exception.errorCode; }
+    catch (VC64Error &exception) { *err = exception.data; }
     return nullptr;
 }
 
@@ -111,8 +119,8 @@ FSDevice::makeWithCollection(AnyCollection &collection)
     device->bamPtr()->writeBAM(name);
 
     // Loop over all items
-    u32 numberOfItems = (u32)collection.collectionCount();
-    for (u32 i = 0; i < numberOfItems; i++) {
+    isize numberOfItems = collection.collectionCount();
+    for (isize i = 0; i < numberOfItems; i++) {
         
         // Serialize item into a buffer
         u64 size = collection.itemSize(i);
@@ -133,7 +141,37 @@ FSDevice::makeWithCollection(AnyCollection &collection, ErrorCode *err)
 {
     *err = ERROR_OK;
     try { return makeWithCollection(collection); }
-    catch (VC64Error &exception) { *err = exception.errorCode; }
+    catch (VC64Error &exception) { *err = exception.data; }
+    return nullptr;
+}
+
+FSDevice *
+FSDevice::makeWithPath(const std::string &path)
+{
+    ErrorCode ec;
+        
+    if (auto file = AnyFile::make <D64File> (path, &ec)) {
+        return makeWithD64(*file);
+    }
+    if (auto file = AnyFile::make <T64File> (path, &ec)) {
+        return makeWithCollection(*file);
+    }
+    if (auto file = AnyFile::make <PRGFile> (path, &ec)) {
+        return makeWithCollection(*file);
+    }
+    if (auto file = AnyFile::make <P00File> (path, &ec)) {
+        return makeWithCollection(*file);
+    }
+    
+    throw VC64Error(ERROR_FILE_TYPE_MISMATCH);
+ }
+
+FSDevice *
+FSDevice::makeWithPath(const std::string &path, ErrorCode *err)
+{
+    *err = ERROR_OK;
+    try { return makeWithPath(path); }
+    catch (VC64Error &exception) { *err = exception.data; }
     return nullptr;
 }
 
@@ -145,7 +183,7 @@ FSDevice::makeWithFolder(const std::string &path)
     assert(device);
     
     // Write BAM
-    auto name = PETName<16>(extractFileName(path));
+    auto name = PETName<16>(util::extractName(path));
     device->bamPtr()->writeBAM(name);
     
     // Import the folder
@@ -161,7 +199,7 @@ FSDevice::makeWithFolder(const std::string &path, ErrorCode *err)
 {
     *err = ERROR_OK;
     try { return makeWithFolder(path); }
-    catch (VC64Error &exception) { *err = exception.errorCode; }
+    catch (VC64Error &exception) { *err = exception.data; }
     return nullptr;
 }
 
@@ -457,7 +495,6 @@ FSDevice::fileSize(FSDirEntry *entry) const
                 
         if (next) {
             size += 254;
-            b = next;
         } else {
             // The number of remaining bytes can be derived from the sector link
             size += b->data[1] ? b->data[1] - 1 : 0;
@@ -645,8 +682,8 @@ FSDevice::check(bool strict)
     for (u32 i = 0; i < numBlocks; i++) {
 
         if (blocks[i]->check(strict) > 0) {
-            min = MIN(min, i);
-            max = MAX(max, i);
+            min = std::min(min, (long)i);
+            max = std::max(max, (long)i);
             blocks[i]->corrupted = (u32)++total;
         } else {
             blocks[i]->corrupted = 0;
@@ -741,7 +778,7 @@ FSDevice::importVolume(const u8 *src, usize size, ErrorCode *err)
     debug(FS_DEBUG, "Importing file system (%zu bytes)...\n", size);
 
     // Only proceed if the buffer size matches
-    if (blocks.size() * 256 != size) {
+    if (blocks.size() * 256 > size) {
         warn("BUFFER SIZE MISMATCH (%lu %lu)\n", blocks.size(), blocks.size() * 256);
         if (err) *err = ERROR_FS_WRONG_CAPACITY;
         return false;
@@ -807,13 +844,13 @@ FSDevice::importDirectory(const std::string &path, DIR *dir)
         std::string full = path + "/" + name;
         
         msg("importDirectory: Processing %s (%s)\n", name.c_str(), full.c_str());
-        
+
         if (item->d_type == DT_DIR) continue;
         
         u8 *buf; long len;
-        if (loadFile(full, &buf, &len)) {
+        if (util::loadFile(full, &buf, &len)) {
             
-            PETName<16> pet = PETName<16>(stripSuffix(name));
+            PETName<16> pet = PETName<16>(util::stripSuffix(name));
             if (!makeFile(pet, buf, len)) {
                 warn("Failed to import file %s\n", name.c_str());
                 result = false;
@@ -881,7 +918,7 @@ bool
 FSDevice::exportDirectory(const std::string &path, ErrorCode *err)
 {
     // Only proceed if path points to an empty directory
-    usize numItems = numDirectoryItems(path);
+    usize numItems = util::numDirectoryItems(path);
     if (numItems != 0) {
         if (err) *err = ERROR_DIR_NOT_EMPTY;
         return false;

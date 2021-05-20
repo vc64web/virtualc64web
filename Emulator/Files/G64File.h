@@ -2,7 +2,7 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
@@ -10,7 +10,6 @@
 #pragma once
 
 #include "AnyFile.h"
-#include "Disk.h"
 
 class G64File : public AnyFile {
 
@@ -23,8 +22,8 @@ public:
     static bool isCompatibleName(const std::string &name);
     static bool isCompatibleStream(std::istream &stream);
     
-    static G64File *makeWithDisk(Disk &disk) throws;
-    static G64File *makeWithDisk(Disk &disk, ErrorCode *err);
+    static G64File *makeWithDisk(class Disk &disk) throws;
+    static G64File *makeWithDisk(class Disk &disk, ErrorCode *err);
 
     
     //

@@ -2,11 +2,13 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "Cartridge.h"
 #include "C64.h"
 
 bool
@@ -177,15 +179,15 @@ Cartridge::resetCartConfig() {
 }
 
 void
-Cartridge::_reset()
+Cartridge::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS
+    RESET_SNAPSHOT_ITEMS(hard)
     
     // Reset external RAM
     if (externalRam && !battery) memset(externalRam, 0xFF, ramCapacity);
  
     // Reset all chip packets
-    for (unsigned i = 0; i < numPackets; i++) packet[i]->_reset();
+    for (unsigned i = 0; i < numPackets; i++) packet[i]->_reset(hard);
         
     // Bank in visibile chips (chips with low numbers show up first)
     for (int i = MAX_PACKETS - 1; i >= 0; i--) bankIn(i);
@@ -198,34 +200,41 @@ Cartridge::resetWithoutDeletingRam()
     
     trace(RUN_DEBUG, "Resetting virtual C64 (preserving RAM)\n");
     
+    // TODO: REPLACE THE FOLLOWING BY c64.softReset()
     memcpy(ram, mem.ram, 0x10000);
-    c64.reset();
+    c64.hardReset();
     memcpy(mem.ram, ram, 0x10000);
 }
 
 void
-Cartridge::_dump() const
+Cartridge::_dump(dump::Category category, std::ostream& os) const
 {
-    msg("\n");
-    msg("Cartridge\n");
-    msg("---------\n");
+    using namespace util;
     
-    msg("        Cartridge type: %lld\n", getCartridgeType());
-    msg(" Game line in CRT file: %d\n", gameLineInCrtFile);
-    msg("Exrom line in CRT file: %d\n", exromLineInCrtFile);
-    msg(" Number of Rom packets: %d\n", numPackets);
-    
-    for (unsigned i = 0; i < numPackets; i++) {
-        msg("              Chip %3d: %d KB starting at $%04X\n",
-            i, packet[i]->size / 1024, packet[i]->loadAddress);
+    if (category & dump::State) {
+        
+        os << tab("Cartridge type");
+        os << getCartridgeType() << std::endl;
+        os << tab("Game line in CRT");
+        os << bol(gameLineInCrtFile) << std::endl;
+        os << tab("Exrom line in CRT");
+        os << bol(exromLineInCrtFile) << std::endl;
+        os << tab("Number of packets");
+        os << dec(numPackets) << std::endl;
+        
+        for (isize i = 0; i < numPackets; i++) {
+            
+            os << tab("Packet " + std::to_string(i));
+            os << dec(packet[i]->size / 1024) << " KB starting at ";
+            os << hex(packet[i]->loadAddress) << std::endl;
+        }
     }
-    msg("\n");
 }
 
-usize
+isize
 Cartridge::_size()
 {
-    SerCounter counter;
+    util::SerCounter counter;
     applyToPersistentItems(counter);
     applyToResetItems(counter);
  
@@ -239,14 +248,14 @@ Cartridge::_size()
     return ramCapacity + packetSize + counter.count;
 }
 
-usize
-Cartridge::_load(u8 *buffer)
+isize
+Cartridge::_load(const u8 *buffer)
 {
     dealloc();
     
     printf("Cartridge::_load = %d\n", numPackets);
 
-    SerReader reader(buffer);
+    util::SerReader reader(buffer);
     applyToPersistentItems(reader);
     applyToResetItems(reader);
     
@@ -263,19 +272,19 @@ Cartridge::_load(u8 *buffer)
     if (ramCapacity) {
         assert(externalRam == nullptr);
         externalRam = new u8[ramCapacity];
-        for (unsigned i = 0; i < ramCapacity; i++) externalRam[i] = read8(reader.ptr);
+        for (unsigned i = 0; i < ramCapacity; i++) externalRam[i] = util::read8(reader.ptr);
     }
 
     trace(SNP_DEBUG, "Recreated from %ld bytes\n", reader.ptr - buffer);
     return reader.ptr - buffer;
 }
 
-usize
+isize
 Cartridge::_save(u8 *buffer)
 {
     printf("Cartridge::_save = %d\n", numPackets);
 
-    SerWriter writer(buffer);
+    util::SerWriter writer(buffer);
     applyToPersistentItems(writer);
     applyToResetItems(writer);
     
@@ -290,7 +299,7 @@ Cartridge::_save(u8 *buffer)
     // Save on-board RAM
     if (ramCapacity) {
         assert(externalRam != nullptr);
-        for (unsigned i = 0; i < ramCapacity; i++) write8(writer.ptr, externalRam[i]);
+        for (unsigned i = 0; i < ramCapacity; i++) util::write8(writer.ptr, externalRam[i]);
     }
     
     trace(SNP_DEBUG, "Serialized %ld bytes\n", writer.ptr - buffer);
@@ -318,7 +327,7 @@ Cartridge::peekRomL(u16 addr)
     assert(addr <= 0x1FFF);
     assert(chipL >= 0 && chipL < numPackets);
     
-    return packet[chipL]->peek(addr + offsetL);
+    return packet[chipL] ? packet[chipL]->peek(addr + offsetL) : 0;
 }
 
 u8
@@ -327,7 +336,7 @@ Cartridge::peekRomH(u16 addr)
     assert(addr <= 0x1FFF);
     assert(chipH >= 0 && chipH < numPackets);
     
-    return packet[chipH]->peek(addr + offsetH);
+    return packet[chipH] ? packet[chipH]->peek(addr + offsetH) : 0;
 }
 
 u8
@@ -351,7 +360,7 @@ Cartridge::spypeekRomL(u16 addr) const
     assert(addr <= 0x1FFF);
     assert(chipL >= 0 && chipL < numPackets);
     
-    return packet[chipL]->spypeek(addr + offsetL);
+    return packet[chipL] ? packet[chipL]->spypeek(addr + offsetL) : 0;
 }
 
 u8
@@ -360,7 +369,7 @@ Cartridge::spypeekRomH(u16 addr) const
     assert(addr <= 0x1FFF);
     assert(chipH >= 0 && chipH < numPackets);
     
-    return packet[chipH]->spypeek(addr + offsetH);
+    return packet[chipH] ? packet[chipH]->spypeek(addr + offsetH) : 0;
 }
 
 void
@@ -378,9 +387,7 @@ Cartridge::poke(u16 addr, u8 value)
     }
         
     // Write to RAM if we don't run in Ultimax mode
-    if (!c64.getUltimax()) {
-        mem.ram[addr] = value;
-    }
+    if (!c64.getUltimax()) mem.ram[addr] = value;
 }
 
 usize
@@ -434,7 +441,7 @@ Cartridge::eraseRAM(u8 value)
 }
 
 void
-Cartridge::loadChip(unsigned nr, const CRTFile &crt)
+Cartridge::loadChip(isize nr, const CRTFile &crt)
 {
     assert(nr < MAX_PACKETS);
     
@@ -444,11 +451,11 @@ Cartridge::loadChip(unsigned nr, const CRTFile &crt)
     
     // Perform some consistency checks
     if (start < 0x8000) {
-        warn("Ignoring chip %d: Start address too low (%04X)\n", nr, start);
+        warn("Ignoring chip %zd: Start address too low (%04X)\n", nr, start);
         return;
     }
     if (0x10000 - start < size) {
-        warn("Ignoring chip %d: Invalid size (start: %04X size: %04X)/n", nr, start, size);
+        warn("Ignoring chip %zd: Invalid size (start: %04X size: %04X)/n", nr, start, size);
         return;
     }
     
@@ -459,30 +466,30 @@ Cartridge::loadChip(unsigned nr, const CRTFile &crt)
     
     // Create new chip packet
     switch (type) {
-        
+            
         case 0: // ROM
-        packet[nr] = new CartridgeRom(c64, size, start, crt.chipData(nr));
-        break;
-        
+            packet[nr] = new CartridgeRom(c64, size, start, crt.chipData(nr));
+            break;
+            
         case 1: // RAM
-        warn("Ignoring chip %d, because it has type RAM.\n", nr);
-        return;
-        
+            warn("Ignoring chip %zd, because it has type RAM.\n", nr);
+            return;
+            
         case 2: // Flash ROM
-        warn("Chip %d is a Flash Rom. Creating a Rom instead.\n", nr);
-        packet[nr] = new CartridgeRom(c64, size, start, crt.chipData(nr));
-        break;
-        
+            warn("Chip %zd is a Flash Rom. Creating a Rom instead.\n", nr);
+            packet[nr] = new CartridgeRom(c64, size, start, crt.chipData(nr));
+            break;
+            
         default:
-        warn("Ignoring chip %d, because it has unknown type %d.\n", nr, type);
-        return;
+            warn("Ignoring chip %zd, because it has unknown type %d.\n", nr, type);
+            return;
     }
     
     numPackets++;
 }
 
 void
-Cartridge::bankInROML(unsigned nr, u16 size, u16 offset)
+Cartridge::bankInROML(isize nr, u16 size, u16 offset)
 {
     chipL = nr;
     mappedBytesL = size;
@@ -490,7 +497,7 @@ Cartridge::bankInROML(unsigned nr, u16 size, u16 offset)
 }
 
 void
-Cartridge::bankInROMH(unsigned nr, u16 size, u16 offset)
+Cartridge::bankInROMH(isize nr, u16 size, u16 offset)
 {
     chipH = nr;
     mappedBytesH = size;
@@ -498,8 +505,8 @@ Cartridge::bankInROMH(unsigned nr, u16 size, u16 offset)
 }
 
 void
-Cartridge::bankIn(unsigned nr)
-{
+Cartridge::bankIn(isize nr)
+{    
     assert(nr < MAX_PACKETS);
     
     if (packet[nr] == nullptr)
@@ -525,12 +532,12 @@ Cartridge::bankIn(unsigned nr)
         
     } else {
 
-        warn("Cannot map chip %d. Invalid start address.\n", nr);
+        warn("Cannot map chip %zd. Invalid start address.\n", nr);
     }
 }
 
 void
-Cartridge::bankOut(unsigned nr)
+Cartridge::bankOut(isize nr)
 {
     assert(nr < MAX_PACKETS);
 

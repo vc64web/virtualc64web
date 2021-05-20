@@ -2,22 +2,18 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "Oscillator.h"
 #include "C64.h"
-
-#ifdef __EMSCRIPTEN__    
-#include <emscripten.h>
-#endif
 
 Oscillator::Oscillator(C64& ref) : C64Component(ref)
 {
-#ifdef __MACH__
-    mach_timebase_info(&tb);
-#endif
+
 }
 
 const char *
@@ -31,99 +27,156 @@ Oscillator::getDescription() const
 }
 
 void
-Oscillator::_reset()
+Oscillator::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS
+    RESET_SNAPSHOT_ITEMS(hard)
 }
 
-u64
-Oscillator::nanos()
+OscillatorConfig
+Oscillator::getDefaultConfig()
 {
-#ifdef __MACH__
-    
-    return abs_to_nanos(mach_absolute_time());
+    OscillatorConfig defaults;
 
-#elif __EMSCRIPTEN__
-    return (uint64_t)(emscripten_get_now()*1000000.0);
-#else
+    defaults.powerGrid = GRID_STABLE_50HZ;
     
-    struct timespec ts;
-    (void)clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts.tv_sec * 1000000000 + ts.tv_nsec;
+    return defaults;
+}
+
+void
+Oscillator::resetConfig()
+{
+    OscillatorConfig defaults = getDefaultConfig();
     
-#endif
+    setConfigItem(OPT_POWER_GRID, defaults.powerGrid);
+}
+
+i64
+Oscillator::getConfigItem(Option option) const
+{
+    switch (option) {
+            
+        case OPT_POWER_GRID:  return config.powerGrid;
+        
+        default:
+            assert(false);
+            return 0;
+    }
+}
+
+bool
+Oscillator::setConfigItem(Option option, i64 value)
+{
+    switch (option) {
+            
+        case OPT_POWER_GRID:
+            
+            if (!PowerGridEnum::isValid(value)) {
+                throw ConfigArgError(PowerGridEnum::keyList());
+            }
+            
+            config.powerGrid = (PowerGrid)value;
+            return true;
+
+        default:
+            return false;
+    }
 }
 
 void
 Oscillator::restart()
 {
     clockBase = cpu.cycle;
-    timeBase = nanos();
+    timeBase = util::Time::now();
 }
 
 void
 Oscillator::synchronize()
 {
-    // Only proceed if we are not running in warp mode
-    if (warpMode) return;
+    syncCounter++;
+        
+    auto now          = util::Time::now();
+    auto elapsedCyles = cpu.cycle - clockBase;
+    auto elapsedNanos = util::Time((i64)(elapsedCyles * 1000 * 1000000 / vic.getFrequency()));
+    auto targetTime   = timeBase + elapsedNanos;
     
-    u64 now          = nanos();
-    Cycle clockDelta = cpu.cycle - clockBase;
-    u64 elapsedTime  = (u64)(clockDelta * 1000 * 1000000 /  vic.getFrequency());
-    u64 targetTime   = timeBase + elapsedTime;
-    
-    /*
-    trace(TIM_DEBUG, "now         = %lld\n", now);
-    trace(TIM_DEBUG, "clockDelta  = %lld\n", clockDelta);
-    trace(TIM_DEBUG, "elapsedTime = %lld\n", elapsedTime);
-    trace(TIM_DEBUG, "targetTime  = %lld\n", targetTime);
-    trace(TIM_DEBUG, "\n");
-    */
-    
-    // Check if we're running too slow ...
+    // Check if we're running too slow...
     if (now > targetTime) {
         
-        // Check if we're completely out of sync ...
-        if (now - targetTime > 200000000) {
+        // Check if we're completely out of sync...
+        if ((now - targetTime).asMilliseconds() > 200) {
             
-            // warn("The emulator is way too slow (%lld).\n", now - targetTime);
+            // warn("The emulator is way too slow (%f).\n", (now - targetTime).asSeconds());
             restart();
             return;
         }
     }
     
-    // Check if we're running too fast ...
+    // Check if we're running too fast...
     if (now < targetTime) {
         
-        // Check if we're completely out of sync ...
-        if (targetTime - now > 200000000) {
+        // Check if we're completely out of sync...
+        if ((targetTime - now).asMilliseconds() > 200) {
             
-            warn("The emulator is way too fast (%lld).\n", targetTime - now);
+            warn("The emulator is way too fast (%f).\n", (targetTime - now).asSeconds());
             restart();
             return;
         }
         
         // See you soon...
-        waitUntil(targetTime);
-        // mach_wait_until(targetTime);
+        loadClock.stop();
+        targetTime.sleepUntil();
+        loadClock.go();
+    }
+    
+    // Compute the CPU load once in a while
+    if (syncCounter % 32 == 0) {
+        
+        auto used  = loadClock.getElapsedTime().asSeconds();
+        auto total = nonstopClock.getElapsedTime().asSeconds();
+        
+        cpuLoad = used / total;
+        
+        loadClock.restart();
+        nonstopClock.restart();
     }
 }
 
-void
-Oscillator::waitUntil(u64 deadline)
+Cycle
+Oscillator::todTickDelay(u8 cra)
 {
-#ifdef __MACH__
+    Cycle delay, jitter;
+    i64 frequency = vic.isPAL() ? PAL_CLOCK_FREQUENCY : NTSC_CLOCK_FREQUENCY;
     
-    mach_wait_until(nanos_to_abs(deadline));
-    
-#else
+    switch (config.powerGrid) {
 
-    assert(false);
-    // TODO: MISSING IMPLEMENTATION
-    
-#endif
+        case GRID_STABLE_50HZ:
+            
+            delay = (cra & 0x80) ? frequency / 10 : frequency * 6/50;
+            jitter = 0;
+            break;
+            
+        case GRID_UNSTABLE_50HZ:
+            
+            delay = (cra & 0x80) ? frequency / 10 : frequency * 6/50;
+            jitter = (rand() % 1000) - 500;
+            break;
+
+        case GRID_STABLE_60HZ:
+            
+            delay = (cra & 0x80) ? frequency * 5/60 : frequency / 10;
+            jitter = 0;
+            break;
+            
+        case GRID_UNSTABLE_60HZ:
+            
+            delay = (cra & 0x80) ? frequency * 5/60 : frequency / 10;
+            jitter = (rand() % 1000) - 500;
+            break;
+
+        default:
+            assert(false);
+            return 0;
+    }
+
+    return delay + jitter;
 }
-
-#ifdef __MACH__
-mach_timebase_info_data_t Oscillator::tb;
-#endif

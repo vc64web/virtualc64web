@@ -2,7 +2,7 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
@@ -10,62 +10,71 @@
 #pragma once
 
 #include "C64Component.h"
+#include "Constants.h"
+#include "Chrono.h"
 
-class TAPFile;
+class Pulse {
+    
+public:
+    
+    i32 cycles;
+
+public:
+        
+    Pulse() : cycles(0) { };
+    Pulse(i32 value) : cycles(value) { };
+    
+    util::Time delay() const;
+};
 
 class Datasette : public C64Component {
     
     //
     // Tape
     //
-    
-    // Data buffer (contains the raw data of the TAP archive)
-    u8 *data = nullptr;
-    
-    // Size of the attached data buffer
-    u64 size = 0;
-    
-    /* Data format (as specified in the TAP type).
+
+    /* Data format (as specified in the TAP file)
      *
-     * In TAP format 0, data byte 0 signals a long pulse without stating its
-     * length precisely.
+     *   - In TAP format 0, data byte 0 signals a long pulse without stating
+     *     its length precisely.
      *
-     * In TAP format 1, each 0 is followed by three bytes stating the precise
-     * length in LO_LO_HI_00 format.
+     *   - In TAP format 1, each 0 is followed by three bytes stating the
+     *     precise length in LO_LO_HI_00 format.
      */
     u8 type = 0;
+
+    // The pulse buffer
+    Pulse *pulses = nullptr;
     
-    /* Tape length in cycles. The value is set when insertTape() is called. It
-     * is computed by iterating over all pulses in the data buffer.
-     */
-    u64 durationInCycles = 0;
-    
-    
+    // Number of pulses stored in the pulse buffer
+    isize size = 0;
+            
+
     //
     // Tape drive
     //
     
-    // The position of the read/write head inside the data buffer (0 ... size)
-    u64 head = 0;
+    // The position of the read/write head inside the pulse buffer (0 ... size)
+    isize head = 0;
+
+    // The tape counter (time between start and the current head position)
+    util::Time counter;
     
-    // Head position measured in cycles
-    u64 headInCycles = 0;
+    // State of the play key
+    bool playKey = false;
     
-    // Head position, measured in seconds
-    u32 headInSeconds = 0;
-    
+    // State of the drive motor
+    bool motor = false;
+
     // Next scheduled rising edge on data line
     i64 nextRisingEdge = 0;
     
     // Next scheduled falling edge on data line
     i64 nextFallingEdge = 0;
     
-    // Indicates whether the play key is pressed
-    bool playKey = false;
-    
-    // Indicates whether the motor is switched on
-    bool motor = false;
-    
+    // Frame counter for controlling the amout of messages sent to the GUI
+    isize msgMotorDelay = 0;
+
     
     //
     // Initializing
@@ -75,12 +84,25 @@ public:
  
     Datasette(C64 &ref) : C64Component(ref) { };
     ~Datasette();
+    
+    void alloc(isize capacity);
+    void dealloc();
+
     const char *getDescription() const override { return "Datasette"; }
     
 private:
     
-    void _reset() override;
+    void _reset(bool hard) override;
     
+    
+    //
+    // Analyzing
+    //
+    
+private:
+    
+    void _dump(dump::Category category, std::ostream& os) const override;
+
     
     //
     // Serializing
@@ -93,30 +115,30 @@ private:
     {
         worker
         
-        & size
-        & type
-        & durationInCycles;
+        << type;
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
         worker
         
-        & head
-        & headInCycles
-        & headInSeconds
-        & nextRisingEdge
-        & nextFallingEdge
-        & playKey
-        & motor;
+        << head
+        << counter.ticks
+        << playKey
+        << motor
+        << nextRisingEdge
+        << nextFallingEdge
+        << msgMotorDelay;
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    
+    isize _size() override;
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize didLoadFromBuffer(const u8 *buffer) override;
+    isize didSaveToBuffer(u8 *buffer) override;
 
+    
     //
     // Handling tapes
     //
@@ -125,71 +147,68 @@ public:
     
     // Returns true if a tape is inserted
     bool hasTape() const { return size != 0; }
-    
-    //Inserts a TAP archive as a virtual tape
-    bool insertTape(TAPFile *a);
 
-    // Ejects the virtual tape (if any)
+    // Returns the duration from the tape start and the specified position
+    util::Time tapeDuration(isize pos);
+
+    // Returns the duration of the entire tape
+    util::Time tapeDuration() { return tapeDuration(size); }
+
+    // Returns the current tape counter in (truncated) seconds
+    isize getCounter() { return (isize)counter.asSeconds(); }
+
+    //Inserts a TAP archive as a virtual tape
+    void insertTape(TAPFile *a);
+
+    // Ejects the tape (if any)
     void ejectTape();
 
-    // Returns the tape type (TAP format, 0 or 1).
+    // Returns the tape type (TAP format, 0 or 1)
     u8 getType() const { return type; }
-
-    // Returns the tape length in cycles.
-    u64 getDurationInCycles() const { return durationInCycles; }
-    
-    // Returns the tape length in seconds.
-    u32 getDurationInSeconds() const { return (u32)(durationInCycles / (u64)PAL_CLOCK_FREQUENCY); }
-
+        
     
     //
     // Operating the read/write head
     //
 
+public:
+    
     // Puts the read/write head at the beginning of the tape
-    void rewind() { head = headInSeconds = headInCycles = 0; }
+    void rewind(isize seconds = 0);
 
-    /* Advances the read/write head one pulse. This methods updates head,
-     * headInCycles, and headInSeconds. If silent is set to false, a
-     * MSG_VC1530_PROGRESS message is sent.
-     */
-    void advanceHead(bool silent = false);
+    // Advances the read/write head one pulse
+    void advanceHead();
     
-    // Returns the head position
-    u64 getHead() const { return head; }
-
-    // Returns the head position in CPU cycles
-    u64 getHeadInCycles() const { return headInCycles; }
-
-    // Returns the head position in seconds
-    u32 getHeadInSeconds() const { return headInSeconds; }
-    
-    // Sets the current head position in cycles.
-    void setHeadInCycles(u64 value);
-    
-    // Returns the pulse length at the current head position
-    int pulseLength(int *skip) const;
-    int pulseLength() const { return pulseLength(nullptr); }
-
     
     //
     // Running the device
     //
     
+public:
+    
     // Returns true if the play key is pressed
     bool getPlayKey() const { return playKey; }
 
-    // Press play on tape
+    // Presses the play key
     void pressPlay(); 
 
-    // Press stop key
+    // Presses the stop key
     void pressStop();
 
     // Returns true if the datasette motor is switched on
     bool getMotor() const { return motor; }
 
     // Switches the motor on or off
-    void setMotor(bool value) { motor = value; }
+    void setMotor(bool value);
+
+    
+    //
+    // Performing periodic events
+    //
+    
+public:
+    
+    void vsyncHandler();
 
     // Emulates the datasette
     void execute() { if (playKey && motor) _execute(); }
@@ -198,4 +217,7 @@ private:
 
     // Internal execution function
     void _execute();
+    
+    // Schedules a pulse
+    void schedulePulse(isize nr);
 };

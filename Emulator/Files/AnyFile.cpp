@@ -2,21 +2,14 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
 #include "AnyFile.h"
-#include "Snapshot.h"
-#include "RomFile.h"
-#include "TAPFile.h"
-#include "CRTFile.h"
-#include "T64File.h"
-#include "PRGFile.h"
-#include "P00File.h"
-#include "D64File.h"
-#include "G64File.h"
+#include "Checksum.h"
 
 AnyFile::AnyFile(usize capacity)
 {
@@ -44,17 +37,17 @@ AnyFile::getName() const
 u64
 AnyFile::fnv() const
 {
-    return data ? fnv_1a_64(data, size) : 0;    
+    return data ? util::fnv_1a_64(data, size) : 0;
 }
 
 void
-AnyFile::flash(u8 *buffer, usize offset)
+AnyFile::flash(u8 *buffer, isize offset)
 {
     assert(buffer);
     memcpy(buffer + offset, data, size);
 }
 
-usize
+isize
 AnyFile::readFromStream(std::istream &stream)
 {
     // Get stream size
@@ -77,11 +70,9 @@ AnyFile::readFromStream(std::istream &stream)
     return size;
 }
 
-usize
-AnyFile::readFromFile(const char *path)
+isize
+AnyFile::readFromFile(const string  &path)
 {
-    assert(path);
-        
     std::ifstream stream(path);
 
     if (!stream.is_open()) {
@@ -92,11 +83,11 @@ AnyFile::readFromFile(const char *path)
     assert(result == size);
     
     this->path = string(path);
-    return size;
+    return result;
 }
 
-usize
-AnyFile::readFromBuffer(const u8 *buf, usize len)
+isize
+AnyFile::readFromBuffer(const u8 *buf, isize len)
 {
     assert(buf);
 
@@ -104,52 +95,47 @@ AnyFile::readFromBuffer(const u8 *buf, usize len)
     
     usize result = readFromStream(stream);
     assert(result == size);
-    return size;
+    
+    return result;
 }
 
-usize
+isize
 AnyFile::writeToStream(std::ostream &stream)
 {
     stream.write((char *)data, size);
     return size;
 }
 
-usize
+isize
 AnyFile::writeToStream(std::ostream &stream, ErrorCode *err)
 {
-    *err = ERROR_OK;
-    try { return writeToStream(stream); }
-    catch (VC64Error &exception) { *err = exception.errorCode; }
-    return 0;
+    try { *err = ERROR_OK; return writeToStream(stream); }
+    catch (VC64Error &exception) { *err = exception.data; return 0; }
 }
 
-usize
-AnyFile::writeToFile(const char *path)
+isize
+AnyFile::writeToFile(const string &path)
 {
-    assert(path);
-        
     std::ofstream stream(path);
 
     if (!stream.is_open()) {
         throw VC64Error(ERROR_FILE_CANT_WRITE);
     }
     
-    usize result = writeToStream(stream);
-    assert(result == size);
+    isize result = writeToStream(stream);
+    assert(result == (isize)size);
     
-    return size;
+    return result;
 }
 
-usize
-AnyFile::writeToFile(const char *path, ErrorCode *err)
+isize
+AnyFile::writeToFile(const string &path, ErrorCode *ec)
 {
-    *err = ERROR_OK;
-    try { return writeToFile(path); }
-    catch (VC64Error &exception) { *err = exception.errorCode; }
-    return 0;
+    try { *ec = ERROR_OK; return writeToFile(path); }
+    catch (VC64Error &exception) { *ec = exception.data; return 0; }
 }
 
-usize
+isize
 AnyFile::writeToBuffer(u8 *buf)
 {
     assert(buf);
@@ -158,11 +144,9 @@ AnyFile::writeToBuffer(u8 *buf)
     return size;
 }
 
-usize
+isize
 AnyFile::writeToBuffer(u8 *buf, ErrorCode *err)
 {
-    *err = ERROR_OK;
-    try { return writeToBuffer(buf); }
-    catch (VC64Error &exception) { *err = exception.errorCode; }
-    return 0;
+    try { *err = ERROR_OK; return writeToBuffer(buf); }
+    catch (VC64Error &exception) { *err = exception.data; return 0; }
 }

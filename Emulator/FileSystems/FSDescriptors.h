@@ -2,7 +2,7 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
@@ -10,7 +10,8 @@
 #pragma once
 
 #include "C64Object.h"
-#include "FSPublicTypes.h"
+#include "DiskTypes.h"
+#include "FSTypes.h"
 
 /* To create a FSDevice, the layout parameters of the represendet device have
  * to be provided. This is done by passing a structure of type FSDeviceLayout

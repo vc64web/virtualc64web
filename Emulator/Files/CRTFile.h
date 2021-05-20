@@ -2,12 +2,15 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
+
+#include "CartridgeTypes.h"
+#include "AnyFile.h"
 
 /* For details about the .CRT format,
  * see: http://vice-emu.sourceforge.net/vice_16.html
@@ -16,8 +19,6 @@
  *
  * As well read the Commodore 64 Programmers Reference Guide pages 260-267.
  */
-
-#include "AnyFile.h"
 
 class CRTFile : public AnyFile {
         
@@ -53,7 +54,7 @@ public:
     
     FileType type() const override { return FILETYPE_CRT; }
     PETName<16> getName() const override;
-    usize readFromStream(std::istream &stream) override;
+    isize readFromStream(std::istream &stream) override;
 
     
     //
@@ -85,19 +86,19 @@ public:
     u8 chipCount() const { return numberOfChips; }
     
     // Returns where the data of a certain chip can be found
-    u8 *chipData(unsigned nr) const { return chips[nr]+0x10; }
+    u8 *chipData(isize nr) const { return chips[nr]+0x10; }
     
     // Returns the size of the chip (8 KB or 16 KB)
-    u16 chipSize(unsigned nr) const { return LO_HI(chips[nr][0xF], chips[nr][0xE]); }
+    u16 chipSize(isize nr) const { return LO_HI(chips[nr][0xF], chips[nr][0xE]); }
     
     // Returns the type of the chip (0 = ROM, 1 = RAM, 2 = Flash ROM)
-    u16 chipType(unsigned nr) const { return LO_HI(chips[nr][0x9], chips[nr][0x8]); }
+    u16 chipType(isize nr) const { return LO_HI(chips[nr][0x9], chips[nr][0x8]); }
     
     // Returns the bank number for this chip
-    u16 chipBank(unsigned nr) const { return LO_HI(chips[nr][0xB], chips[nr][0xA]); }
+    u16 chipBank(isize nr) const { return LO_HI(chips[nr][0xB], chips[nr][0xA]); }
         
     // Returns the start of the chip rom in address space
-    u16 chipAddr(unsigned nr) const { return LO_HI(chips[nr][0xD], chips[nr][0xC]); }
+    u16 chipAddr(isize nr) const { return LO_HI(chips[nr][0xD], chips[nr][0xC]); }
 
 
     //

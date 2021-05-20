@@ -2,12 +2,15 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "DriveMemory.h"
 #include "C64.h"
+#include "IO.h"
 
 DriveMemory::DriveMemory(C64 &ref, Drive &dref) : C64Component(ref), drive(dref)
 {
@@ -15,9 +18,9 @@ DriveMemory::DriveMemory(C64 &ref, Drive &dref) : C64Component(ref), drive(dref)
 }
 
 void 
-DriveMemory::_reset()
+DriveMemory::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS
+    RESET_SNAPSHOT_ITEMS(hard)
 
     // Initialize RAM with powerup pattern (pattern from Hoxs64)
     for (unsigned i = 0; i < sizeof(ram); i++) {
@@ -25,13 +28,16 @@ DriveMemory::_reset()
     }
 }
 
-void 
-DriveMemory::_dump() const
+void
+DriveMemory::_dump(dump::Category category, std::ostream& os) const
 {
-	msg("VC1541 Memory:\n");
-	msg("--------------\n\n");
-    msg("VC1541 ROM :%s loaded\n", c64.hasRom(ROM_TYPE_VC1541) ? "" : " not");
-	msg("\n");
+    using namespace util;
+    
+    if (category & dump::State) {
+        
+        os << tab("Drive ROM");
+        os << bol(c64.hasRom(ROM_TYPE_VC1541)) << std::endl;
+    }
 }
 
 u8 

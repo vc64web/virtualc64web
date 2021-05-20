@@ -2,11 +2,13 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "Folder.h"
 #include "C64.h"
 
 bool
@@ -42,7 +44,7 @@ Folder::makeWithFolder(const std::string &path, ErrorCode *err)
     *err = ERROR_OK;
     
     try { return makeWithFolder(path); }
-    catch (VC64Error &exception) { *err = exception.errorCode; }
+    catch (VC64Error &exception) { *err = exception.data; }
     return nullptr;
 }
 
@@ -52,26 +54,26 @@ Folder::collectionName()
     return fs->getName();
 }
 
-u64
+isize
 Folder::collectionCount() const
 {
-    return fs->numFiles();
+    return (isize)fs->numFiles();
 }
 
 PETName<16>
-Folder::itemName(unsigned nr) const
+Folder::itemName(isize nr) const
 {
     return fs->fileName(nr);
 }
 
 u64
-Folder::itemSize(unsigned nr) const
+Folder::itemSize(isize nr) const
 {
     return fs->fileSize(nr);
 }
 
 u8
-Folder::readByte(unsigned nr, u64 pos) const
+Folder::readByte(isize nr, u64 pos) const
 {
     u8 result;
     fs->copyFile(nr, &result, 1, pos);
@@ -79,7 +81,7 @@ Folder::readByte(unsigned nr, u64 pos) const
 }
 
 void
-Folder::copyItem(unsigned nr, u8 *buf, u64 len, u64 offset) const
+Folder::copyItem(isize nr, u8 *buf, u64 len, u64 offset) const
 {
     fs->copyFile(nr, buf, len, offset);
 }

@@ -2,12 +2,17 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "C64Memory.h"
 #include "C64.h"
+#include "IO.h"
+
+#include <random>
 
 #define CHECK_WATCHPOINT(x) \
 if (checkWatchpoints && cpu.debugger.watchpointMatches(x)) { \
@@ -17,9 +22,6 @@ if (checkWatchpoints && cpu.debugger.watchpointMatches(x)) { \
 C64Memory::C64Memory(C64 &ref) : C64Component(ref)
 {    		
     memset(rom, 0, sizeof(rom));
-
-    config.ramPattern = RAM_PATTERN_C64;
-    config.debugcart = false;
 
     /* Memory bank map
      *
@@ -99,27 +101,47 @@ C64Memory::C64Memory(C64 &ref) : C64Component(ref)
 }
 
 void
-C64Memory::_reset()
+C64Memory::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS
+    RESET_SNAPSHOT_ITEMS(hard)
     
-    // Erase RAM
-    eraseWithPattern(config.ramPattern);
+    if (hard) {
         
-    // Initialize color RAM with random numbers
-    srand(1000);
-    for (unsigned i = 0; i < sizeof(colorRam); i++) {
-        colorRam[i] = (rand() & 0xFF);
+        // Erase RAM
+        eraseWithPattern(config.ramPattern);
+        
+        // Initialize color RAM with random numbers
+        srand(1000);
+        for (unsigned i = 0; i < sizeof(colorRam); i++) {
+            colorRam[i] = (rand() & 0xFF);
+        }
     }
 }
 
-long
+MemConfig
+C64Memory::getDefaultConfig()
+{
+    MemConfig defaults;
+    
+    defaults.ramPattern = RAM_PATTERN_VICE;
+    
+    return defaults;
+}
+
+void
+C64Memory::resetConfig()
+{
+    MemConfig defaults = getDefaultConfig();
+    
+    setConfigItem(OPT_RAM_PATTERN, defaults.ramPattern);
+}
+
+i64
 C64Memory::getConfigItem(Option option) const
 {
     switch (option) {
             
         case OPT_RAM_PATTERN:  return config.ramPattern;
-        case OPT_DEBUGCART:    return config.debugcart;
             
         default:
             assert(false);
@@ -128,28 +150,20 @@ C64Memory::getConfigItem(Option option) const
 }
 
 bool
-C64Memory::setConfigItem(Option option, long value)
+C64Memory::setConfigItem(Option option, i64 value)
 {
     switch (option) {
             
         case OPT_RAM_PATTERN:
             
-            if (!RamPatternEnum::verify(value)) return false;
-            if (config.ramPattern == value) return false;
+            if (!RamPatternEnum::isValid(value)) {
+                throw ConfigArgError(RamPatternEnum::keyList());
+            }
+            // if (config.ramPattern == value) return false;
             
             config.ramPattern = (RamPattern)value;
             return true;
-            
-        case OPT_DEBUGCART:
-            
-            if (config.debugcart == value) {
-                return false;
-            }
-            
-            config.debugcart = value;
-            if (value) msg("Debug cart enabled\n");
-            return true;
-            
+                        
         default:
             return false;
     }
@@ -175,35 +189,93 @@ C64Memory::_inspect()
     }
 }
 
-void 
-C64Memory::_dump() const
+void
+C64Memory::_dump(dump::Category category, std::ostream& os) const
 {
-	msg("C64 Memory:\n");
-	msg("-----------\n");
-    msg("    Basic ROM: %s loaded\n", c64.hasRom(ROM_TYPE_BASIC)  ? "" : " not");
-	msg("Character ROM: %s loaded\n", c64.hasRom(ROM_TYPE_CHAR)   ? "" : " not");
-    msg("   Kernal ROM: %s loaded\n", c64.hasRom(ROM_TYPE_KERNAL) ? "" : " not");
-	msg("\n");
+    using namespace util;
+    
+    if (category & dump::Config) {
+    
+        os << tab("Ram pattern");
+        os << RamPatternEnum::key(config.ramPattern) << std::endl;
+    }
+    
+    if (category & dump::State) {
+        
+        os << tab("Basic ROM");
+        os << bol(c64.hasRom(ROM_TYPE_BASIC)) << std::endl;
+        os << tab("Character ROM");
+        os << bol(c64.hasRom(ROM_TYPE_CHAR)) << std::endl;
+        os << tab("Kernal ROM");
+        os << bol(c64.hasRom(ROM_TYPE_KERNAL)) << std::endl;
+    }
 }
-
+    
 void
 C64Memory::eraseWithPattern(RamPattern pattern)
 {
-    if (!RamPatternEnum::isValid(pattern)) {
-        warn("Unknown RAM init pattern. Falling back to default.\n");
-        pattern = RAM_PATTERN_C64;
-    }
+    /* Note: The RAM init pattern is not unique across C64 models (for details,
+     * see the README file in the VICE test suite C64/raminitpattern). By
+     * default, VirtualC64 utilizes the same patters as VICE. This pattern has
+     * been selected, because it is pretty close to what can be seen on most
+     * real machines and it make all four tests from the VICE test suite pass
+     * (cyberloadtest.prg, darkstarbbstest.prg, platoontest.prg, and
+     * typicaltet.prg). The CCS scheme is the one that is used by CCS 3.9. Note
+     * that the darkstarbbstest fails with this pattern. The remainung patterns
+     * can't be found in the wild. They allow the user to initialize the RAM
+     * with all zeroes, all ones, or random values, respectively.
+     */
     
-    if (pattern == RAM_PATTERN_C64) {
-        for (unsigned i = 0; i < sizeof(ram); i++)
-            ram[i] = (i & 0x40) ? 0xFF : 0x00;
-    } else {
-        for (unsigned i = 0; i < sizeof(ram); i++)
-            ram[i] = (i & 0x80) ? 0x00 : 0xFF;
+    switch (pattern) {
+            
+        case RAM_PATTERN_VICE:
+        
+            // $00 $00 $FF $FF $FF $FF $00 $00 ...
+            for (isize i = 0; i < isizeof(ram); i++)
+                ram[i] = (i & 0x6) == 0x2 || (i & 0x6) == 0x4 ? 0xFF : 0x00;
+
+            // In addition, the 2nd and 3rd 16K bank are inverted
+            for (isize i = 0; i < isizeof(ram); i++)
+                ram[i] ^= (i & 0x4000) ? 0xFF : 0x00;
+            
+            break;
+        
+        case RAM_PATTERN_CCS:
+        
+            // (64 x $FF) (64 x $00) ...
+            for (isize i = 0; i < isizeof(ram); i++)
+                ram[i] = (i & 0x40) ? 0x00 : 0xFF;
+            
+            break;
+        
+        case RAM_PATTERN_ZEROES:
+        
+            for (isize i = 0; i < isizeof(ram); i++)
+                ram[i] = 0;
+            
+            break;
+
+        case RAM_PATTERN_ONES:
+        
+            for (isize i = 0; i < isizeof(ram); i++)
+                ram[i] = 0xFF;
+            
+            break;
+
+        case RAM_PATTERN_RANDOM:
+        {
+            std::random_device rd;
+            std::mt19937 gen(rd());
+            std::uniform_int_distribution<> distrib(0, 0xFF);
+         
+            for (isize i = 0; i < isizeof(ram); i++)
+                ram[i] = distrib(gen);
+        
+            break;
+        }
+        default:
+            assert(false);
     }
-    
-    // Make the screen look nice on startup
-    memset(&ram[0x400], 0x01, 40*25);
 }
 
 void 
@@ -549,12 +621,8 @@ C64Memory::pokeIO(u16 addr, u8 value)
             
             sid.poke(addr, value);
 
-            // Check the exit register (option -debugcart)
-            if (addr == 0xD7FF && config.debugcart) {
-                msg("DEBUGCART: Terminating with exit code %x\n", value);
-                exit(value);
-            }
-
+            // Check the error register (debugcart feature)
+            if (addr == 0xD7FF) c64.regressionTester.debugcart(value);
             return;
             
         case 0x8: // Color RAM
@@ -646,11 +714,11 @@ C64Memory::memdump(u16 addr, long num, bool hex, MemoryType src)
             if (hex) {
                 *p++ = ' ';
                 *p++ = ' ';
-                sprint8x(p, spypeek(addr++, src));
+                util::sprint8x(p, spypeek(addr++, src));
                 p += 2;
             } else {
                 *p++ = ' ';
-                sprint8d(p, spypeek(addr++, src));
+                util::sprint8d(p, spypeek(addr++, src));
                 p += 3;
             }
         }

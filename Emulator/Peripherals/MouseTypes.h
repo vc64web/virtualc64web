@@ -2,21 +2,32 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
-#include "MousePublicTypes.h"
+#include "Aliases.h"
 #include "Reflection.h"
 
 //
-// Reflection APIs
+// Enumerations
 //
 
-struct MouseModelEnum : Reflection<MouseModelEnum, MouseModel> {
+enum_long(MOUSE_MODEL)
+{
+    MOUSE_C1350,
+    MOUSE_C1351,
+    MOUSE_NEOS,
+    
+    MOUSE_COUNT
+};
+typedef MOUSE_MODEL MouseModel;
+
+#ifdef __cplusplus
+struct MouseModelEnum : util::Reflection<MouseModelEnum, MouseModel> {
     
     static bool isValid(long value)
     {
@@ -36,8 +47,20 @@ struct MouseModelEnum : Reflection<MouseModelEnum, MouseModel> {
         return "???";
     }
 };
+#endif
 
-struct PortIdEnum : Reflection<PortIdEnum, PortId> {
+enum_long(PORT_ID)
+{
+    PORT_NONE,
+    PORT_ONE,
+    PORT_TWO,
+    
+    PORT_COUNT
+};
+typedef PORT_ID PortId;
+
+#ifdef __cplusplus
+struct PortIdEnum : util::Reflection<PortIdEnum, PortId> {
     
     static bool isValid(long value)
     {
@@ -57,3 +80,17 @@ struct PortIdEnum : Reflection<PortIdEnum, PortId> {
         return "???";
     }
 };
+#endif
+
+
+//
+// Structures
+//
+
+typedef struct
+{
+    MouseModel model;
+    bool shakeDetection;
+    long velocity;
+}
+MouseConfig;

@@ -2,7 +2,7 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
@@ -38,7 +38,7 @@ public:
     
 private:
     
-    void _reset() override;
+    void _reset(bool hard) override;
 
     
     //
@@ -53,20 +53,23 @@ private:
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
-        worker
-        
-        & cycle;
+        if (hard) {
+            
+            worker
+            
+            << cycle;
+        }
     }
     
     usize __size() { COMPUTE_SNAPSHOT_SIZE }
-    usize __load(u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
+    usize __load(const u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
     usize __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
     
-    usize _size() override { return Cartridge::_size() + __size(); }
-    usize _load(u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
-    usize _save(u8 *buf) override { return Cartridge::_save(buf) + __save(buf); }
+    isize _size() override { return Cartridge::_size() + __size(); }
+    isize _load(const u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
+    isize _save(u8 *buf) override { return Cartridge::_save(buf) + __save(buf); }
 
  
     //

@@ -2,15 +2,19 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
-#include "VICIIPublicTypes.h"
+#include "Aliases.h"
 #include "Reflection.h"
+#include "BusTypes.h"
+
+#include "DmaDebuggerTypes.h"
+
 
 //
 // Constants
@@ -26,13 +30,26 @@
 #define SPR6 0x40
 #define SPR7 0x80
 
-// Depth of different drawing layers
-#define BORDER_LAYER_DEPTH         0x10 // In front of everything
-#define SPRITE_LAYER_FG_DEPTH      0x20 // Behind border
-#define FOREGROUND_LAYER_DEPTH     0x30 // Behind sprite 1 layer
-#define SPRITE_LAYER_BG_DEPTH      0x40 // Behind foreground
-#define BACKGROUD_LAYER_DEPTH      0x50 // Behind sprite 2 layer
-#define BEHIND_BACKGROUND_DEPTH    0x60 // Behind background
+/* Depths of different drawing layers
+ *
+ * Format: <src><src><src><col><spr><spr><spr><spr>
+ *
+ *         <src> : Indicates where the displayed pixel comes from
+ *         <col> : Indicator bit for sb-collision detection
+ *         <spr> : Sprite number
+ *
+ * Examples:
+ *
+ *       001 0 0000 : Border pixel
+ *       011 1 0000 : Foreground pixel
+ *       010 0 0000 : Sprite 0 (without sb-collision)
+ *       010 1 0101 : Sprite 6 (with sb-collision)
+ */
+#define DEPTH_BORDER        0b00100000 // In front of everything
+#define DEPTH_SPRITE_FG     0b01000000 // Behind border
+#define DEPTH_FG            0b01110000 // Behind sprite 1 layer
+#define DEPTH_SPRITE_BG     0b10000000 // Behind foreground
+#define DEPTH_BG            0b10100000 // Behind sprite 2 layer
 
 // Event flags
 #define VICUpdateIrqLine    (1ULL << 0) // Sets or releases the IRQ line
@@ -55,42 +72,65 @@ VICSetDisplayState | \
 VICClrSprSprCollReg | \
 VICClrSprBgCollReg);
 
+
 //
-// Reflection APIs
+// Enumerations
 //
 
-struct VICRevisionEnum : Reflection<VICRevisionEnum, VICRevision> {
+enum_long(VICII_REV)
+{
+    VICII_PAL_6569_R1 = 1,
+    VICII_PAL_6569_R3 = 2,
+    VICII_PAL_8565 = 4,
+    VICII_NTSC_6567_R56A = 8,
+    VICII_NTSC_6567 = 16,
+    VICII_NTSC_8562 = 32
+};
+typedef VICII_REV VICIIRevision;
+
+#ifdef __cplusplus
+struct VICIIRevisionEnum : util::Reflection<VICIIRevisionEnum, VICIIRevision> {
     
     static bool isValid(long value)
     {
         return
-        (value == VICREV_PAL_6569_R1) ||
-        (value == VICREV_PAL_6569_R3) ||
-        (value == VICREV_PAL_8565) ||
-        (value == VICREV_NTSC_6567) ||
-        (value == VICREV_NTSC_6567_R56A) ||
-        (value == VICREV_NTSC_8562);
+        (value == VICII_PAL_6569_R1) ||
+        (value == VICII_PAL_6569_R3) ||
+        (value == VICII_PAL_8565) ||
+        (value == VICII_NTSC_6567) ||
+        (value == VICII_NTSC_6567_R56A) ||
+        (value == VICII_NTSC_8562);
     }
 
-    static const char *prefix() { return "VICREV"; }
-    static const char *key(VICRevision value)
+    static const char *prefix() { return "VICII"; }
+    static const char *key(VICIIRevision value)
     {
         switch (value) {
                 
-            case VICREV_PAL_6569_R1:    return "PAL_6569_R1";
-            case VICREV_PAL_6569_R3:    return "PAL_6569_R3";
-            case VICREV_PAL_8565:       return "PAL_8565";
-            case VICREV_NTSC_6567:      return "NTSC_6567";
-            case VICREV_NTSC_6567_R56A: return "NTSC_6567_R56A";
-            case VICREV_NTSC_8562:      return "NTSC_8562";
+            case VICII_PAL_6569_R1:    return "PAL_6569_R1";
+            case VICII_PAL_6569_R3:    return "PAL_6569_R3";
+            case VICII_PAL_8565:       return "PAL_8565";
+            case VICII_NTSC_6567:      return "NTSC_6567";
+            case VICII_NTSC_6567_R56A: return "NTSC_6567_R56A";
+            case VICII_NTSC_8562:      return "NTSC_8562";
         }
         return "???";
     }
     
-    static bool verify(long nr) { return Reflection::verify(nr,VICREV_NTSC_8562); }
+    static std::map <string, long> pairs() { return Reflection::pairs(VICII_NTSC_8562); }
 };
+#endif
 
-struct GlueLogicEnum : Reflection<GlueLogicEnum, GlueLogic> {
+enum_long(GLUE_LOGIC)
+{
+    GLUE_LOGIC_DISCRETE,
+    GLUE_LOGIC_IC,
+    GLUE_LOGIC_COUNT
+};
+typedef GLUE_LOGIC GlueLogic;
+
+#ifdef __cplusplus
+struct GlueLogicEnum : util::Reflection<GlueLogicEnum, GlueLogic> {
     
     static bool isValid(long value)
     {
@@ -109,8 +149,22 @@ struct GlueLogicEnum : Reflection<GlueLogicEnum, GlueLogic> {
         return "???";
     }
 };
+#endif
 
-struct PaletteEnum : Reflection<PaletteEnum, Palette> {
+enum_long(PALETTE)
+{
+    PALETTE_COLOR,
+    PALETTE_BLACK_WHITE,
+    PALETTE_PAPER_WHITE,
+    PALETTE_GREEN,
+    PALETTE_AMBER,
+    PALETTE_SEPIA,
+    PALETTE_COUNT
+};
+typedef PALETTE Palette;
+
+#ifdef __cplusplus
+struct PaletteEnum : util::Reflection<PaletteEnum, Palette> {
     
     static bool isValid(long value)
     {
@@ -133,12 +187,24 @@ struct PaletteEnum : Reflection<PaletteEnum, Palette> {
         return "???";
     }
 };
+#endif
 
-struct ScreenGeometryEnum : Reflection<ScreenGeometryEnum, ScreenGeometry> {
+enum_long(SCREEN_GEOMETRY)
+{
+    SCREEN_GEOMETRY_25_40 = 1,
+    SCREEN_GEOMETRY_25_38,
+    SCREEN_GEOMETRY_24_40,
+    SCREEN_GEOMETRY_24_38,
+    SCREEN_GEOMETRY_COUNT
+};
+typedef SCREEN_GEOMETRY ScreenGeometry;
+
+#ifdef __cplusplus
+struct ScreenGeometryEnum : util::Reflection<ScreenGeometryEnum, ScreenGeometry> {
     
     static bool isValid(long value)
     {
-        return (unsigned long)value < SCREEN_GEOMETRY_COUNT;
+        return value >= 1 && value < SCREEN_GEOMETRY_COUNT;
     }
 
     static const char *prefix() { return "SCREEN_GEOMETRY"; }
@@ -155,20 +221,27 @@ struct ScreenGeometryEnum : Reflection<ScreenGeometryEnum, ScreenGeometry> {
         return "???";
     }
 };
+#endif
 
-struct DisplayModeEnum : Reflection<DisplayModeEnum, DisplayMode> {
+enum_long(DISPLAY_MODE)
+{
+    DISPLAY_MODE_STANDARD_TEXT,
+    DISPLAY_MODE_MULTICOLOR_TEXT,
+    DISPLAY_MODE_STANDARD_BITMAP,
+    DISPLAY_MODE_MULTICOLOR_BITMAP,
+    DISPLAY_MODE_EXTENDED_BG_COLOR,
+    DISPLAY_MODE_INVALID_TEXT,
+    DISPLAY_MODE_INV_STANDARD_BITMAP,
+    DISPLAY_MODE_INV_MULTICOL_BITMAP
+};
+typedef DISPLAY_MODE DisplayMode;
+
+#ifdef __cplusplus
+struct DisplayModeEnum : util::Reflection<DisplayModeEnum, DisplayMode> {
     
     static bool isValid(long value)
     {
-        return
-        (value == DISPLAY_MODE_STANDARD_TEXT) ||
-        (value == DISPLAY_MODE_MULTICOLOR_TEXT) ||
-        (value == DISPLAY_MODE_STANDARD_BITMAP) ||
-        (value == DISPLAY_MODE_MULTICOLOR_BITMAP) ||
-        (value == DISPLAY_MODE_EXTENDED_BG_COLOR) ||
-        (value == DISPLAY_MODE_INVALID_TEXT) ||
-        (value == DISPLAY_MODE_INV_STANDARD_BITMAP) ||
-        (value == DISPLAY_MODE_INV_MULTICOL_BITMAP);
+        return (unsigned long)value <= DISPLAY_MODE_INV_MULTICOL_BITMAP;
     }
 
     static const char *prefix() { return "DISPLAY_MODE"; }
@@ -187,58 +260,50 @@ struct DisplayModeEnum : Reflection<DisplayModeEnum, DisplayMode> {
         }
         return "???";
     }
-
-    static bool verify(long nr) { return Reflection::verify(nr, 0x70); }
 };
+#endif
 
-struct MemAccessEnum : Reflection<MemAccessEnum, MemAccess> {
+enum_long(COLSRC)
+{
+    COLSRC_D021,     // Color comes from background color register
+    COLSRC_D022,     // Color comes from first extended color register
+    COLSRC_D023,     // Color comes from second extended color register
+    COLSRC_CHAR_LO,  // Color comes from the low byte of the fetched character
+    COLSRC_CHAR_HI,  // Color comes from the high byte of the fetched character
+    COLSRC_COLRAM3,  // Color comes from the color RAM (lower three 3 bits)
+    COLSRC_COLRAM4,  // Color comes from the color RAM (all 4 bits)
+    COLSRC_INDEXED,  // Color comes from a color register
+    COLSRC_ZERO      // Invalid display modes
+};
+typedef COLSRC ColorSource;
+
+#ifdef __cplusplus
+struct ColorSourceEnum : util::Reflection<ColorSourceEnum, ColorSource> {
     
     static bool isValid(long value)
     {
-        return (unsigned long)value < MEMACCESS_COUNT;
+        return (unsigned long)value <= COLSRC_ZERO;
     }
-    
-    static const char *prefix() { return "MEMACCESS"; }
-    static const char *key(MemAccess value)
+
+    static const char *prefix() { return "COLSRC"; }
+    static const char *key(Palette value)
     {
         switch (value) {
                 
-            case MEMACCESS_R:      return "R";
-            case MEMACCESS_I:      return "I";
-            case MEMACCESS_C:      return "C";
-            case MEMACCESS_G:      return "G";
-            case MEMACCESS_P:      return "P";
-            case MEMACCESS_S:      return "S";
-            case MEMACCESS_COUNT:  return "???";
+            case COLSRC_D021:     return "D021";
+            case COLSRC_D022:     return "D022";
+            case COLSRC_D023:     return "D023";
+            case COLSRC_CHAR_LO:  return "CHAR_LO";
+            case COLSRC_CHAR_HI:  return "CHAR_HI";
+            case COLSRC_COLRAM3:  return "COLRAM3";
+            case COLSRC_COLRAM4:  return "COLRAM4";
+            case COLSRC_INDEXED:  return "INDEXED";
+            case COLSRC_ZERO:     return "ZERO";
         }
         return "???";
     }
 };
-
-struct DmaDisplayModeEnum : Reflection<DmaDisplayModeEnum, DmaDisplayMode> {
-    
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < DMA_DISPLAY_MODE_COUNT;
-    }
-    
-    static const char *prefix() { return "DMA_DISPLAY_MODE"; }
-    static const char *key(DmaDisplayMode value)
-    {
-        switch (value) {
-                
-            case DMA_DISPLAY_MODE_FG_LAYER:         return "FG_LAYER";
-            case DMA_DISPLAY_MODE_BG_LAYER:         return "BG_LAYER";
-            case DMA_DISPLAY_MODE_ODD_EVEN_LAYERS:  return "ODD_EVEN_LAYERS";
-            case DMA_DISPLAY_MODE_COUNT:            return "???";
-        }
-        return "???";
-    }
-};
-
-//
-// Private types
-//
+#endif
 
 enum VICIIMode
 {
@@ -287,8 +352,128 @@ enum VICIIColorRegs
     COLREG_SPR7       = 0xE
 };
 
+
+//
+// Structures
+//
+
+typedef struct
+{
+    // Silicon
+    VICIIRevision revision;
+    bool grayDotBug;
+    GlueLogic glueLogic;
+    
+    // Colors
+    Palette palette;
+    isize brightness;
+    isize contrast;
+    isize saturation;
+
+    // Debugger
+    bool hideSprites;
+    u16 cutLayers;
+    u8 cutOpacity;
+    
+    // Cheating
+    bool checkSSCollisions;
+    bool checkSBCollisions;
+}
+VICIIConfig;
+
+typedef struct
+{
+    // Graphics synthesizer (speed optimizations)
+    isize canvasFastPath;
+    isize canvasSlowPath;
+    isize spriteFastPath;
+    isize spriteSlowPath;
+    isize quickExitHit;
+    isize quickExitMiss;
+}
+VICIIStats;
+
+typedef struct
+{
+    bool vertical;
+    bool main;
+}
+FrameFlipflops;
+
+typedef struct
+{
+    // Counters
+    u16 rasterLine;
+    u8 rasterCycle;
+    u32 yCounter;
+    u16 xCounter;
+    u16 vc;
+    u16 vcBase;
+    u8 rc;
+    u8 vmli;
+
+    // Display
+    u8 ctrl1;
+    u8 ctrl2;
+    u8 dy;
+    u8 dx;
+    bool denBit;
+    bool badLine;
+    bool displayState;
+    bool vblank;
+    ScreenGeometry screenGeometry;
+    FrameFlipflops frameFF;
+    DisplayMode displayMode;
+    u8 borderColor;
+    u8 bgColor0;
+    u8 bgColor1;
+    u8 bgColor2;
+    u8 bgColor3;
+    
+    // Memory
+    u8 memSelect;
+    bool ultimax;
+    u16 memoryBankAddr;
+    u16 screenMemoryAddr;
+    u16 charMemoryAddr;
+
+    // Interrupts
+    u16 irqRasterline;
+    u8 irr;
+    u8 imr;
+
+    // Lightpen
+    u8 latchedLPX;
+    u8 latchedLPY;
+    bool lpLine;
+    bool lpIrqHasOccurred;
+    
+    // Debugging
+    
+}
+VICIIInfo;
+
+typedef struct
+{
+    u16 x;
+    u8 y;
+    bool enabled;
+    bool expandX;
+    bool expandY;
+    bool priority;
+    bool multicolor;
+    bool ssCollision;
+    bool sbCollision;
+    u8 color;
+    u8 extraColor1;
+    u8 extraColor2;
+}
+SpriteInfo;
+    
+#ifdef __cplusplus
 struct VICIIRegisters
 {
+    // Registers
     u16 sprX[8];     // D000, D002, ..., D00E, upper bits from D010
     u8  sprY[8];     // D001, D003, ..., D00F
     u8  ctrl1;       // D011
@@ -300,21 +485,28 @@ struct VICIIRegisters
     u8  sprExpandX;  // D01D
     u8  colors[15];  // D020 - D02E
     
-    template <class T>
-    void applyToItems(T& worker)
-    {        
+    // Derived values
+    u8 xscroll;
+    DisplayMode mode;
+    
+    
+    template <class W>
+    void operator<<(W& worker)
+    {
         worker
         
-        & sprX
-        & sprY
-        & ctrl1
-        & sprEnable
-        & ctrl2
-        & sprExpandY
-        & sprPriority
-        & sprMC
-        & sprExpandX
-        & colors;
+        << sprX
+        << sprY
+        << ctrl1
+        << sprEnable
+        << ctrl2
+        << sprExpandY
+        << sprPriority
+        << sprMC
+        << sprExpandX
+        << colors
+        << xscroll
+        << mode;
     }
 };
 
@@ -343,17 +535,18 @@ struct SpriteSR
      */
     u8 colBits;
     
-    template <class T>
-    void applyToItems(T& worker)
+    template <class W>
+    void operator<<(W& worker)
     {
         worker
         
-        & data
-        & chunk1
-        & chunk2
-        & chunk3
-        & mcFlop
-        & expFlop
-        & colBits;
+        << data
+        << chunk1
+        << chunk2
+        << chunk3
+        << mcFlop
+        << expFlop
+        << colBits;
     }
 };
+#endif

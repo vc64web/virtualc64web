@@ -2,12 +2,19 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
+
+#include "DriveTypes.h"
+#include "C64Component.h"
+#include "CPU.h"
+#include "Disk.h"
+#include "DriveMemory.h"
+#include "VIA.h"
 
 /*
  * This implementation is based on the following two documents written
@@ -17,9 +24,6 @@
  * Schematics:  http://www.baltissen.org/images/1540.gif
  */
  
-#include "VIA.h"
-#include "Disk.h"
-
 class Drive : public C64Component {
     
     //
@@ -46,7 +50,7 @@ class Drive : public C64Component {
     DriveID deviceNr;
 
     // Current configuration
-    DriveConfig config;
+    DriveConfig config = getDefaultConfig();
 
     
     //
@@ -69,6 +73,9 @@ public:
     // A disk waiting to be inserted
     class Disk *diskToInsert = nullptr;
 
+    // The write protection status of the disk to insert
+    bool diskToInsertWP = false;
+    
     // State change delay counter (checked in the vsync handler)
     i64 diskChangeCounter = -1;
     
@@ -203,7 +210,8 @@ public:
 
 private:
 
-    void _reset() override;
+    void _initialize() override;
+    void _reset(bool hard) override;
 
     
     //
@@ -211,13 +219,15 @@ private:
     //
     
 public:
-    
-    DriveConfig getConfig() const { return config; }
-    
-    long getConfigItem(Option option) const;
-    bool setConfigItem(Option option, long value) override;
-    bool setConfigItem(Option option, long id, long value) override;
         
+    static DriveConfig getDefaultConfig();
+    DriveConfig getConfig() const { return config; }
+    void resetConfig() override;
+
+    i64 getConfigItem(Option option) const;
+    bool setConfigItem(Option option, i64 value) override;
+    bool setConfigItem(Option option, long id, i64 value) override;
+
     
     //
     // Analyzing
@@ -225,8 +235,8 @@ public:
     
 private:
     
-    void _dump() const override;
-
+    void _dump(dump::Category category, std::ostream& os) const override;
+    
     
     //
     // Serializing
@@ -239,38 +249,45 @@ private:
     {
         worker
         
-        & durationOfOneCpuCycle
-        & config.type
-        & config.connected
-        & insertionStatus;
+        << durationOfOneCpuCycle
+        << config.type
+        << config.connected
+        << config.ejectDelay
+        << config.swapDelay
+        << config.insertDelay
+        << config.powerVolume
+        << config.stepVolume
+        << config.insertVolume
+        << config.ejectVolume
+        << insertionStatus;
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
         worker
         
-        & spinning
-        & redLED
-        & elapsedTime
-        & nextClock
-        & nextCarry
-        & carryCounter
-        & counterUF4
-        & bitReadyTimer
-        & byteReadyCounter
-        & halftrack
-        & offset
-        & zone
-        & readShiftreg
-        & writeShiftreg
-        & sync
-        & byteReady;
+        << spinning
+        << redLED
+        << elapsedTime
+        << nextClock
+        << nextCarry
+        << carryCounter
+        << counterUF4
+        << bitReadyTimer
+        << byteReadyCounter
+        << halftrack
+        << offset
+        << zone
+        << readShiftreg
+        << writeShiftreg
+        << sync
+        << byteReady;
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
 private:
     
@@ -340,12 +357,13 @@ public:
      * the currently inserted disk halfway out before it is removed completely,
      * and pushing the new disk halfway in before it is inserted completely.
      */
-    void insertDisk(Disk *otherDisk);
+    void insertDisk(const string &path, bool wp);
+    void insertDisk(Disk *otherDisk, bool wp);
     void insertNewDisk(DOSType fstype);
     void insertNewDisk(DOSType fstype, PETName<16> name);
-    void insertFileSystem(class FSDevice *device);
-    void insertG64(G64File *g64);
-    void insertDisk(AnyCollection &archive);
+    void insertFileSystem(class FSDevice *device, bool wp);
+    void insertG64(G64File *g64, bool wp);
+    void insertDisk(AnyCollection &archive, bool wp);
     void ejectDisk();
 
 

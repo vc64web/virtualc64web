@@ -28,8 +28,11 @@
  *
  */
 
+#include "config.h"
 #include "FastSID.h"
 #include "waves.h"
+
+#include <algorithm>
 
 u16 FastVoice::wavetable10[2][4096];
 u16 FastVoice::wavetable20[2][4096];
@@ -50,9 +53,9 @@ static u32 exptable[6] =
 };
 
 void
-FastVoice::_reset()
+FastVoice::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS
+    RESET_SNAPSHOT_ITEMS(hard)
     
     updateWaveTablePtr(); 
     lsfr = NSEED;
@@ -104,8 +107,8 @@ FastVoice::init(FastSID *owner, unsigned voiceNr, FastVoice *prevVoice)
     sidreg = owner->sidreg + (voiceNr * 7);
 }
 
-usize
-FastVoice::didLoadFromBuffer(u8 *buffer)
+isize
+FastVoice::didLoadFromBuffer(const u8 *buffer)
 {
     updateWaveTablePtr();
     return 0;
@@ -193,7 +196,7 @@ FastVoice::updateInternals(bool gateBitFlipped)
             break;
             
         case FASTSID_PULSE:
-            offset = testBit() ? 0 : pulseWidth();
+            // offset = testBit() ? 0 : pulseWidth();
             waveTableOffset = 0;
             ringmod = false;
             break;
@@ -380,8 +383,8 @@ FastVoice::applyFilter()
         filterLow += filterRef * filterDy * 0.1;
         filterRef += (filterIO - filterLow - (filterRef * filterResDy)) * filterDy;
         sample = filterRef - (filterIO / 8);
-        sample = MAX(sample, -128);
-        sample = MIN(sample, 127);
+        sample = std::max(sample, -128.f);
+        sample = std::max(sample, 127.f);
         filterIO = (signed char)sample;
         return;
     }

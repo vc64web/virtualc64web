@@ -2,7 +2,7 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
@@ -49,15 +49,15 @@ public:
     //
 
     PETName<16> collectionName() override;
-    u64 collectionCount() const override;
-    PETName<16> itemName(unsigned nr) const override;
-    u64 itemSize(unsigned nr) const override;
-    u8 readByte(unsigned nr, u64 pos) const override;
+    isize collectionCount() const override;
+    PETName<16> itemName(isize nr) const override;
+    u64 itemSize(isize nr) const override;
+    u8 readByte(isize nr, u64 pos) const override;
     
 private:
 
-    u16 memStart(unsigned nr) const;
-    u16 memEnd(unsigned nr) const;
+    u16 memStart(isize nr) const;
+    u16 memEnd(isize nr) const;
     
     
     //
@@ -67,7 +67,7 @@ private:
 public:
     
     // Checks if the header contains information at the specified location
-    bool directoryItemIsPresent(int n);
+    bool directoryItemIsPresent(isize n);
 
     /* This methods eliminates the following inconsistencies:
      *

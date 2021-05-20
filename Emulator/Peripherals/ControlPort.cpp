@@ -2,18 +2,21 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
  
+#include "config.h"
+#include "ControlPort.h"
 #include "C64.h"
+#include "IO.h"
 
 ControlPort::ControlPort(C64 &ref, PortId id) : C64Component(ref), nr(id)
 {
     assert_enum(PortId, id);
     
-    subComponents = vector<HardwareComponent *> {
+    subComponents = std::vector<HardwareComponent *> {
         
         &mouse,
         &joystick
@@ -21,8 +24,17 @@ ControlPort::ControlPort(C64 &ref, PortId id) : C64Component(ref), nr(id)
 }
 
 void
-ControlPort::_dump() const
+ControlPort::_dump(dump::Category category, std::ostream& os) const
 {
+    using namespace util;
+    
+    if (category & dump::State) {
+        
+        os << tab("Nr");
+        os << dec(nr) << std::endl;
+        os << tab("Device");
+        os << ControlPortDeviceEnum::key(device) << std::endl;
+    }
 }
 
 void

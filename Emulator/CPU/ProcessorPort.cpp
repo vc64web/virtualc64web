@@ -2,23 +2,43 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "ProcessorPort.h"
 #include "C64.h"
 
 void
-ProcessorPort::_dump() const
+ProcessorPort::_reset(bool hard)
 {
-    msg("Processor port:\n");
-    msg("---------------\n\n");
-    msg("port:           %02X\n", port);
-    msg("direction:      %02X\n", direction);
-    msg("Bit 3 discharge cycle: %llu\n", dischargeCycleBit3);
-    msg("Bit 6 discharge cycle: %llu\n", dischargeCycleBit6);
-    msg("Bit 7 discharge cycle: %llu\n", dischargeCycleBit7);
+    RESET_SNAPSHOT_ITEMS(hard)
+    
+    port = 0xFF;
+    
+    mem.updatePeekPokeLookupTables();
+};
+
+void
+ProcessorPort::_dump(dump::Category category, std::ostream& os) const
+{
+    using namespace util;
+    
+    if (category & dump::State) {
+        
+        os << tab("Port");
+        os << hex(port) << std::endl;
+        os << tab("Direction");
+        os << hex(direction) << std::endl;
+        os << tab("Bit 3 discharge cycle");
+        os << hex(dischargeCycleBit3) << std::endl;
+        os << tab("Bit 6 discharge cycle");
+        os << hex(dischargeCycleBit6) << std::endl;
+        os << tab("Bit 7 discharge cycle");
+        os << hex(dischargeCycleBit7) << std::endl;
+    }
 }
             
 u8

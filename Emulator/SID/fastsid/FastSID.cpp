@@ -28,11 +28,16 @@
  *
  */
 
+#include "config.h"
+#include "FastSID.h"
 #include "C64.h"
+#include "IO.h"
+
+#include <cmath>
 
 FastSID::FastSID(C64 &ref, SIDBridge &bridgeref, int n) : C64Component(ref), bridge(bridgeref), nr(n)
 {    
-    subComponents = vector<HardwareComponent *> {
+    subComponents = std::vector<HardwareComponent *> {
         
         &voice[0],
         &voice[1],
@@ -135,9 +140,9 @@ FastSID::initFilter(int sampleRate)
 }
 
 void
-FastSID::_reset()
+FastSID::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS
+    RESET_SNAPSHOT_ITEMS(hard)
 
     init(sampleRate, cpuFrequency);
 }
@@ -154,25 +159,49 @@ FastSID::setClockFrequency(u32 frequency)
 }
 
 void
-FastSID::_dump() const
+FastSID::_dump(dump::Category category, std::ostream& os) const
 {
-    msg("    Chip model: %s\n",
-        (model == MOS_6581) ? "6581" :
-        (model == MOS_8580) ? "8580" : "???");
-    msg(" Sampling rate: %d\n", sampleRate);
-    msg(" CPU frequency: %d\n", cpuFrequency);
-    msg("Emulate filter: %s\n", emulateFilter ? "yes" : "no");
-
+    using namespace util;
+    
     u8 ft = filterType();
-    msg("        Volume: %d\n", sidVolume());
-    msg("   Filter type: %s\n",
-        (ft == FASTSID_LOW_PASS) ? "LOW PASS" :
-        (ft == FASTSID_HIGH_PASS) ? "HIGH PASS" :
-        (ft == FASTSID_BAND_PASS) ? "BAND PASS" : "NONE");
-    msg("Filter cut off: %d\n", filterCutoff());
-    msg("Filter resonance: %d\n", filterResonance());
-    msg("Filter enable bits: %X\n\n", sidreg[0x17] & 0x0F);
+    string fts =
+    ft == FASTSID_LOW_PASS ? "LOW_PASS" :
+    ft == FASTSID_HIGH_PASS ? "HIGH_PASS" :
+    ft == FASTSID_BAND_PASS ? "BAND_PASS" : "???";
+    
+    if (category & dump::State) {
 
+        os << tab("Chip");
+        os << "FastSID " << dec(nr) << std::endl;
+        os << tab("Model");
+        os << SIDRevisionEnum::key(model) << std::endl;
+        os << tab("Sampling rate");
+        os << dec(sampleRate) << std::endl;
+        os << tab("CPU frequency");
+        os << dec(cpuFrequency) << std::endl;
+        os << tab("Emulate filter");
+        os << bol(emulateFilter) << std::endl;
+        os << tab("Volume");
+        os << dec(sidVolume()) << std::endl;
+        os << tab("Filter type");
+        os << fts << std::endl;
+        os << tab("Filter cut off");
+        os << filterCutoff() << std::endl;
+        os << tab("Filter resonance");
+        os << filterResonance() << std::endl;
+        os << tab("Filter enable bits");
+        os << hex((u8)(sidreg[0x17] & 0x0F));
+    }
+    
+    if (category & dump::Registers) {
+   
+        for (isize i = 0; i < 0x1C; i++) {
+            
+            os << tab("Register " + std::to_string(i));
+            os << hex(sidreg[i]) << std::endl;
+        }
+    }
+    
     /*
     for (unsigned i = 0; i < 3; i++) {
         VoiceInfo vinfo = getVoiceInfo(i);
@@ -255,7 +284,7 @@ FastSID::setSampleRate(double rate)
     init(sampleRate, cpuFrequency);
 }
 
-//! Special peek function for the I/O memory range.
+// Special peek function for the I/O memory range.
 u8
 FastSID::peek(u16 addr)
 {
@@ -357,18 +386,18 @@ FastSID::poke(u16 addr, u8 value)
 }
 
 i64
-FastSID::executeCycles(usize numCycles, SampleStream &stream)
+FastSID::executeCycles(isize numCycles, SampleStream &stream)
 {
-    usize buflength = stream.cap();
+    isize buflength = stream.cap();
     
     executedCycles += numCycles;
     
     // Compute the number of sound samples to produce
     double samplesPerCycle = (double)sampleRate / (double)cpuFrequency;
-    usize shouldHave = (usize)(executedCycles * samplesPerCycle);
+    isize shouldHave = (isize)(executedCycles * samplesPerCycle);
     
     // How many sound samples are missing?
-    usize samples = shouldHave - computedSamples;
+    isize samples = shouldHave - computedSamples;
     computedSamples = shouldHave;
     
     // Do some consistency checking
@@ -392,7 +421,7 @@ FastSID::executeCycles(usize numCycles, SampleStream &stream)
 }
 
 i64
-FastSID::executeCycles(usize numCycles)
+FastSID::executeCycles(isize numCycles)
 {
     return executeCycles(numCycles, bridge.sidStream[nr]);
 }
@@ -413,7 +442,7 @@ FastSID::updateInternals()
         } else {
             voice[i].filterDy = lowPassParam[cutoff];
         }
-        voice[i].filterResDy = MAX(filterResTable[res] - voice[i].filterDy, 1.0);
+        voice[i].filterResDy = std::max(filterResTable[res] - voice[i].filterDy, 1.0);
     }
 }
     

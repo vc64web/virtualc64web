@@ -2,15 +2,15 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
+#include "CartridgeTypes.h"
 #include "C64Component.h"
-#include "CartridgePublicTypes.h"
 #include "CartridgeRom.h"
 #include "CRTFile.h"
 
@@ -147,7 +147,7 @@ public:
 protected:
     
     void dealloc();
-    void _reset() override;
+    void _reset(bool hard) override;
     void resetWithoutDeletingRam();
         
     
@@ -165,8 +165,8 @@ public:
     
 protected:
     
-    void _dump() const override;
-        
+    void _dump(dump::Category category, std::ostream& os) const override;
+    
     
     //
     // Serializing
@@ -179,34 +179,34 @@ private:
     {
         worker
         
-        & gameLineInCrtFile
-        & exromLineInCrtFile
-        & numPackets
-        & ramCapacity
-        & battery
-        & control
-        & switchPos;
+        << gameLineInCrtFile
+        << exromLineInCrtFile
+        << numPackets
+        << ramCapacity
+        << battery
+        << control
+        << switchPos;
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
         worker
         
-        & chipL
-        & chipH
-        & mappedBytesL
-        & mappedBytesH
-        & offsetL
-        & offsetH
-        & led;
+        << chipL
+        << chipH
+        << mappedBytesL
+        << mappedBytesH
+        << offsetL
+        << offsetH
+        << led;
     }
     
 protected:
     
-    usize _size() override;
-    usize _load(u8 *buffer) override;
-    usize _save(u8 *buffer) override;
+    isize _size() override;
+    isize _load(const u8 *buffer) override;
+    isize _save(u8 *buffer) override;
         
         
     //
@@ -216,8 +216,8 @@ protected:
 public:
     
     // Returns the initial value of the Game or the Exrom line
-    bool getGameLineInCrtFile() { return gameLineInCrtFile; }
-    bool getExromLineInCrtFile() { return exromLineInCrtFile; }
+    virtual bool getGameLineInCrtFile() const { return gameLineInCrtFile; }
+    virtual bool getExromLineInCrtFile() const { return exromLineInCrtFile; }
         
     
     //
@@ -225,19 +225,19 @@ public:
     //
     
     // Reads in a chip packet from a CRT file
-    virtual void loadChip(unsigned nr, const CRTFile &c);
+    virtual void loadChip(isize nr, const CRTFile &c);
     
     // Banks in a rom chip into the ROML or the ROMH space
-    void bankInROML(unsigned nr, u16 size, u16 offset);
-    void bankInROMH(unsigned nr, u16 size, u16 offset);
+    void bankInROML(isize nr, u16 size, u16 offset);
+    void bankInROMH(isize nr, u16 size, u16 offset);
     
     /* Banks in a rom chip. This function calls bankInROML or bankInROMH with
      * the default parameters for this chip as provided in the CRT file.
      */
-    void bankIn(unsigned nr);
+    virtual void bankIn(isize nr);
     
     //  Banks out a chip (RAM will be visible again)
-    void bankOut(unsigned nr);
+    void bankOut(isize nr);
 
     
     //

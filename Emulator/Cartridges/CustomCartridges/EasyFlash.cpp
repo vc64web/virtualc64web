@@ -2,16 +2,18 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "EasyFlash.h"
 #include "C64.h"
 
 EasyFlash::EasyFlash(C64 &ref) : Cartridge(ref)
 {
-    subComponents = vector <HardwareComponent *> {
+    subComponents = std::vector <HardwareComponent *> {
         
         &flashRomL,
         &flashRomH
@@ -28,10 +30,10 @@ EasyFlash::resetCartConfig()
 }
 
 void
-EasyFlash::_reset()
+EasyFlash::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS
-    Cartridge::_reset();
+    RESET_SNAPSHOT_ITEMS(hard)
+    Cartridge::_reset(hard);
     
     eraseRAM(0);
     
@@ -41,26 +43,24 @@ EasyFlash::_reset()
 }
 
 void
-EasyFlash::_dump() const
+EasyFlash::_dump(dump::Category category, std::ostream& os) const
 {
-    Cartridge::_dump();
-    
-    msg("EasyFlash\n");
-    msg("---------\n\n");
+    using namespace util;
 
-    msg("bank = %d\n", bank);
-    for (unsigned i = 0; i < 256; i++) {
-        msg("%02X ", peekRAM(i));
-        if (i % 16 == 15) msg("\n");
-    }
-    msg("\n");
+    Cartridge::_dump(category, os);
     
-    // flashRomL.dump();
-    // flashRomH.dump();
+    if (category & dump::State) {
+        
+        os << tab("EasyFlash bank");
+        os << dec(bank);
+    }
+
+    flashRomL.dump(category, os);
+    flashRomH.dump(category, os);
 }
 
 void
-EasyFlash::loadChip(unsigned nr, const CRTFile &crt)
+EasyFlash::loadChip(isize nr, const CRTFile &crt)
 {
     u16 chipSize = crt.chipSize(nr);
     u16 chipAddr = crt.chipAddr(nr);
@@ -68,7 +68,7 @@ EasyFlash::loadChip(unsigned nr, const CRTFile &crt)
     u8 *chipData = crt.chipData(nr);
     
     if(chipSize != 0x2000) {
-        warn("Package %d has chip size %04X. Expected 0x2000.\n", nr, chipSize);
+        warn("Package %zd has chip size %04X. Expected 0x2000.\n", nr, chipSize);
         return;
     }
 
@@ -86,7 +86,7 @@ EasyFlash::loadChip(unsigned nr, const CRTFile &crt)
         
     } else {
         
-        warn("Package %d has an invalid load address (%04X).", nr, chipAddr);
+        warn("Package %zd has an invalid load address (%04X).", nr, chipAddr);
         return;
     }
 }
@@ -102,6 +102,25 @@ EasyFlash::peek(u16 addr)
         
     } else if (isROMHaddr(addr)) {
         result = flashRomH.peek(bank, addr & 0x1FFF);
+        return result;
+        
+    } else {
+        assert(false);
+        return 0;
+    }
+}
+
+u8
+EasyFlash::spypeek(u16 addr) const
+{
+    u8 result;
+    
+    if (isROMLaddr(addr)) {
+        result = flashRomL.spypeek(bank, addr & 0x1FFF);
+        return result;
+        
+    } else if (isROMHaddr(addr)) {
+        result = flashRomH.spypeek(bank, addr & 0x1FFF);
         return result;
         
     } else {

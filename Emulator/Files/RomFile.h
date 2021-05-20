@@ -2,7 +2,7 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
@@ -10,6 +10,7 @@
 #pragma once
 
 #include "AnyFile.h"
+#include "C64Types.h"
 
 class RomFile : public AnyFile {
     
@@ -81,5 +82,5 @@ public:
     //
     
     FileType type() const override { return romType; }
-    usize readFromStream(std::istream &stream) override;
+    isize readFromStream(std::istream &stream) override;
 };

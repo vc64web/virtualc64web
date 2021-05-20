@@ -2,18 +2,19 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "VICII.h"
 #include "C64.h"
 
 void
 VICII::setUltimax(bool value) {
     
-    // For details, see:
-    // VICII memory mapping (http://www.harries.dk/files/C64MemoryMaps.pdf)
+    // Details: http://www.harries.dk/files/C64MemoryMaps.pdf
     
     ultimax = value;
     
@@ -61,13 +62,15 @@ void
 VICII::switchBank(u16 addr) {
 
     if (config.glueLogic == GLUE_LOGIC_DISCRETE) {
-         
-         updateBankAddr(); // Switch immediately
-         return;
+        
+        // Models with discrete glue logic switch banks immediately
+        updateBankAddr();
+        return;
      }
  
-    // Switch table for custom IC glue logic and PA / DDRA register changes
-    // The tables have been derived from VICE test case fetchsplit.prg
+    /* Switch table for custom IC glue logic and PA / DDRA register changes
+     * The tables have been derived from VICE test case fetchsplit.prg
+     */
     u8 switchTablePA[4][4] = {
         { 0, 1, 2, 3 }, // From bank 0
         { 0, 1, 3, 3 }, // From bank 1
@@ -291,6 +294,8 @@ VICII::peek(u16 addr)
     }
     
     dataBusPhi2 = result;
+
+    trace(VICREG_DEBUG, "peek(%x) = %x\n", addr, result);
     return result;
 }
 
@@ -444,8 +449,9 @@ VICII::spypeek(u16 addr) const
 void
 VICII::poke(u16 addr, u8 value)
 {
+    trace(VICREG_DEBUG, "poke(%x, %x)\n", addr, value);
     assert(addr < 0x40);
- 
+     
     dataBusPhi2 = value;
     
     switch(addr) {
@@ -485,6 +491,7 @@ VICII::poke(u16 addr, u8 value)
         case 0x11: // Control register 1
             
             reg.current.ctrl1 = value;
+            reg.current.mode = ((value & 0x60) | (reg.current.ctrl2 & 0x10)) >> 4;
             
             // Check the DEN bit. If it gets set somehwere in line 30, a bad
             // line conditions occurs.
@@ -496,11 +503,14 @@ VICII::poke(u16 addr, u8 value)
             }
             upperComparisonVal = upperComparisonValue();
             lowerComparisonVal = lowerComparisonValue();
+            
+            rasterIrqLine = (rasterIrqLine & 0x00FF) | ((value & 0x80) << 1);
             break;
             
         case 0x12: // RASTER_COUNTER
             
-            rasterIrqLine = value;
+            rasterIrqLine = (rasterIrqLine & 0xFF00) | value;
+            checkForRasterIrq();
             return;
             
         case 0x13: // Lightpen X
@@ -516,6 +526,8 @@ VICII::poke(u16 addr, u8 value)
         case 0x16: // CONTROL_REGISTER_2
             
             reg.current.ctrl2 = value;
+            reg.current.mode = ((reg.current.ctrl1 & 0x60) | (value & 0x10)) >> 4;
+            reg.current.xscroll = value & 0x07;
             leftComparisonVal = leftComparisonValue();
             rightComparisonVal = rightComparisonValue();
             break;
@@ -533,15 +545,6 @@ VICII::poke(u16 addr, u8 value)
             
         case 0x18: // Memory address pointers
             
-            // Inform the GUI if the second bit changes. It switches between
-            // upper case or lower case mode.
-            /*
-            if ((value & 0x02) != (memSelect & 0x02)) {
-                memSelect = value;
-                vc64.putMessage(MSG_CHARSET);
-                return;
-            }
-            */
             memSelect = value;
             return;
     
@@ -550,24 +553,12 @@ VICII::poke(u16 addr, u8 value)
             // Bits are cleared by writing '1'
             irr &= (~value) & 0x0F;
             delay |= VICUpdateIrqLine;
-            /*
-            if (!(irr & imr)) {
-                releaseDelayedIRQ();
-            }
-            */
             return;
             
         case 0x1A: // Interrupt Mask Register (IMR)
             
             imr = value & 0x0F;
             delay |= VICUpdateIrqLine;
-            /*
-            if (irr & imr) {
-                triggerDelayedIRQ(1);
-            } else {
-                releaseDelayedIRQ();
-            }
-            */
             return;
             
         case 0x1B: // Sprite priority
@@ -607,10 +598,9 @@ VICII::poke(u16 addr, u8 value)
             
             reg.current.colors[addr - 0x20] = value & 0xF;
             
-            // Emulate the gray dot bug if requested
-            if (config.grayDotBug) {
-                reg.delayed.colors[addr - 0x20] = 0xF;
-            }
+            // Emulate the gray dot bug
+            if (config.grayDotBug) reg.delayed.colors[addr - 0x20] = 0xF;
+
             break;
     }
     

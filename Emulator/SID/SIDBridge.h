@@ -2,7 +2,7 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
@@ -10,11 +10,13 @@
 #pragma once
 
 #include "C64Component.h"
-#include "SIDPublicTypes.h"
+#include "SIDTypes.h"
+#include "Constants.h"
 #include "Volume.h"
 #include "SIDStreams.h"
 #include "FastSID.h"
 #include "ReSID.h"
+#include "Chrono.h"
 
 /* Architecture of the audio pipeline
  *
@@ -43,15 +45,13 @@ class SIDBridge : public C64Component {
     friend C64Memory;
 
     // Current configuration
-    SIDConfig config;
+    SIDConfig config = getDefaultConfig();
     
     
     //
     // Sub components
     //
-        
-private:
-    
+            
     FastSID fastsid[4] = {
         
         FastSID(c64, *this, 0),
@@ -68,6 +68,8 @@ private:
         ReSID(c64, *this, 3)
     };
         
+private:
+    
     // CPU cycle at the last call to executeUntil()
     Cycle cycles = 0;
     
@@ -78,7 +80,7 @@ private:
     double sampleRate = 44100.0;
         
     // Time stamp of the last write pointer alignment
-    u64 lastAlignment = 0;
+    util::Time lastAlignment;
 
     // Master volumes (fadable)
     Volume volL;
@@ -130,7 +132,7 @@ public:
 
 private:
     
-    void _reset() override;
+    void _reset(bool hard) override;
 
     
     //
@@ -139,13 +141,15 @@ private:
     
 public:
     
+    static SIDConfig getDefaultConfig();
     SIDConfig getConfig() const { return config; }
-    
-    long getConfigItem(Option option) const;
-    long getConfigItem(Option option, long id) const;
+    void resetConfig() override;
 
-    bool setConfigItem(Option option, long value) override;
-    bool setConfigItem(Option option, long id, long value) override;
+    i64 getConfigItem(Option option) const;
+    i64 getConfigItem(Option option, long id) const;
+
+    bool setConfigItem(Option option, i64 value) override;
+    bool setConfigItem(Option option, long id, i64 value) override;
 
     bool isEnabled(usize nr) const { return GET_BIT(config.enabled, nr); }
     
@@ -153,27 +157,11 @@ public:
 
     u32 getClockFrequency();
     void setClockFrequency(u32 frequency);
-
-    // DEPRECATED: Use OPT_xxx
-    SIDRevision getRevision() const;
-    void setRevision(SIDRevision revision);
     
     double getSampleRate() const;
     void setSampleRate(double rate);
     
-    // DEPRECATED: Use OPT_xxx
-    bool getAudioFilter() const;
-    void setAudioFilter(bool enable);
 
-    // DEPRECATED: Use OPT_xxx
-    SamplingMethod getSamplingMethod() const;
-    void setSamplingMethod(SamplingMethod method);
-
-private:
-    
-    void _dumpConfig() const override;
-    
-    
     //
     // Analyzing
     //
@@ -182,12 +170,14 @@ public:
     
     SIDInfo getInfo(unsigned nr);
     VoiceInfo getVoiceInfo(unsigned nr, unsigned voice);
-    
+    HardwareComponent &getSID(isize nr);
+
 private:
     
-    void _dump() const override;
-    void _dump(int nr) const;
-    void _dump(SIDInfo &info, VoiceInfo (&vinfo)[3]) const;
+    void _dump(dump::Category category, std::ostream& os) const override;
+    void _dump(dump::Category category, std::ostream& os, isize nr) const;
+
+    // void _dump(SIDInfo &info, VoiceInfo (&vinfo)[3]) const;
 
     
     //
@@ -201,37 +191,39 @@ private:
     {
         worker
         
-        & config.revision
-        & config.enabled
-        & config.address
-        & config.filter
-        & config.engine
-        & config.sampling
-        & config.volL
-        & config.volR
-        & config.vol
-        & config.pan
-        & cycles
-        & cpuFrequency
-        & lastAlignment
-        & volL
-        & volR
-        & vol
-        & pan;
+        << config.revision
+        << config.enabled
+        << config.address
+        << config.filter
+        << config.engine
+        << config.sampling
+        << config.volL
+        << config.volR
+        << config.vol
+        << config.pan
+        << cycles
+        << cpuFrequency
+        >> volL
+        >> volR
+        << vol
+        << pan;
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
-        worker
-        
-        & cycles;
+        if (hard) {
+            
+            worker
+            
+            << cycles;
+        }
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    usize didLoadFromBuffer(u8 *buffer) override;
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize didLoadFromBuffer(const u8 *buffer) override;
     
  
 private:
@@ -285,41 +277,41 @@ public:
     // Reads a audio sample pair without moving the read pointer
     void ringbufferData(usize offset, float *left, float *right);
             
-    /* Handles a buffer underflow condition.
-     * A buffer underflow occurs when the computer's audio device needs sound
-     * samples than SID hasn't produced, yet.
+    /* Handles a buffer underflow condition. A buffer underflow occurs when the
+     * audio device of the host machine needs sound samples than SID hasn't
+     * produced, yet.
      */
     void handleBufferUnderflow();
     
-    /* Handles a buffer overflow condition.
-     * A buffer overflow occurs when SID is producing more samples than the
-     * computer's audio device is able to consume.
+    /* Handles a buffer overflow condition. A buffer overflow occurs when SID
+     * is producing more samples than the audio device of the host machine is
+     * able to consume.
      */
     void handleBufferOverflow();
     
     // Signals to ignore the next underflow or overflow condition.
     void ignoreNextUnderOrOverflow();
     
-    /* Aligns the write pointer.
-     * This function puts the write pointer somewhat ahead of the read pointer.
-     * With a standard sample rate of 44100 Hz, 735 samples is 1/60 sec.
+    /* Aligns the write pointer. This function puts the write pointer somewhat
+     * ahead of the read pointer. With a standard sample rate of 44100 Hz, 735
+     * samples is 1/60 sec.
      */
     const u32 samplesAhead = 8 * 735;
     void alignWritePtr() { stream.clear(SamplePair {0,0} ); stream.align(samplesAhead); }
     
-    /* Executes SID until a certain cycle is reached.
-     * // The function returns the number of produced sound samples (not yet).
+    /* Executes SID until a certain cycle is reached. The function returns the
+     * number of produced sound samples (not yet).
      */
     void executeUntil(Cycle targetCycle);
 
     // Executes SID for a certain number of CPU cycles
-	usize executeCycles(usize numCycles);
+	usize executeCycles(isize numCycles);
 
 private:
     
     // Called by executeCycles to produce the final stereo stream
-    void mixSingleSID(usize numSamples);
-    void mixMultiSID(usize numSamples);
+    void mixSingleSID(isize numSamples);
+    void mixMultiSID(isize numSamples);
 
     
     //
@@ -328,12 +320,11 @@ private:
     
 public:
     
-    void copyMono(float *buffer, usize n);
-    void copyStereo(float *left, float *right, usize n);
-    void copyInterleaved(float *buffer, usize n);
+    void copyMono(float *buffer, isize n);
+    void copyStereo(float *left, float *right, isize n);
+    void copyInterleaved(float *buffer, isize n);
 
     
-     
 	//
 	// Accessig memory
 	//

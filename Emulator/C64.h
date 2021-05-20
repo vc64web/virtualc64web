@@ -2,7 +2,7 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
@@ -13,9 +13,6 @@
 #include "C64Component.h"
 #include "Serialization.h"
 #include "MsgQueue.h"
-
-// Configuration items
-#include "C64Config.h"
 
 // Data types and constants
 #include "C64Types.h"
@@ -47,6 +44,8 @@
 #include "CIA.h"
 #include "CPU.h"
 #include "Oscillator.h"
+#include "RegressionTester.h"
+#include "RetroShell.h"
 
 // Cartridges
 #include "Cartridge.h"
@@ -91,12 +90,14 @@ public:
     // Keyboard
     Keyboard keyboard = Keyboard(*this);
     
-    // Ports
+    // Control ports
     ControlPort port1 = ControlPort(*this, PORT_ONE);
     ControlPort port2 = ControlPort(*this, PORT_TWO);
+    
+    // Expansion port (cartridge port)
     ExpansionPort expansionport = ExpansionPort(*this);
     
-    // Bus connecting the VC1541 floppy drives
+    // IEC bus (connects the VC1541 floppy drives)
     IEC iec = IEC(*this);
     
     // Floppy drives
@@ -105,12 +106,16 @@ public:
     
     // Datasette
     Datasette datasette = Datasette(*this);
-        
-    /* Communication channel to the GUI. The GUI registers a listener and a
-     * callback function to retrieve messages.
-     */
-    MsgQueue messageQueue;
+    
+    // Command console
+ //   RetroShell retroShell = RetroShell(*this);
+    
+    // Communication channel to the GUI
+    MsgQueue msgQueue = MsgQueue(*this);
 
+    // Regression test manager
+    RegressionTester regressionTester;
+    
     
     //
     // Frame, rasterline, and rasterline cycle information
@@ -149,6 +154,9 @@ public:
     
 private:
     
+    // The current emulator state
+    EmulatorState state = EMULATOR_STATE_OFF;
+    
     /* Run loop control. This variable is checked at the end of each runloop
      * iteration. Most of the time, the variable is 0 which causes the runloop
      * to repeat. A value greater than 0 means that one or more runloop control
@@ -156,37 +164,37 @@ private:
      * repeats or terminates depending on the provided flags.
      */
     u32 runLoopCtrl = 0;
-    
-    /* Stop request. This variable is used to signal a stop request coming from
-     * the GUI. The variable is checked after each frame.
-     */
-    bool stopFlag = false; 
-    
+        
     // The invocation counter for implementing suspend() / resume()
-    unsigned suspendCounter = 0;
+    isize suspendCounter = 0;
     
     // The emulator thread
     pthread_t p = (pthread_t)0;
     
-    // Mutex to coordinate the order of execution
-    pthread_mutex_t threadLock;
-    
-    /* Mutex to synchronize the access to all state changing methods such as
-     * run(), pause(), etc.
-     */
-    pthread_mutex_t stateChangeLock;
-    
-    
+
     //
     // Operation modes
     //
+    
+    /* Indicates if the emulator should be executed in warp mode. To speed up
+     * emulation (e.g., during disk accesses), the virtual hardware may be put
+     * into warp mode. In this mode, the emulation thread is no longer paused
+     * to match the target frequency and runs as fast as possible.
+     */
+    bool warp = false;
+    
+    /* Indicates if the current warp mode is locked. By default, this variable
+     * false. It is set to true by the regression tester to prevent the GUI
+     * from disabling warp mode during an ongoing regression test.
+     */
+    bool warpLock = false;
     
     /* Indicates whether C64 is running in ultimax mode. Ultimax mode can be
      * enabled by external cartridges by pulling game line low and keeping
      * exrom line high. In ultimax mode, most of the C64's RAM and ROM is
      * invisible.
      */
-    bool ultimax;
+    bool ultimax = false;
     
     
     //
@@ -209,11 +217,16 @@ public:
     const char *getDescription() const override { return "C64"; }
     void prefix() const override;
 
-    void reset();
+    // Prepares the emulator for regression testing
+    void initialize(C64Model model);
+
+    void reset(bool hard);
+    void hardReset() { reset(true); }
+    void softReset() { reset(false); }
 
 private:
     
-    void _reset() override;
+    void _reset(bool hard) override;
 
     
     //
@@ -222,29 +235,21 @@ private:
 
 public:
     
-    // Returns the currently set configuration
-    C64Configuration getConfig() const;
+    i64 getConfigItem(Option option) const;
+    i64 getConfigItem(Option option, long id) const;
     
-    // Gets a single configuration item
-    long getConfigItem(Option option) const;
-    long getConfigItem(Option option, long id) const;
-    
-    // Sets a single configuration item
-    bool configure(Option option, long value);
-    bool configure(Option option, long id, long value);
+    bool configure(Option option, i64 value) throws;
+    bool configure(Option option, long id, i64 value) throws;
 
     // Configures the C64 to match a specific C64 model
     void configure(C64Model model);
-
-    // Returns the C64 model matching the current configuration
-    C64Model getModel() const;
         
     // Updates the VICII function table according to the selected model
     void updateVicFunctionTable();
 
 private:
 
-    bool setConfigItem(Option option, long value) override;
+    bool setConfigItem(Option option, i64 value) override;
 
     
     //
@@ -260,8 +265,7 @@ public:
     
 private:
     
-    void _dump() const override;
-
+    void _dump(dump::Category category, std::ostream& os) const override;
     
     
     //
@@ -275,25 +279,27 @@ private:
     {
         worker
         
-        & frequency
-        & durationOfOneCycle;
+        << frequency
+        << durationOfOneCycle;
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
-        worker
-        
-        & frame
-        & rasterLine
-        & rasterCycle
-        & warpMode
-        & ultimax;
+        if (hard) {
+            
+            worker
+            
+            << frame
+            << rasterLine
+            << rasterCycle
+            << ultimax;
+        }
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
@@ -302,13 +308,21 @@ private:
     
 public:
 
+    bool isPoweredOff() const override { return state == EMULATOR_STATE_OFF; }
+    bool isPoweredOn() const override { return state != EMULATOR_STATE_OFF; }
+    bool isPaused() const override { return state == EMULATOR_STATE_PAUSED; }
+    bool isRunning() const override { return state == EMULATOR_STATE_RUNNING; }
+
     void powerOn();
     void powerOff();
     void run();
     void pause();
+    void shutdown();
     
     void setWarp(bool enable);
-    bool inWarpMode() const { return warpMode; }
+    bool inWarpMode() const { return warp; }
+    void lockWarpMode() { warpLock = true; }
+    void unlockWarpMode() { warpLock = false; }
 
     void setDebug(bool enable);
     bool inDebugMode() const { return debugMode; }
@@ -329,13 +343,9 @@ private:
 
 public:
     
-    /* Requests the emulator thread to stop and locks the threadLock.
-     * The function is called in all state changing methods to obtain ownership
-     * of the emulator thread. After returning, the emulator is either powered
-     * off (if it was powered off before) or paused (if it was running before).
-     */
-    void acquireThreadLock();
-    
+    // Returns true if the currently executed thread is the emulator thread
+    bool isEmulatorThread() { return pthread_self() == p; }
+
     /* Returns true if a call to powerOn() will be successful.
      * It returns false, e.g., if no Rom is installed.
      */
@@ -347,25 +357,9 @@ public:
     //
     
 public:
-    
-    // Registers a listener callback function
-    void addListener(const void *sender, void(*func)(const void *, long, long) ) {
-        messageQueue.addListener(sender, func);
-    }
-    
-    // Removes a listener callback function
-    void removeListener(const void *sender) {
-        messageQueue.removeListener(sender);
-    }
-    
-    // Gets a notification message from message queue
-    Message getMessage() { return messageQueue.get(); }
-    
+        
     // Feeds a notification message into message queue
-    void putMessage(MsgType msg, u64 data = 0) { messageQueue.put(msg, data); }
-    
-    
- 
+    void putMessage(MsgType msg, u64 data = 0) { msgQueue.put(msg, data); }
     
     /* The thread enter function. This (private) method is invoked when the
      * emulator thread launches. It has to be declared public to make it
@@ -428,6 +422,9 @@ public:
      */
     void finishInstruction();
     
+    // Finishes the current frame
+    void finishFrame();
+    
 private:
     
     // Invoked before executing the first cycle of a rasterline
@@ -445,12 +442,6 @@ private:
     //
     
 public:
-    
-    /* Requests the emulator to stop at the end of the current frame. This
-     * function sets a flag which is evaluated at the end of each frame. It it
-     * is set, the run loop is signalled to stop via signalStop().
-     */
-    void requestStop() { stopFlag = true; }
     
     /* Pauses the emulation thread temporarily. Because the emulator is running
      * in a separate thread, the GUI has to pause the emulator before changing
@@ -478,7 +469,7 @@ public:
     void signalBreakpoint() { setActionFlags(ACTION_FLAG_BREAKPOINT); }
     void signalWatchpoint() { setActionFlags(ACTION_FLAG_WATCHPOINT); }
     void signalInspect() { setActionFlags(ACTION_FLAG_INSPECT); }
-    void signalJammed() { setActionFlags(ACTION_FLAG_CPU_JAMMED); }
+    void signalJammed() { setActionFlags(ACTION_FLAG_CPU_JAM); }
     void signalStop() { setActionFlags(ACTION_FLAG_STOP); }
     void signalExpPortNmi() { setActionFlags(ACTION_FLAG_EXTERNAL_NMI); }
 
@@ -542,14 +533,16 @@ private:
 public:
     
     // Installs a Rom
-    void installRom(RomFile *file);
+    void loadRom(const string &path) throws;
+    void loadRom(const string &path, ErrorCode *ec);
+    void loadRom(RomFile *file);
     
     // Erases an installed Rom
     void deleteRom(RomType type);
     
     // Saves a Rom to disk
-    void saveRom(RomType rom, const char *path) throws;
-    void saveRom(RomType rom, const char *path, ErrorCode *ec);
+    void saveRom(RomType rom, const string &path) throws;
+    void saveRom(RomType rom, const string &path, ErrorCode *ec);
 
     
     //
@@ -558,8 +551,8 @@ public:
     
     // Flashes a single file into memory
     bool flash(AnyFile *file);
-    bool flash(AnyCollection *file, unsigned item);
-    bool flash(const FSDevice &fs, usize item);
+    bool flash(AnyCollection *file, isize item);
+    bool flash(const FSDevice &fs, isize item);
     
     //
     // Set and query ultimax mode

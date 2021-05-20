@@ -2,17 +2,20 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "CPU.h"
 #include "C64.h"
+#include "IO.h"
 
 template <typename M>
 CPU<M>::CPU(C64& ref, M& memref) : C64Component(ref), mem(memref)
 {
-    subComponents = vector<HardwareComponent *> {
+    subComponents = std::vector<HardwareComponent *> {
         
         &pport,
         &debugger
@@ -32,17 +35,17 @@ template<> bool CPU<C64Memory>::isDriveCPU() const { return false; }
 template<> bool CPU<DriveMemory>::isDriveCPU() const { return true; }
 
 template <typename M> void
-CPU<M>::_reset()
+CPU<M>::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS
+    RESET_SNAPSHOT_ITEMS(hard)
     
     setB(1);
+    setI(1);
 	rdyLine = true;
 	next = fetch;
     
-    // This should not be necessary. Delete it.
-    levelDetector.clear();
-    edgeDetector.clear();
+    assert(levelDetector.isClear());
+    assert(edgeDetector.isClear());
 }
 
 template <typename M> void
@@ -71,23 +74,51 @@ CPU<M>::_setDebug(bool enable)
 }
 
 template <typename M> void
-CPU<M>::_dump() const
+CPU<M>::_dump(dump::Category category, std::ostream& os) const
 {
-	msg("CPU:\n");
-	msg("----\n\n");
+    using namespace util;
 
-	msg("      Rdy line : %s\n", rdyLine ? "high" : "low");
-    msg("      Nmi line : %02X\n", nmiLine);
-    msg(" Edge detector : %02X\n", edgeDetector.current());
-    msg("         doNmi : %s\n", doNmi ? "yes" : "no");
-    msg("      Irq line : %02X\n", irqLine);
-    msg("Level detector : %02X\n", levelDetector.current());
-    msg("         doIrq : %s\n", doIrq ? "yes" : "no");
-    msg("   IRQ routine : %02X%02X\n", mem.spypeek(0xFFFF), mem.spypeek(0xFFFE));
-    msg("   NMI routine : %02X%02X\n", mem.spypeek(0xFFFB), mem.spypeek(0xFFFA));
-	msg("\n");
+    if (category & dump::Registers) {
+
+        os << tab("PC") << hex(reg.pc) << std::endl;
+        os << tab("SP") << hex(reg.sp) << std::endl;
+        os << tab("A") << hex(reg.a) << std::endl;
+        os << tab("X") << hex(reg.x) << std::endl;
+        os << tab("Y") << hex(reg.y) << std::endl;
+        os << tab("Flags");
+        os << (reg.sr.n ? "N" : "n");
+        os << (reg.sr.v ? "V" : "v");
+        os << (reg.sr.b ? "B" : "b");
+        os << (reg.sr.d ? "D" : "d");
+        os << (reg.sr.i ? "I" : "i");
+        os << (reg.sr.z ? "Z" : "z");
+        os << (reg.sr.c ? "C" : "c");
+        os << std::endl;
+    }
     
-    // pport.dump();
+    if (category & dump::State) {
+    
+        os << tab("Cycle");
+        os << dec(cycle) << std::endl;
+        os << tab("Rdy line");
+        os << bol(rdyLine, "high", "low") << std::endl;
+        os << tab("Nmi line");
+        os << hex(nmiLine) << std::endl;
+        os << tab("Edge detector");
+        os << hex(edgeDetector.current()) << std::endl;
+        os << tab("doNmi");
+        os << bol(doNmi) << std::endl;
+        os << tab("Irq line");
+        os << hex(irqLine) << std::endl;
+        os << tab("Edge detector");
+        os << hex(levelDetector.current()) << std::endl;
+        os << tab("doIrq");
+        os << bol(doIrq) << std::endl;
+        os << tab("IRQ routine");
+        os << hex(HI_W_LO_W(mem.spypeek(0xFFFF), mem.spypeek(0xFFFE))) << std::endl;
+        os << tab("NMI routine");
+        os << hex(HI_W_LO_W(mem.spypeek(0xFFFB), mem.spypeek(0xFFFA))) << std::endl;
+    }
 }
 
 template <typename M> u8
@@ -189,9 +220,9 @@ CPU<M>::setRDY(bool value)
 
 template         CPU<C64Memory>::CPU(C64& ref, C64Memory& memref);
 template CPUInfo CPU<C64Memory>::getInfo();
-template void    CPU<C64Memory>::_dump() const;
+template void    CPU<C64Memory>::_dump(dump::Category category, std::ostream& os) const;
 template void    CPU<C64Memory>::_setDebug(bool enable);
-template void    CPU<C64Memory>::_reset();
+template void    CPU<C64Memory>::_reset(bool hard);
 template void    CPU<C64Memory>::_inspect();
 template u8      CPU<C64Memory>::getP() const;
 template u8      CPU<C64Memory>::getPWithClearedB() const;
@@ -205,9 +236,9 @@ template void    CPU<C64Memory>::setRDY(bool value);
 
 template         CPU<DriveMemory>::CPU(C64& ref, DriveMemory& memref);
 template CPUInfo CPU<DriveMemory>::getInfo();
-template void    CPU<DriveMemory>::_dump() const;
+template void    CPU<DriveMemory>::_dump(dump::Category category, std::ostream& os) const;
 template void    CPU<DriveMemory>::_setDebug(bool enable);
-template void    CPU<DriveMemory>::_reset();
+template void    CPU<DriveMemory>::_reset(bool hard);
 template void    CPU<DriveMemory>::_inspect();
 template u8      CPU<DriveMemory>::getP() const;
 template u8      CPU<DriveMemory>::getPWithClearedB() const;

@@ -2,19 +2,20 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
-#include "C64Memory.h"
+#include "MemoryTypes.h"
+#include "C64Component.h"
 
 class C64Memory : public C64Component {
 
     // Current configuration
-    MemConfig config;
+    MemConfig config = getDefaultConfig();
     
     // Result of the latest inspection
     MemInfo info;
@@ -69,7 +70,7 @@ public:
 
 private:
     
-    void _reset() override;
+    void _reset(bool hard) override;
 
     
     //
@@ -78,10 +79,12 @@ private:
     
 public:
     
+    static MemConfig getDefaultConfig();
     MemConfig getConfig() const { return config; }
-    
-    long getConfigItem(Option option) const;
-    bool setConfigItem(Option option, long value) override;
+    void resetConfig() override;
+
+    i64 getConfigItem(Option option) const;
+    bool setConfigItem(Option option, i64 value) override;
     
     
     //
@@ -95,8 +98,8 @@ public:
 private:
     
     void _inspect() override;
-    void _dump() const override;
-
+    void _dump(dump::Category category, std::ostream& os) const override;
+    
     
     //
     // Serializing
@@ -109,25 +112,25 @@ private:
     {
         worker
         
-        & ram
-        & colorRam
-        & rom
-        & peekSrc
-        & pokeTarget;
+        << ram
+        << colorRam
+        << rom
+        << peekSrc
+        << pokeTarget;
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
-    //Accessing
+    // Accessing
     //
 
 public:

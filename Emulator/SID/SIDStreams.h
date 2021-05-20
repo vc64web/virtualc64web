@@ -2,24 +2,24 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
-#include "Buffers.h"
 #include "Concurrency.h"
+#include "RingBuffer.h"
 
-typedef RingBuffer<short, 2048> SampleStream;
+typedef util::RingBuffer<short, 2048> SampleStream;
 
 typedef struct { float left; float right; } SamplePair;
 
-class StereoStream : public RingBuffer < SamplePair, 12288 > {
+class StereoStream : public util::RingBuffer < SamplePair, 12288 > {
     
     // Mutex for synchronizing read / write accesses
-    Mutex mutex;
+    util::Mutex mutex;
 
     
     //
@@ -50,7 +50,7 @@ public:
      * final step in the audio pipeline. They are used to copy the generated
      * sound samples into the buffers of the native sound device.
      */
-    void copyMono(float *buffer, usize n, Volume &volL, Volume &volR);
-    void copyStereo(float *left, float *right, usize n, Volume &volL, Volume &volR);
-    void copyInterleaved(float *buffer, usize n, Volume &volL, Volume &volR);
+    void copyMono(float *buffer, isize n, Volume &volL, Volume &volR);
+    void copyStereo(float *left, float *right, isize n, Volume &volL, Volume &volR);
+    void copyInterleaved(float *buffer, isize n, Volume &volL, Volume &volR);
 };

@@ -2,24 +2,27 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
 #include "C64.h"
+#include "IO.h"
+#include "MemUtils.h"
 
 bool
 D64File::isCompatibleName(const std::string &name)
 {
-    auto s = suffix(name);
+    auto s = util::extractSuffix(name);
     return s == "d64" || s == "D64";
 }
 
 bool
 D64File::isCompatibleStream(std::istream &stream)
 {
-    usize len = streamLength(stream);
+    usize len = util::streamLength(stream);
     
     return
     len == D64_683_SECTORS ||
@@ -63,6 +66,7 @@ D64File::makeWithFileSystem(FSDevice &volume)
 
         default:
             assert(false);
+            return nullptr;
     }
 
     ErrorCode err;
@@ -81,7 +85,7 @@ D64File::getName() const
     return PETName<16>(data + offset(18, 0) + 0x90);
 }
 
-usize
+isize
 D64File::readFromStream(std::istream &stream)
 {
     usize result = AnyFile::readFromStream(stream);
@@ -135,6 +139,9 @@ D64File::readFromStream(std::istream &stream)
             break;
             
         default:
+            
+            numSectors = 0;
+            errorCodes = false;
             assert(false);
     }
         
@@ -190,5 +197,5 @@ D64File::offset(Track track, Sector sector) const
 void
 D64File::dump(Track track, Sector sector) const
 {
-    hexdump(data + offset(track, sector), 256);
+    util::hexdump(data + offset(track, sector), 256);
 }

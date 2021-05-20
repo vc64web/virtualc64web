@@ -2,158 +2,278 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "Datasette.h"
 #include "C64.h"
+
+util::Time
+Pulse::delay() const
+{
+    return util::Time((i64)cycles * 1000000000 / PAL_CLOCK_FREQUENCY);
+}
 
 Datasette::~Datasette()
 {
-    if (data) delete[] data;
+    dealloc();
 }
 
 void
-Datasette::_reset()
+Datasette::alloc(isize capacity)
 {
-    RESET_SNAPSHOT_ITEMS
+    dealloc();
     
-    rewind();
+    if (capacity) {
+        pulses = new (std::nothrow) Pulse[capacity];
+        size = capacity;
+    }
 }
 
 void
-Datasette::setHeadInCycles(u64 value)
+Datasette::dealloc()
 {
-    printf("Fast forwarding to cycle %lld (duration %lld)\n", value, durationInCycles);
-
-    rewind();
-    while (headInCycles <= value && head < size) advanceHead(true);
-
-    printf("Head is %llu (max %llu)\n", head, size);
+    if (pulses) {
+        delete[] pulses;
+        pulses = nullptr;
+        size = 0;
+    }
 }
 
-bool
-Datasette::insertTape(TAPFile *a)
+void
+Datasette::_reset(bool hard)
+{
+    RESET_SNAPSHOT_ITEMS(hard)
+}
+
+void
+Datasette::_dump(dump::Category category, std::ostream& os) const
+{
+    using namespace util;
+
+    if (category & dump::State) {
+        
+        os << tab("TAP type");
+        os << dec(type) << std::endl;
+        os << tab("Pulse count");
+        os << dec(size) << std::endl;
+
+        os << std::endl;
+
+        os << tab("Head position");
+        os << dec(head) << std::endl;
+        os << tab("Play key");
+        os << bol(playKey, "pressed", "released") << std::endl;
+        os << tab("Motor");
+        os << bol(motor, "on", "off") << std::endl;
+        os << tab("nextRisingEdge");
+        os << dec(nextRisingEdge) << std::endl;
+        os << tab("nextFallingEdge");
+        os << dec(nextFallingEdge) << std::endl;
+    }
+}
+
+isize
+Datasette::_size()
+{
+    util::SerCounter counter;
+    
+    applyToPersistentItems(counter);
+    applyToResetItems(counter);
+    
+    counter << size;
+    for (isize i = 0; i < size; i++) counter << pulses[i].cycles;
+
+    return counter.count;
+}
+
+isize
+Datasette::didLoadFromBuffer(const u8 *buffer)
+{
+    util::SerReader reader(buffer);
+
+    // Free previously allocated memory
+    dealloc();
+
+    // Load size
+    reader << size;
+
+    // Make sure a corrupted value won't steal all memory
+    if (size > 0x8FFFF) { size = 0; }
+
+    // Create a new pulse buffer
+    alloc(size);
+
+    // Load pulses from buffer
+    for (isize i = 0; i < size; i++) reader << pulses[i].cycles;
+
+    return (isize)(reader.ptr - buffer);
+}
+
+isize
+Datasette::didSaveToBuffer(u8 *buffer)
+{
+    util::SerWriter writer(buffer);
+
+    // Save size
+    writer << size;
+    
+    // Save pulses to buffer
+    for (isize i = 0; i < size; i++) writer << pulses[i].cycles;
+        
+    return (isize)(writer.ptr - buffer);
+}
+
+util::Time
+Datasette::tapeDuration(isize pos)
+{
+    util::Time result;
+    
+    for (isize i = 0; i < pos && i < size; i++) {
+        result += pulses[i].delay();
+    }
+    
+    return result;
+}
+
+void
+Datasette::insertTape(TAPFile *file)
 {
     suspend();
-    
-    size = a->getDataSize();
-    type = a->version();
-    
-    trace(TAP_DEBUG, "Inserting tape (size = %llu, type = %d)...\n", size, type);
-    
-    // Copy data
-    data = (u8 *)malloc(size);
-    memcpy(data, a->getData(), size);
 
-    // Determine tape length (by fast forwarding)
-    rewind();
-    while (head < size) advanceHead(true /* Don't send progress messages */);
+    debug(TAP_DEBUG, "Inserting tape...\n");
 
-    durationInCycles = headInCycles;
+    // Allocate pulse buffer
+    isize numPulses = file->numPulses();
+    alloc(numPulses);
+    debug(true, "Tape contains %zd pulsed\n", numPulses);
+    
+    // Read pulses
+    file->seek(0);
+    for (isize i = 0; i < numPulses; i++) {
+
+        pulses[i].cycles = (i32)file->read();
+        assert(pulses[i].cycles != -1);
+    }
+
+    // Rewind the tape
     rewind();
     
-    c64.putMessage(MSG_VC1530_TAPE);
+    // Inform the GUI
+    c64.putMessage(MSG_VC1530_TAPE, 1);
+    
     resume();
-    
-    return true;
 }
 
 void
 Datasette::ejectTape()
 {
+    // Only proceed if a tape is present
+    if (!hasTape()) return;
+
     suspend();
     
-    trace(TAP_DEBUG, "Ejecting tape\n");
-
-    if (!hasTape())
-        return;
+    debug(TAP_DEBUG, "Ejecting tape\n");
     
     pressStop();
+    rewind();
+    dealloc();
     
-    assert(data);
-    free(data);
-    data = nullptr;
-    size = 0;
-    type = 0;
-    durationInCycles = 0;
-    head = -1;
-
-    c64.putMessage(MSG_VC1530_NO_TAPE);
+    c64.putMessage(MSG_VC1530_TAPE, 0);
     resume();
 }
 
 void
-Datasette::advanceHead(bool silent)
+Datasette::rewind(isize seconds)
 {
-    assert(head < size);
-    
-    // Update head and headInCycles
-    int length, skip;
-    length = pulseLength(&skip);
-    head += skip;
-    headInCycles += length;
-    
-    // Send message if the tapeCounter (in seconds) changes
-    u32 newHeadInSeconds = (u32)(headInCycles / c64.frequency);
-    if (newHeadInSeconds != headInSeconds && !silent)
-        c64.putMessage(MSG_VC1530_PROGRESS);
-    
-    // Update headInSeconds
-    headInSeconds = newHeadInSeconds;
-}
+    i64 old = (i64)counter.asSeconds();
 
-int
-Datasette::pulseLength(int *skip) const
-{
-    assert(head < size);
-
-    if (data[head] != 0) {
-        // Pulse lengths between 1 * 8 and 255 * 8
-        if (skip) *skip = 1;
-        return 8 * data[head];
+    // Start at the beginning
+    counter = util::Time(0);
+    head = 0;
+    
+    // Fast forward to the requested position
+    while (counter.asMilliseconds() < 1000 * seconds && head + 1 < size) {
+        advanceHead();
     }
     
-    if (type == 0) {
-        // Pulse lengths greater than 8 * 255 (TAP V0 files)
-        if (skip) *skip = 1;
-        return 8 * 256;
-    } else {
-        // Pulse lengths greater than 8 * 255 (TAP V1 files)
-        if (skip) *skip = 4;
-        if (head + 3 < size) {
-            return  LO_LO_HI_HI(data[head+1], data[head+2], data[head+3], 0);
-        } else {
-            warn("TAP file ended unexpectedly (%llu, %llu)\n", size, head + 3);
-            assert(false);
-            return 8 * 256;
-        }
+    // Inform the GUI
+    if (old != (i64)counter.asSeconds()) {
+        messageQueue.put(MSG_VC1530_COUNTER, (i64)counter.asSeconds());
+    }
+}
+
+void
+Datasette::advanceHead()
+{
+    assert(head < size);
+    
+    i64 old = (i64)counter.asSeconds();
+        
+    counter += pulses[head].delay();
+    head++;
+    
+    // Inform the GUI
+    if (old != (i64)counter.asSeconds()) {
+        messageQueue.put(MSG_VC1530_COUNTER, (i64)counter.asSeconds());
     }
 }
 
 void
 Datasette::pressPlay()
 {
-    if (!hasTape())
-        return;
+    debug(TAP_DEBUG, "pressPlay\n");
+
+    // Only proceed if a tape is present
+    if (!hasTape()) return;
     
-    trace(TAP_DEBUG, "pressPlay\n");
     playKey = true;
 
-    // Schedule first pulse
-    usize length = pulseLength();
-    nextRisingEdge = length / 2;
-    nextFallingEdge = length;
+    // Schedule the first pulse
+    schedulePulse(head);
     advanceHead();
+    
+    messageQueue.put(MSG_VC1530_PLAY, 1);
 }
 
 void
 Datasette::pressStop()
 {
-    trace(TAP_DEBUG, "pressStop\n");
-    motor = false;
+    debug(TAP_DEBUG, "pressStop\n");
+    
     playKey = false;
+    motor = false;
+
+    messageQueue.put(MSG_VC1530_PLAY, 0);
+}
+
+void
+Datasette::setMotor(bool value)
+{
+    if (motor != value) {
+
+        motor = value;
+        
+        /* When the motor is switched on or off, a MSG_VC1530_MOTOR message is
+         * sent to the GUI. However, if we sent the message immediately, we
+         * would risk to flood the message queue, because some C64 switch the
+         * motor state insanely often. To cope with this situation, we set a
+         * counter and let the vsync handler send the message once the counter
+         * has timed out.
+         */
+        msgMotorDelay = 10;
+    }
+}
+
+void
+Datasette::vsyncHandler()
+{
+    if (--msgMotorDelay == 0) {
+        messageQueue.put(MSG_VC1530_MOTOR, motor);
+    }
 }
 
 void
@@ -174,9 +294,7 @@ Datasette::_execute()
         if (head < size) {
 
             // Schedule the next pulse
-            usize length = pulseLength();
-            nextRisingEdge = length / 2;
-            nextFallingEdge = length;
+            schedulePulse(head);
             advanceHead();
             
         } else {
@@ -185,4 +303,14 @@ Datasette::_execute()
             pressStop();
         }
     }
+}
+
+void
+Datasette::schedulePulse(isize nr)
+{
+    assert(nr < size);
+    
+    // The VC1530 uses square waves with a 50% duty cycle
+    nextRisingEdge = pulses[nr].cycles / 2;
+    nextFallingEdge = pulses[nr].cycles;
 }

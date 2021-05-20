@@ -2,33 +2,14 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "VICII.h"
 #include "C64.h"
-
-void
-VICII::draw()
-{
-    drawCanvas();
-    drawBorder();
-}
-
-void
-VICII::draw17()
-{
-    drawCanvas();
-    drawBorder17();
-}
-
-void
-VICII::draw55()
-{
-    drawCanvas();
-    drawBorder55();
-}
 
 void
 VICII::drawBorder()
@@ -78,38 +59,158 @@ VICII::drawBorder55()
 void
 VICII::drawCanvas()
 {
-    u8 d011, d016, newD016, mode, oldMode, xscroll;
-    
-    /* "The sequencer outputs the graphics data in every raster line in the area
-     *  of the display column as long as the vertical border flip-flop is reset
-     *  (see section 3.9.)." [C.B.]
-     */
-    
-    if (flipflops.delayed.vertical) {
-        
-        /* "Outside of the display column and if the flip-flop is set, the last
-         *  current background color is displayed (this area is normally covered
-         *  by the border)." [C.B.]
-         */
-        SET_BACKGROUND_PIXEL(0, col[0]);
-        for (unsigned pixel = 1; pixel < 8; pixel++) {
-            SET_BACKGROUND_PIXEL(pixel, col[0]);
-        }
-        return;
+    if ((delay & VICUpdateRegisters) || VIC_SAFE_MODE == 1) {
+        drawCanvasSlowPath();
+    } else {
+        drawCanvasFastPath();
     }
+}
+
+void
+VICII::drawCanvasFastPath()
+{
+    if (VIC_STATS) stats.canvasFastPath++;
+            
+    u8 xscroll = reg.delayed.xscroll;
     
+    switch (reg.delayed.mode) {
+    
+        case DISPLAY_MODE_STANDARD_TEXT:
+
+            for (isize i = 0; i < 8; i++) {
+                
+                if (i == xscroll) loadShiftRegister();
+                sr.colorbits = (sr.data >> 7);
+                
+                if (sr.colorbits) {
+                    SET_FG_PIXEL(i, sr.latchedCol);
+                } else {
+                    SET_BG_PIXEL(i, reg.delayed.colors[COLREG_BG0]);
+                }
+                
+                sr.data <<= 1;
+                sr.mcFlop = !sr.mcFlop;
+            }
+            return;
+            
+        case DISPLAY_MODE_MULTICOLOR_TEXT:
+            
+            for (isize i = 0; i < 8; i++) {
+                
+                if (i == xscroll) loadShiftRegister();
+                bool mc = sr.latchedCol & 0x8;
+                
+                if (mc) {
+                    
+                    if (sr.mcFlop) sr.colorbits = sr.data >> 6;
+                    
+                    switch (sr.colorbits) {
+                        case 0: SET_BG_PIXEL(i, reg.delayed.colors[COLREG_BG0]); break;
+                        case 1: SET_BG_PIXEL(i, reg.delayed.colors[COLREG_BG1]); break;
+                        case 2: SET_FG_PIXEL(i, reg.delayed.colors[COLREG_BG2]); break;
+                        case 3: SET_FG_PIXEL(i, sr.latchedCol & 0x07); break;
+                    }
+                    
+                } else {
+                    
+                    sr.colorbits = (sr.data >> 7);
+                    
+                    if (sr.colorbits) {
+                        SET_FG_PIXEL(i, sr.latchedCol);
+                    } else {
+                        SET_BG_PIXEL(i, reg.delayed.colors[COLREG_BG0]);
+                    }
+                }
+                
+                sr.data <<= 1;
+                sr.mcFlop = !sr.mcFlop;
+            }
+            return;
+
+        case DISPLAY_MODE_STANDARD_BITMAP:
+            
+            for (isize i = 0; i < 8; i++) {
+                
+                if (i == xscroll) loadShiftRegister();
+                sr.colorbits = (sr.data >> 7);
+                
+                if (sr.colorbits) {
+                    SET_FG_PIXEL(i, HI_NIBBLE(sr.latchedChr));
+                } else {
+                    SET_BG_PIXEL(i, LO_NIBBLE(sr.latchedChr));
+                }
+
+                sr.data <<= 1;
+                sr.mcFlop = !sr.mcFlop;
+            }
+            return;
+
+        case DISPLAY_MODE_MULTICOLOR_BITMAP:
+            
+            for (isize i = 0; i < 8; i++) {
+                
+                if (i == xscroll) loadShiftRegister();
+                if (sr.mcFlop) sr.colorbits = sr.data >> 6;
+                
+                switch (sr.colorbits) {
+                    case 0: SET_BG_PIXEL(i, reg.delayed.colors[COLREG_BG0]); break;
+                    case 1: SET_BG_PIXEL(i, HI_NIBBLE(sr.latchedChr)); break;
+                    case 2: SET_FG_PIXEL(i, LO_NIBBLE(sr.latchedChr)); break;
+                    case 3: SET_FG_PIXEL(i, sr.latchedCol); break;
+                }
+                    
+                sr.data <<= 1;
+                sr.mcFlop = !sr.mcFlop;
+            }
+            return;
+
+        case DISPLAY_MODE_EXTENDED_BG_COLOR:
+            
+            for (isize i = 0; i < 8; i++) {
+                
+                if (i == xscroll) loadShiftRegister();
+                sr.colorbits = (sr.data >> 7);
+                
+                if (sr.colorbits) {
+                    SET_FG_PIXEL(i, sr.latchedCol);
+                } else {
+                    isize regnr = COLREG_BG0 + (sr.latchedChr >> 6);
+                    SET_BG_PIXEL(i, reg.delayed.colors[regnr]);
+                }
+
+                sr.data <<= 1;
+                sr.mcFlop = !sr.mcFlop;
+            }
+            return;
+
+        default:
+
+            // Invalid color modes (no speedup necessary)
+            drawCanvasSlowPath();
+            break;
+    }
+}
+
+void
+VICII::drawCanvasSlowPath()
+{
+    if (VIC_STATS) stats.canvasSlowPath++;
+
     /* "The graphics data sequencer is capable of 8 different graphics modes
      *  that are selected by the bits ECM, BMM and MCM (Extended Color Mode,
      *  Bit Map Mode and Multi Color Mode) in the registers $d011 and
      *  $d016." [C.B.]
      */
     
-    d011 = reg.delayed.ctrl1;
-    d016 = reg.delayed.ctrl2;
-    xscroll = d016 & 0x07;
-    mode = (d011 & 0x60) | (d016 & 0x10); // -xxx ----
-
-    drawCanvasPixel(0, mode, d016, xscroll == 0, true);
+    u8 d011 = reg.delayed.ctrl1;
+    u8 d016 = reg.delayed.ctrl2;
+    u8 mode = (d011 & 0x60) | (d016 & 0x10);
+        
+    //
+    // Pixel 0
+    //
+    
+    drawCanvasPixel(0, mode, d016);
     
     // After the first pixel, color register changes show up
     reg.delayed.colors[COLREG_BG0] = reg.current.colors[COLREG_BG0];
@@ -117,411 +218,154 @@ VICII::drawCanvas()
     reg.delayed.colors[COLREG_BG2] = reg.current.colors[COLREG_BG2];
     reg.delayed.colors[COLREG_BG3] = reg.current.colors[COLREG_BG3];
 
-    drawCanvasPixel(1, mode, d016, xscroll == 1, true);
-    drawCanvasPixel(2, mode, d016, xscroll == 2, false);
-    drawCanvasPixel(3, mode, d016, xscroll == 3, false);
+    //
+    // Pixel 1, 2, 3
+    //
 
-    // After pixel 4, a change in D016 affects the display mode.
-    newD016 = reg.current.ctrl2;
+    drawCanvasPixel(1, mode, d016);
+    drawCanvasPixel(2, mode, d016);
+    drawCanvasPixel(3, mode, d016);
 
-    // In older VICIIs, the one bits of D011 show up, too.
-    if (is656x()) {
-        d011 |= reg.current.ctrl1;
-    }
-    oldMode = mode;
+    /* After pixel 4, a change in D016 affects the display mode. In older
+     * VICIIs, the one bits of D011 show up, too.
+     */
+    u8 newD016 = reg.current.ctrl2;
+    if (is656x()) d011 |= reg.current.ctrl1;
     mode = (d011 & 0x60) | (newD016 & 0x10);
     
-    drawCanvasPixel(4, mode, d016, xscroll == 4, oldMode != mode);
-    drawCanvasPixel(5, mode, d016, xscroll == 5, false);
+    //
+    // Pixel 4, 5
+    //
+
+    drawCanvasPixel(4, mode, d016);
+    drawCanvasPixel(5, mode, d016);
     
     // In older VICIIs, the zero bits of D011 show up here.
     if (is656x()) {
         d011 = reg.current.ctrl1;
-        oldMode = mode;
         mode = (d011 & 0x60) | (newD016 & 0x10);
     }
 
-    drawCanvasPixel(6, mode, d016, xscroll == 6, oldMode != mode);
+    //
+    // Pixel 6
+    //
+
+    drawCanvasPixel(6, mode, d016);
     
-    // Before the last pixel is drawn, a change is D016 is fully detected.
-    // If the multicolor bit get set, the mc flip flop is also reset.
+    /* Before the last pixel is drawn, a change in D016 is fully detected.
+     * If the multicolor bit is set, the mc flip flop resets immediately.
+     */
     if (d016 != newD016) {
-        if (RISING_EDGE(d016 & 0x10, newD016 & 0x10))
-            sr.mcFlop = false;
+        if (RISING_EDGE(d016 & 0x10, newD016 & 0x10)) sr.mcFlop = false;
         d016 = newD016;
     }
  
-    drawCanvasPixel(7, mode, d016, xscroll == 7, false);
+    //
+    // Pixel 7
+    //
+
+    drawCanvasPixel(7, mode, d016);
 }
 
-
 void
-VICII::drawCanvasPixel(u8 pixel,
-                       u8 mode,
-                       u8 d016,
-                       bool loadShiftReg,
-                       bool updateColors)
+VICII::drawCanvasPixel(u8 pixel, u8 mode, u8 d016)
 {
-    assert(pixel < 8);
-    
-    /* "The heart of the sequencer is an 8 bit shift register that is shifted by
-     *  1 bit every pixel and reloaded with new graphics data after every
+    /* "The heart of the sequencer is a 8 bit shift register that is shifted
+     *  by 1 bit every pixel and reloaded with new graphics data after every
      *  g-access. With XSCROLL from register $d016 the reloading can be delayed
      *  by 0-7 pixels, thus shifting the display up to 7 pixels to the right."
      */
-    if (loadShiftReg && sr.canLoad) {
-        
-        u32 result = gAccessResult.delayed();
-     
-        // Load shift register
-        sr.data = BYTE0(result);
-        
-        // Remember how to synthesize pixels
-        sr.latchedCharacter = BYTE2(result);
-        sr.latchedColor = BYTE1(result);
-        
-        // Reset the multicolor synchronization flipflop
-        sr.mcFlop = true;
-        
-        // Make sure that colors get updated
-        updateColors = true;
-        
-        sr.remainingBits = 8;
-    }
-    
-    // Clear any outstanding multicolor bit that shouldn't actually be drawn
-    // TODO: VICE doesn't use a counter for this, but doesn't have the same issue,
-    // figure out what magic they are doing
-    if (!sr.remainingBits) {
-        sr.colorbits = 0;
-    }
-    
+
+    // Load shift register if condition holds
+    if (pixel == reg.delayed.xscroll) loadShiftRegister();
+                
     // Determine the render mode and the drawing mode for this pixel
-    bool multicolorDisplayMode =
-    (mode & 0x10) && ((mode & 0x20) || (sr.latchedColor & 0x8));
+    u8 mcBit = sr.latchedCol & 0x8;
+    bool multicolorDisplayMode = (mode & 0x10) && ((mode & 0x20) || mcBit);
+    bool generateMulticolorPixel = (d016 & 0x10) && ((mode & 0x20) || mcBit);
     
-    bool generateMulticolorPixel =
-    (d016 & 0x10) && ((mode & 0x20) || (sr.latchedColor & 0x8));
-    
-    // Determine the colorbits
+    // Run the shift register
     if (generateMulticolorPixel) {
-        if (sr.mcFlop) {
-            sr.colorbits = (sr.data >> 6) >> !multicolorDisplayMode;
-        }
+
+        // Only update every other cycle
+        if (sr.mcFlop) sr.colorbits = (sr.data >> 6) >> !multicolorDisplayMode;
+        
     } else {
+        
+        // Update every cycle
         sr.colorbits = (sr.data >> 7) << multicolorDisplayMode;
     }
-    
-    // Load colors
-    if (updateColors) loadColors(mode);
-    
-    // Draw pixel
-    assert(sr.colorbits < 4);
-    if (multicolorDisplayMode) {
-        
-        // Set multi-color pixel
-        if (sr.colorbits & 0x02) {
-            SET_FOREGROUND_PIXEL(pixel, col[sr.colorbits]);
-        } else {
-            SET_BACKGROUND_PIXEL(pixel, col[sr.colorbits]);
-        }
-        
-    } else {
-        
-        // Set single-color pixel
-        if (sr.colorbits) {
-            SET_FOREGROUND_PIXEL(pixel, col[sr.colorbits]);
-        } else {
-            SET_BACKGROUND_PIXEL(pixel, col[sr.colorbits]);
-        }
-    }
-    
-    // Shift register and toggle multicolor flipflop
     sr.data <<= 1;
     sr.mcFlop = !sr.mcFlop;
-    sr.remainingBits -= 1;
-}
 
-void
-VICII::drawSprites()
-{
-    u8 firstDMA = isFirstDMAcycle;
-    u8 secondDMA = isSecondDMAcycle;
     
-    // Pixel 0
-    drawSpritePixel(0, spriteDisplayDelayed, secondDMA);
-    
-    // After the first pixel, color register changes show up
-    reg.delayed.colors[COLREG_SPR_EX1] = reg.current.colors[COLREG_SPR_EX1];
-    reg.delayed.colors[COLREG_SPR_EX2] = reg.current.colors[COLREG_SPR_EX2];
-    for (unsigned i = 0; i < 8; i++) {
-        reg.delayed.colors[COLREG_SPR0 + i] = reg.current.colors[COLREG_SPR0 + i];
-    }
-    
-    // Pixel 1, Pixel 2, Pixel 3
-    drawSpritePixel(1, spriteDisplayDelayed, secondDMA);
-    
-    // Stop shift register on the second DMA cycle
-    spriteSrActive &= ~secondDMA;
-    
-    drawSpritePixel(2, spriteDisplayDelayed, secondDMA);
-    drawSpritePixel(3, spriteDisplayDelayed, firstDMA | secondDMA);
-    
-    // If a shift register is loaded, the new data appears here.
-    updateSpriteShiftRegisters();
-
-    // Pixel 4, Pixel 5
-    drawSpritePixel(4, spriteDisplay, firstDMA | secondDMA);
-    drawSpritePixel(5, spriteDisplay, firstDMA | secondDMA);
-    
-    // Changes of the X expansion bits and the priority bits show up here
-    reg.delayed.sprExpandX = reg.current.sprExpandX;
-    reg.delayed.sprPriority = reg.current.sprPriority;
-
-    // Update multicolor bits if a new VICII is emulated
-    u8 toggle = reg.delayed.sprMC ^ reg.current.sprMC;
-    if (toggle && is856x()) {
-        
-        // VICE:
-        // BYTE next_mc_bits = vicii.regs[0x1c];
-        // BYTE toggled = next_mc_bits ^ sprite_mc_bits;
-        // sbuf_mc_flops ^= toggled & (~sbuf_expx_flops);
-        // sprite_mc_bits = next_mc_bits;
-        
-        reg.delayed.sprMC = reg.current.sprMC;
-        for (unsigned i = 0; i < 8; i++) {
-            if (GET_BIT(toggle,i))
-                spriteSr[i].mcFlop ^= !spriteSr[i].expFlop;
-        }
-    }
-    
-    // Pixel 6
-    drawSpritePixel(6, spriteDisplay, firstDMA | secondDMA);
-    
-    // Update multicolor bits if an old VICII is emulated
-    if (toggle && is656x()) {
-        
-        reg.delayed.sprMC = reg.current.sprMC;
-        for (unsigned i = 0; i < 8; i++) {
-            if (GET_BIT(toggle,i))
-                spriteSr[i].mcFlop = 0;
-        }
-    }
-    
-    // Pixel 7
-    drawSpritePixel(7, spriteDisplay, firstDMA);
-    
-    // Check for collisions
-    for (unsigned i = 0; i < 8; i++) {
-        
-        int index = bufferoffset + i;
-        
-        // Check if two or more bits are set in pixelSource
-        if (pixelSource[index] & (pixelSource[index] - 1)) {
+    // Synthesize color
+    u8 color;
+    switch ((mode | mcBit) >> 1 | sr.colorbits) {
             
-            // Is it a sprite/sprite collision?
-            if ((pixelSource[index] & 0xFF) & ((pixelSource[index] & 0xFF) - 1)) {
-                
-                // Trigger an IRQ if this is the first detected collision
-                if (!spriteSpriteCollision) {
-                    triggerIrq(4);
-                }
-                spriteSpriteCollision |= (pixelSource[index] & 0xFF);
-            }
+        // DISPLAY_MODE_STANDARD_TEXT
+        case 0x00: case 0x04: color = reg.delayed.colors[COLREG_BG0]; break;
+        case 0x01: case 0x05: color = sr.latchedCol; break;
+        case 0x02: case 0x06: color = reg.delayed.colors[COLREG_BG0];  break;
+        case 0x03: case 0x07: color = sr.latchedCol; break;
             
-            // Is it a sprite/background collision?
-            if ((pixelSource[index] & 0x100) && config.checkSBCollisions) {
-                
-                // Trigger an IRQ if this is the first detected collision
-                if (!spriteBackgroundColllision) {
-                    triggerIrq(2);
-                }
-                spriteBackgroundColllision |= (pixelSource[index] & 0xFF);
-            }
-        }
+        // DISPLAY_MODE_MULTICOLOR_TEXT (MC = 0)
+        case 0x08: color = reg.delayed.colors[COLREG_BG0]; break;
+        case 0x09: color = sr.latchedCol; break;
+        case 0x0A: color = reg.delayed.colors[COLREG_BG0]; break;
+        case 0x0B: color = sr.latchedCol; break;
+            
+        // DISPLAY_MODE_MULTICOLOR_TEXT (MC = 1)
+        case 0x0C: color = reg.delayed.colors[COLREG_BG0]; break;
+        case 0x0D: color = reg.delayed.colors[COLREG_BG1]; break;
+        case 0x0E: color = reg.delayed.colors[COLREG_BG2]; break;
+        case 0x0F: color = sr.latchedCol & 0x07; break;
+            
+        // DISPLAY_MODE_STANDARD_BITMAP
+        case 0x10: case 0x14: color = LO_NIBBLE(sr.latchedChr); break;
+        case 0x11: case 0x15: color = HI_NIBBLE(sr.latchedChr); break;
+        case 0x12: case 0x16: color = LO_NIBBLE(sr.latchedChr); break;
+        case 0x13: case 0x17: color = HI_NIBBLE(sr.latchedChr); break;
+            
+        // DISPLAY_MODE_MULTICOLOR_BITMAP
+        case 0x18: case 0x1C: color = reg.delayed.colors[COLREG_BG0]; break;
+        case 0x19: case 0x1D: color = HI_NIBBLE(sr.latchedChr); break;
+        case 0x1A: case 0x1E: color = LO_NIBBLE(sr.latchedChr); break;
+        case 0x1B: case 0x1F: color = sr.latchedCol; break;
+            
+        // DISPLAY_MODE_EXTENDED_BG_COLOR
+        case 0x20: case 0x24: color = reg.delayed.colors[COLREG_BG0 + (sr.latchedChr >> 6)]; break;
+        case 0x21: case 0x25: color = sr.latchedCol; break;
+        case 0x22: case 0x26: color = reg.delayed.colors[COLREG_BG0 + (sr.latchedChr >> 6)]; break;
+        case 0x23: case 0x27: color = sr.latchedCol; break;
+            
+        // INVALID VIDEO MODES
+        default: color = 0;
+    }
+        
+    // Determine pixel depth
+    bool foreground = multicolorDisplayMode ? (sr.colorbits & 0x2) : sr.colorbits;
+
+    // Set pixel
+    if (foreground) {
+        SET_FG_PIXEL(pixel, color);
+    } else {
+        SET_BG_PIXEL(pixel, color);
     }
 }
 
 void
-VICII::drawSpritePixel(unsigned pixel,
-                     u8 enableBits,
-                     u8 freezeBits)
+VICII::loadShiftRegister()
 {
-    // Quick exit condition
-    if (!enableBits && !spriteSrActive) {
-        return;
+    if (!flipflops.delayed.vertical && sr.canLoad) {
+
+        u32 gAccess = gAccessResult.delayed();
+
+        sr.data = BYTE0(gAccess);
+        sr.latchedChr = BYTE2(gAccess);
+        sr.latchedCol = BYTE1(gAccess);
+        sr.mcFlop = true;
     }
-    
-    // Iterate over all sprites
-    for (unsigned sprite = 0; sprite < 8; sprite++) {
-        
-        bool enable = GET_BIT(enableBits, sprite);
-        bool freeze = GET_BIT(freezeBits, sprite);
-        bool mCol = GET_BIT(reg.delayed.sprMC, sprite);
-        bool xExp = GET_BIT(reg.delayed.sprExpandX, sprite);
-        bool active = GET_BIT(spriteSrActive, sprite);
-        
-        // If a sprite is enabled, activate it's shift register if the
-        // horizontal trigger condition holds.
-        if (enable) {
-            if (!active && xCounter + pixel == reg.delayed.sprX[sprite] && !freeze) {
-                
-                SET_BIT(spriteSrActive, sprite);
-                active = true;
-                spriteSr[sprite].expFlop = true;
-                spriteSr[sprite].mcFlop = true;
-            }
-        }
-        
-        // Run shift register if it is activated
-        if (active && !freeze) {
-            
-            // Only proceed if the expansion flipflop is set
-            if (spriteSr[sprite].expFlop) {
-                
-                // Extract color bits from the shift register
-                if (mCol) {
-                    
-                    // In multi-color mode, get 2 bits every second pixel
-                    if (spriteSr[sprite].mcFlop) {
-                        spriteSr[sprite].colBits = (spriteSr[sprite].data >> 22) & 0x03;
-                    }
-                    spriteSr[sprite].mcFlop = !spriteSr[sprite].mcFlop;
-                    
-                } else {
-                    
-                    // In single-color mode, get a new bit for each pixel
-                    spriteSr[sprite].colBits = (spriteSr[sprite].data >> 22) & 0x02;
-                }
-                
-                // Perform the shift operation
-                spriteSr[sprite].data <<= 1;
-                
-                // Inactivate shift register if everything is pumped out
-                if (!spriteSr[sprite].data && !spriteSr[sprite].colBits) {
-                    active = false;
-                    CLR_BIT(spriteSrActive, sprite);
-                }
-            }
-            
-            // Toggle expansion flipflop for horizontally stretched sprites
-            spriteSr[sprite].expFlop = !spriteSr[sprite].expFlop || !xExp;
-        }
-        
-        // Draw pixel
-        if (active && !config.hideSprites) {
-            
-            switch (spriteSr[sprite].colBits) {
-                    
-                case 0x01:
-                    setSpritePixel(sprite, pixel, reg.delayed.colors[COLREG_SPR_EX1]);
-                    break;
-                    
-                case 0x02:
-                    setSpritePixel(sprite, pixel, reg.delayed.colors[COLREG_SPR0 + sprite]);
-                    break;
-                    
-                case 0x03:
-                    setSpritePixel(sprite, pixel, reg.delayed.colors[COLREG_SPR_EX2]);
-                    break;
-            }
-        }
-    }
-}
-
-void
-VICII::loadColors(u8 mode)
-{
-    u8 character = sr.latchedCharacter;
-    u8 color = sr.latchedColor;
-    
-    switch ((DisplayMode)mode) {
-            
-        case DISPLAY_MODE_STANDARD_TEXT:
-            
-            col[0] = reg.delayed.colors[COLREG_BG0];
-            col[1] = color;
-            break;
-            
-        case DISPLAY_MODE_MULTICOLOR_TEXT:
-            
-            if (color & 0x8 /* MC flag */) {
-                
-                col[0] = reg.delayed.colors[COLREG_BG0];
-                col[1] = reg.delayed.colors[COLREG_BG1];
-                col[2] = reg.delayed.colors[COLREG_BG2];
-                col[3] = color & 0x07;
-
-            } else {
-                
-                col[0] = reg.delayed.colors[COLREG_BG0];
-                col[1] = color;
-
-            }
-            break;
-            
-        case DISPLAY_MODE_STANDARD_BITMAP:
-            
-            col[0] = character & 0xF;
-            col[1] = character >> 4;
-            break;
-            
-        case DISPLAY_MODE_MULTICOLOR_BITMAP:
-            
-            col[0] = reg.delayed.colors[COLREG_BG0];
-            col[1] = character >> 4;
-            col[2] = character & 0x0F;
-            col[3] = color;
-            break;
-            
-        case DISPLAY_MODE_EXTENDED_BG_COLOR:
-            
-            col[0] = reg.delayed.colors[COLREG_BG0 + (character >> 6)];
-            col[1] = color;
-            break;
-            
-        case DISPLAY_MODE_INVALID_TEXT:
-        case DISPLAY_MODE_INV_STANDARD_BITMAP:
-        case DISPLAY_MODE_INV_MULTICOL_BITMAP:
-            
-            col[0] = 0;
-            col[1] = 0;
-            col[2] = 0;
-            col[3] = 0;
-            break;
-            
-        default:
-            
-            assert(false);
-            break;
-    }
-}
-
-
-//
-// Low level drawing (pixel buffer access)
-//
-
-void
-VICII::setSpritePixel(unsigned sprite, unsigned pixel, u8 color)
-{
-    u8 depth = spriteDepth(sprite);
-    u8 source = (1 << sprite);
-    int index = bufferoffset + pixel;
-    
-    if (depth <= zBuffer[index]) {
-        
-        /* "the interesting case is when eg sprite 1 and sprite 0 overlap, and
-         *  sprite 0 has the priority bit set (and sprite 1 has not). in this
-         *  case 10/11 background bits show in front of whole sprite 0."
-         * Test program: VICII/spritePriorities
-         */
-        if (!(pixelSource[index] & 0xFF)) {
-            if (isVisibleColumn) COLORIZE(index, color);
-            zBuffer[index] = depth;
-        }
-    }
-    pixelSource[index] |= source;
 }
 
 void
@@ -531,24 +375,28 @@ VICII::cutLayers()
         
         bool cut;
 
-        switch (zBuffer[i]) {
+        switch (zBuffer[i] & 0xE0) {
 
-            case BORDER_LAYER_DEPTH:
+            case DEPTH_BORDER & 0xE0:
                 cut = config.cutLayers & 0x800;
                 break;
                                 
-            case FOREGROUND_LAYER_DEPTH:
+            case DEPTH_FG & 0xE0:
                 cut = config.cutLayers & 0x400;
                 break;
                 
-            case BACKGROUD_LAYER_DEPTH:
+            case DEPTH_BG & 0xE0:
                 cut = config.cutLayers & 0x200;
                 break;
                 
-            default:
-                cut = pixelSource[i] & config.cutLayers & 0xFF;
+            case DEPTH_SPRITE_BG & 0xE0:
+            case DEPTH_SPRITE_FG & 0xE0:
+                cut = GET_BIT(config.cutLayers, zBuffer[i] & 0xF);
                 if (!(config.cutLayers & 0x100)) cut = false;
                 break;
+                
+            default:
+                cut = false;
         }
         
         if (cut) {

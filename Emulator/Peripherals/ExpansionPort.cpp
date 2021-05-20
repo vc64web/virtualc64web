@@ -2,11 +2,13 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "ExpansionPort.h"
 #include "C64.h"
 
 ExpansionPort::~ExpansionPort()
@@ -15,22 +17,22 @@ ExpansionPort::~ExpansionPort()
 }
 
 void
-ExpansionPort::_reset()
+ExpansionPort::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS
+    RESET_SNAPSHOT_ITEMS(hard)
 
     if (cartridge) {
-        cartridge->reset();
+        cartridge->reset(hard);
         cartridge->resetCartConfig();
     } else {
         setCartridgeMode(CRTMODE_OFF);
     }
 }
 
-usize
+isize
 ExpansionPort::_size()
 {
-    SerCounter counter;
+    util::SerCounter counter;
     applyToPersistentItems(counter);
     applyToResetItems(counter);
     
@@ -38,10 +40,10 @@ ExpansionPort::_size()
     return counter.count;
 }
 
-usize
-ExpansionPort::_load(u8 *buffer)
+isize
+ExpansionPort::_load(const u8 *buffer)
 {
-    SerReader reader(buffer);
+    util::SerReader reader(buffer);
     applyToPersistentItems(reader);
     applyToResetItems(reader);
     
@@ -55,10 +57,10 @@ ExpansionPort::_load(u8 *buffer)
     return reader.ptr - buffer;
 }
 
-usize
+isize
 ExpansionPort::_save(u8 *buffer)
 {
-    SerWriter writer(buffer);
+    util::SerWriter writer(buffer);
     applyToPersistentItems(writer);
     applyToResetItems(writer);
         
@@ -72,18 +74,23 @@ ExpansionPort::_save(u8 *buffer)
 }
 
 void
-ExpansionPort::_dump() const
+ExpansionPort::_dump(dump::Category category, std::ostream& os) const
 {
-    msg("Expansion port\n");
-    msg("--------------\n");
+    using namespace util;
     
-    msg(" Game line:  %d\n", gameLine);
-    msg("Exrom line:  %d\n", exromLine);
+    if (category & dump::State) {
+        
+        os << tab("Game line");
+        os << bol(gameLine) << std::endl;
+        os << tab("Exrom line");
+        os << bol(exromLine) << std::endl;
+        os << tab("Cartridge");
+        os << bol(cartridge != nullptr, "attached", "none") << std::endl;
 
-    if (cartridge == nullptr) {
-        msg("No cartridge attached\n");
-    } else {
-        cartridge->dump();
+        if (cartridge) {
+            os << std::endl;
+            cartridge->dump(category, os);
+        }
     }
 }
 
@@ -216,19 +223,23 @@ ExpansionPort::attachCartridge(Cartridge *c)
 {
     assert(c);
     assert(c->isSupported());
-               
+    
+    suspend();
+    
     // Remove old cartridge (if any) and assign new one
     detachCartridge();
     cartridge = std::unique_ptr<Cartridge>(c);
     crtType = c->getCartridgeType();
     
     // Reset cartridge to update exrom and game line on the expansion port
-    cartridge->reset();
+    cartridge->reset(true);
     
     c64.putMessage(MSG_CRT_ATTACHED);
     if (cartridge->hasSwitch()) c64.putMessage(MSG_CART_SWITCH);
     
     debug(EXP_DEBUG, "Cartridge attached to expansion port");
+    
+    resume();
 }
 
 void
@@ -237,11 +248,18 @@ ExpansionPort::attachGeoRamCartridge(usize kb)
     debug(EXP_DEBUG, "Attaching GeoRAM cartridge (%zu KB)", kb);
 
     // kb must be a power of two between 64 and 4096
-    if (kb < 64 || kb > 4096 || (kb & kb - 1)) assert(false);
+    if (kb < 64 || kb > 4096 || (kb & (kb - 1))) assert(false);
     
     Cartridge *geoRAM = Cartridge::makeWithType(c64, CRT_GEO_RAM);
     geoRAM->setRamCapacity(kb * 1024);
     attachCartridge(geoRAM);
+}
+
+void
+ExpansionPort::attachCartridge(const string &path, bool reset)
+{
+    auto file = AnyFile::make <CRTFile> (path);
+    attachCartridge(file, reset);
 }
 
 bool
@@ -260,11 +278,11 @@ ExpansionPort::attachCartridge(CRTFile *file, bool reset)
     if (!(cartridge = Cartridge::makeWithCRTFile(c64, *file))) {
         return false;
     }
-    
+        
     // Attach cartridge
     suspend();
     attachCartridge(cartridge);
-    if (reset) c64.reset();
+    if (reset) c64.hardReset();
     resume();
     
     return true;
@@ -282,10 +300,10 @@ ExpansionPort::attachIsepicCartridge()
 void
 ExpansionPort::detachCartridge()
 {
+    suspend();
+
     if (cartridge) {
-        
-        suspend();
-        
+                
         cartridge = nullptr;
         crtType = CRT_NONE;
         
@@ -293,9 +311,9 @@ ExpansionPort::detachCartridge()
         
         debug(EXP_DEBUG, "Cartridge detached from expansion port");
         c64.putMessage(MSG_CRT_DETACHED);
-       
-        resume();
     }
+    
+    resume();
 }
 
 void
@@ -303,7 +321,7 @@ ExpansionPort::detachCartridgeAndReset()
 {
     suspend();
     detachCartridge();
-    c64.reset();
+    c64.hardReset();
     resume();
 }
 

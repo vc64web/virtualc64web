@@ -1,4 +1,4 @@
-const cache_name = 'vc64_app_cache_v2021_05_17c';
+const cache_name = 'vc64_app_cache_v2021_05_19';
 
 // install event
 self.addEventListener('install', evt => {
@@ -51,9 +51,12 @@ self.addEventListener('fetch', function(event){
         event.waitUntil(
           async function () 
           {
-            var networkResponse = await networkResponsePromise;
-            console.log('sw: into '+cache_name+' putting fetched resource: '+event.request.url);
-            await cache.put(event.request, networkResponse.clone());
+            try {
+              var networkResponse = await networkResponsePromise;
+              console.log('sw: into '+cache_name+' putting fetched resource: '+event.request.url);
+              await cache.put(event.request, networkResponse.clone());
+            }
+            catch(e) { console.error('no network'); }
           }()
         );   
         return networkResponsePromise;

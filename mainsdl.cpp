@@ -685,7 +685,7 @@ extern "C" void wasm_set_borderless(float on)
 //428-12-24-2*33 =326
 
   eat_border_height = 34 * on ;
-  yOff = 15 + eat_border_height;
+  yOff = 16 + eat_border_height;
   clipped_height = TEX_HEIGHT -42  -2*eat_border_height; //248
 //284-11-24-2*22=205
  

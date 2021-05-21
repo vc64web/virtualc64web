@@ -27,7 +27,7 @@ clean:
 	rm -f vC64.data
 
 main:
-	$(CC)  -c $(CFLAGS) Emulator/C64.cpp mainsdl.cpp
+	$(CC)  -c $(CFLAGS) mainsdl.cpp
 	mv *.o $(OBJDIR) 
 	$(CC)  $(CFLAGS) $(LFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB -s ALLOW_MEMORY_GROWTH=1 $(OBJDIR)/*.o
 	#--preload-file roms

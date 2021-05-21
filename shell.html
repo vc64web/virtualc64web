@@ -811,7 +811,6 @@ goes into edit mode which takes you right back to here ...
       var progressElement = document.getElementById('progress');
       var spinnerElement = document.getElementById('spinner');
 
-      live_debug_output=load_setting('live_debug_output', false);
       var Module = {
         preRun: [function () {ENV.SDL_EMSCRIPTEN_KEYBOARD_ELEMENT = "#canvas";}],
         postRun: [InitWrappers],
@@ -821,9 +820,10 @@ goes into edit mode which takes you right back to here ...
           return function(text) {
             console.log(text);
 
+            if(typeof live_debug_output == 'undefined') 
+              return;
             if(!live_debug_output)
-            return;
-
+              return;
             if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
             // These replacements are necessary if you render to raw HTML
             //text = text.replace(/&/g, "&amp;");

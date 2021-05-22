@@ -2,17 +2,20 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
 #include "FlashRom.h"
+#include "IO.h"
 
 const char *
 FlashRom::getStateAsString(FlashState state)
 {
     switch(state) {
+            
         case FLASH_READ:return "FLASH_READ";
         case FLASH_MAGIC_1: return "FLASH_MAGIC_1";
         case FLASH_MAGIC_2: return "FLASH_MAGIC_2";
@@ -26,8 +29,10 @@ FlashRom::getStateAsString(FlashState state)
         case FLASH_SECTOR_ERASE: return "FLASH_SECTOR_ERASE";
         case FLASH_SECTOR_ERASE_TIMEOUT: return "FLASH_SECTOR_ERASE_TIMEOUT";
         case FLASH_SECTOR_ERASE_SUSPEND: return "FLASH_SECTOR_ERASE_SUSPEND";
+        
         default:
             assert(false);
+            return "";
     }
 }
 
@@ -53,42 +58,47 @@ FlashRom::loadBank(unsigned bank, u8 *data)
 }
 
 void
-FlashRom::_reset()
+FlashRom::_reset(bool hard)
 {
     trace(CRT_DEBUG, "Resetting FlashRom\n");
     
-    RESET_SNAPSHOT_ITEMS
+    RESET_SNAPSHOT_ITEMS(hard)
     
     state = FLASH_READ;
     baseState = FLASH_READ;
 }
 
 void
-FlashRom::_dump() const
+FlashRom::_dump(dump::Category category, std::ostream& os) const
 {
-    msg("FlashRom\n");
-    msg("--------\n\n");
+    using namespace util;
     
-    msg("     state: %ld\n", (long)state);
-    msg(" baseState: %ld\n", (long)baseState);
-    msg("numSectors: %zu\n", numSectors);
-    msg("sectorSize: %zu\n", sectorSize);
-    msg("       rom: %p\n\n", rom);
+    if (category & dump::State) {
+        
+        os << tab("state");
+        os << dec(state) << std::endl;
+        os << tab("baseState");
+        os << dec(baseState) << std::endl;
+        os << tab("numSectors");
+        os << dec(numSectors) << std::endl;
+        os << tab("sectorSize");
+        os << dec(sectorSize) << std::endl;
+    }
 }
 
-usize
-FlashRom::didLoadFromBuffer(u8 *buffer)
+isize
+FlashRom::didLoadFromBuffer(const u8 *buffer)
 {
-    SerReader reader(buffer);
+    util::SerReader reader(buffer);
     reader.copy(rom, romSize);
 
     return romSize;
 }
 
-usize
+isize
 FlashRom::didSaveToBuffer(u8 *buffer)
 {
-    SerWriter writer(buffer);
+    util::SerWriter writer(buffer);
     writer.copy(rom, romSize);
 
     return romSize;

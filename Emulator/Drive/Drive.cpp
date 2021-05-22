@@ -2,18 +2,21 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "Drive.h"
 #include "C64.h"
+#include "IO.h"
 
 Drive::Drive(DriveID id, C64 &ref) : C64Component(ref), deviceNr(id)
 {
     assert(deviceNr == DRIVE8 || deviceNr == DRIVE9);
 	
-    subComponents = vector <HardwareComponent *> {
+    subComponents = std::vector <HardwareComponent *> {
         
         &mem,
         &cpu,
@@ -21,13 +24,6 @@ Drive::Drive(DriveID id, C64 &ref) : C64Component(ref), deviceNr(id)
         &via2,
         &disk
     };
-    
-    config.connected = false;
-    config.switchedOn = true;
-    config.type = DRIVE_MODEL_VC1541II;
-    
-    insertionStatus = DISK_FULLY_EJECTED;
-    disk.clearDisk();
 }
 
 const char *
@@ -38,22 +34,81 @@ Drive::getDescription() const
 }
 
 void
-Drive::_reset()
+Drive::_initialize()
 {
-    RESET_SNAPSHOT_ITEMS
+    printf("Drive::_initialize\n");
+    
+    resetConfig();
+    
+    insertionStatus = DISK_FULLY_EJECTED;
+    disk.clearDisk();
+}
+
+void
+Drive::_reset(bool hard)
+{    
+    RESET_SNAPSHOT_ITEMS(hard)
 
     cpu.reg.pc = 0xEAA0;
     halftrack = 41;
 }
 
-long
+DriveConfig
+Drive::getDefaultConfig()
+{
+    DriveConfig defaults;
+    
+    defaults.type = DRIVE_VC1541II;
+    defaults.connected = false;
+    defaults.switchedOn = true;
+    defaults.ejectDelay = 30;
+    defaults.swapDelay = 30;
+    defaults.insertDelay = 30;
+    defaults.pan = 0;
+    defaults.powerVolume = 50;
+    defaults.stepVolume = 50;
+    defaults.insertVolume = 50;
+    defaults.ejectVolume = 50;
+        
+    return defaults;
+}
+
+void
+Drive::resetConfig()
+{
+    DriveConfig defaults = getDefaultConfig();
+    
+    setConfigItem(OPT_DRIVE_CONNECT, deviceNr, deviceNr == DRIVE8);
+    setConfigItem(OPT_DRIVE_POWER_SWITCH, deviceNr, defaults.switchedOn);
+    setConfigItem(OPT_DRIVE_TYPE, deviceNr, defaults.type);
+
+    setConfigItem(OPT_DISK_EJECT_DELAY, deviceNr, defaults.ejectDelay);
+    setConfigItem(OPT_DISK_SWAP_DELAY, deviceNr, defaults.swapDelay);
+    setConfigItem(OPT_DISK_INSERT_DELAY, deviceNr, defaults.insertDelay);
+    
+    setConfigItem(OPT_DRIVE_PAN, deviceNr, defaults.pan);
+    setConfigItem(OPT_POWER_VOLUME, deviceNr, defaults.powerVolume);
+    setConfigItem(OPT_STEP_VOLUME, deviceNr, defaults.stepVolume);
+    setConfigItem(OPT_INSERT_VOLUME, deviceNr, defaults.insertVolume);
+    setConfigItem(OPT_EJECT_VOLUME, deviceNr, defaults.ejectVolume);
+}
+
+i64
 Drive::getConfigItem(Option option) const
 {
     switch (option) {
             
-        case OPT_DRIVE_TYPE:          return config.type;
-        case OPT_DRIVE_CONNECT:       return config.connected;
-        case OPT_DRIVE_POWER_SWITCH:  return config.switchedOn;
+        case OPT_DRIVE_TYPE:          return (i64)config.type;
+        case OPT_DRIVE_CONNECT:       return (i64)config.connected;
+        case OPT_DRIVE_POWER_SWITCH:  return (i64)config.switchedOn;
+        case OPT_DISK_EJECT_DELAY:    return (i64)config.ejectDelay;
+        case OPT_DISK_SWAP_DELAY:     return (i64)config.swapDelay;
+        case OPT_DISK_INSERT_DELAY:   return (i64)config.insertDelay;
+        case OPT_DRIVE_PAN:           return (i64)config.pan;
+        case OPT_POWER_VOLUME:        return (i64)config.powerVolume;
+        case OPT_STEP_VOLUME:         return (i64)config.stepVolume;
+        case OPT_INSERT_VOLUME:       return (i64)config.insertVolume;
+        case OPT_EJECT_VOLUME:        return (i64)config.ejectVolume;
             
         default:
             assert(false);
@@ -62,13 +117,13 @@ Drive::getConfigItem(Option option) const
 }
 
 bool
-Drive::setConfigItem(Option option, long value)
+Drive::setConfigItem(Option option, i64 value)
 {
     switch (option) {
             
         case OPT_VIC_REVISION:
         {
-            u64 duration = 10000000000 / VICII::getFrequency((VICRevision)value);
+            u64 duration = 10000000000 / VICII::getFrequency((VICIIRevision)value);
             
             if (durationOfOneCpuCycle == duration) {
                 return false;
@@ -77,13 +132,26 @@ Drive::setConfigItem(Option option, long value)
             durationOfOneCpuCycle = duration;
             return true;
         }
+        case OPT_DISK_EJECT_DELAY:
+        case OPT_DISK_SWAP_DELAY:
+        case OPT_DISK_INSERT_DELAY:
+        case OPT_POWER_VOLUME:
+        case OPT_STEP_VOLUME:
+        case OPT_INSERT_VOLUME:
+        case OPT_EJECT_VOLUME:
+        case OPT_DRIVE_PAN:
+        {
+            bool result1 = setConfigItem(option, DRIVE8, value);
+            bool result2 = setConfigItem(option, DRIVE9, value);
+            return result1 || result2;
+        }
         default:
             return false;
     }
 }
 
 bool
-Drive::setConfigItem(Option option, long id, long value)
+Drive::setConfigItem(Option option, long id, i64 value)
 {
     if (id != deviceNr) return false;
     
@@ -91,17 +159,21 @@ Drive::setConfigItem(Option option, long id, long value)
             
         case OPT_DRIVE_TYPE:
         {
-            if (!DriveTypeEnum::verify(value)) return false;
-            if (config.type == value) return false;
+            if (!DriveTypeEnum::isValid(value)) {
+                throw ConfigArgError(DriveTypeEnum::keyList());
+            }
+            // if (config.type == value) return false;
             
-            config.type = (DriveModel)value;
+            config.type = (DriveType)value;
             return true;
         }
         case OPT_DRIVE_CONNECT:
         {
+            /*
             if (config.connected == value) {
                 return false;
             }
+            */
             if (value && !c64.hasRom(ROM_TYPE_VC1541)) {
                 warn("Can't connect drive (ROM missing).\n");
                 return false;
@@ -111,7 +183,7 @@ Drive::setConfigItem(Option option, long id, long value)
             config.connected = value;
             bool wasActive = active;
             active = config.connected && config.switchedOn;
-            reset();
+            reset(true);
             resume();
             messageQueue.put(value ? MSG_DRIVE_CONNECT : MSG_DRIVE_DISCONNECT, deviceNr);
             if (wasActive != active)
@@ -120,19 +192,66 @@ Drive::setConfigItem(Option option, long id, long value)
         }
         case OPT_DRIVE_POWER_SWITCH:
         {
-            if (config.switchedOn == value) {
-                return false;
-            }
-            
             suspend();
             config.switchedOn = value;
             bool wasActive = active;
             active = config.connected && config.switchedOn;
-            reset();
+            reset(true);
             resume();
             messageQueue.put(value ? MSG_DRIVE_POWER_ON : MSG_DRIVE_POWER_OFF, deviceNr);
-            if (wasActive != active)
-                messageQueue.put(active ? MSG_DRIVE_ACTIVE : MSG_DRIVE_INACTIVE, deviceNr);
+            if (wasActive != active) {
+                messageQueue.put(active ? MSG_DRIVE_ACTIVE : MSG_DRIVE_INACTIVE,
+                                 config.pan << 24 | config.powerVolume << 16 | deviceNr);
+            }
+            return true;
+        }
+        case OPT_DISK_EJECT_DELAY:
+        {
+            config.ejectDelay = value;
+            return true;
+        }
+        case OPT_DISK_SWAP_DELAY:
+        {
+            config.swapDelay = value;
+            return true;
+        }
+        case OPT_DISK_INSERT_DELAY:
+        {
+            config.insertDelay = value;
+            return true;
+        }
+        case OPT_DRIVE_PAN:
+        {
+            config.pan = value;
+            return true;
+        }
+        case OPT_POWER_VOLUME:
+        {
+            value = std::clamp(value, 0LL, 100LL);
+
+            config.powerVolume = value;
+            return true;
+        }
+        case OPT_STEP_VOLUME:
+        {
+            value = std::clamp(value, 0LL, 100LL);
+
+            config.stepVolume = value;
+            return true;
+        }
+        case OPT_EJECT_VOLUME:
+        {
+            value = std::clamp(value, 0LL, 100LL);
+            
+            config.ejectVolume = value;
+            printf("New eject volume: %d\n", config.ejectVolume);
+            return true;
+        }
+        case OPT_INSERT_VOLUME:
+        {
+            value = std::clamp(value, 0LL, 100LL);
+            
+            config.insertVolume = value;
             return true;
         }
         default:
@@ -140,16 +259,53 @@ Drive::setConfigItem(Option option, long id, long value)
     }
 }
 
-void 
-Drive::_dump() const
+void
+Drive::_dump(dump::Category category, std::ostream& os) const
 {
-	msg("VC1541\n");
-	msg("------\n\n");
-	msg(" Bit ready timer : %d\n", bitReadyTimer);
-	msg("   Head position : Track %d, Bit offset %d\n", halftrack, offset);
-	msg("            SYNC : %d\n", sync);
-    msg("       Read mode : %s\n", readMode() ? "YES" : "NO");
-	msg("\n");
+    using namespace util;
+    
+    if (category & dump::Config) {
+    
+        os << tab("Drive type");
+        os << DriveTypeEnum::key(config.type) << std::endl;
+        os << tab("Connected");
+        os << bol(config.connected) << std::endl;
+        os << tab("Power switch");
+        os << bol(config.switchedOn, "on", "off") << std::endl;
+        os << tab("Pan");
+        os << config.pan << std::endl;
+        os << tab("Power volume");
+        os << dec(config.powerVolume) << std::endl;
+        os << tab("Step volume");
+        os << dec(config.stepVolume) << std::endl;
+        os << tab("Insert volume");
+        os << dec(config.insertVolume) << std::endl;
+        os << tab("Eject volume");
+        os << dec(config.ejectVolume) << std::endl;
+    }
+    
+    if (category & dump::State) {
+         
+        os << tab("Has disk");
+        os << bol(hasDisk()) << std::endl;
+        os << tab("Bit ready timer");
+        os << dec(bitReadyTimer) << std::endl;
+        os << tab("Head position");
+        os << dec(halftrack) << "::" << dec(offset) << std::endl;
+        os << tab("SYNC");
+        os << bol(sync) << std::endl;
+        os << tab("Read mode");
+        os << bol(readMode()) << std::endl;
+    }
+    
+    if (category & dump::Disk) {
+        
+        if (hasDisk()) {
+            disk.dump(dump::State, os);
+        } else {
+            os << "No disk";
+        }
+    }
 }
 
 void
@@ -365,7 +521,8 @@ Drive::moveHeadUp()
    
     assert(disk.isValidHeadPos(halftrack, offset));
     
-    c64.putMessage(MSG_DRIVE_HEAD, deviceNr);
+    c64.putMessage(MSG_DRIVE_STEP,
+                   config.pan << 24 | config.stepVolume << 16 | halftrack << 8 | deviceNr);
 }
 
 void
@@ -383,7 +540,8 @@ Drive::moveHeadDown()
     
     assert(disk.isValidHeadPos(halftrack, offset));
     
-    c64.putMessage(MSG_DRIVE_HEAD, deviceNr);
+    c64.putMessage(MSG_DRIVE_STEP,
+                   config.pan << 24 | config.stepVolume << 16 | halftrack << 8 | deviceNr);
 }
 
 void
@@ -394,7 +552,17 @@ Drive::setModifiedDisk(bool value)
 }
 
 void
-Drive::insertDisk(Disk *otherDisk)
+Drive::insertDisk(const string &path, bool wp)
+{
+    auto disk = Disk::make(c64, path);
+    
+    if (disk) {
+        insertDisk(disk, wp);
+    }
+}
+
+void
+Drive::insertDisk(Disk *otherDisk, bool wp)
 {
     debug(DSKCHG_DEBUG, "insertDisk(otherDisk %p)\n", otherDisk);
 
@@ -404,6 +572,7 @@ Drive::insertDisk(Disk *otherDisk)
         
         // Initiate the disk change procedure
         diskToInsert = otherDisk;
+        diskToInsertWP = wp;
         diskChangeCounter = 1;
     }
     
@@ -421,28 +590,28 @@ void
 Drive::insertNewDisk(DOSType fsType, PETName<16> name)
 {
     Disk *newDisk = Disk::make(c64, fsType, name);
-    insertDisk(newDisk);
+    insertDisk(newDisk, false);
 }
 
 void
-Drive::insertFileSystem(FSDevice *device)
+Drive::insertFileSystem(FSDevice *device, bool wp)
 {
     debug(DSKCHG_DEBUG, "insertFileSystem(%p)\n", device);
-    insertDisk(Disk::makeWithFileSystem(c64, *device));
+    insertDisk(Disk::makeWithFileSystem(c64, *device), wp);
 }
 
 void
-Drive::insertG64(G64File *g64)
+Drive::insertG64(G64File *g64, bool wp)
 {
     debug(DSKCHG_DEBUG, "insertG64(%p)\n", g64);
-    insertDisk(Disk::makeWithG64(c64, g64));
+    insertDisk(Disk::makeWithG64(c64, g64), wp);
 }
 
 void
-Drive::insertDisk(AnyCollection &collection)
+Drive::insertDisk(AnyCollection &collection, bool wp)
 {
     debug(DSKCHG_DEBUG, "insertDisk(collection)\n");
-    insertDisk(Disk::makeWithCollection(c64, collection));
+    insertDisk(Disk::makeWithCollection(c64, collection), wp);
 }
 
 void 
@@ -480,7 +649,7 @@ Drive::vsyncHandler()
             disk.clearDisk();
             
             // Schedule the next transition
-            diskChangeCounter = 17;
+            diskChangeCounter = config.ejectDelay;
             return;
         }
         case DISK_PARTIALLY_EJECTED:
@@ -491,10 +660,11 @@ Drive::vsyncHandler()
             insertionStatus = DISK_FULLY_EJECTED;
             
             // Inform listeners
-            c64.putMessage(MSG_DISK_EJECTED, deviceNr);
+            c64.putMessage(MSG_DISK_EJECT,
+                           config.pan << 24 | config.ejectVolume << 16 | halftrack << 8 | deviceNr);
             
             // Schedule the next transition
-            diskChangeCounter = 17;
+            diskChangeCounter = config.swapDelay;
             return;
         }
         case DISK_FULLY_EJECTED:
@@ -508,7 +678,7 @@ Drive::vsyncHandler()
             insertionStatus = DISK_PARTIALLY_INSERTED;
             
             // Schedule the next transition
-            diskChangeCounter = 17;
+            diskChangeCounter = config.insertDelay;
             return;
         }
         case DISK_PARTIALLY_INSERTED:
@@ -525,9 +695,13 @@ Drive::vsyncHandler()
             disk.load(buffer);
             delete[] buffer;
             diskToInsert = nullptr;
+            
+            // Enable or disable the write protection
+            disk.setWriteProtection(diskToInsertWP);
 
             // Inform listeners
-            c64.putMessage(MSG_DISK_INSERTED, deviceNr);
+            c64.putMessage(MSG_DISK_INSERT,
+                           config.pan << 24 | config.insertVolume << 16 | halftrack << 8 | deviceNr);
             return;
         }
         default:

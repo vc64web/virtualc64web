@@ -2,13 +2,14 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
+#include "C64Component.h"
 #include "TOD.h"
 
 // Action flags
@@ -59,8 +60,10 @@
 
 class CIA : public C64Component {
         
+    friend class TOD;
+    
     // Current configuration
-    CIAConfig config;
+    CIAConfig config = getDefaultConfig();
     
     // Result of the latest inspection
     CIAInfo info;
@@ -69,6 +72,8 @@ class CIA : public C64Component {
     //
     // Sub components
     //
+    
+public:
     
     TOD tod = TOD(c64, *this);
     
@@ -107,7 +112,7 @@ protected:
     // Interrupt control register
 	u8 icr;
 
-    // ICR bits that need to deleted when CIAAckIcr1 hits
+    // ICR bits to be deleted when CIAAckIcr1 hits
     u8 icrAck;
 
     // Interrupt mask register
@@ -196,7 +201,14 @@ private:
 
     
     //
-    // Speeding up emulation (sleep logic)
+    // TOD control
+    //
+    
+    // Cycle nextTodTrigger;
+    
+    
+    //
+    // Sleep logic
     //
     
     /* Idle counter. When the CIA's state does not change during execution,
@@ -236,7 +248,7 @@ public:
 
 protected:
     
-    void _reset() override;
+    void _reset(bool hard) override;
     
     
     //
@@ -245,12 +257,14 @@ protected:
     
 public:
     
+    static CIAConfig getDefaultConfig();
     CIAConfig getConfig() const { return config; }
-    
-    long getConfigItem(Option option) const;
-    bool setConfigItem(Option option, long value) override;
-    
+    void resetConfig() override;
 
+    i64 getConfigItem(Option option) const;
+    bool setConfigItem(Option option, i64 value) override;
+
+    
     //
     // Analyzing
     //
@@ -262,8 +276,8 @@ public:
 protected:
     
     void _inspect() override;
-    void _dump() const override;
-
+    void _dump(dump::Category category, std::ostream& os) const override;
+    
     
     //
     // Serializing
@@ -276,50 +290,50 @@ private:
     {
         worker
         
-        & config.revision
-        & config.timerBBug;
+        << config.revision
+        << config.timerBBug;
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
         worker
         
-        & counterA
-        & counterB
-        & latchA
-        & latchB
-        & delay
-        & feed
-        & CRA
-        & CRB
-        & icr
-        & icrAck
-        & imr
-        & PB67TimerMode
-        & PB67TimerOut
-        & PB67Toggle
-        & PRA
-        & PRB
-        & DDRA
-        & DDRB
-        & PA
-        & PB
-        & sdr
-        & serClk
-        & serCounter
-        & CNT
-        & INT
-        & tiredness
-        & idleCycles
-        & sleeping
-        & sleepCycle
-        & wakeUpCycle;
+        << counterA
+        << counterB
+        << latchA
+        << latchB
+        << delay
+        << feed
+        << CRA
+        << CRB
+        << icr
+        << icrAck
+        << imr
+        << PB67TimerMode
+        << PB67TimerOut
+        << PB67Toggle
+        << PRA
+        << PRB
+        << DDRA
+        << DDRB
+        << PA
+        << PB
+        << sdr
+        << serClk
+        << serCounter
+        << CNT
+        << INT
+        << tiredness
+        << idleCycles
+        << sleeping
+        << sleepCycle
+        << wakeUpCycle;
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
         
     //
@@ -373,11 +387,13 @@ private:
     
 protected:
     
-    // Action method for poking the PA register
+    // Action method for poking the port registers
     virtual void pokePA(u8 value) { PRA = value; updatePA(); }
+    virtual void pokePB(u8 value) { PRB = value; updatePB(); }
 
-    // Action method for poking the DDRA register
+    // Action method for poking the port direction registers
     virtual void pokeDDRA(u8 value) { DDRA = value; updatePA(); }
+    virtual void pokeDDRB(u8 value) { DDRB = value; updatePB(); }
 
     
     //
@@ -426,11 +442,8 @@ public:
     
 	// Executes the CIA for one cycle
 	void executeOneCycle();
+        
     
-	// Increments the TOD clock by one tenth of a second
-	void incrementTOD();
-
- 
     //
     // Speeding up (sleep logic)
     //
@@ -501,9 +514,7 @@ public:
     const char *getDescription() const override { return "CIA2"; }
 
 private:
-    
-    void _reset() override;
-    
+        
     void pullDownInterruptLine() override;
     void releaseInterruptLine() override;
     

@@ -2,17 +2,45 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
+#include "MouseTypes.h"
+#include "JoystickTypes.h"
 #include "C64Component.h"
+#include "Chrono.h"
 #include "Mouse1350.h"
 #include "Mouse1351.h"
 #include "NeosMouse.h"
+
+class ShakeDetector {
+    
+    // Horizontal position
+    double x = 0.0;
+    
+    // Moved distance
+    double dxsum = 0.0;
+
+    // Direction (1 or -1)
+    double dxsign = 1.0;
+    
+    // Number of turns
+    isize dxturns = 0;
+    
+    // Time stamps
+    u64 lastTurn = 0;
+    util::Time lastShake;
+    
+public:
+    
+    // Feed in new coordinates and checks for a shake
+    bool isShakingAbs(double x);
+    bool isShakingRel(double dx);
+};
 
 class Mouse : public C64Component {
     
@@ -22,13 +50,13 @@ class Mouse : public C64Component {
     // Current configuration
     MouseConfig config;
 
-    
     //
     // Sub components
     //
-    
-private:
-    
+
+    // Shake detector
+    class ShakeDetector shakeDetector;
+
     // A Commdore 1350 (digital) mouse
     Mouse1350 mouse1350 = Mouse1350(c64);
     
@@ -43,9 +71,13 @@ private:
      * Instead, these variables are set. In execute(), mouseX and mouseY are
      * shifted smoothly towards the target positions.
      */
-    i64 targetX;
-    i64 targetY;
+    double targetX = 0.0;
+    double targetY = 0.0;
   
+    // Scaling factors applied to the raw mouse coordinates in setXY()
+    double scaleX = 1.0;
+    double scaleY = 1.0;
+
     
     //
     // Initializing
@@ -58,17 +90,8 @@ public:
     
 private:
     
-    void _reset() override;
+    void _reset(bool hard) override;
 
-    
-    //
-    // Analyzing
-    //
-    
-private:
-    
-    void _dump() const override;
-    
     
     //
     // Configuring
@@ -76,12 +99,33 @@ private:
     
 public:
     
-    MouseConfig getConfig() const { return config; }
-    
-    MouseModel getModel() { return config.model; }
-    void setModel(MouseModel model);
+    const MouseConfig &getConfig() const { return config; }
+    void resetConfig() override;
 
+    i64 getConfigItem(Option option) const;
+    bool setConfigItem(Option option, i64 value) override;
+    bool setConfigItem(Option option, long id, i64 value) override;
     
+private:
+    
+    void updateScalingFactors();
+    
+    
+    //
+    // Analyzing
+    //
+    
+private:
+    
+    void _dump(dump::Category category, std::ostream& os) const override;
+
+    /*
+public:
+    
+    [[deprecated]] MouseModel getModel() { return config.model; }
+    [[deprecated]] void setModel(MouseModel model);
+    */
+
     //
     // Serializing
     //
@@ -91,16 +135,17 @@ private:
     template <class T>
     void applyToPersistentItems(T& worker)
     {
+        worker << config.model;
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
@@ -108,11 +153,16 @@ private:
     //
     
 public:
-    
-    // Emulates a mouse movement event
-    void setXY(i64 x, i64 y);
 
-    // Emulates a mouse button event
+    // Runs the shake detector
+    bool detectShakeXY(double x, double y);
+    bool detectShakeDxDy(double dx, double dy);
+
+    // Emulates a mouse movement
+    void setXY(double x, double y);
+    void setDxDy(double dx, double dy);
+
+    // Presses or releases a mouse button
     void setLeftButton(bool value);
     void setRightButton(bool value);
     

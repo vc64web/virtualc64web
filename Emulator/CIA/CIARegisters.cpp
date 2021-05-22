@@ -2,11 +2,13 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "CIA.h"
 #include "C64.h"
 
 u8
@@ -22,13 +24,15 @@ CIA::peek(u16 addr)
         case 0x00: // CIA_DATA_PORT_A
         {
             updatePA();
-            return PA;
+            result = PA;
+            break;
         }
 
         case 0x01: // CIA_DATA_PORT_B
         {
             updatePB();
-            return PB;
+            result = PB;
+            break;
         }
         case 0x02: // CIA_DATA_DIRECTION_A
 
@@ -133,6 +137,7 @@ CIA::peek(u16 addr)
             result = 0;
     }
     
+    trace(CIAREG_DEBUG, "peek(%x) = %x\n", addr, result);
     return result;
 }
 
@@ -205,6 +210,7 @@ CIA::spypeek(u16 addr) const
 void
 CIA::poke(u16 addr, u8 value)
 {
+    trace(CIAREG_DEBUG, "poke(%x, %x)\n", addr, value);
     wakeUp();
     
     switch(addr) {
@@ -212,27 +218,21 @@ CIA::poke(u16 addr, u8 value)
         case 0x00: // CIA_DATA_PORT_A
             
             pokePA(value);
-            // PRA = value;
-            // updatePA();
             return;
             
         case 0x01: // CIA_DATA_PORT_B
             
-            PRB = value;
-            updatePB();
+            pokePB(value);
             return;
             
         case 0x02: // CIA_DATA_DIRECTION_A
             
             pokeDDRA(value);
-            // DDRA = value;
-            // updatePA();
             return;
             
         case 0x03: // CIA_DATA_DIRECTION_B
             
-            DDRB = value;
-            updatePB();
+            pokeDDRB(value);
             return;
             
         case 0x04: // CIA_TIMER_A_LOW
@@ -428,7 +428,7 @@ CIA::poke(u16 addr, u8 value)
             // 0------- : TOD speed = 60 Hz
             // 1------- : TOD speed = 50 Hz
             // TODO: We need to react on a change of this bit
-            tod.setHz((value & 0x80) ? 5 /* 50 Hz */ : 6 /* 60 Hz */);
+            // tod.setHz((value & 0x80) ? 5 /* 50 Hz */ : 6 /* 60 Hz */);
             
             updatePB(); // Because PB67timerMode and PB6TimerOut may have changed
             CRA = value;

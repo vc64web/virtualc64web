@@ -2,7 +2,7 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
@@ -56,7 +56,7 @@ public:
 
 private:
     
-    void _reset() override { RESET_SNAPSHOT_ITEMS };
+    void _reset(bool hard) override;
 
     
     //
@@ -65,7 +65,7 @@ private:
     
 private:
     
-    void _dump() const override;
+    void _dump(dump::Category category, std::ostream& os) const override;
 
     
     //
@@ -80,20 +80,20 @@ private:
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
         worker
         
-        & port
-        & direction
-        & dischargeCycleBit3
-        & dischargeCycleBit6
-        & dischargeCycleBit7;
+        << port
+        << direction
+        << dischargeCycleBit3
+        << dischargeCycleBit6
+        << dischargeCycleBit7;
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //

@@ -2,17 +2,19 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "IEC.h"
 #include "C64.h"
 
 void 
-IEC::_reset()
+IEC::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS
+    RESET_SNAPSHOT_ITEMS(hard)
     
     atnLine = 1;
     clockLine = 1;
@@ -31,19 +33,20 @@ IEC::_reset()
     ciaData = 1;
 }
 
-void 
-IEC::_dump() const
+void
+IEC::_dump(dump::Category category, std::ostream& os) const
 {
-	msg("IEC bus\n");
-	msg("-------\n");
-	msg("\n");
-	// dumpTrace();
-	msg("\n");
-    msg("    DDRB (VIA1) : %02X (Drive 1)\n", drive8.via1.getDDRB());
-    msg("    DDRB (VIA1) : %02X (Drive 2)\n", drive9.via1.getDDRB());
-    msg("   Bus activity : %d\n", busActivity); 
-
-    msg("\n");
+    using namespace util;
+    
+    if (category & dump::State) {
+        
+        os << tab("VIA1::DDRB (Drive8)");
+        os << hex(drive8.via1.getDDRB()) << std::endl;
+        os << tab("VIA1::DDRB (Drive9)");
+        os << hex(drive9.via1.getDDRB()) << std::endl;
+        os << tab("Bus activity");
+        os << dec(busActivity) << std::endl;
+    }
 }
 
 void 

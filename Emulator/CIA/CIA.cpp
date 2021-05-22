@@ -2,34 +2,60 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "CIA.h"
 #include "C64.h"
+#include "IO.h"
 
 CIA::CIA(C64 &ref) : C64Component(ref)
 {    
-    subComponents = vector<HardwareComponent *> { &tod };
-    
-    config.revision = MOS_6526;
-    config.timerBBug = true;
+    subComponents = std::vector<HardwareComponent *> { &tod };    
 }
 
 void
-CIA::_reset()
+CIA::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS
-
-	CNT = true;
-	INT = 1;
-	
-	latchA = 0xFFFF;
-	latchB = 0xFFFF;
+    RESET_SNAPSHOT_ITEMS(hard)
+    
+    CNT = true;
+    INT = 1;
+    
+    counterA = 0xFFFF;
+    counterB = 0xFFFF;
+    
+    latchA = 0xFFFF;
+    latchB = 0xFFFF;
+    
+    updatePA();
+    updatePB();
 }
 
-long
+CIAConfig
+CIA::getDefaultConfig()
+{
+    CIAConfig defaults;
+
+    defaults.revision = MOS_6526;
+    defaults.timerBBug = true;
+    
+    return defaults;
+}
+
+void
+CIA::resetConfig()
+{
+    CIAConfig defaults = getDefaultConfig();
+    
+    setConfigItem(OPT_CIA_REVISION, defaults.revision);
+    setConfigItem(OPT_TIMER_B_BUG, defaults.timerBBug);
+}
+
+i64
 CIA::getConfigItem(Option option) const
 {
     switch (option) {
@@ -44,21 +70,23 @@ CIA::getConfigItem(Option option) const
 }
 
 bool
-CIA::setConfigItem(Option option, long value)
+CIA::setConfigItem(Option option, i64 value)
 {
     switch (option) {
             
         case OPT_CIA_REVISION:
             
-            if (!CIARevisionEnum::verify(value)) return false;
-            if (config.revision == value)  return false;
+            if (!CIARevisionEnum::isValid(value)) {
+                throw ConfigArgError(CIARevisionEnum::keyList());
+            }
+            // if (config.revision == value) return false;
             
             config.revision = (CIARevision)value;
             return true;
             
         case OPT_TIMER_B_BUG:
             
-            if (config.timerBBug == value) return false;
+            // if (config.timerBBug == value) return false;
 
             config.timerBBug = value;
             return true;
@@ -113,38 +141,52 @@ CIA::_inspect()
 }
 
 void
-CIA::_dump() const
+CIA::_dump(dump::Category category, std::ostream& os) const
 {
-    msg("                Sleeping : %s\n", sleeping ? "yes" : "no");
-    msg("               Tiredness : %d\n", tiredness);
-    msg(" Most recent sleep cycle : %lld\n", sleepCycle);
-    msg("Most recent wakeup cycle : %lld\n", wakeUpCycle);
-    msg("\n");
-    msg("               Counter A : %04X\n", info.timerA.count);
-    msg("                 Latch A : %04X\n", info.timerA.latch);
-    msg("         Data register A : %02X\n", info.portA.reg);
-    msg("   Data port direction A : %02X\n", info.portA.dir);
-    msg("             Data port A : %02X\n", info.portA.port);
-    msg("      Control register A : %02X\n", CRA);
-    msg("\n");
-    msg("               Counter B : %04X\n", info.timerB.count);
-    msg("                 Latch B : %04X\n", info.timerB.latch);
-    msg("         Data register B : %02X\n", info.portB.reg);
-    msg("   Data port direction B : %02X\n", info.portB.dir);
-    msg("             Data port B : %02X\n", info.portB.port);
-    msg("      Control register B : %02X\n", CRB);
-    msg("\n");
-    msg("   Interrupt control reg : %02X\n", info.icr);
-    msg("      Interrupt mask reg : %02X\n", info.imr);
-    msg("\n");
-//    msg("                     SDR : %02X %02X\n", info.sdr, sdr);
-//    msg("              serCounter : %02X\n", serCounter);
-    msg("\n");
-    msg("                     CNT : %d\n", CNT);
-    msg("                     INT : %d\n", INT);
-    msg("\n");
-
-    // tod.dump();
+    using namespace util;
+    
+    if (category & dump::Config) {
+    
+        os << tab("Revision");
+        os << CIARevisionEnum::key(config.revision) << std::endl;
+        os << tab("Timer B bug");
+        os << bol(config.timerBBug) << std::endl;
+    }
+    
+    if (category & dump::State) {
+        
+        os << tab("Sleeping") << bol(sleeping) << std::endl;
+        os << tab("Tiredness") << dec(tiredness) << std::endl;
+        os << tab("Sleep cycle") << dec(sleepCycle) << std::endl;
+        os << tab("Wakeup cycle") << dec(wakeUpCycle) << std::endl;
+        os << tab("CNT") << dec(CNT) << std::endl;
+        os << tab("INT") << dec(INT) << std::endl;
+    }
+    
+    if (category & dump::Registers) {
+        
+        os << tab("Counter A") << dec(counterA) << std::endl;
+        os << tab("Latch A") << dec(latchA) << std::endl;
+        os << tab("Data register A") << hex(PRA) << std::endl;
+        os << tab("Data port direction A") << hex(DDRA) << std::endl;
+        os << tab("Data port A") << hex(PA) << std::endl;
+        os << tab("Control register A") << hex(CRA) << std::endl;
+        os << std::endl;
+        os << tab("Counter B") << dec(counterB) << std::endl;
+        os << tab("Latch B") << dec(latchB) << std::endl;
+        os << tab("Data register B") << hex(PRB) << std::endl;
+        os << tab("Data port direction B") << hex(DDRB) << std::endl;
+        os << tab("Data port B") << hex(PB) << std::endl;
+        os << tab("Control register B") << hex(CRB) << std::endl;
+        os << std::endl;
+        os << tab("Interrupt control reg") << hex(icr) << std::endl;
+        os << tab("Interrupt mask reg") << hex(imr) << std::endl;
+        os << std::endl;
+        os << tab("SDR") << hex(sdr) << std::endl;
+        // os << tab("SSR") << hex(ssr) << std::endl;
+        os << tab("serCounter") << dec(serCounter) << std::endl;
+        os << std::endl;
+    }
 }
 
 void
@@ -530,13 +572,6 @@ CIA::executeOneCycle()
 }
 
 void
-CIA::incrementTOD()
-{
-    wakeUp();
-    tod.increment();
-}
-
-void
 CIA::sleep()
 {
     // Don't call this method on a sleeping CIA
@@ -549,7 +584,7 @@ CIA::sleep()
     // CIAs with stopped timers can sleep forever
     if (!(feed & CIACountA0)) sleepA = INT64_MAX;
     if (!(feed & CIACountB0)) sleepB = INT64_MAX;
-    Cycle sleep = MIN(sleepA, sleepB);
+    Cycle sleep = std::min(sleepA, sleepB);
 
     // ZZzzz
     sleepCycle = cpu.cycle;
@@ -657,10 +692,8 @@ CIA1::updatePA()
     PA &= port2.getControlPort();
     
     // An edge on PA4 triggers the NeosMouse on port 2
-    if (FALLING_EDGE_BIT(oldPA, PA, 4))
-        port2.mouse.fallingStrobe();
-    if (RISING_EDGE_BIT(oldPA, PA, 4))
-        port2.mouse.risingStrobe();
+    if (FALLING_EDGE_BIT(oldPA, PA, 4)) port2.mouse.fallingStrobe();
+    if (RISING_EDGE_BIT(oldPA, PA, 4)) port2.mouse.risingStrobe();
 }
 
 //                    -------
@@ -693,46 +726,33 @@ CIA1::updatePB()
     
     PB = (portBinternal() & DDRB) | (portBexternal() & ~DDRB);
  
-    // Get lines which are driven actively low by port 1
+    // Get lines which are driven actively low by port 2
     u8 columnMask = ~PRA & DDRA & port2.getControlPort();
     
     // Pull lines low that are connected by a pressed key
-    PB &= keyboard.getRowValues(columnMask);
-    
+    PB &= keyboard.getRowValues(columnMask, PRB & DDRB);
+        
     // Check if timer A underflow shows up on PB6
-    if (GET_BIT(PB67TimerMode, 6))
-        REPLACE_BIT(PB, 6, PB67TimerOut & (1 << 6));
+    if (GET_BIT(PB67TimerMode, 6)) REPLACE_BIT(PB, 6, PB67TimerOut & (1 << 6));
     
     // Check if timer B underflow shows up on PB7
-    if (GET_BIT(PB67TimerMode, 7))
-        REPLACE_BIT(PB, 7, PB67TimerOut & (1 << 7));
+    if (GET_BIT(PB67TimerMode, 7)) REPLACE_BIT(PB, 7, PB67TimerOut & (1 << 7));
     
     // The control port can always bring the port lines low
     PB &= port1.getControlPort();
     
-    // PB4 is connected to the VICII (LP pin).
+    // PB4 is connected to the VICII (LP pin)
     vic.setLP(GET_BIT(PB, 4) != 0);
     
     // An edge on PB4 triggers the NeosMouse on port 1
-    if (FALLING_EDGE_BIT(oldPB, PB, 4))
-        port1.mouse.fallingStrobe();
-    if (RISING_EDGE_BIT(oldPB, PB, 4))
-        port1.mouse.risingStrobe();
+    if (FALLING_EDGE_BIT(oldPB, PB, 4)) port1.mouse.fallingStrobe();
+    if (RISING_EDGE_BIT(oldPB, PB, 4)) port1.mouse.risingStrobe();
 }
 
 
 //
 // CIA 2
 //
-
-void
-CIA2::_reset()
-{
-    CIA::_reset();
-
-    counterA = 0xFFFF;
-    counterB = 0xFFFF;
-}
 
 void 
 CIA2::pullDownInterruptLine()
@@ -841,6 +861,4 @@ CIA2::pokeDDRA(u8 value)
     
     // PA0 (VA14) and PA1 (VA15) determine the memory bank seen by VICII
     vic.switchBank(0xDD02);
-
 }
-

@@ -2,17 +2,20 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
 #include "G64File.h"
+#include "Disk.h"
+#include "IO.h"
 
 bool
 G64File::isCompatibleName(const std::string &name)
 {
-    auto s = suffix(name);
+    auto s = util::extractSuffix(name);
     return s == "g64" || s == "G64";
 }
 
@@ -22,8 +25,8 @@ G64File::isCompatibleStream(std::istream &stream)
     // const u8 magicBytes[] = { 0x47, 0x43, 0x52, 0x2D, 0x31, 0x35, 0x34, 0x31 };
     const u8 magicBytes[] = { 'G', 'C', 'R', '-', '1', '5', '4', '1' };
 
-    if (streamLength(stream) < 0x2AC) return false;
-    return matchingStreamHeader(stream, magicBytes, sizeof(magicBytes));
+    if (util::streamLength(stream) < 0x2AC) return false;
+    return util::matchingStreamHeader(stream, magicBytes, sizeof(magicBytes));
 }
 
 G64File::G64File(usize capacity)
@@ -60,7 +63,6 @@ G64File::makeWithDisk(Disk &disk)
     u8 *buffer = new u8[length];
     
     // Write header, number of tracks, and track length
-    pos = 0;
     strcpy((char *)buffer, "GCR-1541");
     buffer[9]  = 84;                       // 0x54 (Number of tracks)
     buffer[10] = LO_BYTE(maxBytesOnTrack); // 0xF8
@@ -121,7 +123,7 @@ G64File::makeWithDisk(class Disk &disk, ErrorCode *err)
     *err = ERROR_OK;
     
     try { return makeWithDisk(disk); }
-    catch (VC64Error &exception) { *err = exception.errorCode; }
+    catch (VC64Error &exception) { *err = exception.data; }
     return nullptr;
 }
 

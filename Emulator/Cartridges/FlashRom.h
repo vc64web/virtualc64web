@@ -2,7 +2,7 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
@@ -10,7 +10,7 @@
 #pragma once
 
 #include "C64Component.h"
-#include "CartridgePublicTypes.h"
+#include "CartridgeTypes.h"
 
 /* This class implements a Flash Rom module of type Am29F040B. Flash Roms
  * of this type are used, e.g., by the EasyFlash cartridge. The implementation
@@ -70,7 +70,7 @@ public:
     
 private:
     
-    void _reset() override;
+    void _reset(bool hard) override;
 
     
     //
@@ -79,8 +79,8 @@ private:
     
 private:
     
-    void _dump() const override;
-
+    void _dump(dump::Category category, std::ostream& os) const override;
+    
     
     //
     // Serializing
@@ -93,21 +93,21 @@ private:
     {
         worker
         
-        & state
-        & baseState;
+        << state
+        << baseState;
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
     }
     
     usize __size() { COMPUTE_SNAPSHOT_SIZE }
-    usize _size() override { return __size() + romSize; }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    usize didLoadFromBuffer(u8 *buffer) override;
-    usize didSaveToBuffer(u8 *buffer) override;
+    isize _size() override { return __size() + romSize; }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize didLoadFromBuffer(const u8 *buffer) override;
+    isize didSaveToBuffer(u8 *buffer) override;
 
     
     //

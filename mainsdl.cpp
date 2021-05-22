@@ -5,6 +5,7 @@
  */
 
 #include <stdio.h>
+#include "config.h"
 #include "C64.h"
 #include "C64Types.h"
 
@@ -450,13 +451,13 @@ class C64Wrapper {
 
   C64Wrapper()
   {
-    printf("constructing C64 ...\n");
+    printf("constructing C64 ...123\n");
 
     this->c64 = new C64();
 
     printf("adding a listener to C64 message queue...\n");
 
-    c64->addListener(this->c64, &theListener);
+    c64->msgQueue.setListener(this->c64, &theListener);
 
   }
   ~C64Wrapper()
@@ -487,7 +488,7 @@ class C64Wrapper {
     //c64->setTakeAutoSnapshots(false);
     //c64->setWarpLoad(true);
     c64->configure(OPT_GRAY_DOT_BUG, false);
-    c64->configure(OPT_VIC_REVISION, VICREV_PAL_6569_R1);
+    c64->configure(OPT_VIC_REVISION, VICII_PAL_6569_R1);
 
     c64->configure(OPT_SID_ENGINE, SIDENGINE_RESID);
 //    c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);
@@ -558,11 +559,12 @@ extern "C" void wasm_key(int code1, int code2, int pressed)
   }
   else if(pressed==1)
   {
-    wrapper->c64->keyboard.pressRowCol(code1, code2);
+    wrapper->c64->keyboard.press(*new C64Key(code1,code2));
   }
   else
   {
-    wrapper->c64->keyboard.releaseRowCol(code1, code2);
+    wrapper->c64->keyboard.release(*new C64Key(code1,code2));
+    //wrapper->c64->keyboard.releaseRowCol(code1, code2);
   }
 }
 
@@ -585,13 +587,13 @@ extern "C" void wasm_schedule_key(int code1, int code2, int pressed, int frame_d
   {
     printf("scheduleKeyPress ( %d, %d, %d ) \n", code1, code2, frame_delay);
 
-    wrapper->c64->keyboard.scheduleKeyPress(code1, code2, frame_delay);
+    wrapper->c64->keyboard.scheduleKeyPress(*new C64Key(code1,code2), frame_delay);
   }
   else
   {
     printf("scheduleKeyRelease ( %d, %d, %d ) \n", code1, code2, frame_delay);
 
-    wrapper->c64->keyboard.scheduleKeyRelease(code1, code2, frame_delay);
+    wrapper->c64->keyboard.scheduleKeyRelease(*new C64Key(code1,code2), frame_delay);
   }
 }
 
@@ -683,7 +685,7 @@ extern "C" void wasm_set_borderless(float on)
 //428-12-24-2*33 =326
 
   eat_border_height = 34 * on ;
-  yOff = 15 + eat_border_height;
+  yOff = 16 + eat_border_height;
   clipped_height = TEX_HEIGHT -42  -2*eat_border_height; //248
 //284-11-24-2*22=205
  
@@ -698,7 +700,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
   printf("load file=%s len=%ld, header bytes= %x, %x, %x\n", name, len, blob[0],blob[1],blob[2]);
   ErrorCode error;
   filename=name;
-  auto file_suffix= suffix(name); 
+  auto file_suffix= util::extractSuffix(name); 
   if(wrapper == NULL)
   {
     return "";
@@ -712,14 +714,14 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     try{
       file = D64File::make<D64File>(blob, len);
     } catch(VC64Error &exception) {
-      ErrorCode ec=exception.errorCode;
+      ErrorCode ec=exception.data;
       printf("%s\n", ErrorCodeEnum::key(ec));
     }
     if(file != NULL)
     {
       printf("isD64\n");  
       FSDevice *fs= FSDevice::makeWithD64(*file); 
-      wrapper->c64->drive8.insertFileSystem(fs);
+      wrapper->c64->drive8.insertFileSystem(fs, false);
       file_still_unprocessed=false;
     }
   }
@@ -729,7 +731,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     if(file != NULL)
     {
       printf("isG64\n");
-      wrapper->c64->drive8.insertDisk(Disk::makeWithG64(*(wrapper->c64), file));
+      wrapper->c64->drive8.insertDisk(Disk::makeWithG64(*(wrapper->c64), file), false);
       file_still_unprocessed=false;
     }
   }
@@ -750,7 +752,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     {
       printf("isCRT\n");
       wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(*(wrapper->c64),*file));
-      wrapper->c64->reset();
+      wrapper->c64->reset(true);
       file_still_unprocessed=false;
     } 
   }
@@ -779,7 +781,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       file_still_unprocessed=false;
     } 
   }
-  if (file_still_unprocessed && Snapshot::isCompatibleName(filename) && suffix(filename)!="bin") {
+  if (file_still_unprocessed && Snapshot::isCompatibleName(filename) && util::extractSuffix(filename)!="bin") {
     printf("try to build Snapshot\n");
     Snapshot *file = Snapshot::make<Snapshot>(blob, len, &error);
     if(file != NULL)
@@ -856,7 +858,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 extern "C" void wasm_reset()
 {
   wrapper->c64->expansionport.detachCartridge();
-  wrapper->c64->reset();
+  wrapper->c64->reset(true);
 }
 
 extern "C" void wasm_halt()

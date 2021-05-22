@@ -2,18 +2,21 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#include "C64.h"
+#include "config.h"
 #include "NeosMouse.h"
+#include "C64.h"
+
+#include <algorithm>
 
 void
-NeosMouse::_reset()
+NeosMouse::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS
+    RESET_SNAPSHOT_ITEMS(hard)
 
     leftButton = false;
     rightButton = false;
@@ -133,17 +136,17 @@ NeosMouse::latchPosition(i64 targetX, i64 targetY)
     if (abs(targetY - mouseY) / 8 > shiftY) mouseY = targetY;
     
     // Move mouse coordinates towards target coordinates
-    if (targetX < mouseX) mouseX -= MIN(mouseX - targetX, shiftX);
-    else if (targetX > mouseX) mouseX += MIN(targetX - mouseX, shiftX);
-    if (targetY < mouseY) mouseY -= MIN(mouseY - targetY, shiftY);
-    else if (targetY > mouseY) mouseY += MIN(targetY - mouseY, shiftY);
+    if (targetX < mouseX) mouseX -= std::min(mouseX - targetX, shiftX);
+    else if (targetX > mouseX) mouseX += std::min(targetX - mouseX, shiftX);
+    if (targetY < mouseY) mouseY -= std::min(mouseY - targetY, shiftY);
+    else if (targetY > mouseY) mouseY += std::min(targetY - mouseY, shiftY);
     
     //
     // Compute deltas and latch values
     //
     
-    i64 dx = MAX(MIN((latchedX - mouseX), 127), -128);
-    i64 dy = MAX(MIN((mouseY - latchedY), 127), -128);
+    i64 dx = std::clamp(latchedX - mouseX, 127LL, -128LL);
+    i64 dy = std::clamp(mouseY - latchedY, 127LL, -128LL);
     
     deltaX = (u8)dx;
     deltaY = (u8)dy;

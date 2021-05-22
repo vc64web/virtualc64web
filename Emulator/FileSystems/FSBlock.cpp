@@ -2,12 +2,15 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "FSBlock.h"
 #include "FSDevice.h"
+#include "MemUtils.h"
 
 FSBlock::FSBlock(FSDevice& _device, u32 _nr) : device(_device), nr(_nr)
 {
@@ -196,7 +199,7 @@ FSBlock::check(u32 byte, u8 *expected, bool strict) const
             if (byte == 0) EXPECT_TRACK_REF (data[byte + 1]);
             if (byte == 1) EXPECT_SECTOR_REF(data[byte - 1]);
                         
-            if (!isZero(data + byte, 0x20)) {
+            if (!util::isZero(data + byte, 0x20)) {
             
                 switch (byte & 0x1F) {
                         
@@ -227,13 +230,13 @@ FSBlock::check(u32 byte, u8 *expected, bool strict) const
 unsigned
 FSBlock::check(bool strict) const
 {
-    ErrorCode err;
     unsigned count = 0;
     u8 expected;
     
     for (u32 i = 0; i < 256; i++) {
         
-        if ((err = check(i, &expected, strict)) != ERROR_OK) {
+        ErrorCode err = check(i, &expected, strict);
+        if (err != ERROR_OK) {
             count++;
             debug(FS_DEBUG, "Block %d [%d.%d]: %s\n",
                   nr, i / 4, i % 4, ErrorCodeEnum::key(err));

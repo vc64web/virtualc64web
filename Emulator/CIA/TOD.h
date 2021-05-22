@@ -2,16 +2,15 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
+#include "CIATypes.h"
 #include "C64Component.h"
-
-class CIA;
 
 inline u8 incBCD(u8 x)
 {
@@ -25,7 +24,7 @@ inline u8 incBCD(u8 x)
  */
 class TOD : public C64Component {
     
-    friend CIA;
+    friend class CIA;
     
 private:
     
@@ -33,7 +32,7 @@ private:
     TODInfo info;
     
     // Reference to the connected CIA
-    CIA &cia;
+    class CIA &cia;
     
     // Time of day clock
 	TimeOfDay tod;
@@ -63,20 +62,11 @@ private:
      * checkIrq() for edge detection.
      */
     bool matching;
-    
-    /* Indicates if TOD is driven by a 50 Hz or 60 Hz signal. Valid values are
-     * 5 (50 Hz mode) or 6 (60 Hz mode).
-     */
-    u8 hz;
-    
-    /* Frequency counter. This counter is driven by the A/C power frequency and
-     * determines when TOD should increment. This variable is incremented in
-     * function increment() which is called in endFrame(). Hence, the variable
-     * is a 50 Hz signal in PAL mode and a 60 Hz signal in NTSC mode.
-     */
-    u64 frequencyCounter;
-    
-    
+
+    // Cycle where the tenth of a second counter needs to be incremented
+    Cycle nextTodTrigger;
+
+        
     //
     // Initializing
     //
@@ -88,30 +78,22 @@ public:
 
 private:
     
-    void _reset() override;
-
-    
-    //
-    // Configuring
-    //
-    
-public:
-    
-    // Returns the result of the most recent call to inspect()
-    TODInfo getInfo() { return HardwareComponent::getInfo(info); }
-    
-    // Sets the frequency of the driving clock
-    void setHz(u8 value) { assert(value == 5 || value == 6); hz = value; }
+    void _reset(bool hard) override;
 
     
     //
     // Analyzing
     //
+
+public:
     
+    // Returns the result of the most recent call to inspect()
+    TODInfo getInfo() { return HardwareComponent::getInfo(info); }
+
 private:
     
     void _inspect() override;
-    void _dump() const override;
+    void _dump(dump::Category category, std::ostream& os) const override;
     
     
     //
@@ -126,82 +108,86 @@ private:
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
         worker
         
-        & tod.value
-        & latch.value
-        & alarm.value
-        & frozen
-        & stopped
-        & matching
-        & hz
-        & frequencyCounter;
+        << tod.value
+        << latch.value
+        << alarm.value
+        << frozen
+        << stopped
+        << matching
+        << nextTodTrigger;
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
     // Accessing
     //
-
+        
     // Returns the hours digits of the time of day clock
-     u8 getTodHours() const { return (frozen ? latch.hour : tod.hour) & 0x9F; }
-
-     // Returns the minutes digits of the time of day clock
-     u8 getTodMinutes() const { return (frozen ? latch.min : tod.min) & 0x7F; }
-
-     // Returns the seconds digits of the time of day clock
-     u8 getTodSeconds() const { return (frozen ? latch.sec : tod.sec) & 0x7F; }
-
-     // Returns the tenth-of-a-second digits of the time of day clock
-     u8 getTodTenth() const { return (frozen ? latch.tenth : tod.tenth) & 0x0F; }
-
-     // Returns the hours digits of the alarm time
-     u8 getAlarmHours() const { return alarm.hour & 0x9F; }
-
-     // Returns the minutes digits of the alarm time
-     u8 getAlarmMinutes() const { return alarm.min & 0x7F; }
-
-     // Returns the seconds digits of the alarm time
-     u8 getAlarmSeconds() const { return alarm.sec & 0x7F; }
-
-     // Returns the tenth-of-a-second digits of the alarm time
-     u8 getAlarmTenth() const { return alarm.tenth & 0x0F; }
-     
-     // Sets the hours digits of the time of day clock
-     void setTodHours(u8 value) { tod.hour = value & 0x9F; checkIrq(); }
-     
-     // Sets the minutes digits of the time of day clock
-     void setTodMinutes(u8 value) { tod.min = value & 0x7F; checkIrq(); }
-     
-     // Sets the seconds digits of the time of day clock
-     void setTodSeconds(u8 value) { tod.sec = value & 0x7F; checkIrq(); }
-     
-     // Sets the tenth-of-a-second digits of the time of day clock
-     void setTodTenth(u8 value) { tod.tenth = value & 0x0F; checkIrq(); }
-     
-     // Sets the hours digits of the alarm time
-     void setAlarmHours(u8 value) { alarm.hour = value & 0x9F; checkIrq(); }
-     
-     // Sets the minutes digits of the alarm time
-     void setAlarmMinutes(u8 value) { alarm.min = value & 0x7F; checkIrq(); }
-     
-     // Sets the seconds digits of the alarm time
-     void setAlarmSeconds(u8 value) { alarm.sec = value & 0x7F; checkIrq(); }
-     
-     // Sets the tenth-of-a-second digits of the time of day clock
-     void setAlarmTenth(u8 value) { alarm.tenth = value & 0x0F; checkIrq(); }
-
+    u8 getTodHours() const { return (frozen ? latch.hour : tod.hour) & 0x9F; }
+    
+    // Returns the minutes digits of the time of day clock
+    u8 getTodMinutes() const { return (frozen ? latch.min : tod.min) & 0x7F; }
+    
+    // Returns the seconds digits of the time of day clock
+    u8 getTodSeconds() const { return (frozen ? latch.sec : tod.sec) & 0x7F; }
+    
+    // Returns the tenth-of-a-second digits of the time of day clock
+    u8 getTodTenth() const { return (frozen ? latch.tenth : tod.tenth) & 0x0F; }
+    
+    // Returns the hours digits of the alarm time
+    u8 getAlarmHours() const { return alarm.hour & 0x9F; }
+    
+    // Returns the minutes digits of the alarm time
+    u8 getAlarmMinutes() const { return alarm.min & 0x7F; }
+    
+    // Returns the seconds digits of the alarm time
+    u8 getAlarmSeconds() const { return alarm.sec & 0x7F; }
+    
+    // Returns the tenth-of-a-second digits of the alarm time
+    u8 getAlarmTenth() const { return alarm.tenth & 0x0F; }
+    
+    // Sets the hours digits of the time of day clock
+    void setTodHours(u8 value) { tod.hour = value & 0x9F; checkIrq(); }
+    
+    // Sets the minutes digits of the time of day clock
+    void setTodMinutes(u8 value) { tod.min = value & 0x7F; checkIrq(); }
+    
+    // Sets the seconds digits of the time of day clock
+    void setTodSeconds(u8 value) { tod.sec = value & 0x7F; checkIrq(); }
+    
+    // Sets the tenth-of-a-second digits of the time of day clock
+    void setTodTenth(u8 value) { tod.tenth = value & 0x0F; checkIrq(); }
+    
+    // Sets the hours digits of the alarm time
+    void setAlarmHours(u8 value) { alarm.hour = value & 0x9F; checkIrq(); }
+    
+    // Sets the minutes digits of the alarm time
+    void setAlarmMinutes(u8 value) { alarm.min = value & 0x7F; checkIrq(); }
+    
+    // Sets the seconds digits of the alarm time
+    void setAlarmSeconds(u8 value) { alarm.sec = value & 0x7F; checkIrq(); }
+    
+    // Sets the tenth-of-a-second digits of the time of day clock
+    void setAlarmTenth(u8 value) { alarm.tenth = value & 0x0F; checkIrq(); }
+    
     
     //
     // Emulating
     //
     
+public:
+    
+    // Increments the TOD clock if necessary (called after each rasterline)
+    void increment();
+
 private:
     
     // Freezes the time of day clock
@@ -211,13 +197,10 @@ private:
     void defreeze() { frozen = false; }
     
     // Stops the time of day clock
-    void stop() { frequencyCounter = 0; stopped = true; }
-    
+    void stop() { stopped = true; }
+
     // Starts the time of day clock
-    void cont() { stopped = false; }
- 	
-	// Increments the TOD clock by one tenth of a second
-	void increment();
+    void cont();
 
     // Updates variable 'matching'. A positive edge triggers an interrupt.
     void checkIrq();

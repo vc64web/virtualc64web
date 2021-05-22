@@ -2,33 +2,21 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
+#include "OscillatorTypes.h"
 #include "C64Component.h"
-
-#ifdef __MACH__
-#include <mach/mach_time.h>
-#endif
+#include "Chrono.h"
 
 class Oscillator : public C64Component {
     
-#ifdef __MACH__
-
-    // Information about the Mach system timer
-    static mach_timebase_info_data_t tb;
-
-    // Converts kernel time to nanoseconds
-    static u64 abs_to_nanos(u64 abs) { return abs * tb.numer / tb.denom; }
-    
-    // Converts nanoseconds to kernel time
-    static u64 nanos_to_abs(u64 nanos) { return nanos * tb.denom / tb.numer; }
-
-#endif
+    // Current configuration
+    OscillatorConfig config = getDefaultConfig();
     
     /* The heart of this class is method sychronize() which puts the thread to
      * sleep for a certain interval. In order to calculate the delay, the
@@ -40,8 +28,18 @@ class Oscillator : public C64Component {
     // C64 clock
     Cycle clockBase = 0;
 
-    // Kernel clock (Nanoseconds)
-    u64 timeBase = 0;
+    // Counts the number of calls to 'synchronize'
+    isize syncCounter = 0;
+    
+    // Kernel clock
+    util::Time timeBase;
+
+    // The current CPU load (%)
+    float cpuLoad = 0.0;
+    
+    // Clocks for measuring the CPU load
+    util::Clock nonstopClock;
+    util::Clock loadClock;
 
     
     //
@@ -51,11 +49,26 @@ class Oscillator : public C64Component {
 public:
     
     Oscillator(C64& ref);
+    
     const char *getDescription() const override;
 
 private:
     
-    void _reset() override;
+    void _reset(bool hard) override;
+    
+    
+    //
+    // Configuring
+    //
+    
+public:
+    
+    static OscillatorConfig getDefaultConfig();
+    OscillatorConfig getConfig() const { return config; }
+    void resetConfig() override;
+
+    i64 getConfigItem(Option option) const;
+    bool setConfigItem(Option option, i64 value) override;
     
     
     //
@@ -68,45 +81,29 @@ private:
     void applyToPersistentItems(T& worker)
     {
     }
-
-    template <class T>
-    void applyToHardResetItems(T& worker)
-    {
-        worker & clockBase;
-    }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
     }
 
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    
-    
-    //
-    // Reading the system clock
-    //
-    
-public:
-
-    // Returns the current kernel time the nano seconds
-    static u64 nanos();
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
     // Managing emulation speed
     //
-        
+       
+public:
+    
     // Restarts the synchronization timer
     void restart();
 
     // Puts the emulator thread to rest
     void synchronize();
     
-private:
-    
-    // Puts the thread to rest until the target time has been reached
-    void waitUntil(u64 deadline);
+    // Returns the number of CPU cycles between two TOD increments
+    Cycle todTickDelay(u8 cra);
 };

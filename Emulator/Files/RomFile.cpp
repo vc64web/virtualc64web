@@ -2,12 +2,15 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "RomFile.h"
 #include "C64.h"
+#include "IO.h"
 
 const u8 RomFile::magicBasicRomBytes[basicRomSignatureCnt][3] = {
 
@@ -81,13 +84,13 @@ RomFile::isRomStream(RomType type, std::istream &stream)
 bool
 RomFile::isBasicRomStream(std::istream &stream)
 {
-    if (streamLength(stream) != 0x2000) return false;
+    if (util::streamLength(stream) != 0x2000) return false;
 
     for (usize i = 0; i < basicRomSignatureCnt; i++) {
         
-        if (matchingStreamHeader(stream,
-                                 magicBasicRomBytes[i],
-                                 sizeof(magicBasicRomBytes[i]))) {
+        if (util::matchingStreamHeader(stream,
+                                       magicBasicRomBytes[i],
+                                       sizeof(magicBasicRomBytes[i]))) {
             return true;
         }
     }
@@ -97,13 +100,13 @@ RomFile::isBasicRomStream(std::istream &stream)
 bool
 RomFile::isCharRomStream(std::istream &stream)
 {
-    if (streamLength(stream) != 0x1000) return false;
+    if (util::streamLength(stream) != 0x1000) return false;
 
     for (usize i = 0; i < basicRomSignatureCnt; i++) {
         
-        if (matchingStreamHeader(stream,
-                                 magicCharRomBytes[i],
-                                 sizeof(magicCharRomBytes[i]))) {
+        if (util::matchingStreamHeader(stream,
+                                       magicCharRomBytes[i],
+                                       sizeof(magicCharRomBytes[i]))) {
             return true;
         }
     }
@@ -113,13 +116,13 @@ RomFile::isCharRomStream(std::istream &stream)
 bool
 RomFile::isKernalRomStream(std::istream &stream)
 {
-    if (streamLength(stream) != 0x2000) return false;
+    if (util::streamLength(stream) != 0x2000) return false;
 
     for (usize i = 0; i < kernalRomSignatureCnt; i++) {
         
-        if (matchingStreamHeader(stream,
-                                 magicKernalRomBytes[i],
-                                 sizeof(magicKernalRomBytes[i]))) {
+        if (util::matchingStreamHeader(stream,
+                                       magicKernalRomBytes[i],
+                                       sizeof(magicKernalRomBytes[i]))) {
             return true;
         }
     }
@@ -129,13 +132,13 @@ RomFile::isKernalRomStream(std::istream &stream)
 bool
 RomFile::isVC1541RomStream(std::istream &stream)
 {
-    if (streamLength(stream) != 0x4000) return false;
+    if (util::streamLength(stream) != 0x4000) return false;
 
     for (usize i = 0; i < vc1541RomSignatureCnt; i++) {
         
-        if (matchingStreamHeader(stream,
-                                 magicVC1541RomBytes[i],
-                                 sizeof(magicVC1541RomBytes[i]))) {
+        if (util::matchingStreamHeader(stream,
+                                       magicVC1541RomBytes[i],
+                                       sizeof(magicVC1541RomBytes[i]))) {
             return true;
         }
     }
@@ -465,7 +468,7 @@ RomFile::revision(RomIdentifier rev)
     }
 }
 
-usize
+isize
 RomFile::readFromStream(std::istream &stream)
 {
     romType =

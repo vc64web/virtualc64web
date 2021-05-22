@@ -2,18 +2,20 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
 #include "C64.h"
+#include <algorithm>
 
 void
-StarDos::_reset()
+StarDos::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS
-    Cartridge::_reset();    
+    RESET_SNAPSHOT_ITEMS(hard)
+    Cartridge::_reset(hard);
 }
 
 void
@@ -33,7 +35,7 @@ StarDos::updateVoltage()
     
     if (voltage < 2000000 /* 2.0V */) {
         u64 elapsedCycles = cpu.cycle - latestVoltageUpdate;
-        voltage += MIN(2000000 - voltage, elapsedCycles * 2);
+        voltage += std::min(2000000 - voltage, elapsedCycles * 2);
     }
     latestVoltageUpdate = cpu.cycle;
 }
@@ -42,7 +44,7 @@ void
 StarDos::charge()
 {
     updateVoltage();
-    voltage += MIN(5000000 /* 5.0V */ - voltage, 78125);
+    voltage += std::min(5000000ULL /* 5.0V */ - voltage, 78125ULL);
     if (voltage > 2700000 /* 2.7V */) {
         enableROML();
     }
@@ -52,7 +54,7 @@ void
 StarDos::discharge()
 {
     updateVoltage();
-    voltage -= MIN(voltage, 78125);
+    voltage -= std::min(voltage, 78125ULL);
     if (voltage < 1400000 /* 1.4V */) {
         disableROML();
     }

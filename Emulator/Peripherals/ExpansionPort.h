@@ -2,12 +2,16 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
+
+#include "ExpansionPortTypes.h"
+#include "C64Component.h"
+#include "Cartridge.h"
 
 /*
  * For more information: http://www.c64-wiki.com/index.php/Cartridge
@@ -24,9 +28,6 @@
  *
  *  As well read the Commodore 64 Programmers Reference Guide pages 260-267.
  */
-
-#include "C64Component.h"
-#include "Cartridge.h"
 
 class ExpansionPort : public C64Component {
     
@@ -53,7 +54,7 @@ public:
 
 private:
     
-    void _reset() override;
+    void _reset(bool hard) override;
     
     
     //
@@ -66,8 +67,8 @@ public:
 
 private:
     
-    void _dump() const override;
-
+    void _dump(dump::Category category, std::ostream& os) const override;
+    
     
     //
     // Serializing
@@ -80,19 +81,19 @@ private:
     {
         worker
         
-        & crtType
-        & gameLine
-        & exromLine;
+        << crtType
+        << gameLine
+        << exromLine;
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
     }
     
-    usize _size() override;
-    usize _load(u8 *buffer) override;
-    usize _save(u8 *buffer) override;
+    isize _size() override;
+    isize _load(const u8 *buffer) override;
+    isize _save(u8 *buffer) override;
 
  
     //
@@ -139,6 +140,7 @@ public:
     bool getCartridgeAttached() const { return cartridge != nullptr; }
 
     // Attaches a cartridge to the expansion port
+    void attachCartridge(const string &path, bool reset = true) throws;
     bool attachCartridge(CRTFile *c, bool reset = true);
     void attachCartridge(Cartridge *c);
     void attachGeoRamCartridge(usize capacity);

@@ -31,6 +31,7 @@
 #include "C64Component.h"
 #include "FastVoice.h"
 #include "SIDStreams.h"
+#include "Constants.h"
 
 class FastSID : public C64Component {
         
@@ -48,7 +49,7 @@ class FastSID : public C64Component {
 private:
     
     // The three SID voices
-    FastVoice voice[3];
+    FastVoice voice[3] = { FastVoice(c64), FastVoice(c64), FastVoice(c64) };
 
     
 public:
@@ -115,7 +116,7 @@ private:
     void init(int sampleRate, int cycles_per_sec);
     void initFilter(int sampleRate);
 
-    void _reset() override;
+    void _reset(bool hard) override;
 
 
     //
@@ -148,8 +149,8 @@ public:
 
 private:
     
-    void _dump() const override;
-
+    void _dump(dump::Category category, std::ostream& os) const override;
+    
     
     //
     // Serializing
@@ -162,26 +163,32 @@ private:
     {
         worker
         
-        & model
-        & cpuFrequency
-        & emulateFilter;
+        << model
+        << cpuFrequency
+        << emulateFilter;
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
+        if (hard) {
+            
+            worker
+            
+            << executedCycles
+            << computedSamples;
+        }
+        
         worker
         
-        & sidreg
-        & speed1
-        & executedCycles
-        & computedSamples
-        & latchedDataBus;
+        << sidreg
+        << speed1
+        << latchedDataBus;
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //
@@ -206,8 +213,8 @@ public:
      * samples are written into the provided ring buffer. The fuction returns
      * the number of written audio samples.
      */
-    i64 executeCycles(usize numCycles, SampleStream &stream);
-    i64 executeCycles(usize numCycles);
+    i64 executeCycles(isize numCycles, SampleStream &stream);
+    i64 executeCycles(isize numCycles);
     
 private:
     

@@ -2,12 +2,14 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
+
+#include "C64Component.h"
 
 /*
  * This implementation is mainly based on the document
@@ -16,10 +18,6 @@
  *
  * and the Hoxs64 implementation by David Horrocks.
  */
-
-#include "C64Component.h"
-
-class Drive;
 
 #define VIACountA0       (1ULL << 0)  // Forces timer 1 to decrement every cycle
 #define VIACountA1       (1ULL << 1)
@@ -219,7 +217,7 @@ public:
     
 private:
     
-	void _reset() override;
+	void _reset(bool hard) override;
 
     //
     // Analyzing
@@ -227,7 +225,7 @@ private:
     
 private:
     
-    void _dump() const override;
+    void _dump(dump::Category category, std::ostream& os) const override;
     
     
     //
@@ -242,42 +240,42 @@ private:
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
         worker
         
-        & pa
-        & ca1
-        & ca2
-        & pb
-        & cb1
-        & cb2
-        & ddra
-        & ddrb
-        & ora
-        & orb
-        & ira
-        & irb
-        & t1
-        & t1_latch_lo
-        & t1_latch_hi
-        & t2
-        & t2_latch_lo
-        & pcr
-        & acr
-        & ier
-        & ifr
-        & sr
-        & delay
-        & feed
-        & tiredness
-        & wakeUpCycle
-        & idleCounter;
+        << pa
+        << ca1
+        << ca2
+        << pb
+        << cb1
+        << cb2
+        << ddra
+        << ddrb
+        << ora
+        << orb
+        << ira
+        << irb
+        << t1
+        << t1_latch_lo
+        << t1_latch_hi
+        << t2
+        << t2_latch_lo
+        << pcr
+        << acr
+        << ier
+        << ifr
+        << sr
+        << delay
+        << feed
+        << tiredness
+        << wakeUpCycle
+        << idleCounter;
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
 
     

@@ -2,32 +2,47 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
+#include "VICIITypes.h"
 #include "C64Component.h"
+#include "Colors.h"
+#include "Constants.h"
+#include "DmaDebugger.h"
+#include "MemoryTypes.h"
 #include "TimeDelayed.h"
 
 class VICII : public C64Component {
 
     friend class C64Memory;
+    friend class DmaDebugger;
     
     // Current configuration
-    VICConfig config;
-    
+    VICIIConfig config = getDefaultConfig();
+        
     // Result of the latest inspection
     VICIIInfo info;
     SpriteInfo spriteInfo[8];
     
+    // Statistics
+    VICIIStats stats;
+    
 public:
+    
+    // Sub components
+    DmaDebugger dmaDebugger;
+
+    
     //
     // I/O space (CPU accessible)
     //
-
+    
+    
     /* Piped I/O register state. When an I/O register is written to, the
      * corresponding value in variable current is changed and a flag is set in
      * variable delay. Function processDelayedActions() reads the flag and, if
@@ -37,12 +52,11 @@ public:
         VICIIRegisters current;
         VICIIRegisters delayed;
     } reg;
-        
-private:
-    
 
-    // Raster interrupt line ($D012)
-    u8 rasterIrqLine;
+
+private:
+    // Raster interrupt line ($D011:8 + $D012)
+    u16 rasterIrqLine;
     
     // Latched lightpen coordinates ($D013 and $D014)
     u8 latchedLPX;
@@ -186,24 +200,19 @@ private:
          * current character value (which was once read during a gAccess) is
          * latched. This value is used until the shift register loads again.
          */
-        u8 latchedCharacter;
+        u8 latchedChr;
         
         /* Latched color info. Whenever the shift register is loaded, the
          * current color value (which was once read during a gAccess) is
          * latched. This value is used until the shift register loads again.
          */
-        u8 latchedColor;
+        u8 latchedCol;
         
         /* Color bits. Every second pixel (as synchronized with mcFlop), the
          * multi-color bits are remembered.
          */
         u8 colorbits;
-        
-        /* Remaining bits to be pumped out. Makes sure no more than 8 pixels
-         * are outputted.
-         */
-        int remainingBits;
-        
+
     } sr;
     
     /* Sprite data sequencer (11): The VICII chip has a 24 bit (3 byte) shift
@@ -275,6 +284,16 @@ private:
     
     
     //
+    // Raster interrupt logic
+    //
+    
+    /* Indicates whether the current raster line matches the IRQ line. A
+     * positive edge on this value triggers a raster interrupt.
+     */
+    bool rasterlineMatchesIrqLine;
+    
+    
+    //
     // Housekeeping information
     //
     
@@ -284,14 +303,7 @@ private:
      * cycle 61 (fourth right border column).
      */
     bool isVisibleColumn;
-    
-    /* Set to true in cycle 1, cycle 63 (65) iff yCounter matches D012. This
-     * variable is needed to determine if a rasterline interrupt should be
-     * triggered in cycle 1 or 2.
-     * DEPRECATED: Will be replaced by rasterlineMatchesIrqLine
-     */
-    bool yCounterEqualsIrqRasterline;
-    
+        
     // True if the current rasterline belongs to the VBLANK area
     bool vblank;
     
@@ -355,6 +367,9 @@ private:
      * (D017). This value is set in pokeIO and cycle 15 and read in cycle 16
      */
     u8 cleared_bits_in_d017;
+    
+    // Collision bits
+    u8 collision[8];
     
     
 	//
@@ -442,18 +457,6 @@ private:
     // Result of the lastest g-access
     TimeDelayed <u32,3> gAccessResult = TimeDelayed <u32,3> (2);
     
-    
-    //
-    // Color management
-    //
-    
-    /* The brightness, contrast, and saturation parameters used for computing
-     * the color palette. Valid values: 0.0 - 100.0
-     */
-    double brightness = 50.0;
-    double contrast = 100.0;
-    double saturation = 50.0;
-
  
     //
     // Pipeline
@@ -466,7 +469,7 @@ private:
      * See processDelayedActions()
      */
     u64 delay;
-    
+        
     
 	//
 	// Screen buffers and colors
@@ -518,43 +521,34 @@ private:
      * routines only write a color value, if it is closer to the view point.
      * The depth of the closest pixel is kept in this buffer. The lower the
      * value, the closer it is to the viewer.
+     * The depth values have been chosen in a way that preserves the source
+     * of the drawn pixel (border pixel, sprite pixel, etc.).
      */
     u8 zBuffer[TEX_WIDTH];
-    
-    /* Indicates the source of a drawn pixel. Whenever a foreground pixel or
-     * sprite pixel is drawn, a distinct bit in the pixelSource array is set.
-     * The information is needed to detect sprite-sprite and sprite-background
-     * collisions.
-     *
-     *     Bit      8 |  7 |  6 |  5 |  4 |  3 |  2 |  1 |  0
-     *     --------------------------------------------------
-     *     Format: FG | S7 | S6 | S5 | S4 | S3 | S2 | S1 | S0
-     */
-    u16 pixelSource[TEX_WIDTH];
-    
+        
     /* Offset into to pixelBuffer. This variable points to the first pixel of
      * the currently drawn 8 pixel chunk.
      */
     short bufferoffset;
-    
-    /* Color storage filled by loadColors()
-     *
-     *     [0] : color for '0'  pixels in single color mode
-     *                  or '00' pixels in multicolor mode
-     *     [1] : color for '1'  pixels in single color mode
-     *                  or '01' pixels in multicolor mode
-     *     [2] : color for '10' pixels in multicolor mode
-     *     [3] : color for '11' pixels in multicolor mode
-     */
-    u8 col[4];
-    
+            
     
     //
-    // DMA debugger
+    // Debugging
     //
     
     // Lookup table for DMA debugging colors
     u32 debugColor[6][4];
+
+public:
+    
+    // Filename used by dumpTexture()
+    string dumpTexturePath = "texture";
+    
+    // Pixel area used by dumpTexture()
+    isize x1 = 104;
+    isize y1 = 16;
+    isize x2 = 488;
+    isize y2 = 290;
 
     
     //
@@ -568,8 +562,7 @@ public:
 
 private:
     
-    void _initialize() override;
-    void _reset() override;
+    void _reset(bool hard) override;
 
     void resetEmuTexture(int nr);
     void resetEmuTextures() { resetEmuTexture(1); resetEmuTexture(2); }
@@ -583,21 +576,16 @@ private:
     
 public:
     
-    VICConfig getConfig() const { return config; }
-    
-    long getConfigItem(Option option) const;
-    bool setConfigItem(Option option, long value) override;
-    
-    VICRevision getRevision() const { return config.revision; }    
-    void setRevision(VICRevision revision);
-    
-    void setDmaDebugColor(MemAccess type, GpuColor color);
-    void setDmaDebugColor(MemAccess type, RgbColor color);
-    
-private:
-    
-    void _dumpConfig() const override;
+    static VICIIConfig getDefaultConfig();
+    VICIIConfig getConfig() const { return config; }
+    void resetConfig() override;
 
+    i64 getConfigItem(Option option) const;
+    bool setConfigItem(Option option, i64 value) override;
+
+    VICIIRevision getRevision() const { return config.revision; }    
+    void setRevision(VICIIRevision revision);
+        
 
     //
     // Analyzing
@@ -611,7 +599,24 @@ public:
 private:
     
     void _inspect() override;
-    void _dump() const override;
+    void _dump(dump::Category category, std::ostream& os) const override;
+
+public:
+    
+    VICIIStats getStats() { return stats; }
+    
+private:
+    
+    void clearStats();
+    
+public:
+    
+    // Returns true if the DMA debugger is switched on
+    bool dmaDebug() const { return dmaDebugger.config.dmaDebug; }
+    
+    void dumpTexture() const;
+    void dumpTexture(std::ostream& os) const;
+    void dumpTexture(std::ostream& os, isize x1, isize y1, isize x2, isize y2) const;
 
     
     //
@@ -625,87 +630,89 @@ private:
     {
         worker
         
-        & config.revision
-        & config.glueLogic
-        & config.grayDotBug
+        << config.revision
+        << config.glueLogic
+        << config.grayDotBug
         
-        & memSrc;
+        << memSrc;
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
-        worker
-        
-        & reg.current
-        & reg.delayed
-        & rasterIrqLine
-        & latchedLPX
-        & latchedLPY
-        & memSelect
-        & irr
-        & imr
-        & refreshCounter
-        & xCounter
-        & yCounter
-        & vc
-        & vcBase
-        & rc
-        & videoMatrix
-        & colorLine
-        & vmli
-        & sr.data
-        & sr.canLoad
-        & sr.mcFlop
-        & sr.latchedCharacter
-        & sr.latchedColor
-        & sr.colorbits
-        & sr.remainingBits
-        & spriteSr
-        & spriteSrActive
-        & spriteSpriteCollision
-        & spriteBackgroundColllision
-        & flipflops.current.vertical
-        & flipflops.current.main
-        & flipflops.delayed.vertical
-        & flipflops.delayed.main
-        & verticalFrameFFsetCond
-        & leftComparisonVal
-        & rightComparisonVal
-        & upperComparisonVal
-        & lowerComparisonVal
-        & isVisibleColumn
-        & yCounterEqualsIrqRasterline
-        & vblank
-        & badLine
-        & DENwasSetInRasterline30
-        & displayState
-        & mc
-        & mcbase
-        & spritePtr
-        & isFirstDMAcycle
-        & isSecondDMAcycle
-        & spriteDisplay
-        & spriteDisplayDelayed
-        & spriteDmaOnOff
-        & expansionFF
-        & cleared_bits_in_d017
-        & lpLine
-        & lpIrqHasOccurred
-        & ultimax
-        & dataBusPhi1
-        & dataBusPhi2
-        & addrBus
-        & baLine
-        & bankAddr
-        & gAccessResult
-        & delay
-        & bufferoffset;
+        if (hard) {
+            
+            worker
+            
+            >> reg.current
+            >> reg.delayed
+            << rasterIrqLine
+            << latchedLPX
+            << latchedLPY
+            << memSelect
+            << irr
+            << imr
+            << refreshCounter
+            << xCounter
+            << yCounter
+            << vc
+            << vcBase
+            << rc
+            << videoMatrix
+            << colorLine
+            << vmli
+            << sr.data
+            << sr.canLoad
+            << sr.mcFlop
+            << sr.latchedChr
+            << sr.latchedCol
+            << sr.colorbits
+            >> spriteSr
+            << spriteSrActive
+            << spriteSpriteCollision
+            << spriteBackgroundColllision
+            << flipflops.current.vertical
+            << flipflops.current.main
+            << flipflops.delayed.vertical
+            << flipflops.delayed.main
+            << verticalFrameFFsetCond
+            << leftComparisonVal
+            << rightComparisonVal
+            << upperComparisonVal
+            << lowerComparisonVal
+            << rasterlineMatchesIrqLine
+            << isVisibleColumn
+            << vblank
+            << badLine
+            << DENwasSetInRasterline30
+            << displayState
+            << mc
+            << mcbase
+            << spritePtr
+            << isFirstDMAcycle
+            << isSecondDMAcycle
+            << spriteDisplay
+            << spriteDisplayDelayed
+            << spriteDmaOnOff
+            << expansionFF
+            << cleared_bits_in_d017
+            << lpLine
+            << lpIrqHasOccurred
+            << ultimax
+            << dataBusPhi1
+            << dataBusPhi2
+            << addrBus
+            >> baLine
+            << bankAddr
+            >> gAccessResult
+            << delay
+            << bufferoffset;
+        }
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
 
 private:
     
@@ -719,31 +726,31 @@ private:
 public:
     
     // Returns true if a PAL chip is plugged in
-    static bool isPAL(VICRevision revision);
+    static bool isPAL(VICIIRevision revision);
     bool isPAL() const { return isPAL(config.revision); }
     
     // Returns true if a NTSC chip is plugged in
-    static bool isNTSC(VICRevision revision);
+    static bool isNTSC(VICIIRevision revision);
     bool isNTSC() const { return isNTSC(config.revision); }
 
     // Returns true if a newer MOS 856x chip is plugged in
-    static bool is856x(VICRevision revision);
+    static bool is856x(VICIIRevision revision);
     bool is856x() const { return is856x(config.revision); }
     
     // Returns true if an older MOS 656x chip is plugged in
-    static bool is656x(VICRevision revision);
+    static bool is656x(VICIIRevision revision);
     bool is656x() const { return is656x(config.revision); }
 
     // Returns true if light pen interrupts are triggered with a delay
-    static bool delayedLightPenIrqs(VICRevision revision);
+    static bool delayedLightPenIrqs(VICIIRevision revision);
     bool delayedLightPenIrqs() { return delayedLightPenIrqs(config.revision); }
 
     // Returns the clock frequencay of the selected VICII model
-    static unsigned getFrequency(VICRevision revision);
+    static unsigned getFrequency(VICIIRevision revision);
     unsigned getFrequency() const { return getFrequency(config.revision); }
     
     // Returns the number of CPU cycles performed per rasterline
-    static unsigned getCyclesPerLine(VICRevision revision);
+    static unsigned getCyclesPerLine(VICIIRevision revision);
     unsigned getCyclesPerLine() const { return getCyclesPerLine(config.revision); }
     
     // Returns true if the end of the rasterline has been reached
@@ -781,7 +788,7 @@ public:
     // Accessing the screen buffer and display properties
     //
     
-    // Returns the currently stable textures
+    // Returns pointers to the stable textures
     void *stableEmuTexture() const;
     void *stableDmaTexture() const;
     
@@ -791,15 +798,7 @@ public:
     // Returns a C64 color in 32 bit big endian RGBA format
     u32 getColor(unsigned nr) const { return rgbaTable[nr]; }
     u32 getColor(unsigned nr, Palette palette);
-    
-    // Gets or sets a monitor parameter
-    double getBrightness() const { return brightness; }
-    void setBrightness(double value);
-    double getContrast() const { return contrast; }
-    void setContrast(double value);
-    double getSaturation() const { return saturation; }
-    void setSaturation(double value);
-    
+        
 private:
     
     /* Updates the RGBA values for all sixteen C64 colors. The base palette is
@@ -914,7 +913,12 @@ private:
      */
     bool yCounterOverflow() const { return rasterline() == (isPAL() ? 0 : 238); }
 
+    /* Matches the yCounter with the raster interrupt line and stores the
+     * result. If a positive edge is detected, a raster interrupt is triggered.
+     */
+    void checkForRasterIrq();
 
+    
     //
     // Handling the border flip flops
     //
@@ -973,12 +977,7 @@ public:
 		
     // Returns the current value of the DEN (Display ENabled) bit
     bool DENbit() const { return GET_BIT(reg.current.ctrl1, 4); }
-    
-    // Returns the number of the next interrupt rasterline
-    u16 rasterInterruptLine() const {
-        return ((reg.current.ctrl1 & 0x80) << 1) | rasterIrqLine;
-    }
-    
+        
     // Returns the masked CB13 bit
     u8 CB13() const { return memSelect & 0x08; }
 
@@ -1090,14 +1089,14 @@ private:
     /* Loads a sprite shift register. The shift register is loaded with the
      * three data bytes fetched in the previous sAccesses.
      */
-    void loadShiftRegister(unsigned nr) {
+    void loadSpriteShiftRegister(unsigned nr) {
         spriteSr[nr].data = LO_LO_HI(spriteSr[nr].chunk3,
                                      spriteSr[nr].chunk2,
                                      spriteSr[nr].chunk1);
     }
     
     /* Updates the sprite shift registers. Checks if a sprite has completed
-     * it's last DMA fetch and calls loadShiftRegister() accordingly.
+     * it's last DMA fetch and calls loadSpriteShiftRegister() accordingly.
      */
     void updateSpriteShiftRegisters();
     
@@ -1205,15 +1204,18 @@ public:
     void cycle64ntsc();
     void cycle65ntsc();
 	
-    #define DRAW_SPRITES if (spriteDisplay || isSecondDMAcycle) drawSprites();
-    #define DRAW_SPRITES59 if (spriteDisplayDelayed || spriteDisplay || isSecondDMAcycle) drawSprites();
-
-    #define DRAW if (!vblank) draw(); DRAW_SPRITES;
-    #define DRAW17 if (!vblank) draw17(); DRAW_SPRITES;
-    #define DRAW55 if (!vblank) draw55(); DRAW_SPRITES;
-    #define DRAW59 if (!vblank) draw(); DRAW_SPRITES59;
-    #define DRAW_IDLE DRAW_SPRITES;
-        
+    #define DRAW_SPRITES_DMA1 \
+        assert(isFirstDMAcycle); assert(!isSecondDMAcycle); drawSpritesSlowPath();
+    #define DRAW_SPRITES_DMA2 \
+        assert(!isFirstDMAcycle); assert(isSecondDMAcycle); drawSpritesSlowPath();
+    #define DRAW_SPRITES \
+        assert(!isFirstDMAcycle && !isSecondDMAcycle); if (spriteDisplay) drawSprites();
+    #define DRAW_SPRITES59 if (spriteDisplayDelayed || spriteDisplay || isSecondDMAcycle) drawSpritesSlowPath();
+    #define DRAW if (!vblank) { drawCanvas(); drawBorder(); };
+    #define DRAW17 if (!vblank) { drawCanvas(); drawBorder17(); };
+    #define DRAW55 if (!vblank) { drawCanvas(); drawBorder55(); };
+    #define DRAW59 if (!vblank) { drawCanvas(); drawBorder(); };
+            
     #define END_CYCLE \
     dataBusPhi2 = 0xFF; \
     xCounter += 8; \
@@ -1231,70 +1233,54 @@ public:
     // 
     
 private:
-    
-    /* Draws 8 pixels. This is the main entry point to the VICII code and
-     * invoked in each drawing cycle. An exception are cycle 17 and cycle 55
-     * which are handled seperately for speedup reasons.
-     */
-    void draw();
-    
-    // Special draw routine for cycle 17
-    void draw17();
-    
-    // Special draw routine for cycle 55
-    void draw55();
         
-    
-    //
-    // Internal drawing routines (called by draw(), draw17(), and drae55())
-    //
-    
     // Draws 8 border pixels. Invoked inside draw().
     void drawBorder();
     
-    // Draws the border pixels in cycle 17 (see draw17())
+    // Draws the border pixels in cycle 17
     void drawBorder17();
     
-    // Draws the border pixels in cycle 55 (see draw55())
+    // Draws the border pixels in cycle 55
     void drawBorder55();
     
-    // Draws 8 canvas pixels (see draw())
+    // Draws 8 canvas pixels
     void drawCanvas();
+    void drawCanvasFastPath();
+    void drawCanvasSlowPath();
+
+    // Draws a single canvas pixel
+    void drawCanvasPixel(u8 pixel, u8 mode, u8 d016);
     
-    /* Draws a single canvas pixel
-     *
-     *         pixel : pixel number (0 ... 7)
-     *          mode : display mode for this pixel
-     *          d016 : current value of register D016
-     *  loadShiftReg : forces the shift register to be reloaded
-     *  updateColors : forces the four selectable colors to be reloaded
-     */
-    void drawCanvasPixel(u8 pixel,
-                         u8 mode,
-                         u8 d016,
-                         bool loadShiftReg,
-                         bool updateColors);
+    // Reloads the sequencer shift register with the gAccess result
+    void loadShiftRegister();
+    
+    //
+    // Drawing routines (VIC_sprites.cpp)
+    //
+    
+private:
     
     // Draws 8 sprite pixels (see draw())
     void drawSprites();
+    void drawSpritesFastPath();
+    void drawSpritesSlowPath();
     
-    /* Draws a single sprite pixel for all sprites
+    /* Draws all sprite pixels for a single sprite. This function is used when
+     * the fast path is taken.
+     */
+    template <bool multicolor> void drawSpriteNr(isize nr, bool enable, bool active);
+
+    /* Draws a single sprite pixel for all sprites. This function is used when
+     * the slow path is taken.
      *
      *         pixel : pixel number (0 ... 7)
      *    enableBits : the spriteDisplay bits
      *    freezeBits : forces the sprites shift register to freeze temporarily
      */
-    void drawSpritePixel(unsigned pixel,
-                         u8 enableBits,
-                         u8 freezeBits);
-    
-    
-    //
-    // Mid level drawing (semantic pixel rendering)
-    //
-    
-    // Determines pixel colors accordig to the provided display mode
-    void loadColors(u8 mode);
+    void drawSpritePixel(unsigned pixel, u8 enableBits, u8 freezeBits);
+         
+    // Performs collision detection
+    void checkCollisions();
     
     
     //
@@ -1303,35 +1289,34 @@ private:
     
     // Writes a single color value into the screenbuffer
     #define COLORIZE(index,color) \
-        assert(index < TEX_WIDTH); \
         emuTexturePtr[index] = rgbaTable[color];
     
-    /* Sets a single frame pixel. The upper bit in pixelSource is cleared to
-     * prevent sprite/foreground collision detection in border area.
-     */
+    // Sets a single frame pixel
     #define SET_FRAME_PIXEL(pixel,color) { \
-        int index = bufferoffset + pixel; \
+        isize index = bufferoffset + pixel; \
         COLORIZE(index, color); \
-        zBuffer[index] = BORDER_LAYER_DEPTH; \
-        pixelSource[index] &= (~0x100); }
+        zBuffer[index] = DEPTH_BORDER; }
     
     // Sets a single foreground pixel
-    #define SET_FOREGROUND_PIXEL(pixel,color) { \
-        int index = bufferoffset + pixel; \
+    #define SET_FG_PIXEL(pixel,color) { \
+        isize index = bufferoffset + pixel; \
         COLORIZE(index,color) \
-        zBuffer[index] = FOREGROUND_LAYER_DEPTH; \
-        pixelSource[index] = 0x100; }
+        zBuffer[index] = DEPTH_FG; }
 
     // Sets a single background pixel
-    #define SET_BACKGROUND_PIXEL(pixel,color) { \
-        int index = bufferoffset + pixel; \
+    #define SET_BG_PIXEL(pixel,color) { \
+        isize index = bufferoffset + pixel; \
         COLORIZE(index,color) \
-        zBuffer[index] = BACKGROUD_LAYER_DEPTH; \
-        pixelSource[index] = 0x00; }
+        zBuffer[index] = DEPTH_BG; }
     
-    // Draw a single sprite pixel
-    void setSpritePixel(unsigned sprite, unsigned pixel, u8 color);
-        
+    // Sets a single sprite pixel
+    #define SET_SPRITE_PIXEL(sprite,pixel,color) { \
+        isize index = bufferoffset + pixel; \
+        if (u8 depth = spriteDepth(sprite); depth <= zBuffer[index]) { \
+            if (isVisibleColumn) COLORIZE(index, color); \
+            zBuffer[index] = depth | (zBuffer[index] & 0x10); \
+        } }
+
     
 	//
 	// Debugging
@@ -1351,10 +1336,4 @@ public:
     
     // Initializes the DMA debugger textures
     void clearDmaDebuggerTexture();
-    
-    // Visualizes a memory access by drawing into the DMA debuger texture
-    void visualizeDma(u8 offset, u8 data, MemAccess type);
-    
-    // Superimposes the debug output onto the current rasterline
-    void computeOverlay();
 };

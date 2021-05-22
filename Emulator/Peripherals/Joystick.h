@@ -2,18 +2,24 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
+#include "JoystickTypes.h"
+#include "C64Component.h"
+
 class Joystick : public C64Component {
     
     // Reference to the control port this device belongs to
     ControlPort &port;
   
+    // Current configuration
+    JoystickConfig config;
+    
     // Button state
     bool button = false;
     
@@ -22,16 +28,7 @@ class Joystick : public C64Component {
     
     // Vertical joystick position (-1 = up, 1 = down, 0 = released)
     int axisY = 0;
-    
-    // Indicates whether multi-shot mode is enabled
-    bool autofire = false;
-    
-    // Number of bullets per gun volley
-    int autofireBullets = -3;
-    
-    // Autofire frequency in Hz
-    float autofireFrequency = 2.5;
-    
+        
     // Bullet counter used in multi-fire mode
     i64 bulletCounter = 0;
     
@@ -45,13 +42,27 @@ class Joystick : public C64Component {
     
 public:
     
-    Joystick(C64 &ref, ControlPort& pref) : C64Component(ref), port(pref) { };
+    Joystick(C64 &ref, ControlPort& pref);
     
     const char *getDescription() const override;
     
 private:
     
-    void _reset() override { RESET_SNAPSHOT_ITEMS }
+    void _reset(bool hard) override;
+    
+    
+    //
+    // Configuring
+    //
+    
+public:
+
+    const JoystickConfig &getConfig() const { return config; }
+    void resetConfig() override;
+
+    i64 getConfigItem(Option option) const;
+    bool setConfigItem(Option option, i64 value) override;
+    bool setConfigItem(Option option, long id, i64 value) override;
     
     
     //
@@ -60,8 +71,8 @@ private:
     
 private:
     
-    void _dump() const override;
-
+    void _dump(dump::Category category, std::ostream& os) const override;
+    
     
     //
     // Serializing
@@ -75,38 +86,14 @@ private:
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    usize didLoadFromBuffer(u8 *buffer) override;
-    
-    
-    //
-    // Managing auto-fire
-    //
-    
-public:
-    
-    // Configures autofire mode
-    bool getAutofire() const { return autofire; }
-    void setAutofire(bool value);
-    
-    // Configures the bullets per gun volley (negative value = infinite)
-    int getAutofireBullets() const { return autofireBullets; }
-    void setAutofireBullets(int value);
-    
-    // Configures the autofire frequency
-    float getAutofireFrequency() const { return autofireFrequency; }
-    void setAutofireFrequency(float value) { autofireFrequency = value; }
-
-private:
-    
-    // Updates variable nextAutofireFrame
-    void scheduleNextShot();
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize didLoadFromBuffer(const u8 *buffer) override;
     
     
     //
@@ -125,4 +112,12 @@ public:
      * invoked at the end of each frame to make the auto-fire mechanism work.
      */
     void execute();
+    
+private:
+    
+    // Reloads the autofire magazine
+    void reload();
+    
+    // Updates variable nextAutofireFrame
+    void scheduleNextShot();
 };

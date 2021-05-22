@@ -1836,7 +1836,14 @@ $('.layer').change( function(event) {
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
-        a.download = 'disk_in_drive8.d64';
+
+        let app_name = $("#input_app_title").val();
+        let extension_pos = app_name.indexOf(".");
+        if(extension_pos >=0)
+        {
+            app_name = app_name.substring(0,extension_pos);
+        }
+        a.download = app_name+'.d64';
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -1844,7 +1851,7 @@ $('.layer').change( function(event) {
 
     $('#button_save_snapshot').click(function() 
     {       
-        var app_name = $("#input_app_title").val();
+        let app_name = $("#input_app_title").val();
         wasm_take_user_snapshot();
         var snapshot_json= wasm_pull_user_snapshot_file();
         var snap_obj = JSON.parse(snapshot_json);

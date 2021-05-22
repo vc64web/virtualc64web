@@ -2,23 +2,20 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
 #include "P00File.h"
 #include "FSDevice.h"
-
-/*
-const u8
-P00File::magicBytes[] = { 0x43, 0x36, 0x34, 0x46, 0x69, 0x6C, 0x65 };
-*/
+#include "IO.h"
 
 bool
 P00File::isCompatibleName(const std::string &name)
 {
-    auto s = suffix(name);
+    auto s = util::extractSuffix(name);
     return s == "p00" || s == "P00";
 }
 
@@ -27,8 +24,8 @@ P00File::isCompatibleStream(std::istream &stream)
 {
     const u8 magicBytes[] = { 0x43, 0x36, 0x34, 0x46, 0x69, 0x6C, 0x65 };
 
-    if (streamLength(stream) < 0x1A) return false;
-    return matchingStreamHeader(stream, magicBytes, sizeof(magicBytes));
+    if (util::streamLength(stream) < 0x1A) return false;
+    return util::matchingStreamHeader(stream, magicBytes, sizeof(magicBytes));
 }
 
 P00File *
@@ -36,8 +33,6 @@ P00File::makeWithFileSystem(FSDevice &fs)
 {
     unsigned item = 0;
     usize itemSize = fs.fileSize(item);
-
-    debug(FILE_DEBUG, "Creating P00 archive...\n");
 
     // Only proceed if the requested file exists
     if (fs.numFiles() <= item) throw VC64Error(ERROR_FS_HAS_NO_FILES);
@@ -79,14 +74,14 @@ P00File::collectionName()
     return PETName<16>(data + 8, 0x00);
 }
 
-u64
+isize
 P00File::collectionCount() const
 {
     return 1;
 }
 
 PETName<16>
-P00File::itemName(unsigned nr) const
+P00File::itemName(isize nr) const
 {
     assert(nr == 0);
     u8 padChar = 0x00;
@@ -94,14 +89,14 @@ P00File::itemName(unsigned nr) const
 }
 
 u64
-P00File::itemSize(unsigned nr) const
+P00File::itemSize(isize nr) const
 {
     assert(nr == 0);
     return size - 0x1A;
 }
 
 u8
-P00File::readByte(unsigned nr, u64 pos) const
+P00File::readByte(isize nr, u64 pos) const
 {
     assert(nr == 0);
     assert(pos < itemSize(nr));

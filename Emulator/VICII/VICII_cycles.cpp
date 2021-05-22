@@ -2,11 +2,13 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "VICII.h"
 #include "C64.h"
 
 /* All cycles are processed in this order:
@@ -40,29 +42,31 @@ VICII::cycle1()
     }
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    drawSpritesSlowPath();
+    // PAL  { DRAW_SPRITES_DMA2 }
+    // NTSC { DRAW_SPRITES_DMA1 }
 
     // Phi1.3 Fetch
     PAL  { sFinalize(2); pAccess <mode> (3); }
     NTSC { sAccess2 <mode,3> (); }
+    NTSC { assert(isSecondDMAcycle); }
     
-    // Phi2.1 Rasterline interrupt (edge triggered)
-    bool edgeOnYCounter = (c64.rasterLine != 0);
-    bool edgeOnIrqCond  = (yCounter == rasterInterruptLine() && !yCounterEqualsIrqRasterline);
-    if (edgeOnYCounter && edgeOnIrqCond)
-        triggerIrq(1);
-    yCounterEqualsIrqRasterline = (yCounter == rasterInterruptLine());
+    // Phi2.1 Rasterline interrupt
+    checkForRasterIrq();
     
     // Phi2.4 BA logic
     PAL  { BA_LINE(spriteDmaOnOff & (SPR3 | SPR4)); }
     NTSC { BA_LINE(spriteDmaOnOff & (SPR3 | SPR4 | SPR5)); }
     
     END_CYCLE
+    NTSC { assert(isSecondDMAcycle); }
 }
 
 template <VICIIMode mode> void
 VICII::cycle2()
 {
+    NTSC { assert(isSecondDMAcycle); }
+    
     // Check for lightpen IRQ in first rasterline
     if (!lpLine && c64.rasterLine == 0)
         checkForLightpenIrqAtStartOfFrame();
@@ -72,25 +76,22 @@ VICII::cycle2()
     NTSC { sAccess3 <mode,3> (); }
 
     // Check for yCounter overflows
-    if (yCounterOverflow())
+    if (yCounterOverflow()) {
         yCounter = 0;
+        checkForRasterIrq();
+    }
     
     // Phi1.1 Frame logic
     checkVerticalFrameFF();
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    PAL  { DRAW_SPRITES_DMA1 }
+    NTSC { DRAW_SPRITES_DMA2 }
 
     // Phi1.3 Fetch
     PAL  { sAccess2 <mode,3> (); }
     NTSC { sFinalize(3); pAccess <mode> (4); }
-        
-    // Phi2.1 Rasterline interrupt (edge triggered)
-    bool edgeOnYCounter = (yCounter == 0);
-    bool edgeOnIrqCond  = (yCounter == rasterInterruptLine() && !yCounterEqualsIrqRasterline);
-    if (edgeOnYCounter && edgeOnIrqCond)
-        triggerIrq(1);
-    
+            
     // Phi2.4 BA logic
     PAL  { BA_LINE(spriteDmaOnOff & (SPR3 | SPR4 | SPR5)); }
     NTSC { BA_LINE(spriteDmaOnOff & (SPR4 | SPR5)); }
@@ -109,7 +110,8 @@ VICII::cycle3()
     checkVerticalFrameFF();
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    PAL  { DRAW_SPRITES_DMA2 }
+    NTSC { DRAW_SPRITES_DMA1 }
 
     // Phi1.3 Fetch
     PAL  { sFinalize(3); pAccess <mode> (4); }
@@ -133,7 +135,8 @@ VICII::cycle4()
     checkVerticalFrameFF();
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    PAL  { DRAW_SPRITES_DMA1 }
+    NTSC { DRAW_SPRITES_DMA2 }
 
     // Phi1.3 Fetch
     PAL  { sAccess2 <mode,4> (); }
@@ -157,7 +160,8 @@ VICII::cycle5()
     checkVerticalFrameFF();
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    PAL  { DRAW_SPRITES_DMA2 }
+    NTSC { DRAW_SPRITES_DMA1 }
 
     // Phi1.3 Fetch
     PAL  { sFinalize(4); pAccess <mode> (5); }
@@ -181,7 +185,8 @@ VICII::cycle6()
     checkVerticalFrameFF();
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    PAL  { DRAW_SPRITES_DMA1 }
+    NTSC { DRAW_SPRITES_DMA2 }
 
     // Phi1.3 Fetch
     PAL  { sAccess2 <mode,5> (); }
@@ -205,7 +210,8 @@ VICII::cycle7()
     checkVerticalFrameFF();
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    PAL  { DRAW_SPRITES_DMA2 }
+    NTSC { DRAW_SPRITES_DMA1 }
 
     // Phi1.3 Fetch
     PAL  { sFinalize(5); pAccess <mode> (6); }
@@ -229,7 +235,8 @@ VICII::cycle8()
     checkVerticalFrameFF();
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    PAL  { DRAW_SPRITES_DMA1 }
+    NTSC { DRAW_SPRITES_DMA2 }
 
     // Phi1.3 Fetch
     PAL  { sAccess2 <mode,6> (); }
@@ -253,7 +260,8 @@ VICII::cycle9()
     checkVerticalFrameFF();
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    PAL  { DRAW_SPRITES_DMA2 }
+    NTSC { DRAW_SPRITES_DMA1 }
 
     // Phi1.3 Fetch
     PAL  { sFinalize(6); pAccess <mode> (7); }
@@ -277,7 +285,8 @@ VICII::cycle10()
     checkVerticalFrameFF();
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    PAL  { DRAW_SPRITES_DMA1 }
+    NTSC { DRAW_SPRITES_DMA2 }
 
     // Phi1.3 Fetch
     PAL  { sAccess2 <mode,7> (); }
@@ -300,7 +309,8 @@ VICII::cycle11()
     checkVerticalFrameFF();
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    PAL  { DRAW_SPRITES_DMA2 }
+    NTSC { DRAW_SPRITES }
 
     // Phi1.3 Fetch (first out of five DRAM refreshs)
     PAL  { sFinalize(7); }
@@ -319,7 +329,7 @@ VICII::cycle12()
     checkVerticalFrameFF();
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    DRAW_SPRITES
 
     // Phi1.3 Fetch (second out of five DRAM refreshs)
     rAccess <mode> ();
@@ -346,7 +356,7 @@ VICII::cycle13() // X Coordinate -3 - 4 (?)
     checkVerticalFrameFF();
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    DRAW_SPRITES
 
     // Phi1.3 Fetch (third out of five DRAM refreshs)
     rAccess <mode> ();
@@ -366,6 +376,7 @@ VICII::cycle14() // SpriteX: 0 - 7 (?)
     // Phi1.2 Draw the first visible column
     isVisibleColumn = true;
     DRAW
+    DRAW_SPRITES
     
     // Phi1.3 Fetch (forth out of five DRAM refreshs)
     rAccess <mode> ();
@@ -396,6 +407,7 @@ VICII::cycle15() // SpriteX: 8 - 15 (?)
     
     // Phi1.2 Draw
     DRAW
+    DRAW_SPRITES
     
     // Phi1.3 Fetch (last DRAM refresh)
     rAccess <mode> ();
@@ -418,7 +430,8 @@ VICII::cycle16() // SpriteX: 16 - 23 (?)
     
     // Phi1.2 Draw
     DRAW
-  
+    DRAW_SPRITES
+    
     // Phi1.3 Fetch
     gAccess <mode> ();
     
@@ -443,6 +456,7 @@ VICII::cycle17() // SpriteX: 24 - 31 (?)
     
     // Phi1.2 Draw
     DRAW
+    DRAW_SPRITES
     
     // Phi1.3 Fetch
     gAccess <mode> ();
@@ -466,7 +480,8 @@ VICII::cycle18() // SpriteX: 32 - 39
     // Phi1.2 Draw
     sr.canLoad = true; // Entering canvas area
     DRAW17
-  
+    DRAW_SPRITES
+    
     // Phi1.3 Fetch
     gAccess <mode> ();
     
@@ -487,6 +502,7 @@ VICII::cycle19to54()
     
     // Phi1.2 Draw
     DRAW
+    DRAW_SPRITES
     
     // Phi1.3 Fetch
     gAccess <mode> ();
@@ -508,7 +524,8 @@ VICII::cycle55()
     
     // Phi1.2 Draw
     DRAW
-  
+    DRAW_SPRITES
+    
     // Phi1.3 Fetch
     gAccess <mode> ();
     
@@ -531,6 +548,7 @@ VICII::cycle56()
     
     // Phi1.2 Draw
     DRAW55
+    DRAW_SPRITES
     
     // Phi1.3 Fetch
     iAccess <mode> ();
@@ -554,6 +572,8 @@ VICII::cycle57()
     
     // Phi1.2 Draw (border starts here)
     DRAW
+    DRAW_SPRITES
+    
     sr.canLoad = false; // Leaving canvas area
     
     // Phi1.3 Fetch
@@ -574,6 +594,7 @@ VICII::cycle58()
     
     // Phi1.2 Draw
     DRAW
+    DRAW_SPRITES
     
     // Phi1.3 Fetch
     PAL  { pAccess <mode> (0); }
@@ -619,6 +640,9 @@ VICII::cycle59()
     
     // Phi1.2 Draw
     DRAW59
+    PAL  { assert(isFirstDMAcycle); assert(!isSecondDMAcycle); }
+    NTSC { assert(!isFirstDMAcycle); assert(!isSecondDMAcycle);}
+    if (spriteDisplayDelayed || spriteDisplay || isSecondDMAcycle) drawSpritesSlowPath();
     
     // Phi1.3 Fetch
     PAL  { sAccess2 <mode,0> (); }
@@ -630,10 +654,7 @@ VICII::cycle59()
     // Phi2.4 BA logic
     PAL  { BA_LINE(spriteDmaOnOff & (SPR0 | SPR1 | SPR2)); }
     NTSC { BA_LINE(spriteDmaOnOff & (SPR0 | SPR1)); }
-    
-    // Phi2.5 Fetch
-    NTSC { sAccess1 <mode,0> (); }
-    
+        
     END_VISIBLE_CYCLE
 }
 
@@ -642,12 +663,15 @@ VICII::cycle60()
 {
     // Phi2.5 Fetch (previous cycle)
     PAL  { sAccess3 <mode,0> (); }
+    NTSC { sAccess1 <mode,0> (); }
 
     // Phi1.1 Frame logic
     checkVerticalFrameFF();
     
     // Phi1.2 Draw
     DRAW
+    PAL  { DRAW_SPRITES_DMA2 }
+    NTSC { DRAW_SPRITES_DMA1 }
     
     // Phi1.3 Fetch
     PAL  { sFinalize(0); pAccess <mode> (1); }
@@ -674,6 +698,8 @@ VICII::cycle61()
     
     // Phi1.2 Draw the last visible column
     DRAW
+    PAL  { DRAW_SPRITES_DMA1 }
+    NTSC { DRAW_SPRITES_DMA2 }
     
     // Phi1.3 Fetch
     PAL  { sAccess2 <mode,1> (); }
@@ -682,10 +708,7 @@ VICII::cycle61()
     // Phi2.4 BA logic
     PAL  { BA_LINE(spriteDmaOnOff & (SPR1 | SPR2 | SPR3)); }
     NTSC { BA_LINE(spriteDmaOnOff & (SPR1 | SPR2)); }
-    
-    // Phi2.5 Fetch
-    NTSC { sAccess1 <mode,1> (); }
-    
+        
     END_VISIBLE_CYCLE
     isVisibleColumn = false;
 }
@@ -695,12 +718,14 @@ VICII::cycle62()
 {
     // Phi2.5 Fetch (previous cycle)
     PAL  { sAccess3 <mode,1> (); }
+    NTSC { sAccess1 <mode,1> (); }
 
     // Phi1.1 Frame logic
     checkVerticalFrameFF();
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    PAL  { DRAW_SPRITES_DMA2 }
+    NTSC { DRAW_SPRITES_DMA1 }
 
     // Phi1.3 Fetch
     PAL  { sFinalize(1); pAccess <mode> (2); }
@@ -709,10 +734,7 @@ VICII::cycle62()
     // Phi2.4 BA logic
     PAL  { BA_LINE(spriteDmaOnOff & (SPR2 | SPR3)); }
     NTSC { BA_LINE(spriteDmaOnOff & (SPR1 | SPR2 | SPR3)); }
-    
-    // Phi2.5 Fetch
-    NTSC { sAccess3 <mode,1> (); }
-    
+        
     END_CYCLE
 }
 
@@ -721,13 +743,14 @@ VICII::cycle63()
 {
     // Phi2.5 Fetch (previous cycle)
     PAL  { sAccess1 <mode,2> (); }
-    
+    NTSC { sAccess3 <mode,1> (); }
+
     // Phi1.1 Frame logic
     checkVerticalFrameFF();
-    PAL  { yCounterEqualsIrqRasterline = (yCounter == rasterInterruptLine()); }
-    
+
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    PAL  { DRAW_SPRITES_DMA1 }
+    NTSC { DRAW_SPRITES_DMA2 }
 
     // Phi1.3 Fetch
     PAL  { sAccess2 <mode,2> (); }
@@ -736,24 +759,23 @@ VICII::cycle63()
     // Phi2.4 BA logic
     PAL  { BA_LINE(spriteDmaOnOff & (SPR2 | SPR3 | SPR4)); }
     NTSC { BA_LINE(spriteDmaOnOff & (SPR2 | SPR3)); }
-    
-    // Phi2.5 Fetch
-    NTSC { sAccess1 <mode,2> (); }
-    
+        
     END_CYCLE
 }
 
 template <VICIIMode mode> void
 VICII::cycle64()
 {
+    // Phi2.5 Fetch (previous cycle)
+    NTSC { sAccess1 <mode,2> (); }
+
     PAL { assert(false); } // NTSC only
     
     // Phi1.1 Frame logic
     checkVerticalFrameFF();
-    yCounterEqualsIrqRasterline = (yCounter == rasterInterruptLine());
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    DRAW_SPRITES_DMA1
 
     // Phi1.3 Fetch
     sAccess2 <mode,2> ();
@@ -774,10 +796,9 @@ VICII::cycle65()
 
     // Phi1.1 Frame logic
     checkVerticalFrameFF();
-    yCounterEqualsIrqRasterline = (yCounter == rasterInterruptLine());
     
     // Phi1.2 Draw sprites (invisible area)
-    DRAW_IDLE
+    DRAW_SPRITES_DMA2
 
     // Phi1.3 Fetch
     sFinalize(2);
@@ -807,7 +828,7 @@ VICII::sAccess1()
             dataBusPhi2 = memAccess(spritePtr[sprite] | mc[sprite]);
             
             if (type == PAL_DEBUG_CYCLE || type == NTSC_DEBUG_CYCLE) {
-                visualizeDma(4, dataBusPhi2, MEMACCESS_S);
+                dmaDebugger.visualizeDma(bufferoffset, dataBusPhi2, MEMACCESS_S);
             }
         }
         
@@ -832,7 +853,7 @@ VICII::sAccess2()
         mc[sprite] = (mc[sprite] + 1) & 0x3F;
         
         if (type == PAL_DEBUG_CYCLE || type == NTSC_DEBUG_CYCLE) {
-            visualizeDma(0, dataBusPhi1, MEMACCESS_S);
+            dmaDebugger.visualizeDma(bufferoffset, dataBusPhi1, MEMACCESS_S);
         }
 
     
@@ -856,7 +877,7 @@ VICII::sAccess3()
         mc[sprite] = (mc[sprite] + 1) & 0x3F;
 
         if (type == PAL_DEBUG_CYCLE || type == NTSC_DEBUG_CYCLE) {
-            visualizeDma(4, dataBusPhi2, MEMACCESS_S);
+            dmaDebugger.visualizeDma(bufferoffset, dataBusPhi2, MEMACCESS_S);
         }
     }
     
@@ -869,7 +890,7 @@ VICII::rAccess()
     dataBusPhi1 = memAccess(0x3F00 | refreshCounter--);
     
     if (type == PAL_DEBUG_CYCLE || type == NTSC_DEBUG_CYCLE) {
-        visualizeDma(0, dataBusPhi1, MEMACCESS_R);
+        dmaDebugger.visualizeDma(bufferoffset, dataBusPhi1, MEMACCESS_R);
     }
 }
 
@@ -879,7 +900,7 @@ VICII::iAccess()
     dataBusPhi1 = memAccess(0x3FFF);
     
     if (type == PAL_DEBUG_CYCLE || type == NTSC_DEBUG_CYCLE) {
-        visualizeDma(0, dataBusPhi1, MEMACCESS_I);
+        dmaDebugger.visualizeDma(bufferoffset, dataBusPhi1, MEMACCESS_I);
     }
 }
 
@@ -897,7 +918,7 @@ VICII::cAccess()
         colorLine[vmli] = mem.colorRam[vc] & 0x0F;
         
         if (type == PAL_DEBUG_CYCLE || type == NTSC_DEBUG_CYCLE) {
-            visualizeDma(4, dataBusPhi2, MEMACCESS_C);
+            dmaDebugger.visualizeDma(bufferoffset, dataBusPhi2, MEMACCESS_C);
         }
     }
     
@@ -978,7 +999,7 @@ VICII::gAccess()
     }
     
     if (type == PAL_DEBUG_CYCLE || type == NTSC_DEBUG_CYCLE) {
-        visualizeDma(0, dataBusPhi1, MEMACCESS_G);
+        dmaDebugger.visualizeDma(bufferoffset, dataBusPhi1, MEMACCESS_G);
     }
 }
 
@@ -1053,7 +1074,7 @@ VICII::pAccess(unsigned sprite)
     spritePtr[sprite] = dataBusPhi1 << 6;
     
     if (type == PAL_DEBUG_CYCLE || type == NTSC_DEBUG_CYCLE) {
-        visualizeDma(0, dataBusPhi1, MEMACCESS_P);
+        dmaDebugger.visualizeDma(bufferoffset, dataBusPhi1, MEMACCESS_P);
     }
 }
 

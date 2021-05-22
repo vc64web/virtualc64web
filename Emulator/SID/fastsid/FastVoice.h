@@ -28,7 +28,8 @@
 
 #pragma once
 
-#include "HardwareComponent.h"
+#include "SIDTypes.h"
+#include "C64Component.h"
 
 // Waveform types
 #define FASTSID_TRIANGLE 0x10
@@ -63,7 +64,7 @@
 #define NSEED 0x7ffff8
 
 
-class FastVoice : public HardwareComponent {
+class FastVoice : public C64Component {
     
     friend class FastSID;
     
@@ -170,7 +171,9 @@ class FastVoice : public HardwareComponent {
     
 public:
  
-    FastVoice() { };
+    using C64Component::C64Component;
+    
+    // FastVoice() { };
     const char *getDescription() const override { return "FastVoice"; }
 
     static void initWaveTables();
@@ -178,7 +181,7 @@ public:
     
 private:
     
-    void _reset() override;
+    void _reset(bool hard) override;
     
     
     //
@@ -203,31 +206,31 @@ private:
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
         worker
         
-        & waveTableOffset
-        & waveTableCounter
-        & step
-        & ringmod
-        & adsrm
-        & adsr
-        & adsrInc
-        & adsrCmp
-        & lsfr
-        & filterIO
-        & filterType
-        & filterLow
-        & filterRef
-        & filterDy
-        & filterResDy;
+        << waveTableOffset
+        << waveTableCounter
+        << step
+        << ringmod
+        << adsrm
+        << adsr
+        << adsrInc
+        << adsrCmp
+        << lsfr
+        << filterIO
+        << filterType
+        << filterLow
+        << filterRef
+        << filterDy
+        << filterResDy;
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    usize didLoadFromBuffer(u8 *buffer) override;
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize didLoadFromBuffer(const u8 *buffer) override;
     
  
     //

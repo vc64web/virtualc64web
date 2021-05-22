@@ -2,7 +2,7 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Cartridge.h"
+#include "FlashRom.h"
 
 class EasyFlash : public Cartridge {
     
@@ -43,7 +44,7 @@ public:
 
 private:
     
-    void _reset() override;
+    void _reset(bool hard) override;
 
     
     //
@@ -52,7 +53,7 @@ private:
     
 private:
     
-    void _dump() const override;
+    void _dump(dump::Category category, std::ostream& os) const override;
     
     
     //
@@ -66,32 +67,32 @@ private:
     {
         worker
         
-        & jumper;
+        << jumper;
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
         worker
         
-        & bankReg
-        & modeReg
-        & bank;
+        << bankReg
+        << modeReg
+        << bank;
     }
     
     usize __size() { COMPUTE_SNAPSHOT_SIZE }
-    usize _size() override { return Cartridge::_size() + __size(); }
-    usize _load(u8 *buffer) override { return Cartridge::_load(buffer); }
-    usize _save(u8 *buffer) override { return Cartridge::_save(buffer); }
-    usize didLoadFromBuffer(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize didSaveToBuffer(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize _size() override { return Cartridge::_size() + __size(); }
+    isize _load(const u8 *buffer) override { return Cartridge::_load(buffer); }
+    isize _save(u8 *buffer) override { return Cartridge::_save(buffer); }
+    isize didLoadFromBuffer(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize didSaveToBuffer(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
 
     
     //
     // Handling ROM packets
     //
     
-    void loadChip(unsigned nr, const CRTFile &crt) override;
+    void loadChip(isize nr, const CRTFile &crt) override;
 
     
     //
@@ -101,6 +102,7 @@ private:
 public:
     
     u8 peek(u16 addr) override;
+    u8 spypeek(u16 addr) const override;
     void poke(u16 addr, u8 value) override;
     void pokeRomL(u16 addr, u8 value) override;
     void pokeRomH(u16 addr, u8 value) override;

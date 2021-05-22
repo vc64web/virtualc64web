@@ -2,23 +2,21 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
 #include "CRTFile.h"
 #include "Cartridge.h"
-
-/*
-const u8 CRTFile::magicBytes[] = {
-    'C','6','4',' ','C','A','R','T','R','I','D','G','E',' ',' ',' ' };
-*/
+#include "Checksum.h"
+#include "IO.h"
 
 bool
 CRTFile::isCompatibleName(const std::string &name)
 {
-    auto s = suffix(name);
+    auto s = util::extractSuffix(name);
     return s == "crt" || s == "CRT";
 }
 
@@ -28,8 +26,8 @@ CRTFile::isCompatibleStream(std::istream &stream)
     const u8 magicBytes[] = {
         'C','6','4',' ','C','A','R','T','R','I','D','G','E',' ',' ',' ' };
     
-    if (streamLength(stream) < 0x40) return false;
-    return matchingStreamHeader(stream, magicBytes, sizeof(magicBytes));
+    if (util::streamLength(stream) < 0x40) return false;
+    return util::matchingStreamHeader(stream, magicBytes, sizeof(magicBytes));
 }
 
 PETName<16>
@@ -38,7 +36,7 @@ CRTFile::getName() const
     return PETName<16>(data + 0x20, 0x00);
 }
 
-usize
+isize
 CRTFile::readFromStream(std::istream &stream)
 {
     usize result = AnyFile::readFromStream(stream);
@@ -112,7 +110,7 @@ CRTFile::repair()
     // Individual errors
     //
     
-    switch (fnv_1a_64(data, size)) {
+    switch (util::fnv_1a_64(data, size)) {
 
         case 0xb2a479a5a2ee6cd5: // Mikro Assembler
 

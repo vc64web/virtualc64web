@@ -2,12 +2,19 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "Joystick.h"
 #include "C64.h"
+#include "IO.h"
+
+Joystick::Joystick(C64& ref, ControlPort& pref) : C64Component(ref), port(pref)
+{
+};
 
 const char *
 Joystick::getDescription() const
@@ -16,17 +23,119 @@ Joystick::getDescription() const
 }
 
 void
-Joystick::_dump() const
+Joystick::_reset(bool hard)
 {
-    msg("ControlPort %lld:\n", port.nr);
-    msg("--------------\n");
-    msg("   Button : %s\n", button ? "pressed" : "released");
-    msg("    axisX : %d axisY: %d\n", axisX, axisY);
-    msg("  bitmask : %02X\n", getControlPort());
+    RESET_SNAPSHOT_ITEMS(hard)
+    
+    // Discard any active joystick movements
+    button = false;
+    axisX = 0;
+    axisY = 0;
 }
 
-usize
-Joystick::didLoadFromBuffer(u8 *buffer)
+void
+Joystick::resetConfig()
+{
+    setConfigItem(OPT_AUTOFIRE, false);
+    setConfigItem(OPT_AUTOFIRE_BULLETS, -3);
+    setConfigItem(OPT_AUTOFIRE_DELAY, 125);
+}
+
+i64
+Joystick::getConfigItem(Option option) const
+{
+    switch (option) {
+            
+        case OPT_AUTOFIRE:          return (i64)config.autofire;
+        case OPT_AUTOFIRE_BULLETS:  return (i64)config.autofireBullets;
+        case OPT_AUTOFIRE_DELAY:    return (i64)config.autofireDelay;
+
+        default:
+            assert(false);
+            return 0;
+    }
+}
+
+bool
+Joystick::setConfigItem(Option option, i64 value)
+{
+    return setConfigItem(option, port.nr, value);
+}
+
+bool
+Joystick::setConfigItem(Option option, long id, i64 value)
+{
+    if (port.nr != id) return false;
+    
+    switch (option) {
+            
+        case OPT_AUTOFIRE:
+            
+            /*
+            if (config.autofire == value) {
+                return false;
+            }
+            */
+            config.autofire = (bool)value;
+            
+            // Release button immediately if autofire-mode is switches off
+            if (value == false) button = false;
+
+            return true;
+
+        case OPT_AUTOFIRE_BULLETS:
+            
+            /*
+            if (config.autofireBullets == value) {
+                return false;
+            }
+            */
+            config.autofireBullets = value;
+            
+            // Update the bullet counter if we're currently firing
+            if (bulletCounter > 0) reload();
+
+            return true;
+
+        case OPT_AUTOFIRE_DELAY:
+            
+            /*
+            if (config.autofireDelay == value) {
+                return false;
+            }
+            */
+            config.autofireDelay = value;
+            return true;
+
+        default:
+            return false;
+    }
+}
+
+void
+Joystick::_dump(dump::Category category, std::ostream& os) const
+{
+    using namespace util;
+
+    if (category & dump::Config) {
+        
+        os << tab("Joystick nr") << dec(port.nr) << std::endl;
+        os << tab("Auto fire") << bol(config.autofire) << std::endl;
+        os << tab("Auto fire bullets") << dec(config.autofireBullets) << std::endl;
+        os << tab("Auto fire delay") << dec(config.autofireDelay) << std::endl;
+    }
+
+    if (category & dump::State) {
+        
+        os << tab("Joystick nr") << dec(port.nr) << std::endl;
+        os << tab("Button") << bol(button) << std::endl;
+        os << tab("X axis") << dec(axisX) << std::endl;
+        os << tab("Y axis") << dec(axisY) << std::endl;
+    }
+}
+
+isize
+Joystick::didLoadFromBuffer(const u8 *buffer)
 {
     // Discard any active joystick movements
     button = false;
@@ -37,30 +146,15 @@ Joystick::didLoadFromBuffer(u8 *buffer)
 }
 
 void
-Joystick::setAutofire(bool value)
+Joystick::reload()
 {
-    autofire = value;
-    
-    // Release button immediately if autofire-mode is switches off
-    if (value == false) button = false;
-}
-
-void
-Joystick::setAutofireBullets(int value)
-{
-    autofireBullets = value;
-    
-    // Update the bullet counter if we're currently firing
-    if (bulletCounter > 0) {
-        bulletCounter = (autofireBullets < 0) ? UINT64_MAX : autofireBullets;
-    }
+    bulletCounter = (config.autofireBullets < 0) ? INT64_MAX : config.autofireBullets;
 }
 
 void
 Joystick::scheduleNextShot()
 {
-    nextAutofireFrame = c64.frame +
-    (int)(vic.getFramesPerSecond() / (2 * autofireFrequency));
+    nextAutofireFrame = c64.frame + config.autofireDelay;
 }
 
 u8
@@ -80,52 +174,42 @@ Joystick::getControlPort() const
 void
 Joystick::trigger(GamePadAction event)
 {
-    debug(PORT_DEBUG, "Port %lld: %s\n", port.nr, GamePadActionEnum::key(event));
+    debug(PRT_DEBUG, "Port %lld: %s\n", port.nr, GamePadActionEnum::key(event));
     
     switch (event) {
+    
+        case PULL_UP:    axisY = -1; break;
+        case PULL_DOWN:  axisY =  1; break;
+        case PULL_LEFT:  axisX = -1; break;
+        case PULL_RIGHT: axisX =  1; break;
             
-        case PULL_UP:
-            axisY = -1;
-            break;
-        case PULL_DOWN:
-            axisY = 1;
-            break;
-        case PULL_LEFT:
-            axisX = -1;
-            break;
-        case PULL_RIGHT:
-            axisX = 1;
-            break;
+        case RELEASE_X:  axisX =  0; break;
+        case RELEASE_Y:  axisY =  0; break;
+        case RELEASE_XY: axisX = axisY = 0; break;
+            
         case PRESS_FIRE:
-            
-            if (autofire) {
+            if (config.autofire) {
                 if (bulletCounter) {
+                    
                     // Cease fire
                     bulletCounter = 0;
                     button = false;
+                    
                 } else {
+                
                     // Load magazine
-                    bulletCounter = (autofireBullets < 0) ? UINT64_MAX : autofireBullets;
                     button = true;
+                    reload();
                     scheduleNextShot();
                 }
+                
             } else {
                 button = true;
             }
             break;
-        case RELEASE_X:
-            axisX = 0;
-            break;
-        case RELEASE_Y:
-            axisY = 0;
-            break;
-        case RELEASE_XY:
-            axisX = 0;
-            axisY = 0;
-            break;
+
         case RELEASE_FIRE:
-            if (!autofire)
-                button = false;
+            if (!config.autofire) button = false;
             break;
   
         default:
@@ -137,21 +221,20 @@ Joystick::trigger(GamePadAction event)
 void
 Joystick::execute()
 {
-    if (!autofire || autofireFrequency <= 0.0)
-        return;
+    // Only proceed if auto fire is enabled
+    if (!config.autofire || config.autofireDelay < 0) return;
   
-    // Wait until it's time to push or release fire
-    if ((i64)c64.frame != nextAutofireFrame)
-        return;
+    // Only proceed if a trigger frame has been reached
+    if ((i64)c64.frame != nextAutofireFrame) return;
     
-    // Are there any bullets left?
-    if (bulletCounter) {
-        if (button) {
-            button = false;
-            bulletCounter--;
-        } else {
-            button = true;
-        }
-        scheduleNextShot();
+    // Only proceed if there are bullets left
+    if (bulletCounter == 0) return;
+    
+    if (button) {
+        button = false;
+        bulletCounter--;
+    } else {
+        button = true;
     }
+    scheduleNextShot();
 }

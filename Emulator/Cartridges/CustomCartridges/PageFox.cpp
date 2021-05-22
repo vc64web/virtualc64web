@@ -2,11 +2,12 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
 #include "C64.h"
 
 PageFox::PageFox(C64 &ref) : Cartridge(ref)
@@ -16,23 +17,23 @@ PageFox::PageFox(C64 &ref) : Cartridge(ref)
 }
 
 void
-PageFox::_reset()
+PageFox::_reset(bool hard)
 {
     eraseRAM(0);
 }
 
 void
-PageFox::_dump() const
+PageFox::_dump(dump::Category category, std::ostream& os) const
 {
-    Cartridge::_dump();
+    using namespace util;
     
-    msg("PageFox\n");
-    msg("-------\n\n");
+    if (category & dump::State) {
     
-    msg("  bankSelect() : %x\n", bankSelect());
-    msg("  chipSelect() : %x\n", chipSelect());
-    msg("        bank() : %x\n", bank());
-    msg("     disable() : %x\n", disabled());    
+        os << tab("bankSelect()") << hex(bankSelect()) << std::endl;
+        os << tab("chipSelect()") << hex(chipSelect()) << std::endl;
+        os << tab("bank()") << hex(bank()) << std::endl;
+        os << tab("disable()") << hex(disabled()) << std::endl;
+    }
 }
 
 void

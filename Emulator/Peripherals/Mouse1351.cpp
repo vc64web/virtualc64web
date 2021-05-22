@@ -2,18 +2,21 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
-#include "C64.h"
+#include "config.h"
 #include "Mouse1351.h"
+#include "C64.h"
+
+#include <algorithm>
 
 void
-Mouse1351::_reset()
+Mouse1351::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS
+    RESET_SNAPSHOT_ITEMS(hard)
 
     leftButton = false;
     rightButton = false;
@@ -53,8 +56,8 @@ Mouse1351::executeX(i64 targetX)
     if (abs(targetX - mouseX) / 8 > shiftX) mouseX = targetX;
     
     // Move mouse coordinates towards target coordinates
-    if (targetX < mouseX) mouseX -= MIN(mouseX - targetX, shiftX);
-    else if (targetX > mouseX) mouseX += MIN(targetX - mouseX, shiftX);
+    if (targetX < mouseX) mouseX -= std::min(mouseX - targetX, shiftX);
+    else if (targetX > mouseX) mouseX += std::min(targetX - mouseX, shiftX);
 }
 
 void
@@ -66,6 +69,6 @@ Mouse1351::executeY(i64 targetY)
     if (abs(targetY - mouseY) / 8 > shiftY) mouseY = targetY;
     
     // Move mouse coordinates towards target coordinates
-    if (targetY < mouseY) mouseY -= MIN(mouseY - targetY, shiftY);
-    else if (targetY > mouseY) mouseY += MIN(targetY - mouseY, shiftY);
+    if (targetY < mouseY) mouseY -= std::min(mouseY - targetY, shiftY);
+    else if (targetY > mouseY) mouseY += std::min(targetY - mouseY, shiftY);
 }

@@ -2,7 +2,7 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
@@ -75,9 +75,8 @@ protected:
     // Internal state
     //
     
-    /* Debug mode
-     * In debug mode, the CPU checks for breakpoints and records executed
-     * instruction in the log buffer.
+    /* Debug mode. In debug mode, the CPU checks for breakpoints and records
+     * executed instruction in the log buffer.
      */
     bool debugMode;
     
@@ -202,7 +201,7 @@ private:
                           AddressingMode mode,
                           MicroInstruction mInstr);
     
-    void _reset() override;
+    void _reset(bool hard) override;
 
     
     //
@@ -224,8 +223,7 @@ public:
 private:
     
     void _inspect() override;
-    void _dump() const override;
-
+    void _dump(dump::Category category, std::ostream& os) const override;
     
     //
     // Serializing
@@ -239,44 +237,48 @@ private:
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
+        if (hard) {
+            
+            worker << cycle;
+        }
+        
         worker
         
-        & cycle
-        & next
-        & reg.a
-        & reg.x
-        & reg.y
-        & reg.pc
-        & reg.pc0
-        & reg.sp
-        & reg.sr.n
-        & reg.sr.v
-        & reg.sr.b
-        & reg.sr.d
-        & reg.sr.i
-        & reg.sr.z
-        & reg.sr.c
-        & reg.adl
-        & reg.adh
-        & reg.idl
-        & reg.d
-        & reg.ovl
-        & rdyLine
-        & rdyLineUp
-        & rdyLineDown
-        & nmiLine
-        & irqLine
-        & edgeDetector
-        & levelDetector
-        & doNmi
-        & doIrq;
+        << next
+        << reg.a
+        << reg.x
+        << reg.y
+        << reg.pc
+        << reg.pc0
+        << reg.sp
+        << reg.sr.n
+        << reg.sr.v
+        << reg.sr.b
+        << reg.sr.d
+        << reg.sr.i
+        << reg.sr.z
+        << reg.sr.c
+        << reg.adl
+        << reg.adh
+        << reg.idl
+        << reg.d
+        << reg.ovl
+        << rdyLine
+        << rdyLineUp
+        << rdyLineDown
+        << nmiLine
+        << irqLine
+        >> edgeDetector
+        >> levelDetector
+        << doNmi
+        << doIrq;
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
 
     
     //

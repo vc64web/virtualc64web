@@ -2,12 +2,15 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "ReSID.h"
 #include "C64.h"
+#include "IO.h"
 
 ReSID::ReSID(C64 &ref, SIDBridge &bridgeref, int n) : C64Component(ref), bridge(bridgeref), nr(n)
 {
@@ -29,11 +32,11 @@ ReSID::~ReSID()
 }
 
 void
-ReSID::_reset()
+ReSID::_reset(bool hard)
 {
     assert(sid);
 
-    RESET_SNAPSHOT_ITEMS
+    RESET_SNAPSHOT_ITEMS(hard)
     
     // Resetting reSID is done by creating a new reSID object. We don't call
     // reSID::reset() because it only performs a soft reset.
@@ -77,40 +80,87 @@ ReSID::_inspect()
         reSID::SID::State state = sid->read_state();
         u8 *reg = (u8 *)state.sid_register;
         
-        info.volume = reg[0x18] & 0x0F;
+        info.volume = reg[0x18] & 0xF;
         info.filterModeBits = reg[0x18] & 0xF0;
         info.filterType = reg[0x18] & 0x70;
         info.filterCutoff = (reg[0x16] << 3) | (reg[0x15] & 0x07);
         info.filterResonance = reg[0x17] >> 4;
         info.filterEnableBits = reg[0x17] & 0x0F;
         
-        for (unsigned i = 0; i < 3; i++, reg += 7) {
+        for (isize i = 0; i < 3; i++, reg += 7) {
             
-            for (unsigned j = 0; j < 7; j++) voiceInfo[i].reg[j] = reg[j];
-            voiceInfo[i].frequency = HI_LO(reg[0x01], reg[0x00]);
-            voiceInfo[i].pulseWidth = ((reg[3] & 0x0F) << 8) | reg[0x02];
-            voiceInfo[i].waveform = reg[0x04] & 0xF0;
-            voiceInfo[i].ringMod = (reg[0x04] & 0x04) != 0;
-            voiceInfo[i].hardSync = (reg[0x04] & 0x02) != 0;
-            voiceInfo[i].gateBit = (reg[0x04] & 0x01) != 0;
-            voiceInfo[i].testBit = (reg[0x04] & 0x08) != 0;
-            voiceInfo[i].attackRate = reg[0x05] >> 4;
-            voiceInfo[i].decayRate = reg[0x05] & 0x0F;
-            voiceInfo[i].sustainRate = reg[0x06] >> 4;
-            voiceInfo[i].releaseRate = reg[0x06] & 0x0F;
+            for (isize j = 0; j < 7; j++) voiceInfo[i].reg[j] = reg[j];
+            voiceInfo[i].frequency = HI_LO(reg[0x1], reg[0x0]);
+            voiceInfo[i].pulseWidth = ((reg[0x3] & 0xF) << 8) | reg[0x02];
+            voiceInfo[i].waveform = reg[0x4] & 0xF0;
+            voiceInfo[i].ringMod = (reg[0x4] & 0x4) != 0;
+            voiceInfo[i].hardSync = (reg[0x4] & 0x2) != 0;
+            voiceInfo[i].gateBit = (reg[0x4] & 0x1) != 0;
+            voiceInfo[i].testBit = (reg[0x4] & 0x8) != 0;
+            voiceInfo[i].attackRate = reg[0x5] >> 4;
+            voiceInfo[i].decayRate = reg[0x5] & 0xF;
+            voiceInfo[i].sustainRate = reg[0x6] >> 4;
+            voiceInfo[i].releaseRate = reg[0x6] & 0xF;
         }
     }
 }
 
-usize
-ReSID::didLoadFromBuffer(u8 *buffer)
+void
+ReSID::_dump(dump::Category category, std::ostream& os) const
+{
+    using namespace util;
+    
+    reSID::SID::State state = sid->read_state();
+    u8 *reg = (u8 *)state.sid_register;
+    u8 ft = reg[0x18] & 0x70;
+    string fts =
+    ft == FASTSID_LOW_PASS ? "LOW_PASS" :
+    ft == FASTSID_HIGH_PASS ? "HIGH_PASS" :
+    ft == FASTSID_BAND_PASS ? "BAND_PASS" : "???";
+    
+    if (category & dump::State) {
+   
+        os << tab("Chip");
+        os << "ReSID " << dec(nr) << std::endl;
+        os << tab("Model");
+        os << SIDRevisionEnum::key(getRevision()) << std::endl;
+        os << tab("Sampling rate");
+        os << getSampleRate() << std::endl;
+        os << tab("CPU frequency");
+        os << dec(getClockFrequency()) << std::endl;
+        os << tab("Emulate filter");
+        os << bol(getAudioFilter()) << std::endl;
+        os << tab("Volume");
+        os << dec((u8)(reg[0x18] & 0xF)) << std::endl;
+        os << tab("Filter type");
+        os << fts << std::endl;
+        os << tab("Filter cut off");
+        os << dec((u16)(reg[0x16] << 3 | (reg[0x15] & 0x07))) << std::endl;
+        os << tab("Filter resonance");
+        os << dec((u8)(reg[0x17] >> 4)) << std::endl;
+        os << tab("Filter enable bits");
+        os << hex((u8)(reg[0x17] & 0x0F));
+    }
+    
+    if (category & dump::Registers) {
+   
+        for (isize i = 0; i <= 0x1C; i++) {
+   
+            os << "  " << hex((u8)i) << ": " << hex(reg[i]);
+            if ((i + 1) % 8 == 0) os << std::endl;
+        }
+    }
+}
+
+isize
+ReSID::didLoadFromBuffer(const u8 *buffer)
 {
     sid->write_state(st);
     return 0;
 }
  
-usize
-ReSID::willSaveToBuffer(u8 *buffer)
+isize
+ReSID::willSaveToBuffer(const u8 *buffer)
 {
     st = sid->read_state();
     return 0;
@@ -221,7 +271,7 @@ ReSID::poke(u16 addr, u8 value)
 }
 
 i64
-ReSID::executeCycles(usize numCycles, SampleStream &stream)
+ReSID::executeCycles(isize numCycles, SampleStream &stream)
 {
     short buf[2049];
     usize buflength = 2048;
@@ -232,7 +282,7 @@ ReSID::executeCycles(usize numCycles, SampleStream &stream)
     }
     
     // Let reSID compute sound samples
-    usize samples = 0;
+    isize samples = 0;
     reSID::cycle_count cycles = (reSID::cycle_count)numCycles;
     while (cycles) {
         int resid = sid->clock(cycles, buf + samples, int(buflength) - int(samples));
@@ -247,13 +297,13 @@ ReSID::executeCycles(usize numCycles, SampleStream &stream)
     }
     
     // Write samples into ringbuffer
-    if (samples) { for (usize i = 0; i < samples; i++) stream.write(buf[i]); }
+    if (samples) { for (isize i = 0; i < samples; i++) stream.write(buf[i]); }
     
     return samples;
 }
 
 i64
-ReSID::executeCycles(usize numCycles)
+ReSID::executeCycles(isize numCycles)
 {
     return executeCycles(numCycles, bridge.sidStream[nr]);
 }

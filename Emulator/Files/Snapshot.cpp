@@ -2,12 +2,15 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "Snapshot.h"
 #include "C64.h"
+#include "IO.h"
 
 bool
 Snapshot::isCompatibleName(const std::string &name)
@@ -20,8 +23,8 @@ Snapshot::isCompatibleStream(std::istream &stream)
 {
     const u8 magicBytes[] = { 'V', 'C', '6', '4' };
     
-    if (streamLength(stream) < 0x15) return false; 
-    return matchingStreamHeader(stream, magicBytes, sizeof(magicBytes));
+    if (util::streamLength(stream) < 0x15) return false; 
+    return util::matchingStreamHeader(stream, magicBytes, sizeof(magicBytes));
 }
 
 Snapshot::Snapshot(usize capacity)

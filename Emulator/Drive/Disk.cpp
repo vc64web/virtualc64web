@@ -2,12 +2,16 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
+#include "config.h"
 #include "C64.h"
+#include "IO.h"
+
+#include <stdarg.h>
 
 const Disk::TrackDefaults Disk::trackDefaults[43] = {
     
@@ -102,6 +106,22 @@ Disk::isValidHalftrackSectorPair(Halftrack ht, Sector s)
 }
 
 Disk *
+Disk::make(C64 &ref, const string &path)
+{
+    ErrorCode ec;
+
+    if (auto g64 = AnyFile::make <G64File> (path, &ec)) {
+        return makeWithG64(ref, g64);
+    }
+
+    if (auto fs = FSDevice::makeWithPath(path, &ec)) {
+        return makeWithFileSystem(ref, *fs);
+    }
+    
+    throw VC64Error(ERROR_FILE_TYPE_MISMATCH);
+}
+
+Disk *
 Disk::make(C64 &ref, DOSType type, PETName<16> name)
 {
     assert_enum(DOSType, type);
@@ -149,6 +169,19 @@ Disk::makeWithG64(C64 &ref, G64File *g64)
 }
 
 Disk *
+Disk::makeWithD64(C64 &ref, D64File *d64)
+{
+    ErrorCode err;
+    FSDevice *fs = FSDevice::makeWithD64(*d64, &err);
+    assert(fs);
+    
+    Disk *disk = makeWithFileSystem(ref, *fs);
+    delete fs;
+    
+    return disk;
+}
+
+Disk *
 Disk::makeWithCollection(C64 &ref, AnyCollection &collection)
 {
     ErrorCode err;
@@ -183,22 +216,32 @@ Disk::Disk(C64 &ref) : C64Component(ref)
 }
 
 void
-Disk::_reset()
+Disk::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS
+    RESET_SNAPSHOT_ITEMS(hard)
 }
 
 void
-Disk::_dump() const
+Disk::_dump(dump::Category category, std::ostream& os) const
 {
-    msg("Floppy disk\n");
-    msg("-----------\n\n");
+    using namespace util;
     
-    for (Halftrack ht = 1; ht <= highestHalftrack; ht++) {
-        u16 length = lengthOfHalftrack(ht);
-        msg("Halftrack %2d: %d Bits (%d Bytes)\n", ht, length, length / 8);
+    if (category & dump::State) {
+
+        os << tab("Write protected") << bol(writeProtected) << std::endl;
+        os << tab("Modified") << bol(modified) << std::endl;
+
+        /*
+        for (Halftrack ht = 1; ht <= highestHalftrack; ht++) {
+            
+            u16 length = lengthOfHalftrack(ht);
+            
+            os << tab("Halftrack " + std::to_string(ht));
+            os << dec(length) << " Bits (" << dec(length / 8) << " Bytes)";
+            os << std::endl;
+        }
+        */
     }
-    msg("\n");
 }
 
 void
@@ -597,11 +640,11 @@ Disk::sectorBytesAsString(u8 *buffer, usize length, bool hex)
         u8 value = decodeGcr(buffer + gcrOffset);
 
         if (hex) {
-            sprint8x(text + strOffset, value);
+            util::sprint8x(text + strOffset, value);
             text[strOffset + 2] = ' ';
             strOffset += 3;
         } else {
-            sprint8d(text + strOffset, value);
+            util::sprint8d(text + strOffset, value);
             text[strOffset + 3] = ' ';
             strOffset += 4;
         }
@@ -769,7 +812,6 @@ Disk::encode(FSDevice &fs, bool alignTracks)
     };
     */
     
-    usize encodedBits;
     unsigned numTracks = fs.getNumTracks();
 
     trace(GCR_DEBUG, "Encoding disk with %d tracks\n", numTracks);
@@ -791,9 +833,7 @@ Disk::encode(FSDevice &fs, bool alignTracks)
         } else {
             start = 0;
         }
-        encodedBits = encodeTrack(fs, t, tailGap[zone], start);
-        trace(GCR_DEBUG, "Encoded %zu bits (%lu bytes) for track %d.\n",
-              encodedBits, encodedBits / 8, t);
+        encodeTrack(fs, t, tailGap[zone], start);
     }
 
     // Do some consistency checking

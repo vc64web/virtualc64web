@@ -2,13 +2,15 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v2
+// Licensed under the GNU General Public License v3
 //
 // See https://www.gnu.org for license information
 // -----------------------------------------------------------------------------
 
 #pragma once
 
+#include "DiskTypes.h"
+#include "FSTypes.h"
 #include "C64Component.h"
 #include "PETName.h"
 
@@ -164,9 +166,11 @@ public:
     
 public:
     
+    static Disk *make(C64 &ref, const string &path) throws;
     static Disk *make(C64 &ref, DOSType type, PETName<16> name);
     static Disk *makeWithFileSystem(C64 &ref, class FSDevice &device);
     static Disk *makeWithG64(C64 &ref, G64File *g64);
+    static Disk *makeWithD64(C64 &ref, D64File *d64);
     static Disk *makeWithCollection(C64 &ref, AnyCollection &archive);
 
 
@@ -181,7 +185,7 @@ public:
     
 private:
     
-    void _reset() override;
+    void _reset(bool hard) override;
 
     
     //
@@ -190,7 +194,7 @@ private:
     
 private:
     
-    void _dump() const override;
+    void _dump(dump::Category category, std::ostream& os) const override;
 
     
     //
@@ -204,20 +208,20 @@ private:
     {
         worker
         
-        & writeProtected
-        & modified
-        & data
-        & length;
+        << writeProtected
+        << modified
+        >> data
+        >> length;
     }
     
     template <class T>
-    void applyToResetItems(T& worker)
+    void applyToResetItems(T& worker, bool hard = true)
     {
     }
     
-    usize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    usize _load(u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    usize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
+    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
+    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
+    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
     
     //

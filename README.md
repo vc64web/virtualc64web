@@ -1,3 +1,3 @@
 <p align="center">
-  <a href = "https://dirkwhoffmann.github.io/virtualc64web/doc/about.html"><img src="https://dirkwhoffmann.github.io/virtualc64web/doc/images/redirect.png"></a>
+  <a href = "https://vc64web.github.io/doc/about.html"><img src="https://vc64web.github.io/doc/images/redirect.png"></a>
 </p>

@@ -2191,7 +2191,7 @@ $('.layer').change( function(event) {
 
             $('#choose_padding a').click(function () 
             {
-                 $('#button_padding').text('button size = '+ $(this).text() ); 
+                 $('#button_padding').text('size = '+ $(this).text() ); 
             });
             $('#choose_opacity a').click(function () 
             {
@@ -2224,7 +2224,7 @@ $('.layer').change( function(event) {
                 $('#input_button_text').val(btn_def.title);
                 $('#input_button_shortcut').val(btn_def.key);
                 let padding = btn_def.padding == undefined ? 'default':btn_def.padding ;
-                $('#button_padding').text('button size = '+ padding );
+                $('#button_padding').text('size = '+ padding );
                 let opacity = btn_def.opacity == undefined ? 'default':btn_def.opacity ;
                 $('#button_opacity').text('opacity = '+ opacity);
                 

@@ -1,4 +1,4 @@
-const cache_name = 'vc64_app_cache_v2021_05_22c';
+const cache_name = 'vc64_app_cache_v2021_05_23';
 
 // install event
 self.addEventListener('install', evt => {
@@ -27,7 +27,7 @@ self.addEventListener('fetch', function(event){
         ||
         event.request.url.startsWith('https://mega65.github.io/')
         ||
-        event.request.url.startsWith('https://dirkwhoffmann.github.io/virtualc64web/doc')
+        event.request.url.startsWith('https://vc64web.github.io/doc')
         ||
         event.request.url.endsWith('vc64web_player.js')
       )

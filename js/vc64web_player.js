@@ -112,7 +112,7 @@
         }
         else
         {
-            this.loadScript("https://dirkwhoffmann.github.io/virtualc64web/js/jquery-3.5.0.min.js" , 
+            this.loadScript("https://vc64web.github.io/js/jquery-3.5.0.min.js" , 
             function(){vc64web_player.load_into(element,params, address);});
         }
     },
@@ -148,7 +148,7 @@
         this.saved_pic_html = emu_container.html();
         this.preview_pic_width= emu_container.children(":first").width();
 
-        var vc64web_url = "https://dirkwhoffmann.github.io/virtualc64web/";
+        var vc64web_url = "https://vc64web.github.io/";
 
         //turn picture into iframe
         var emuview_html = `
@@ -186,7 +186,7 @@ emuview_html +=
 `<svg id="btn_overlay" class="player_icon_btn" style="margin-top:4px;margin-left:auto" onclick="vc64web_player.toggle_overlay();return false;" xmlns="http://www.w3.org/2000/svg" width="1.5em" height="1.5em" fill="currentColor" class="bi bi-pause-btn" viewBox="0 0 16 16">
 ${this.overlay_on_icon}
 </svg>
-<a id="btn_open_in_extra_tab" title="open fullwindow in new browser tab" style="border:none;width:1.5em;margin-top:4px" onclick="vc64web_player.stop_emu_view();" href="https://dirkwhoffmann.github.io/virtualc64web/${params}#${address}" target="blank">
+<a id="btn_open_in_extra_tab" title="open fullwindow in new browser tab" style="border:none;width:1.5em;margin-top:4px" onclick="vc64web_player.stop_emu_view();" href="https://vc64web.github.io/${params}#${address}" target="blank">
     <svg class="player_icon_btn" xmlns="http://www.w3.org/2000/svg" width="1.5em" height="1.5em" fill="currentColor" class="bi bi-pause-btn" viewBox="0 0 16 16">
   <path fill-rule="evenodd" d="M15 2a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2zM0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm5.854 8.803a.5.5 0 1 1-.708-.707L9.243 6H6.475a.5.5 0 1 1 0-1h3.975a.5.5 0 0 1 .5.5v3.975a.5.5 0 1 1-1 0V6.707l-4.096 4.096z"/>
 </svg>

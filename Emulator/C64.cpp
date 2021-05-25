@@ -702,6 +702,9 @@ void
 C64::_run()
 {
     state = EMULATOR_STATE_RUNNING;
+
+    // Inform the GUI
+    msgQueue.put(MSG_RUN);
 }
 
 void

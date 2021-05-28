@@ -525,7 +525,7 @@
               VirtualC64web emulates a cycle-acurate Commodore 64 on the web. 
               <br>             
               <br>
-              <a href="https://dirkwhoffmann.github.io/virtualc64web/doc/about.html" style="font-size:x-large">
+              <a href="https://vc64web.github.io/doc/about.html" style="font-size:x-large">
                 learn more about vc64web ...</a>
               <br><br>
             </p>
@@ -604,22 +604,59 @@ The operators or creators of external web resources are soley responsible for th
             </button>
           </div>
           <div class="modal-body">
-            This is the place where you can create app or game specific customized overlay buttons with free positioning ...
-            <br><br>            
-            <div class="container">
-              <div class="row">
-                <div class="col-8 pl-0">
-                    label of the action button<br>
-                    <input id="input_button_text" required pattern="^.+$" placeholder="try to use emojis 😊 as icons" type="text" class="form-control" aria-label="action script" aria-describedby="inputGroup-sizing-default">
-                    <div id="input_button_text_error" class="invalid-feedback">you are missing text here</div>
+            This is the place where you can create app or game specific customized overlay buttons with free positioning ...    
+            <div class="mt-3" style="display:flex;justify-content:space-between;width:100%">
+              <div class="w-75">
+                  label of the action button<br>
+                  <input id="input_button_text" required pattern="^.+$" placeholder="try to use emojis 😊 as icons" type="text" class="form-control" aria-label="action script" aria-describedby="inputGroup-sizing-default">
+                  <div id="input_button_text_error" class="invalid-feedback">you are missing text here</div>
+              </div>
+              <div class="ml-2">
+                shortcut key<br>
+                <input id="input_button_shortcut" required pattern="^.{0,1}$" placeholder="(optional)" type="text" class="form-control ml-1" style="width:6em;margin-left: 0 !important;" aria-label="action script" aria-describedby="inputGroup-sizing-default">
+                <div id="input_button_shortcut_error" class="invalid-feedback">please specify only one shortcut key</div>
+              </div>
+            </div>
+
+            <div class="mt-3" style="display:flex;justify-content:flex-start;width:100%">
+              <div class="dropdown">
+                <button id="button_padding" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  size = default
+                </button>
+                <div id="choose_padding" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+                  <a class="dropdown-item" href="#">default</a>
+                  <a class="dropdown-item" href="#">0.4</a>
+                  <a class="dropdown-item" href="#">0.6</a>
+                  <a class="dropdown-item" href="#">0.9</a>
+                  <a class="dropdown-item" href="#">1.1</a>
+                  <a class="dropdown-item" href="#">1.3</a>
+                  <a class="dropdown-item" href="#">1.8</a>
+                  <a class="dropdown-item" href="#">2.5</a>
+                  <a class="dropdown-item" href="#">3</a>
+                  <a class="dropdown-item" href="#">4</a>
+                  <a class="dropdown-item" href="#">6</a>
                 </div>
-                <div class="col-4">
-                  shortcut key<br>
-                  <input id="input_button_shortcut" required pattern="^.{0,1}$" placeholder="(optional)" type="text" class="form-control ml-1" aria-label="action script" aria-describedby="inputGroup-sizing-default">
-                  <div id="input_button_shortcut_error" class="invalid-feedback">please specify only one shortcut key</div>
+              </div> 
+              <div class="dropdown">
+                <button id="button_opacity" class="ml-4 btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  opacity = default
+                </button>
+                <div id="choose_opacity" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+                  <a class="dropdown-item" href="#">default</a>
+                  <a class="dropdown-item" href="#">0.1</a>
+                  <a class="dropdown-item" href="#">0.2</a>
+                  <a class="dropdown-item" href="#">0.3</a>
+                  <a class="dropdown-item" href="#">0.4</a>
+                  <a class="dropdown-item" href="#">0.5</a>
+                  <a class="dropdown-item" href="#">0.6</a>
+                  <a class="dropdown-item" href="#">0.7</a>
+                  <a class="dropdown-item" href="#">0.8</a>
+                  <a class="dropdown-item" href="#">0.9</a>
+                  <a class="dropdown-item" href="#">1.0</a>
                 </div>
               </div>
             </div>
+
             <br>
             app scope
             <div class="custom-control-lg custom-control custom-checkbox">

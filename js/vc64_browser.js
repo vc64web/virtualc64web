@@ -922,7 +922,7 @@ var collectors = {
 
             content += '<div class="row justify-content-md-center mt-4 pb-4">';
             content += '<div class="col col-md-12">';
-            var vc64web_URL='https://dirkwhoffmann.github.io/virtualc64web/';
+            var vc64web_URL='https://vc64web.github.io/';
             var link_id=0;
             for(var link of item.links)
             {

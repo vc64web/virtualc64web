@@ -13,7 +13,7 @@ WASM_EXPORTS= -s EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS="['_ma
 CFLAGS    = $(INCLUDE) $(WARNINGS) $(STD) $(OPTIMIZE) -s USE_SDL=2 $(WASM_EXPORTS) -s DISABLE_EXCEPTION_CATCHING=0 -s BINARYEN_EXTRA_PASSES=--one-caller-inline-max-function-size=19306
 #-s ASSERTIONS=1
 LFLAGS= -s LLD_REPORT_UNDEFINED
-PUBLISH_FOLDER=../gh-pages
+PUBLISH_FOLDER=../vc64web.github.io
 
 .PHONY: all clean
 
@@ -43,12 +43,14 @@ publish:
 	rm -f  $(PUBLISH_FOLDER)/*.js
 	rm -f  $(PUBLISH_FOLDER)/*.json
 	rm -f  $(PUBLISH_FOLDER)/index.html
+	rm -f  $(PUBLISH_FOLDER)/run.html
 	cp vC64.* $(PUBLISH_FOLDER)
 	cp -r js $(PUBLISH_FOLDER)
 	cp -r css $(PUBLISH_FOLDER)
 	cp -r img $(PUBLISH_FOLDER)
 	cp -r roms $(PUBLISH_FOLDER)
 	cp index.html $(PUBLISH_FOLDER)
+	cp run.html $(PUBLISH_FOLDER)
 	cp sw.js $(PUBLISH_FOLDER)
 	cp manifest.json $(PUBLISH_FOLDER)
 

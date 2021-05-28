@@ -250,7 +250,7 @@ async function execute_single_action(cmd, execute=true, execution_id=-1)
     {
         if(execute)
         {
-            load_last_snapshot();
+            await load_last_snapshot();
         }
     }
     else if(cmd == 'swap_joystick')
@@ -401,32 +401,28 @@ function execute_joystick_script(cmd_tokens)
     set_port_owner(portnr,previous_owner);
  }
 
- function load_last_snapshot()
+ async function load_last_snapshot()
  {
-
-    get_snapshots_for_app_title(0, global_apptitle, 
-        function(ctx, app_title, app_snaps) {
-            if(app_snaps.length>0)
-            {
-                var snapshot = app_snaps[app_snaps.length-1];
-                if(is_running())
-                {
-                    wasm_halt();
-                }
-                wasm_loadfile(
-                    snapshot.title+".vc64",
-                    snapshot.data, 
-                    snapshot.data.length);
-                if(!is_running())
-                {
-                    $("#button_run").click();
-                }  
-                {
-                    wasm_run();
-                } 
-            }
+    let app_snaps = await get_snapshots_for_app_title(global_apptitle);  
+    if(app_snaps.length>0)
+    {
+        var snapshot = app_snaps[app_snaps.length-1];
+        if(is_running())
+        {
+            wasm_halt();
         }
-    ); 
+        wasm_loadfile(
+            snapshot.title+".vc64",
+            snapshot.data, 
+            snapshot.data.length);
+        if(!is_running())
+        {
+            $("#button_run").click();
+        }  
+        {
+            wasm_run();
+        } 
+    }
  }
 
  function sprite_xpos(sprite_id)

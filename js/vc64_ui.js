@@ -2189,6 +2189,15 @@ $('.layer').change( function(event) {
 
         $('#modal_custom_key').on('show.bs.modal', function () {
 
+            $('#choose_padding a').click(function () 
+            {
+                 $('#button_padding').text('size = '+ $(this).text() ); 
+            });
+            $('#choose_opacity a').click(function () 
+            {
+                 $('#button_opacity').text('opacity = '+ $(this).text() ); 
+            });
+
             function set_script_language(script_language) {
                 $("#button_script_language").text(script_language);;
             }
@@ -2214,6 +2223,11 @@ $('.layer').change( function(event) {
                 set_script_language(btn_def.lang);
                 $('#input_button_text').val(btn_def.title);
                 $('#input_button_shortcut').val(btn_def.key);
+                let padding = btn_def.padding == undefined ? 'default':btn_def.padding ;
+                $('#button_padding').text('size = '+ padding );
+                let opacity = btn_def.opacity == undefined ? 'default':btn_def.opacity ;
+                $('#button_opacity').text('opacity = '+ opacity);
+                
                 $('#check_app_scope').prop('checked',btn_def.app_scope);
                 $('#input_action_script').val(btn_def.script);
 
@@ -2506,18 +2520,28 @@ release_key('ControlLeft');`;
             if( (await validate_custom_key_form()) == false)
                 return;
 
+            let padding = $('#button_padding').text().split("=")[1].trim();
+            let opacity = $('#button_opacity').text().split("=")[1].trim();
             if(create_new_custom_key)
             {
                 //create a new custom key buttom  
-                custom_keys.push( 
-                    {  id: custom_keys.length
+                let new_button={  id: custom_keys.length
                       ,title: $('#input_button_text').val()
                       ,key: $('#input_button_shortcut').val()
                       ,app_scope: $('#check_app_scope').prop('checked')
                       ,script:  $('#input_action_script').val()
                       ,position: "top:50%;left:50%"
                       ,lang: $('#button_script_language').text()
-                    });
+                    };
+                if(padding != 'default')
+                {
+                    new_button.padding=padding;
+                }
+                if(opacity != 'default')
+                {
+                    new_button.opacity=opacity;
+                }
+                custom_keys.push(new_button);
 
                 $('#lock_action_button_switch').prop('checked', false);
                 lock_action_button=false;
@@ -2533,7 +2557,16 @@ release_key('ControlLeft');`;
                 btn_def.app_scope = $('#check_app_scope').prop('checked');
                 btn_def.script = $('#input_action_script').val();
                 btn_def.lang = $('#button_script_language').text();
-
+                btn_def.padding=padding;
+                if(padding == 'default')
+                {
+                    delete btn_def.padding;    
+                }
+                btn_def.opacity=opacity;
+                if(opacity == 'default')
+                {
+                    delete btn_def.opacity;    
+                }
                 install_custom_keys();
             }
             $('#modal_custom_key').modal('hide');
@@ -2603,7 +2636,14 @@ release_key('ControlLeft');`;
             {
                 btn_html += 'border-width:3px;border-color: #99999999;';
             }
-
+            if(element.padding != undefined && element.padding != 'default')
+            {
+                btn_html += 'padding:'+element.padding+'em;';
+            }
+            if(element.opacity != undefined && element.opacity != 'default')
+            {
+                btn_html += 'opacity:'+element.opacity+' !important;';
+            }
 
 
             btn_html += 'touch-action:none">'+element.title+'</button>';

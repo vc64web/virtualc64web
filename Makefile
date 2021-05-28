@@ -43,12 +43,14 @@ publish:
 	rm -f  $(PUBLISH_FOLDER)/*.js
 	rm -f  $(PUBLISH_FOLDER)/*.json
 	rm -f  $(PUBLISH_FOLDER)/index.html
+	rm -f  $(PUBLISH_FOLDER)/run.html
 	cp vC64.* $(PUBLISH_FOLDER)
 	cp -r js $(PUBLISH_FOLDER)
 	cp -r css $(PUBLISH_FOLDER)
 	cp -r img $(PUBLISH_FOLDER)
 	cp -r roms $(PUBLISH_FOLDER)
 	cp index.html $(PUBLISH_FOLDER)
+	cp run.html $(PUBLISH_FOLDER)
 	cp sw.js $(PUBLISH_FOLDER)
 	cp manifest.json $(PUBLISH_FOLDER)
 

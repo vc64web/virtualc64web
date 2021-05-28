@@ -84,6 +84,7 @@ symbolic_map = {
     j: 'KeyJ',
     k: 'KeyK',
     l: 'KeyL',
+//    L: ['ShiftLeft','KeyL'],
     m: 'KeyM',
     n: 'KeyN',
     o: 'KeyO',

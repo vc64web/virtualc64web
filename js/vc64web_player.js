@@ -4,6 +4,7 @@
  */
 
  var vc64web_player={
+    vc64web_url: 'https://vc64web.github.io/',
     listens: false,
     loadScript: async function (url, callback){
         var script = document.createElement("script")
@@ -112,7 +113,7 @@
         }
         else
         {
-            this.loadScript("https://vc64web.github.io/js/jquery-3.5.0.min.js" , 
+            this.loadScript(`${this.vc64web_url}js/jquery-3.5.0.min.js` , 
             function(){vc64web_player.load_into(element,params, address);});
         }
     },
@@ -148,12 +149,10 @@
         this.saved_pic_html = emu_container.html();
         this.preview_pic_width= emu_container.children(":first").width();
 
-        var vc64web_url = "https://vc64web.github.io/";
-
         //turn picture into iframe
         var emuview_html = `
 <div id="player_container" style="display:flex;flex-direction:column;">
-<iframe id="vc64web" width="100%" height="100%" src="${vc64web_url}${params}#${address}">
+<iframe id="vc64web" width="100%" height="100%" src="${this.vc64web_url}${params}#${address}">
 </iframe>
 <div style="display: flex"><svg id="stop_icon" class="player_icon_btn" onclick="vc64web_player.stop_emu_view();return false;" xmlns="http://www.w3.org/2000/svg" width="2.0em" height="2.0em" fill="currentColor" class="bi bi-pause-btn" viewBox="0 0 16 16">
     <path d="M6.5 5A1.5 1.5 0 0 0 5 6.5v3A1.5 1.5 0 0 0 6.5 11h3A1.5 1.5 0 0 0 11 9.5v-3A1.5 1.5 0 0 0 9.5 5h-3z"/>
@@ -186,7 +185,7 @@ emuview_html +=
 `<svg id="btn_overlay" class="player_icon_btn" style="margin-top:4px;margin-left:auto" onclick="vc64web_player.toggle_overlay();return false;" xmlns="http://www.w3.org/2000/svg" width="1.5em" height="1.5em" fill="currentColor" class="bi bi-pause-btn" viewBox="0 0 16 16">
 ${this.overlay_on_icon}
 </svg>
-<a id="btn_open_in_extra_tab" title="open fullwindow in new browser tab" style="border:none;width:1.5em;margin-top:4px" onclick="vc64web_player.stop_emu_view();" href="https://vc64web.github.io/${params}#${address}" target="blank">
+<a id="btn_open_in_extra_tab" title="open fullwindow in new browser tab" style="border:none;width:1.5em;margin-top:4px" onclick="vc64web_player.stop_emu_view();" href="${this.vc64web_url}${params}#${address}" target="blank">
     <svg class="player_icon_btn" xmlns="http://www.w3.org/2000/svg" width="1.5em" height="1.5em" fill="currentColor" class="bi bi-pause-btn" viewBox="0 0 16 16">
   <path fill-rule="evenodd" d="M15 2a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2zM0 2a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2zm5.854 8.803a.5.5 0 1 1-.708-.707L9.243 6H6.475a.5.5 0 1 1 0-1h3.975a.5.5 0 0 1 .5.5v3.975a.5.5 0 1 1-1 0V6.707l-4.096 4.096z"/>
 </svg>

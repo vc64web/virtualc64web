@@ -212,7 +212,12 @@ ${this.overlay_on_icon}
 
         $(window).on('orientationchange', function() { 
             setTimeout(()=>{
-                vc64web_player.preview_pic_width = $('#player_container').parent().width();
+                let parent = $('#player_container').parent();
+		while(parent.width()==0)
+		{//skip parent elements without width
+		  parent=parent.parent();		  
+		}
+		vc64web_player.preview_pic_width = parent.width();
                 $('#player_container').css("width",vc64web_player.preview_pic_width);
             }, 100);
         });

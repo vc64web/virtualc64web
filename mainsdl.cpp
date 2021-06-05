@@ -451,7 +451,7 @@ class C64Wrapper {
 
   C64Wrapper()
   {
-    printf("constructing C64 ...123\n");
+    printf("constructing C64 ...\n");
 
     this->c64 = new C64();
 

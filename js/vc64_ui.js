@@ -2500,7 +2500,10 @@ release_key('ControlLeft');`;
 
 
         $('#modal_custom_key').on('hidden.bs.modal', function () {
-            editor.toTextArea();
+            if(typeof editor != 'undefined')
+            {
+                editor.toTextArea();
+            }
             create_new_custom_key=false;
         
             if(is_running())

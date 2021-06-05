@@ -1,4 +1,4 @@
-const cache_name = 'vc64_app_cache_v2021_05_28';
+const cache_name = 'vc64_app_cache_v2021_06_05';
 
 // install event
 self.addEventListener('install', evt => {
@@ -50,17 +50,27 @@ self.addEventListener('fetch', function(event){
           return cachedResponsePromise;
         }
 
-        //if not in cache try to fetch 
-        var networkResponsePromise = fetch(event.request);
+        //if not in cache try to fetch
+      	//with no-cache because we dont want to cache a 304 response ...
+	      //learn more here
+	      //https://stackoverflow.com/questions/29246444/fetch-how-do-you-make-a-non-cached-request 
+        var networkResponsePromise = fetch(event.request, {cache: "no-cache"});
         event.waitUntil(
           async function () 
           {
             try {
               var networkResponse = await networkResponsePromise;
-              console.log('sw: into '+cache_name+' putting fetched resource: '+event.request.url);
-              await cache.put(event.request, networkResponse.clone());
+              if(networkResponse.status == 200)
+              {
+                console.log(`sw: status=200 into ${cache_name} putting fetched resource: ${event.request.url}`);
+                await cache.put(event.request, networkResponse.clone());
+              }
+              else
+              {
+                console.error(`sw: ${cache_name} received code ${networkResponse.code} for resource: ${event.request.url}`);
+              }
             }
-            catch(e) { console.error('no network'); }
+            catch(e) { console.error(`exception during fetch ${e}`); }
           }()
         );   
         return networkResponsePromise;

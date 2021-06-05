@@ -1,6 +1,28 @@
 //-- indexedDB API
+_db = null;
+_db_init_called=false;
+async function db(){
+  if(_db == null)
+  {
+    if(_db_init_called==false)
+    {
+      _db_init_called=true;
+      initDB();
+    }
+    const _sleep = (milliseconds) => {
+      return new Promise(resolve => setTimeout(resolve, milliseconds));
+    }
+    //wait until _db created
+    while(_db==null)
+    {
+      await _sleep(10);
+    }  
+  }
+  return _db;
+}
 
-function initDB() {  
+
+async function initDB() {  
   window.addEventListener('unhandledrejection', function(event) {
     alert("Error: " + event.reason.message);
   });
@@ -9,7 +31,7 @@ function initDB() {
   let openReq =  indexedDB.open('vc64db', 4);
 
   openReq.onupgradeneeded = function (event){
-      let db = openReq.result;
+      let _db = openReq.result;
       switch (event.oldVersion) {
           case 0:
               //no db
@@ -17,32 +39,32 @@ function initDB() {
           default:
               break;
       }
-      if(!db.objectStoreNames.contains('snapshots'))
+      if(!_db.objectStoreNames.contains('snapshots'))
       {
-         var snapshot_store=db.createObjectStore('snapshots', {keyPath: 'id', autoIncrement: true});
+         var snapshot_store=_db.createObjectStore('snapshots', {keyPath: 'id', autoIncrement: true});
          snapshot_store.createIndex("title", "title", { unique: false });
       }
-      if(!db.objectStoreNames.contains('apps'))
+      if(!_db.objectStoreNames.contains('apps'))
       {
-         var apps_store=db.createObjectStore('apps', {keyPath: 'title'}); 
+         var apps_store=_db.createObjectStore('apps', {keyPath: 'title'}); 
       }
 
       //db.deleteObjectStore('custom_buttons');
-      if(!db.objectStoreNames.contains('custom_buttons'))
+      if(!_db.objectStoreNames.contains('custom_buttons'))
       {
          //alert("create two local object stores");
-         var custom_buttons_store=db.createObjectStore('custom_buttons', {keyPath: 'title'});
+         var custom_buttons_store=_db.createObjectStore('custom_buttons', {keyPath: 'title'});
       }
 
   };
-  openReq.onerror = function() { console.error("Error", openReq.error);}
+  openReq.onerror = function() { console.error("Error", openReq.error); alert('error while open db: '+openReq.error);}
   openReq.onsuccess = function() {
-      db=openReq.result;
+      _db=openReq.result;
   }  
 }
 
 
-function save_snapshot(the_name, the_data) {
+async function save_snapshot(the_name, the_data) {
   //beim laden in die drop zone den Titel merken
   //dann beim take snapshot, den titel automatisch mitgeben
   //im Snapshotbrowser jeden titel als eigene row darstellen
@@ -54,14 +76,14 @@ function save_snapshot(the_name, the_data) {
 //    created: new Date()
   };
 
-  let tx_apps = db.transaction('apps', 'readwrite');
+  let tx_apps = (await db()).transaction('apps', 'readwrite');
   let req_apps = tx_apps.objectStore('apps').put({title: the_name});
   req_apps.onsuccess= function(e){ 
         console.log("wrote app with id="+e.target.result)        
   };
 
 
-  let tx = db.transaction('snapshots', 'readwrite');
+  let tx = (await db()).transaction('snapshots', 'readwrite');
   tx.oncomplete = function() {
     console.log("Transaction is complete");
   };
@@ -86,9 +108,9 @@ function save_snapshot(the_name, the_data) {
   }
 }
 
-function get_stored_app_titles(callback_fn)
+async function get_stored_app_titles(callback_fn)
 {
-    let transaction = db.transaction("apps"); // readonly
+    let transaction = (await db()).transaction("apps"); // readonly
     let apps = transaction.objectStore("apps");
 
     let request = apps.getAllKeys();
@@ -104,8 +126,8 @@ function get_stored_app_titles(callback_fn)
 
 function get_snapshots_for_app_title(app_title)
 {
-    return new Promise((resolve, reject) => {
-      let transaction = db.transaction("snapshots"); 
+    return new Promise(async (resolve, reject) => {
+      let transaction = (await db()).transaction("snapshots"); 
       let snapshots = transaction.objectStore("snapshots");
       let titleIndex = snapshots.index("title");
       let request = titleIndex.getAll(app_title);
@@ -117,9 +139,9 @@ function get_snapshots_for_app_title(app_title)
 }
 
 
-function get_snapshot_per_id(the_id, callback_fn)
+async function get_snapshot_per_id(the_id, callback_fn)
 {
-    let transaction = db.transaction("snapshots"); 
+    let transaction = (await db()).transaction("snapshots"); 
     let snapshots = transaction.objectStore("snapshots");
  
     let request = snapshots.get(parseInt(the_id));
@@ -132,16 +154,16 @@ function get_snapshot_per_id(the_id, callback_fn)
 function delete_snapshot_per_id(the_id)
 {
   get_snapshot_per_id(the_id, 
-  function(the_snapshot) {
-    let transaction = db.transaction("snapshots", 'readwrite'); 
+  async function(the_snapshot) {
+    let transaction = (await db()).transaction("snapshots", 'readwrite'); 
     let snapshots = transaction.objectStore("snapshots");
     snapshots.delete(parseInt(the_id));
     //check if this was the last snapshot of the game title 
     get_snapshots_for_app_title(0, the_snapshot.title, 
-      function (ctx, app_title, snapshot_list) {
+      async function (ctx, app_title, snapshot_list) {
         if(snapshot_list.length == 0)
         {//when it was the last one, then also delete the app title
-          let tx_apps = db.transaction("apps", 'readwrite'); 
+          let tx_apps = (await db()).transaction("apps", 'readwrite'); 
           let apps = tx_apps.objectStore("apps");
           apps.delete(app_title);
         }
@@ -211,20 +233,20 @@ function save_custom_buttons(the_name, the_data) {
 
 
 
-function save_custom_buttons_scope(the_name, the_data) {
+async function save_custom_buttons_scope(the_name, the_data) {
   let the_custom_buttons = {
     title: the_name,
     data: the_data 
   };
 
-  let tx_apps = db.transaction('apps', 'readwrite');
+  let tx_apps = (await db()).transaction('apps', 'readwrite');
   let req_apps = tx_apps.objectStore('apps').put({title: the_name});
   req_apps.onsuccess= function(e){ 
         console.log("wrote app with id="+e.target.result)        
   };
 
 
-  let tx = db.transaction('custom_buttons', 'readwrite');
+  let tx = (await db()).transaction('custom_buttons', 'readwrite');
   tx.oncomplete = function() {
     console.log("Transaction is complete");
   };
@@ -274,12 +296,12 @@ function get_custom_buttons(the_app_title, callback_fn)
 }
 
 
-function get_custom_buttons_app_scope(the_app_title, callback_fn)
+async function get_custom_buttons_app_scope(the_app_title, callback_fn)
 {
-  if(db === undefined)
-    return;
+//  if(_db === undefined)
+//    return;
 
-  let transaction = db.transaction("custom_buttons"); 
+  let transaction = (await db()).transaction("custom_buttons"); 
   let custom_buttons = transaction.objectStore("custom_buttons");
 
   let request = custom_buttons.get(the_app_title);

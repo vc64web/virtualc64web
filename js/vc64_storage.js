@@ -1,28 +1,50 @@
 //-- indexedDB API
 _db = null;
 _db_init_called=false;
+_db_wait_counter=0;
+_db_retries=0;
+const _sleep = (milliseconds) => {
+  return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
 async function db(){
-  if(_db == null)
+  let me_called_init=false;
+  //wait until _db created
+  while(_db==null)
   {
     if(_db_init_called==false)
     {
       _db_init_called=true;
+      me_called_init=true;
+
+      if(_db_retries>3)
+      {
+        let msg=`cannot open database... tried ${_db_retries} times`;
+        _db_retries=0;
+        throw new Error(msg);
+      }
+      console.error(`opening db ... ${_db_retries+1}.try`);
       initDB();
+      _db_retries+=1;
     }
-    const _sleep = (milliseconds) => {
-      return new Promise(resolve => setTimeout(resolve, milliseconds));
-    }
-    //wait until _db created
-    while(_db==null)
+    let wait_time=100;
+    await _sleep(wait_time);
+    if(me_called_init)
     {
-      await _sleep(10);
-    }  
-  }
+      _db_wait_counter+=wait_time;
+    }
+    
+    if(_db_wait_counter > 1500)
+    {//if opening db takes too long, retry
+        _db_init_called = false;
+        _db_wait_counter=0;
+        _me_called_init=false;
+    }
+  }  
   return _db;
 }
 
 
-async function initDB() {  
+function initDB() {  
   window.addEventListener('unhandledrejection', function(event) {
     alert("Error: " + event.reason.message);
   });

@@ -17,6 +17,10 @@ function translateKey(keycode, key)
     return c64code;
 }
 
+function isUpperCase(s){
+    return s.toUpperCase() == s && s.toLowerCase() != s;
+}
+
 function translateKey2(keycode, key, use_positional_mapping=false)
 {
     console.log('keycode='+keycode + ', key='+key);
@@ -30,7 +34,16 @@ function translateKey2(keycode, key, use_positional_mapping=false)
     }
     else
     {
-        let sym_key = symbolic_map[key.toLowerCase()];
+        let sym_key = symbolic_map[key];
+        if(sym_key === undefined && isUpperCase(key))
+        {//get the lowercase variant and press shift
+            sym_key = symbolic_map[key.toLowerCase()];
+            if(!Array.isArray(sym_key))
+            {
+                sym_key = ['ShiftLeft', sym_key];
+            }
+        }
+
         if(sym_key!== undefined)
         {
             raw_key_with_modifier = create_key_composition(sym_key);
@@ -84,7 +97,6 @@ symbolic_map = {
     j: 'KeyJ',
     k: 'KeyK',
     l: 'KeyL',
-//    L: ['ShiftLeft','KeyL'],
     m: 'KeyM',
     n: 'KeyN',
     o: 'KeyO',
@@ -128,6 +140,7 @@ symbolic_map = {
     '!': ['ShiftLeft','Digit1'],
     '"': ['ShiftLeft','Digit2'],
     '#': ['ShiftLeft','Digit3'],
+    '§': ['ShiftLeft','Digit3'],
     '$': ['ShiftLeft','Digit4'],
     '%': ['ShiftLeft','Digit5'],
     '&': ['ShiftLeft','Digit6'],

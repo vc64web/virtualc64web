@@ -528,7 +528,6 @@ class C64Wrapper {
 C64Wrapper *wrapper = NULL;
 extern "C" int main(int argc, char** argv) {
   wrapper= new C64Wrapper();
- 
   initSDL(wrapper->c64);
   wrapper->run();
   return 0;
@@ -1130,3 +1129,15 @@ extern "C" void wasm_poke(u16 addr, u8 value)
 {
   return wrapper->c64->mem.poke(addr, value);
 }
+
+/*
+char wasm_translate_json[255];
+extern "C" char* wasm_translate(char c)
+{
+  auto key = C64Key::translate(c);
+  sprintf(wasm_translate_json, "{\"size\": "+key.+" }");
+  sprintf( wasm_translate_json);
+  
+  return wasm_translate_json;
+}
+*/

@@ -67,8 +67,8 @@ enum_long(MSG)
     MSG_DRIVE_DISCONNECT,
     MSG_DRIVE_POWER_ON,
     MSG_DRIVE_POWER_OFF,
-    MSG_DRIVE_ACTIVE,
-    MSG_DRIVE_INACTIVE,
+    MSG_DRIVE_POWER_SAVE_ON,
+    MSG_DRIVE_POWER_SAVE_OFF,
     MSG_DRIVE_READ,
     MSG_DRIVE_WRITE,
     MSG_DRIVE_LED_ON,
@@ -107,6 +107,10 @@ enum_long(MSG)
     MSG_AUTO_SNAPSHOT_TAKEN,
     MSG_USER_SNAPSHOT_TAKEN,
     MSG_SNAPSHOT_RESTORED,
+    
+    // Screen recording
+    MSG_RECORDING_STARTED,
+    MSG_RECORDING_STOPPED,
     
     // Console
     MSG_CLOSE_CONSOLE,
@@ -174,8 +178,8 @@ struct MsgTypeEnum : util::Reflection<MsgType, MsgType> {
             case MSG_DRIVE_DISCONNECT:     return "DRIVE_DISCONNECT";
             case MSG_DRIVE_POWER_ON:       return "DRIVE_POWER_ON";
             case MSG_DRIVE_POWER_OFF:      return "DRIVE_POWER_OFF";
-            case MSG_DRIVE_ACTIVE:         return "DRIVE_ACTIVE";
-            case MSG_DRIVE_INACTIVE:       return "DRIVE_INACTIVE";
+            case MSG_DRIVE_POWER_SAVE_ON:  return "DRIVE_POWER_SAVE_ON";
+            case MSG_DRIVE_POWER_SAVE_OFF: return "DRIVE_POWER_SAVE_OFF";
             case MSG_DRIVE_READ:           return "DRIVE_READ";
             case MSG_DRIVE_WRITE:          return "DRIVE_WRITE";
             case MSG_DRIVE_LED_ON:         return "DRIVE_LED_ON";
@@ -210,7 +214,11 @@ struct MsgTypeEnum : util::Reflection<MsgType, MsgType> {
             case MSG_USER_SNAPSHOT_TAKEN:  return "USER_SNAPSHOT_TAKEN";
             case MSG_SNAPSHOT_RESTORED:    return "SNAPSHOT_RESTORED";
                 
+            case MSG_RECORDING_STARTED:    return "MSG_RECORDING_STARTED";
+            case MSG_RECORDING_STOPPED:    return "MSG_RECORDING_STOPPED";
+                
             case MSG_CLOSE_CONSOLE:        return "CLOSE_CONSOLE";
+                
             case MSG_DMA_DEBUG_ON:         return "DMA_DEBUG_ON";
             case MSG_DMA_DEBUG_OFF:        return "DMA_DEBUG_OFF";
                 

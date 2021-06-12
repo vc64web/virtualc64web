@@ -25,7 +25,6 @@ bool paused_the_emscripten_main_loop=false;
 // Emulator thread
 //
 
-
 void 
 threadTerminated(void* thisC64)
 {
@@ -164,11 +163,10 @@ C64::getConfigItem(Option option) const
     switch (option) {
             
         case OPT_VIC_REVISION:
+        case OPT_VIC_POWER_SAVE:
         case OPT_GRAY_DOT_BUG:
         case OPT_GLUE_LOGIC:
         case OPT_HIDE_SPRITES:
-        case OPT_CUT_LAYERS:
-        case OPT_CUT_OPACITY:
         case OPT_SS_COLLISIONS:
         case OPT_SB_COLLISIONS:
 
@@ -176,12 +174,15 @@ C64::getConfigItem(Option option) const
         case OPT_BRIGHTNESS:
         case OPT_CONTRAST:
         case OPT_SATURATION:
+            return vic.getConfigItem(option);
 
         case OPT_DMA_DEBUG_ENABLE:
         case OPT_DMA_DEBUG_MODE:
         case OPT_DMA_DEBUG_OPACITY:
-            return vic.getConfigItem(option);
-                        
+        case OPT_CUT_LAYERS:
+        case OPT_CUT_OPACITY:
+            return vic.dmaDebugger.getConfigItem(option);
+            
         case OPT_CIA_REVISION:
         case OPT_TIMER_B_BUG:
             assert(cia1.getConfigItem(option) == cia2.getConfigItem(option));
@@ -191,6 +192,7 @@ C64::getConfigItem(Option option) const
             return oscillator.getConfigItem(option);
             
         case OPT_SID_REVISION:
+        case OPT_SID_POWER_SAVE:
         case OPT_SID_FILTER:
         case OPT_SID_ENGINE:
         case OPT_SID_SAMPLING:
@@ -225,17 +227,18 @@ C64::getConfigItem(Option option, long id) const
             assert(id >= 0 && id <= 3);
             return sid.getConfigItem(option, id);
 
-        case OPT_DRIVE_TYPE:
-        case OPT_DRIVE_CONNECT:
-        case OPT_DRIVE_POWER_SWITCH:
-        case OPT_DISK_EJECT_DELAY:
-        case OPT_DISK_SWAP_DELAY:
-        case OPT_DISK_INSERT_DELAY:
-        case OPT_DRIVE_PAN:
-        case OPT_POWER_VOLUME:
-        case OPT_STEP_VOLUME:
-        case OPT_INSERT_VOLUME:
-        case OPT_EJECT_VOLUME:
+        case OPT_DRV_TYPE:
+        case OPT_DRV_POWER_SAVE:
+        case OPT_DRV_CONNECT:
+        case OPT_DRV_POWER_SWITCH:
+        case OPT_DRV_EJECT_DELAY:
+        case OPT_DRV_SWAP_DELAY:
+        case OPT_DRV_INSERT_DELAY:
+        case OPT_DRV_PAN:
+        case OPT_DRV_POWER_VOL:
+        case OPT_DRV_STEP_VOL:
+        case OPT_DRV_INSERT_VOL:
+        case OPT_DRV_EJECT_VOL:
             assert(id == DRIVE8 || id == DRIVE9);
             return drive.getConfigItem(option);
 
@@ -400,194 +403,6 @@ C64::setConfigItem(Option option, i64 value)
             
         default:
             return false;
-    }
-}
-
-void
-C64::updateVicFunctionTable()
-{
-    bool dmaDebug = vic.dmaDebug();
-    
-    trace(VIC_DEBUG, "updateVicFunctionTable (dmaDebug: %d)\n", dmaDebug);
-    
-    // Assign model independent execution functions
-    vicfunc[0] = nullptr;
-    if (dmaDebug) {
-        vicfunc[12] = &VICII::cycle12<PAL_DEBUG_CYCLE>;
-        vicfunc[13] = &VICII::cycle13<PAL_DEBUG_CYCLE>;
-        vicfunc[14] = &VICII::cycle14<PAL_DEBUG_CYCLE>;
-        vicfunc[15] = &VICII::cycle15<PAL_DEBUG_CYCLE>;
-        vicfunc[16] = &VICII::cycle16<PAL_DEBUG_CYCLE>;
-        vicfunc[17] = &VICII::cycle17<PAL_DEBUG_CYCLE>;
-        vicfunc[18] = &VICII::cycle18<PAL_DEBUG_CYCLE>;
-        for (unsigned cycle = 19; cycle <= 54; cycle++)
-            vicfunc[cycle] = &VICII::cycle19to54<PAL_DEBUG_CYCLE>;
-        vicfunc[56] = &VICII::cycle56<PAL_DEBUG_CYCLE>;
-    } else {
-        vicfunc[12] = &VICII::cycle12<PAL_CYCLE>;
-        vicfunc[13] = &VICII::cycle13<PAL_CYCLE>;
-        vicfunc[14] = &VICII::cycle14<PAL_CYCLE>;
-        vicfunc[15] = &VICII::cycle15<PAL_CYCLE>;
-        vicfunc[16] = &VICII::cycle16<PAL_CYCLE>;
-        vicfunc[17] = &VICII::cycle17<PAL_CYCLE>;
-        vicfunc[18] = &VICII::cycle18<PAL_CYCLE>;
-        for (unsigned cycle = 19; cycle <= 54; cycle++)
-            vicfunc[cycle] = &VICII::cycle19to54<PAL_CYCLE>;
-        vicfunc[56] = &VICII::cycle56<PAL_CYCLE>;
-    }
-    
-    // Assign model specific execution functions
-    switch (vic.getRevision()) {
-            
-        case VICII_PAL_6569_R1:
-        case VICII_PAL_6569_R3:
-        case VICII_PAL_8565:
-            
-            if (dmaDebug) {
-                vicfunc[1] = &VICII::cycle1<PAL_DEBUG_CYCLE>;
-                vicfunc[2] = &VICII::cycle2<PAL_DEBUG_CYCLE>;
-                vicfunc[3] = &VICII::cycle3<PAL_DEBUG_CYCLE>;
-                vicfunc[4] = &VICII::cycle4<PAL_DEBUG_CYCLE>;
-                vicfunc[5] = &VICII::cycle5<PAL_DEBUG_CYCLE>;
-                vicfunc[6] = &VICII::cycle6<PAL_DEBUG_CYCLE>;
-                vicfunc[7] = &VICII::cycle7<PAL_DEBUG_CYCLE>;
-                vicfunc[8] = &VICII::cycle8<PAL_DEBUG_CYCLE>;
-                vicfunc[9] = &VICII::cycle9<PAL_DEBUG_CYCLE>;
-                vicfunc[10] = &VICII::cycle10<PAL_DEBUG_CYCLE>;
-                vicfunc[11] = &VICII::cycle11<PAL_DEBUG_CYCLE>;
-                vicfunc[55] = &VICII::cycle55<PAL_DEBUG_CYCLE>;
-                vicfunc[57] = &VICII::cycle57<PAL_DEBUG_CYCLE>;
-                vicfunc[58] = &VICII::cycle58<PAL_DEBUG_CYCLE>;
-                vicfunc[59] = &VICII::cycle59<PAL_DEBUG_CYCLE>;
-                vicfunc[60] = &VICII::cycle60<PAL_DEBUG_CYCLE>;
-                vicfunc[61] = &VICII::cycle61<PAL_DEBUG_CYCLE>;
-                vicfunc[62] = &VICII::cycle62<PAL_DEBUG_CYCLE>;
-                vicfunc[63] = &VICII::cycle63<PAL_DEBUG_CYCLE>;
-            } else {
-                vicfunc[1] = &VICII::cycle1<PAL_CYCLE>;
-                vicfunc[2] = &VICII::cycle2<PAL_CYCLE>;
-                vicfunc[3] = &VICII::cycle3<PAL_CYCLE>;
-                vicfunc[4] = &VICII::cycle4<PAL_CYCLE>;
-                vicfunc[5] = &VICII::cycle5<PAL_CYCLE>;
-                vicfunc[6] = &VICII::cycle6<PAL_CYCLE>;
-                vicfunc[7] = &VICII::cycle7<PAL_CYCLE>;
-                vicfunc[8] = &VICII::cycle8<PAL_CYCLE>;
-                vicfunc[9] = &VICII::cycle9<PAL_CYCLE>;
-                vicfunc[10] = &VICII::cycle10<PAL_CYCLE>;
-                vicfunc[11] = &VICII::cycle11<PAL_CYCLE>;
-                vicfunc[55] = &VICII::cycle55<PAL_CYCLE>;
-                vicfunc[57] = &VICII::cycle57<PAL_CYCLE>;
-                vicfunc[58] = &VICII::cycle58<PAL_CYCLE>;
-                vicfunc[59] = &VICII::cycle59<PAL_CYCLE>;
-                vicfunc[60] = &VICII::cycle60<PAL_CYCLE>;
-                vicfunc[61] = &VICII::cycle61<PAL_CYCLE>;
-                vicfunc[62] = &VICII::cycle62<PAL_CYCLE>;
-                vicfunc[63] = &VICII::cycle63<PAL_CYCLE>;
-            }
-            vicfunc[64] = nullptr;
-            vicfunc[65] = nullptr;
-            break;
-            
-        case VICII_NTSC_6567_R56A:
-            
-            if (dmaDebug) {
-                vicfunc[1] = &VICII::cycle1<PAL_DEBUG_CYCLE>;
-                vicfunc[2] = &VICII::cycle2<PAL_DEBUG_CYCLE>;
-                vicfunc[3] = &VICII::cycle3<PAL_DEBUG_CYCLE>;
-                vicfunc[4] = &VICII::cycle4<PAL_DEBUG_CYCLE>;
-                vicfunc[5] = &VICII::cycle5<PAL_DEBUG_CYCLE>;
-                vicfunc[6] = &VICII::cycle6<PAL_DEBUG_CYCLE>;
-                vicfunc[7] = &VICII::cycle7<PAL_DEBUG_CYCLE>;
-                vicfunc[8] = &VICII::cycle8<PAL_DEBUG_CYCLE>;
-                vicfunc[9] = &VICII::cycle9<PAL_DEBUG_CYCLE>;
-                vicfunc[10] = &VICII::cycle10<PAL_DEBUG_CYCLE>;
-                vicfunc[11] = &VICII::cycle11<PAL_DEBUG_CYCLE>;
-                vicfunc[55] = &VICII::cycle55<NTSC_DEBUG_CYCLE>;
-                vicfunc[57] = &VICII::cycle57<NTSC_DEBUG_CYCLE>;
-                vicfunc[58] = &VICII::cycle58<NTSC_DEBUG_CYCLE>;
-                vicfunc[59] = &VICII::cycle59<NTSC_DEBUG_CYCLE>;
-                vicfunc[60] = &VICII::cycle60<NTSC_DEBUG_CYCLE>;
-                vicfunc[61] = &VICII::cycle61<NTSC_DEBUG_CYCLE>;
-                vicfunc[62] = &VICII::cycle62<NTSC_DEBUG_CYCLE>;
-                vicfunc[63] = &VICII::cycle63<NTSC_DEBUG_CYCLE>;
-                vicfunc[64] = &VICII::cycle64<NTSC_DEBUG_CYCLE>;
-            } else {
-                vicfunc[1] = &VICII::cycle1<PAL_CYCLE>;
-                vicfunc[2] = &VICII::cycle2<PAL_CYCLE>;
-                vicfunc[3] = &VICII::cycle3<PAL_CYCLE>;
-                vicfunc[4] = &VICII::cycle4<PAL_CYCLE>;
-                vicfunc[5] = &VICII::cycle5<PAL_CYCLE>;
-                vicfunc[6] = &VICII::cycle6<PAL_CYCLE>;
-                vicfunc[7] = &VICII::cycle7<PAL_CYCLE>;
-                vicfunc[8] = &VICII::cycle8<PAL_CYCLE>;
-                vicfunc[9] = &VICII::cycle9<PAL_CYCLE>;
-                vicfunc[10] = &VICII::cycle10<PAL_CYCLE>;
-                vicfunc[11] = &VICII::cycle11<PAL_CYCLE>;
-                vicfunc[55] = &VICII::cycle55<NTSC_CYCLE>;
-                vicfunc[57] = &VICII::cycle57<NTSC_CYCLE>;
-                vicfunc[58] = &VICII::cycle58<NTSC_CYCLE>;
-                vicfunc[59] = &VICII::cycle59<NTSC_CYCLE>;
-                vicfunc[60] = &VICII::cycle60<NTSC_CYCLE>;
-                vicfunc[61] = &VICII::cycle61<NTSC_CYCLE>;
-                vicfunc[62] = &VICII::cycle62<NTSC_CYCLE>;
-                vicfunc[63] = &VICII::cycle63<NTSC_CYCLE>;
-                vicfunc[64] = &VICII::cycle64<NTSC_CYCLE>;
-            }
-            vicfunc[65] = nullptr;
-            break;
-            
-        case VICII_NTSC_6567:
-        case VICII_NTSC_8562:
-            
-            if (dmaDebug) {
-                vicfunc[1] = &VICII::cycle1<NTSC_DEBUG_CYCLE>;
-                vicfunc[2] = &VICII::cycle2<NTSC_DEBUG_CYCLE>;
-                vicfunc[3] = &VICII::cycle3<NTSC_DEBUG_CYCLE>;
-                vicfunc[4] = &VICII::cycle4<NTSC_DEBUG_CYCLE>;
-                vicfunc[5] = &VICII::cycle5<NTSC_DEBUG_CYCLE>;
-                vicfunc[6] = &VICII::cycle6<NTSC_DEBUG_CYCLE>;
-                vicfunc[7] = &VICII::cycle7<NTSC_DEBUG_CYCLE>;
-                vicfunc[8] = &VICII::cycle8<NTSC_DEBUG_CYCLE>;
-                vicfunc[9] = &VICII::cycle9<NTSC_DEBUG_CYCLE>;
-                vicfunc[10] = &VICII::cycle10<NTSC_DEBUG_CYCLE>;
-                vicfunc[11] = &VICII::cycle11<NTSC_DEBUG_CYCLE>;
-                vicfunc[55] = &VICII::cycle55<NTSC_DEBUG_CYCLE>;
-                vicfunc[57] = &VICII::cycle57<NTSC_DEBUG_CYCLE>;
-                vicfunc[58] = &VICII::cycle58<NTSC_DEBUG_CYCLE>;
-                vicfunc[59] = &VICII::cycle59<NTSC_DEBUG_CYCLE>;
-                vicfunc[60] = &VICII::cycle60<NTSC_DEBUG_CYCLE>;
-                vicfunc[61] = &VICII::cycle61<NTSC_DEBUG_CYCLE>;
-                vicfunc[62] = &VICII::cycle62<NTSC_DEBUG_CYCLE>;
-                vicfunc[63] = &VICII::cycle63<NTSC_DEBUG_CYCLE>;
-                vicfunc[64] = &VICII::cycle64<NTSC_DEBUG_CYCLE>;
-                vicfunc[65] = &VICII::cycle65<NTSC_DEBUG_CYCLE>;
-            } else {
-                vicfunc[1] = &VICII::cycle1<NTSC_CYCLE>;
-                vicfunc[2] = &VICII::cycle2<NTSC_CYCLE>;
-                vicfunc[3] = &VICII::cycle3<NTSC_CYCLE>;
-                vicfunc[4] = &VICII::cycle4<NTSC_CYCLE>;
-                vicfunc[5] = &VICII::cycle5<NTSC_CYCLE>;
-                vicfunc[6] = &VICII::cycle6<NTSC_CYCLE>;
-                vicfunc[7] = &VICII::cycle7<NTSC_CYCLE>;
-                vicfunc[8] = &VICII::cycle8<NTSC_CYCLE>;
-                vicfunc[9] = &VICII::cycle9<NTSC_CYCLE>;
-                vicfunc[10] = &VICII::cycle10<NTSC_CYCLE>;
-                vicfunc[11] = &VICII::cycle11<NTSC_CYCLE>;
-                vicfunc[55] = &VICII::cycle55<NTSC_CYCLE>;
-                vicfunc[57] = &VICII::cycle57<NTSC_CYCLE>;
-                vicfunc[58] = &VICII::cycle58<NTSC_CYCLE>;
-                vicfunc[59] = &VICII::cycle59<NTSC_CYCLE>;
-                vicfunc[60] = &VICII::cycle60<NTSC_CYCLE>;
-                vicfunc[61] = &VICII::cycle61<NTSC_CYCLE>;
-                vicfunc[62] = &VICII::cycle62<NTSC_CYCLE>;
-                vicfunc[63] = &VICII::cycle63<NTSC_CYCLE>;
-                vicfunc[64] = &VICII::cycle64<NTSC_CYCLE>;
-                vicfunc[65] = &VICII::cycle65<NTSC_CYCLE>;
-            }
-            break;
-            
-        default:
-            assert(false);
     }
 }
 
@@ -811,7 +626,7 @@ void
 C64::_setDebug(bool enable)
 {
     suspend();
-    updateVicFunctionTable();
+    vic.updateVicFunctionTable();
     resume();
 }
 
@@ -1073,15 +888,15 @@ C64::_executeOneCycle()
     // '-------------------------------------|-------------------|--'
     
     // First clock phase (o2 low)
-    (vic.*vicfunc[rasterCycle])();
+    (vic.*vic.vicfunc[rasterCycle])();
     if (cycle >= cia1.wakeUpCycle) cia1.executeOneCycle();
     if (cycle >= cia2.wakeUpCycle) cia2.executeOneCycle();
     if (iec.isDirtyC64Side) iec.updateIecLinesC64Side();
     
     // Second clock phase (o2 high)
     cpu.executeOneCycle();
-    if (drive8.isActive()) drive8.execute(durationOfOneCycle);
-    if (drive9.isActive()) drive9.execute(durationOfOneCycle);
+    if (drive8.needsEmulation) drive8.execute(durationOfOneCycle);
+    if (drive9.needsEmulation) drive9.execute(durationOfOneCycle);
     datasette.execute();
     
     rasterCycle++;
@@ -1144,7 +959,8 @@ C64::endFrame()
     drive8.vsyncHandler();
     drive9.vsyncHandler();
     datasette.vsyncHandler();
-    //retroShell.vsyncHandler();
+//    retroShell.vsyncHandler();
+//    recorder.vsyncHandler();
     
     #ifdef __EMSCRIPTEN__
     //no need to synchronize as we are called by the 60hz SDL render thread ...

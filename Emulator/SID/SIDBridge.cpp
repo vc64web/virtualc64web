@@ -49,6 +49,7 @@ SIDBridge::getDefaultConfig()
     SIDConfig defaults;
     
     defaults.revision = MOS_8580;
+    defaults.powerSave = true;
     defaults.enabled = 1;
     defaults.address[0] = 0xD400;
     defaults.address[1] = 0xD420;
@@ -95,6 +96,9 @@ SIDBridge::getConfigItem(Option option) const
             
         case OPT_SID_REVISION:
             return config.revision;
+            
+        case OPT_SID_POWER_SAVE:
+            return config.powerSave;
             
         case OPT_SID_FILTER:
             return config.filter;
@@ -158,13 +162,19 @@ SIDBridge::setConfigItem(Option option, i64 value)
             
             return true;
         }
+         
+        case OPT_SID_POWER_SAVE:
+            
+            suspend();
+            config.powerSave = value;
+            resume();
+            return true;
             
         case OPT_SID_REVISION:
             
             if (!SIDRevisionEnum::isValid(value)) {
-                throw ConfigArgError(SIDRevisionEnum::keyList());
+                throw VC64Error(ERROR_OPT_INV_ARG, SIDRevisionEnum::keyList());
             }
-            // if (config.revision == value) return false;
             
             suspend();
             config.revision = (SIDRevision)value;
@@ -178,11 +188,6 @@ SIDBridge::setConfigItem(Option option, i64 value)
             
         case OPT_SID_FILTER:
             
-            /*
-            if (config.filter == value) {
-                return false;
-            }
-            */
             suspend();
             config.filter = value;
             for (int i = 0; i < 4; i++) {
@@ -196,9 +201,8 @@ SIDBridge::setConfigItem(Option option, i64 value)
         case OPT_SID_ENGINE:
             
             if (!SIDEngineEnum::isValid(value)) {
-                throw ConfigArgError(SIDEngineEnum::keyList());
+                throw VC64Error(ERROR_OPT_INV_ARG, SIDEngineEnum::keyList());
             }
-            // if (config.engine == value) return false;
 
             suspend();
             config.engine = (SIDEngine)value;
@@ -209,9 +213,8 @@ SIDBridge::setConfigItem(Option option, i64 value)
         case OPT_SID_SAMPLING:
             
             if (!SamplingMethodEnum::isValid(value)) {
-                throw ConfigArgError(SamplingMethodEnum::keyList());
+                throw VC64Error(ERROR_OPT_INV_ARG, SamplingMethodEnum::keyList());
             }
-            // if (config.sampling == value) return false;
 
             suspend();
             config.sampling = (SamplingMethod)value;
@@ -283,7 +286,7 @@ SIDBridge::setConfigItem(Option option, long id, i64 value)
 
             assert(id >= 0 && id <= 3);
 
-            if (id == 0) {
+            if (id == 0 && value != 0xD400) {
                 warn("SID 0 can't be remapped\n");
                 return false;
             }
@@ -384,6 +387,12 @@ SIDBridge::getSampleRate() const
     double result = resid[0].getSampleRate();
     
     for (int i = 0; i < 4; i++) {
+        if (resid[i].getSampleRate() != result) {
+            printf("%f != %f\n", resid[i].getSampleRate(), result);
+        }
+        if (fastsid[i].getSampleRate() != result) {
+            printf("%f != %f\n", fastsid[i].getSampleRate(), result);
+        }
         assert(resid[i].getSampleRate() == result);
         assert(fastsid[i].getSampleRate() == result);
     }
@@ -433,6 +442,8 @@ SIDBridge::_dump(dump::Category category, std::ostream& os) const
         
         os << tab("Chip revision");
         os << SIDRevisionEnum::key(config.revision) << std::endl;
+        os << tab("Power save mode");
+        os << bol(config.powerSave, "during warp", "never") << std::endl;
         os << tab("Enable mask");
         os << dec(config.enabled) << std::endl;
         os << tab("1st extra SID");
@@ -715,6 +726,11 @@ SIDBridge::executeUntil(Cycle targetCycle)
 {
     assert(targetCycle >= cycles);
     
+    if (volL.current == 0 && volR.current == 0 && config.powerSave) {
+        cycles = targetCycle;
+        return;
+    }
+    
     isize missingCycles  = targetCycle - cycles;
     isize consumedCycles = executeCycles(missingCycles);
 
@@ -736,13 +752,7 @@ SIDBridge::executeCycles(isize numCycles)
         numCycles = 1;
         debug(SID_EXEC, "Running SIDs for an extra cycle\n");
     }
-
-    // Check for a buffer underflow
-    if (signalUnderflow) {
-        signalUnderflow = false;
-        handleBufferUnderflow();
-    }
-
+    
     switch (config.engine) {
             
         case SIDENGINE_FASTSID:
@@ -965,6 +975,12 @@ SIDBridge::ignoreNextUnderOrOverflow()
 void
 SIDBridge::copyMono(float *target, isize n)
 {
+#ifndef __EMSCRIPTEN__
+    if (recorder.isRecording()) {
+        for (isize i = 0; i < n; i++) target[i] = 0.0;
+        return;
+    }
+#endif
     stream.lock();
     
     // Check for a buffer underflow
@@ -979,6 +995,12 @@ SIDBridge::copyMono(float *target, isize n)
 void
 SIDBridge::copyStereo(float *target1, float *target2, isize n)
 {
+#ifndef __EMSCRIPTEN__
+    if (recorder.isRecording()) {
+        for (isize i = 0; i < n; i++) target1[i] = target2[i] = 0.0;
+        return;
+    }
+#endif
     stream.lock();
     
     // Check for a buffer underflow
@@ -993,6 +1015,12 @@ SIDBridge::copyStereo(float *target1, float *target2, isize n)
 void
 SIDBridge::copyInterleaved(float *target, isize n)
 {
+#ifndef __EMSCRIPTEN__
+    if (recorder.isRecording()) {
+        for (isize i = 0; i < n; i++) target[i] = 0.0;
+        return;
+    }
+#endif
     stream.lock();
     
     // Check for a buffer underflow

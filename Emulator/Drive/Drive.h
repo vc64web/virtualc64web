@@ -30,6 +30,14 @@ class Drive : public C64Component {
     // Constants
     //
 
+    /* Power-safe threshold measured in frames. If the drive was inactive for
+     * the specified number of frames, it is put into power-safe mode (if this
+     * option is enabled). In this mode, executing the drive is skipped inside
+     * the run loop. As a effect, the current drive state is frozen until the
+     * drive is woken up.
+     */
+    const i64 powerSafeThreshold = 100;
+    
     /* Time between two carry pulses of UE7 in 1/10 nano seconds. The VC1541
      * drive is clocked by 16 Mhz. The base frequency is divided by N where N
      * ranges from 13 (density bits = 11) to 16 (density bits = 00). On the
@@ -77,7 +85,7 @@ public:
     bool diskToInsertWP = false;
     
     // State change delay counter (checked in the vsync handler)
-    i64 diskChangeCounter = -1;
+    i64 diskChangeCounter = 0;
     
     
     //
@@ -85,10 +93,7 @@ public:
     //
     
 private:
-    
-    // Indicates whether the drive is active (connected and switched on)
-    bool active = false;
-    
+        
     // Indicates whether the disk is rotating
     bool spinning = false;
     
@@ -200,6 +205,17 @@ public:
     
     
     //
+    // Speed logic (power-save)
+    //
+    
+    // Idle counter
+    i64 idleCounter = 0;
+
+    // Indicates whether execute() should be called inside the run loop
+    bool needsEmulation = false; 
+    
+    
+    //
     // Initializing
     //
     
@@ -269,6 +285,7 @@ private:
         
         << spinning
         << redLED
+        << idleCounter
         << elapsedTime
         << nextClock
         << nextCarry
@@ -299,9 +316,6 @@ private:
     //
 
 public:
-
-    // Checks whether the drive is active (connected and switched on)
-    bool isActive() const { return active; }
     
     // Returns the device number
     DriveID getDeviceNr() const { return deviceNr; }
@@ -317,6 +331,15 @@ public:
 
     // Turns the drive engine on or off
     void setRotating(bool b);
+    
+    // Wakes up the drive (clears the idle state)
+    void wakeUp();
+    
+    // Checks whether the drive has been idle for a while
+    bool isIdle() { return idleCounter >= powerSafeThreshold; }
+    
+    // Checks whether the drive is connected and switched on
+    bool connectedAndOn() { return config.connected && config.switchedOn; }
     
     
     //
@@ -437,4 +460,9 @@ public:
 
     // Performs periodic actions
     void vsyncHandler();
+    
+private:
+    
+    // Execute the disk state transition for a single frame
+    void executeStateTransition();    
 };

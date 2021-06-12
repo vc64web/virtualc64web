@@ -25,6 +25,7 @@ enum_long(OPT)
     OPT_CONTRAST,
     OPT_SATURATION,
     OPT_GRAY_DOT_BUG,
+    OPT_VIC_POWER_SAVE,
     
     // Sprite debugger
     OPT_HIDE_SPRITES,
@@ -64,30 +65,30 @@ enum_long(OPT)
     OPT_SID_ADDRESS,
     OPT_SID_REVISION,
     OPT_SID_FILTER,
+    OPT_SID_POWER_SAVE,
+    OPT_SID_ENGINE,
+    OPT_SID_SAMPLING,
     OPT_AUDPAN,
     OPT_AUDVOL,
     OPT_AUDVOLL,
     OPT_AUDVOLR,
-    
-    // Sound synthesis
-    OPT_SID_ENGINE,
-    OPT_SID_SAMPLING,
-    
+        
     // Memory
     OPT_RAM_PATTERN,
     
     // Drive
-    OPT_DRIVE_TYPE,
-    OPT_DRIVE_CONNECT,
-    OPT_DRIVE_POWER_SWITCH,
-    OPT_DISK_EJECT_DELAY,
-    OPT_DISK_SWAP_DELAY,
-    OPT_DISK_INSERT_DELAY,
-    OPT_DRIVE_PAN,
-    OPT_POWER_VOLUME,
-    OPT_STEP_VOLUME,
-    OPT_INSERT_VOLUME,
-    OPT_EJECT_VOLUME,
+    OPT_DRV_TYPE,
+    OPT_DRV_CONNECT,
+    OPT_DRV_POWER_SWITCH,
+    OPT_DRV_POWER_SAVE,
+    OPT_DRV_EJECT_DELAY,
+    OPT_DRV_SWAP_DELAY,
+    OPT_DRV_INSERT_DELAY,
+    OPT_DRV_PAN,
+    OPT_DRV_POWER_VOL,
+    OPT_DRV_STEP_VOL,
+    OPT_DRV_INSERT_VOL,
+    OPT_DRV_EJECT_VOL,
         
     OPT_COUNT
 };
@@ -111,6 +112,7 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
             case OPT_CONTRAST:            return "CONTRAST";
             case OPT_SATURATION:          return "SATURATION";
             case OPT_GRAY_DOT_BUG:        return "GRAY_DOT_BUG";
+            case OPT_VIC_POWER_SAVE:      return "VIC_POWER_SAVE";
             case OPT_HIDE_SPRITES:        return "HIDE_SPRITES";
             case OPT_CUT_LAYERS:          return "CUT_LAYERS";
             case OPT_CUT_OPACITY:         return "CUT_OPACITY";
@@ -141,27 +143,28 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
             case OPT_SID_ADDRESS:         return "SID_ADDRESS";
             case OPT_SID_REVISION:        return "SID_REVISION";
             case OPT_SID_FILTER:          return "SID_FILTER";
+            case OPT_SID_POWER_SAVE:      return "SID_POWER_SAVE";
+            case OPT_SID_ENGINE:          return "SID_ENGINE";
+            case OPT_SID_SAMPLING:        return "SID_SAMPLING";
             case OPT_AUDPAN:              return "AUDPAN";
             case OPT_AUDVOL:              return "AUDVOL";
             case OPT_AUDVOLL:             return "AUDVOLL";
             case OPT_AUDVOLR:             return "AUDVOLR";
-                
-            case OPT_SID_ENGINE:          return "SID_ENGINE";
-            case OPT_SID_SAMPLING:        return "SID_SAMPLING";
-                
+                                
             case OPT_RAM_PATTERN:         return "RAM_PATTERN";
                 
-            case OPT_DRIVE_TYPE:          return "DRIVE_TYPE";
-            case OPT_DRIVE_CONNECT:       return "DRIVE_CONNECT";
-            case OPT_DRIVE_POWER_SWITCH:  return "DRIVE_POWER_SWITCH";
-            case OPT_DISK_EJECT_DELAY:    return "DISK_EJECT_DELAY";
-            case OPT_DISK_SWAP_DELAY:     return "DISK_SWAP_DELAY";
-            case OPT_DISK_INSERT_DELAY:   return "DISK_INSERT_DELAY";
-            case OPT_DRIVE_PAN:           return "DRIVE_PAN";
-            case OPT_POWER_VOLUME:        return "POWER_VOLUME";
-            case OPT_STEP_VOLUME:         return "STEP_VOLUME";
-            case OPT_INSERT_VOLUME:       return "INSERT_VOLUME";
-            case OPT_EJECT_VOLUME:        return "EJECT_VOLUME";
+            case OPT_DRV_TYPE:            return "DRV_TYPE";
+            case OPT_DRV_CONNECT:         return "DRV_CONNECT";
+            case OPT_DRV_POWER_SWITCH:    return "DRV_POWER_SWITCH";
+            case OPT_DRV_POWER_SAVE:      return "DRV_POWER_SAVE";
+            case OPT_DRV_EJECT_DELAY:     return "DRV_EJECT_DELAY";
+            case OPT_DRV_SWAP_DELAY:      return "DRV_SWAP_DELAY";
+            case OPT_DRV_INSERT_DELAY:    return "DRV_INSERT_DELAY";
+            case OPT_DRV_PAN:             return "DRV_PAN";
+            case OPT_DRV_POWER_VOL:       return "DRV_POWER_VOL";
+            case OPT_DRV_STEP_VOL:        return "DRV_STEP_VOL";
+            case OPT_DRV_INSERT_VOL:      return "DRV_INSERT_VOL";
+            case OPT_DRV_EJECT_VOL:       return "DRV_EJECT_VOL";
                 
             case OPT_COUNT:               return "???";
         }

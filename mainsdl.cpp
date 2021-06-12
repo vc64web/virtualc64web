@@ -520,6 +520,14 @@ class C64Wrapper {
  //   c64->drive1.setDebugLevel(3);
  //   c64->sid.dump();
 
+
+
+    c64->configure(OPT_DRV_POWER_SAVE, 8, true); 
+    c64->configure(OPT_SID_POWER_SAVE, true); 
+    c64->configure(OPT_VIC_POWER_SAVE, true); 
+
+
+
     printf("waiting on emulator ready in javascript ...\n");
  
   }
@@ -835,7 +843,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     else if(rom->isRomBuffer(ROM_TYPE_VC1541, blob,len))
     {
       rom_type = "vc1541_rom";
-      wrapper->c64->configure(OPT_DRIVE_CONNECT,DRIVE8,1);
+      wrapper->c64->configure(OPT_DRV_CONNECT,DRIVE8,1);
     }
     else if(rom->isRomBuffer(ROM_TYPE_CHAR, blob,len))
     {

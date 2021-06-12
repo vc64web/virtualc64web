@@ -46,7 +46,7 @@ RetroShell::exec <Token::source> (Arguments &argv, long param)
 {
     auto stream = std::ifstream(argv.front());
     if (!stream.is_open()) {
-        throw ConfigFileNotFoundError(argv.front());
+        throw VC64Error(ERROR_FILE_NOT_FOUND, argv.front());
     }
 
     execScript(stream);
@@ -84,7 +84,7 @@ template <> void
 RetroShell::exec <Token::regression, Token::run> (Arguments &argv, long param)
 {
     auto path = argv.front();
-    if (!util::fileExists(path)) throw ConfigFileNotFoundError(path);
+    if (!util::fileExists(path)) throw VC64Error(ERROR_FILE_NOT_FOUND, path);
 
     PRGFile *file = AnyFile::make <PRGFile> (path);
     c64.flash(file, 0);
@@ -124,7 +124,8 @@ RetroShell::exec <Token::screenshot, Token::save> (Arguments &argv, long param)
 template <> void
 RetroShell::exec <Token::screenshot> (Arguments &argv, long param)
 {
-    std::ofstream file;
+#ifndef __EMSCRIPTEN__
+    // std::ofstream file;
     std::vector<string> vec(argv.begin(), argv.end());
 
     auto path = vec[0];
@@ -132,17 +133,22 @@ RetroShell::exec <Token::screenshot> (Arguments &argv, long param)
     auto y1 = util::parseNum(vec[2]);
     auto x2 = util::parseNum(vec[3]);
     auto y2 = util::parseNum(vec[4]);
-    
+
     // Assemble the target file names
     string rawFile = "/tmp/" + path + ".raw";
     string tiffFile = "/tmp/" + path + ".tiff";
 
     // Open an output stream
-    file.open(rawFile.c_str());
+    // file.open(rawFile.c_str());
     
     // Dump texture
-    vic.dumpTexture(file, x1, y1, x2, y2);
-    file.close();
+    regressionTester.x1 = x1;
+    regressionTester.y1 = y1;
+    regressionTester.x2 = x2;
+    regressionTester.y2 = y2;
+    regressionTester.dumpTexture(c64, rawFile);
+    // dumpTexture(file, x1, y1, x2, y2);
+    // file.close();
     
     // Convert raw data into a TIFF file
     string cmd = "/usr/local/bin/raw2tiff";
@@ -157,6 +163,7 @@ RetroShell::exec <Token::screenshot> (Arguments &argv, long param)
         warn("Error executing %s\n", cmd.c_str());
     }
     exit(0);
+#endif
 }
 
 
@@ -240,7 +247,7 @@ template <> void
 RetroShell::exec <Token::memory, Token::flash> (Arguments& argv, long param)
 {
     auto path = argv.front();
-    if (!util::fileExists(path)) throw ConfigFileNotFoundError(path);
+    if (!util::fileExists(path)) throw VC64Error(ERROR_FILE_NOT_FOUND, path);
 
     PRGFile *file = AnyFile::make <PRGFile> (argv.front());
     c64.flash(file, 0);
@@ -269,14 +276,14 @@ template <> void
 RetroShell::exec <Token::drive, Token::connect> (Arguments& argv, long param)
 {
     auto id = param ? DRIVE9 : DRIVE8;
-    c64.configure(OPT_DRIVE_CONNECT, id, true);
+    c64.configure(OPT_DRV_CONNECT, id, true);
 }
 
 template <> void
 RetroShell::exec <Token::drive, Token::disconnect> (Arguments& argv, long param)
 {
     auto id = param ? DRIVE9 : DRIVE8;
-    c64.configure(OPT_DRIVE_CONNECT, id, false);
+    c64.configure(OPT_DRV_CONNECT, id, false);
 }
 
 template <> void
@@ -290,7 +297,7 @@ template <> void
 RetroShell::exec <Token::drive, Token::insert> (Arguments& argv, long param)
 {
     auto path = argv.front();
-    if (!util::fileExists(path)) throw ConfigFileNotFoundError(path);
+    if (!util::fileExists(path)) throw VC64Error(ERROR_FILE_NOT_FOUND, path);
 
     auto &drive = param ? c64.drive9 : c64.drive8;
     drive.insertDisk(path, false);
@@ -685,7 +692,7 @@ template <> void
 RetroShell::exec <Token::sid, Token::inspect, Token::state> (Arguments& argv, long param)
 {
     auto value = util::parseNum(argv.front());
-    if (value < 0 || value > 3) throw ConfigArgError("0, 1, 2, or 3");
+    if (value < 0 || value > 3) throw VC64Error(ERROR_OPT_INV_ARG, "0, 1, 2, or 3");
     dump(c64.sid.getSID(value), dump::State);
 }
 
@@ -693,7 +700,7 @@ template <> void
 RetroShell::exec <Token::sid, Token::inspect, Token::registers> (Arguments& argv, long param)
 {
     auto value = util::parseNum(argv.front());
-    if (value < 0 || value > 3) throw ConfigArgError("0, 1, 2, or 3");
+    if (value < 0 || value > 3) throw VC64Error(ERROR_OPT_INV_ARG, "0, 1, 2, or 3");
     dump(c64.sid.getSID(value), dump::Registers);
 }
 
@@ -723,7 +730,7 @@ template <> void
 RetroShell::exec <Token::expansion, Token::attach> (Arguments& argv, long param)
 {
     auto path = argv.front();
-    if (!util::fileExists(path)) throw ConfigFileNotFoundError(path);
+    if (!util::fileExists(path)) throw VC64Error(ERROR_FILE_NOT_FOUND, path);
 
     expansionport.attachCartridge(path);
 }

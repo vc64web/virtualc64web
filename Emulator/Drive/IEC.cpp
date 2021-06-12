@@ -44,8 +44,8 @@ IEC::_dump(dump::Category category, std::ostream& os) const
         os << hex(drive8.via1.getDDRB()) << std::endl;
         os << tab("VIA1::DDRB (Drive9)");
         os << hex(drive9.via1.getDDRB()) << std::endl;
-        os << tab("Bus activity");
-        os << dec(busActivity) << std::endl;
+        os << tab("Idle");
+        os << dec(idle) << " frames" << std::endl;
     }
 }
 
@@ -90,10 +90,13 @@ bool IEC::_updateIecLines()
      *    bool ub1 = !ud3;
      *    dataLine &= ub1;
      * }
+     */
+    /*
+    dataLine &= !drive8.isPoweredOn() || (atnLine ^ device1Atn);
+    dataLine &= !drive9.isPoweredOn() || (atnLine ^ device2Atn);
     */
-    dataLine &= !drive8.isActive() || (atnLine ^ device1Atn);
-    dataLine &= !drive9.isActive() || (atnLine ^ device2Atn);
-
+    if (drive8.connectedAndOn()) dataLine &= (atnLine ^ device1Atn);
+    if (drive9.connectedAndOn()) dataLine &= (atnLine ^ device2Atn);
     return (oldAtnLine != atnLine ||
             oldClockLine != clockLine ||
             oldDataLine != dataLine);
@@ -102,7 +105,7 @@ bool IEC::_updateIecLines()
 void
 IEC::updateIecLines()
 {
-    bool wasIdle = !busActivity;
+    bool wasIdle = idle;
 
 	// Update bus lines
 	bool signalsChanged = _updateIecLines();
@@ -111,15 +114,17 @@ IEC::updateIecLines()
         
         cia2.updatePA();
         
+        // Wake up drives
+        drive8.wakeUp();
+        drive9.wakeUp();
+        
         // ATN signal is connected to CA1 pin of VIA 1
         drive8.via1.CA1action(!atnLine);
         drive9.via1.CA1action(!atnLine);
+                
+        // Reset the idle counter
+        idle = 0;
         
-        // dumpTrace();
-        
-        // Reset watchdog timer
-        busActivity = 30;
-
         // Update the transfer status if the bus was idle
         if (wasIdle) updateTransferStatus();
 	}
@@ -160,16 +165,16 @@ IEC::updateIecLinesDriveSide()
 void
 IEC::execute()
 {
-	if (busActivity > 0) {
-        if (--busActivity == 0) updateTransferStatus();
-	}
+    if (++idle == 32) {
+        updateTransferStatus();
+    }    
 }
 
 void
 IEC::updateTransferStatus()
 {
     bool rotating = drive8.isRotating() || drive9.isRotating();
-    bool newValue = rotating && busActivity > 0;
+    bool newValue = rotating && idle < 32;
     
     if (transferring != newValue) {
         transferring = newValue;

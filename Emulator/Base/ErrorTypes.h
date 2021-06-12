@@ -16,6 +16,9 @@ enum_long(ERROR_CODE)
 {
     ERROR_OK,
 
+    // Configuration
+    ERROR_OPT_INV_ARG,
+    
     // Memory
     ERROR_OUT_OF_MEMORY,
 
@@ -35,10 +38,12 @@ enum_long(ERROR_CODE)
     ERROR_ROM_MEGA65_MISMATCH,
     
     // Snapshots
-    // ERROR_SNP_UNSUPPORTED,
     ERROR_SNP_TOO_OLD,
     ERROR_SNP_TOO_NEW,
 
+    // Drives
+    ERROR_DRV_UNCONNECTED,
+    
     // Cartridges
     ERROR_CRT_UNSUPPORTED,
     
@@ -87,9 +92,10 @@ struct ErrorCodeEnum : util::Reflection<ErrorCodeEnum, ErrorCode> {
             case ERROR_ROM_KERNAL_MISSING:  return "ROM_KERNAL_MISSING";
             case ERROR_ROM_MEGA65_MISMATCH: return "ROM_MEGA65_MISMATCH";
                 
-//            case ERROR_SNP_UNSUPPORTED:     return "SNP_UNSUPPORTED";
             case ERROR_SNP_TOO_OLD:         return "SNP_TOO_OLD";
             case ERROR_SNP_TOO_NEW:         return "SNP_TOO_NEW";
+
+            case ERROR_DRV_UNCONNECTED:     return "DRV_UNCONNECTED";
 
             case ERROR_CRT_UNSUPPORTED:     return "CRT_UNSUPPORTED";
                 

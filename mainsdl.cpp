@@ -520,6 +520,14 @@ class C64Wrapper {
  //   c64->drive1.setDebugLevel(3);
  //   c64->sid.dump();
 
+
+/*
+    c64->configure(OPT_DRV_POWER_SAVE, 8, true); 
+    c64->configure(OPT_SID_POWER_SAVE, true); 
+    c64->configure(OPT_VIC_POWER_SAVE, true); 
+
+*/
+
     printf("waiting on emulator ready in javascript ...\n");
  
   }
@@ -835,7 +843,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     else if(rom->isRomBuffer(ROM_TYPE_VC1541, blob,len))
     {
       rom_type = "vc1541_rom";
-      wrapper->c64->configure(OPT_DRIVE_CONNECT,DRIVE8,1);
+      wrapper->c64->configure(OPT_DRV_CONNECT,DRIVE8,1);
     }
     else if(rom->isRomBuffer(ROM_TYPE_CHAR, blob,len))
     {
@@ -1141,3 +1149,31 @@ extern "C" char* wasm_translate(char c)
   return wasm_translate_json;
 }
 */
+
+extern "C" void wasm_configure(char* option, unsigned on)
+{
+  bool on_value = (on == 1);
+
+  printf("wasm_configure %s = %d\n", option, on);
+
+  if(strcmp(option,"OPT_DRV_POWER_SAVE") == 0)
+  {
+    printf("calling c64->configure %s = %d\n", option, on);
+    wrapper->c64->configure(OPT_DRV_POWER_SAVE, 8, on_value);
+  }
+  else if(strcmp(option,"OPT_SID_POWER_SAVE") == 0)
+  {
+    printf("calling c64->configure %s = %d\n", option, on);
+    wrapper->c64->configure(OPT_SID_POWER_SAVE, on_value);
+  }
+  else if(strcmp(option,"OPT_VIC_POWER_SAVE") == 0)
+  {
+    printf("calling c64->configure %s = %d\n", option, on);
+    wrapper->c64->configure(OPT_VIC_POWER_SAVE, on_value);
+  }
+  else
+  {
+    printf("error !!!!! unknown option= %s\n", option);
+  }
+}
+

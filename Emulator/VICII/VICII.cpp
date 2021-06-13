@@ -73,9 +73,26 @@ VICII::_reset(bool hard)
 void
 VICII::resetEmuTexture(int nr)
 {
-    assert(nr == 1 || nr == 2);
-    int *p = nr == 1 ? emuTexture1 : emuTexture2;
+    if (nr == 1) { resetTexture(emuTexture1); return; }
+    if (nr == 2) { resetTexture(emuTexture2); return; }
+    
+    assert(false);
+}
 
+void
+VICII::resetDmaTexture(int nr)
+{
+    assert(nr == 1 || nr == 2);
+    u32 *p = nr == 1 ? dmaTexture1 : dmaTexture2;
+
+    for (int i = 0; i < TEX_HEIGHT * TEX_WIDTH; i++) {
+        p[i] = 0xFF000000;
+    }
+}
+
+void
+VICII::resetTexture(u32 *p)
+{
     // Determine the HBLANK / VBLANK area
     long width = isPAL() ? PAL_PIXELS : NTSC_PIXELS;
     long height = getRasterlinesPerFrame();
@@ -87,26 +104,15 @@ VICII::resetEmuTexture(int nr)
 
             if (y < height && x < width) {
                 
-                // Draw a checkerboard pattern inside the used texture area
-                p[pos] = (y / 4) % 2 == (x / 8) % 2 ? 0xFF222222 : 0xFF444444;
+                // Draw black pixels inside the used area
+                p[pos] = 0xFF000000;
 
             } else {
-                
-                // Draw black pixels outside the used texture area
-                p[pos] = 0xFF000000;
+
+                // Draw a checkerboard pattern outside the used area
+                p[pos] = (y / 4) % 2 == (x / 8) % 2 ? 0xFF222222 : 0xFF444444;
             }
         }
-    }
-}
-
-void
-VICII::resetDmaTexture(int nr)
-{
-    assert(nr == 1 || nr == 2);
-    int *p = nr == 1 ? dmaTexture1 : dmaTexture2;
-
-    for (int i = 0; i < TEX_HEIGHT * TEX_WIDTH; i++) {
-        p[i] = 0xFF000000;
     }
 }
 
@@ -116,6 +122,7 @@ VICII::getDefaultConfig()
     VICIIConfig defaults;
     
     defaults.revision = VICII_PAL_8565;
+    defaults.powerSave = true;
     defaults.grayDotBug = true;
     defaults.glueLogic = GLUE_LOGIC_DISCRETE;
 
@@ -125,8 +132,6 @@ VICII::getDefaultConfig()
     defaults.saturation = 50;
     
     defaults.hideSprites = false;
-    defaults.cutLayers = 0xFF;
-    defaults.cutOpacity = 0xFF;
     
     defaults.checkSSCollisions = true;
     defaults.checkSBCollisions = true;
@@ -140,6 +145,7 @@ VICII::resetConfig()
     VICIIConfig defaults = getDefaultConfig();
     
     setConfigItem(OPT_VIC_REVISION, defaults.revision);
+    setConfigItem(OPT_VIC_POWER_SAVE, defaults.powerSave);
     setConfigItem(OPT_GRAY_DOT_BUG, defaults.grayDotBug);
     setConfigItem(OPT_GLUE_LOGIC, defaults.glueLogic);
 
@@ -149,8 +155,6 @@ VICII::resetConfig()
     setConfigItem(OPT_SATURATION, defaults.saturation);
 
     setConfigItem(OPT_HIDE_SPRITES, defaults.hideSprites);
-    setConfigItem(OPT_CUT_LAYERS, defaults.cutLayers);
-    setConfigItem(OPT_CUT_OPACITY, defaults.cutOpacity);
     
     setConfigItem(OPT_SB_COLLISIONS, defaults.checkSSCollisions);
     setConfigItem(OPT_SS_COLLISIONS, defaults.checkSBCollisions);
@@ -162,6 +166,7 @@ VICII::getConfigItem(Option option) const
     switch (option) {
             
         case OPT_VIC_REVISION:      return config.revision;
+        case OPT_VIC_POWER_SAVE:    return config.powerSave;
         case OPT_PALETTE:           return config.palette;
         case OPT_BRIGHTNESS:        return config.brightness;
         case OPT_CONTRAST:          return config.contrast;
@@ -169,8 +174,6 @@ VICII::getConfigItem(Option option) const
         case OPT_GRAY_DOT_BUG:      return config.grayDotBug;
         case OPT_GLUE_LOGIC:        return config.glueLogic;
         case OPT_HIDE_SPRITES:      return config.hideSprites;
-        case OPT_CUT_LAYERS:        return config.cutLayers;
-        case OPT_CUT_OPACITY:       return config.cutOpacity;
         case OPT_SS_COLLISIONS:     return config.checkSSCollisions;
         case OPT_SB_COLLISIONS:     return config.checkSBCollisions;
 
@@ -188,18 +191,23 @@ VICII::setConfigItem(Option option, i64 value)
         case OPT_VIC_REVISION:
             
             if (!VICIIRevisionEnum::isValid(value)) {
-                throw ConfigArgError(VICIIRevisionEnum::keyList());
+                throw VC64Error(ERROR_OPT_INV_ARG, VICIIRevisionEnum::keyList());
             }
             
             suspend();
             setRevision((VICIIRevision)value);
             resume();
             return true;
+
+        case OPT_VIC_POWER_SAVE:
+            
+            config.powerSave = value;
+            return true;
             
         case OPT_PALETTE:
             
             if (!PaletteEnum::isValid(value)) {
-                throw ConfigArgError(PaletteEnum::keyList());
+                throw VC64Error(ERROR_OPT_INV_ARG, PaletteEnum::keyList());
             }
             
             suspend();
@@ -211,7 +219,7 @@ VICII::setConfigItem(Option option, i64 value)
         case OPT_BRIGHTNESS:
             
             if (config.brightness < 0 || config.brightness > 100) {
-                throw ConfigArgError("Expected 0...100");
+                throw VC64Error(ERROR_OPT_INV_ARG, "Expected 0...100");
             }
 
             config.brightness = value;
@@ -221,7 +229,7 @@ VICII::setConfigItem(Option option, i64 value)
         case OPT_CONTRAST:
 
             if (config.contrast < 0 || config.contrast > 100) {
-                throw ConfigArgError("Expected 0...100");
+                throw VC64Error(ERROR_OPT_INV_ARG, "Expected 0...100");
             }
 
             config.contrast = value;
@@ -231,7 +239,7 @@ VICII::setConfigItem(Option option, i64 value)
         case OPT_SATURATION:
         
             if (config.saturation < 0 || config.saturation > 100) {
-                throw ConfigArgError("Expected 0...100");
+                throw VC64Error(ERROR_OPT_INV_ARG, "Expected 0...100");
             }
 
             config.saturation = value;
@@ -247,16 +255,6 @@ VICII::setConfigItem(Option option, i64 value)
             
             config.hideSprites = value;
             return true;
-
-        case OPT_CUT_LAYERS:
-            
-            config.cutLayers = value;
-            return true;
-            
-        case OPT_CUT_OPACITY:
-            
-            config.cutOpacity = value;
-            return false; // False to avoid MSG_CONFIG being sent to the GUI
             
         case OPT_SS_COLLISIONS:
             
@@ -271,7 +269,7 @@ VICII::setConfigItem(Option option, i64 value)
         case OPT_GLUE_LOGIC:
             
             if (!GlueLogicEnum::isValid(value)) {
-                throw ConfigArgError(GlueLogicEnum::keyList());
+                throw VC64Error(ERROR_OPT_INV_ARG, GlueLogicEnum::keyList());
             }
             
             config.glueLogic = (GlueLogic)value;
@@ -290,15 +288,24 @@ VICII::setRevision(VICIIRevision revision)
     
     debug(VIC_DEBUG, "setRevision(%s)\n", VICIIRevisionEnum::key(revision));
 
-    // If the emulator is powered on, proceed to a safe spot
-    if (isPoweredOn()) c64.finishFrame();
+    /* If the VICII revision is changed while the emulator is powered on, some
+     * precautions must be taken. First, we interrupt a running screen capture.
+     * After that, we move the emulator to a safe spot by finishing the current
+     * frame.
+     */
+    if (isPoweredOn()) {
+#ifndef __EMSCRIPTEN__
+        recorder.stopRecording();
+#endif
+        c64.finishFrame();
+    }
     
     config.revision = revision;
     isFirstDMAcycle = isSecondDMAcycle = 0;
     updatePalette();
     resetEmuTextures();
     resetDmaTextures();
-    c64.updateVicFunctionTable();
+    vic.updateVicFunctionTable();
     
     c64.putMessage(isPAL() ? MSG_PAL : MSG_NTSC);
 }
@@ -379,6 +386,8 @@ VICII::_dump(dump::Category category, std::ostream& os) const
 
         os << tab("Chip model");
         os << VICIIRevisionEnum::key(config.revision) << std::endl;
+        os << tab("Power save mode");
+        os << bol(config.powerSave, "during warp", "never") << std::endl;
         os << tab("Gray dot bug");
         os << bol(config.grayDotBug) << std::endl;
         os << tab("PAL");
@@ -391,6 +400,10 @@ VICII::_dump(dump::Category category, std::ostream& os) const
         os << bol(is856x()) << std::endl;
         os << tab("Glue logic");
         os << GlueLogicEnum::key(config.glueLogic) << std::endl;
+        os << tab("Check SS collisions");
+        os << bol(config.checkSSCollisions) << std::endl;
+        os << tab("Check SB collisions");
+        os << bol(config.checkSBCollisions) << std::endl;
     }
 
     if (category & dump::Registers) {
@@ -489,69 +502,6 @@ VICII::clearStats()
             exitTotal != 0 ? stats.quickExitHit / exitTotal : -1);
 
         memset(&stats, 0, sizeof(stats));
-    }
-}
-
-void
-VICII::dumpTexture() const
-{
-    /* This function is used for automatic regression testing. It generates a
-     * TIFF image of the current emulator texture in the /tmp directory and
-     * exits the application. The regression testing script will pick up the
-     * texture and compare it against a previously recorded reference image.
-     */
-    std::ofstream file;
-        
-    // Assemble the target file names
-    string rawFile = "/tmp/" + dumpTexturePath + ".raw";
-    string tiffFile = "/tmp/" + dumpTexturePath + ".tiff";
-
-    // Open an output stream
-    file.open(rawFile.c_str());
-    
-    // Dump texture
-    dumpTexture(file, x1, y1, x2, y2);
-    file.close();
-    
-    // Convert raw data into a TIFF file
-    string cmd = "/usr/local/bin/raw2tiff";
-    cmd += " -p rgb -b 3";
-    cmd += " -w " + std::to_string(x2 - x1);
-    cmd += " -l " + std::to_string(y2 - y1);
-    cmd += " " + rawFile + " " + tiffFile;
-    
-    if (system(cmd.c_str()) == -1) {
-        warn("Error executing %s\n", cmd.c_str());
-    }
-}
-
-void
-VICII::dumpTexture(std::ostream& os) const
-{
-    isize x1 = FIRST_VISIBLE_PIXEL;
-    isize y1 = FIRST_VISIBLE_LINE;
-    isize x2 = x1 + VISIBLE_PIXELS;
-    isize y2 = TEX_HEIGHT;
-    
-    dumpTexture(os, x1, y1, x2, y2);
-}
-
-void
-VICII::dumpTexture(std::ostream& os, isize x1, isize y1, isize x2, isize y2) const
-{
-    msg("dumpTexture(%zd,%zd,%zd,%zd)\n", x1, y1, x2, y2);
-    
-    auto buffer = (u32 *)stableEmuTexture();
-
-    for (isize y = y1; y < y2; y++) {
-        
-        for (isize x = x1; x < x2; x++) {
-            
-            char *cptr = (char *)(buffer + y * TEX_WIDTH + x);
-            os.write(cptr + 0, 1);
-            os.write(cptr + 1, 1);
-            os.write(cptr + 2, 1);
-        }
     }
 }
 
@@ -687,13 +637,13 @@ VICII::isVBlankLine(unsigned rasterline) const
     }
 }
 
-void *
+u32 *
 VICII::stableEmuTexture() const
 {
     return emuTexture == emuTexture1 ? emuTexture2 : emuTexture1;
 }
 
-void *
+u32 *
 VICII::stableDmaTexture() const
 {
     return dmaTexture == dmaTexture1 ? dmaTexture2 : dmaTexture1;
@@ -1076,14 +1026,22 @@ VICII::beginFrame()
      *  and is irrelevant." [C.B.]
      */
     vcBase = 0;
+    
+    // Clear statistics
+    clearStats();
+    
+    // Check if this frame should be executed in headless mode
+    headless = c64.inWarpMode() && config.powerSave && (c64.frame % 8) != 0;
 }
 
 void
 VICII::endFrame()
 {
-    bool debug = dmaDebugger.config.dmaDebug;
-        
+    // Only proceed if the current frame hasn't been executed in headless mode
+    if (headless) return;
+    
     // Run the DMA debugger if enabled
+    bool debug = dmaDebugger.config.dmaDebug;
     if (debug) dmaDebugger.computeOverlay(emuTexture, dmaTexture);
 
     // Switch texture buffers
@@ -1102,9 +1060,6 @@ VICII::endFrame()
         dmaTexture = dmaTexture1;
         if (debug) { resetEmuTexture(1); resetDmaTexture(1); }
     }
-    
-    // Clear statistics
-    clearStats();
 }
 
 void
@@ -1177,13 +1132,10 @@ void
 VICII::endRasterline()
 {
     // Set vertical flipflop if condition was hit
-    // TODO: Do we need to do this here? It is handled in cycle 1 as well.
-    if (verticalFrameFFsetCond) {
-        setVerticalFrameFF(true);
-    }
+    if (verticalFrameFFsetCond) setVerticalFrameFF(true);
     
     // Cut out layers if requested
-    if (config.cutLayers) cutLayers();
+    dmaDebugger.cutLayers();
 
     // Prepare buffers for the next line
     for (unsigned i = 0; i < TEX_WIDTH; i++) { zBuffer[i] = 0; }

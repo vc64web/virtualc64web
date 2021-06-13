@@ -51,6 +51,8 @@ Drive::_reset(bool hard)
 
     cpu.reg.pc = 0xEAA0;
     halftrack = 41;
+    
+    needsEmulation = config.connected && config.switchedOn;
 }
 
 DriveConfig
@@ -59,6 +61,7 @@ Drive::getDefaultConfig()
     DriveConfig defaults;
     
     defaults.type = DRIVE_VC1541II;
+    defaults.powerSave = true;
     defaults.connected = false;
     defaults.switchedOn = true;
     defaults.ejectDelay = 30;
@@ -78,19 +81,20 @@ Drive::resetConfig()
 {
     DriveConfig defaults = getDefaultConfig();
     
-    setConfigItem(OPT_DRIVE_CONNECT, deviceNr, deviceNr == DRIVE8);
-    setConfigItem(OPT_DRIVE_POWER_SWITCH, deviceNr, defaults.switchedOn);
-    setConfigItem(OPT_DRIVE_TYPE, deviceNr, defaults.type);
+    setConfigItem(OPT_DRV_CONNECT, deviceNr, deviceNr == DRIVE8);
+    setConfigItem(OPT_DRV_POWER_SWITCH, deviceNr, defaults.switchedOn);
+    setConfigItem(OPT_DRV_POWER_SAVE, deviceNr, defaults.powerSave);
+    setConfigItem(OPT_DRV_TYPE, deviceNr, defaults.type);
 
-    setConfigItem(OPT_DISK_EJECT_DELAY, deviceNr, defaults.ejectDelay);
-    setConfigItem(OPT_DISK_SWAP_DELAY, deviceNr, defaults.swapDelay);
-    setConfigItem(OPT_DISK_INSERT_DELAY, deviceNr, defaults.insertDelay);
+    setConfigItem(OPT_DRV_EJECT_DELAY, deviceNr, defaults.ejectDelay);
+    setConfigItem(OPT_DRV_SWAP_DELAY, deviceNr, defaults.swapDelay);
+    setConfigItem(OPT_DRV_INSERT_DELAY, deviceNr, defaults.insertDelay);
     
-    setConfigItem(OPT_DRIVE_PAN, deviceNr, defaults.pan);
-    setConfigItem(OPT_POWER_VOLUME, deviceNr, defaults.powerVolume);
-    setConfigItem(OPT_STEP_VOLUME, deviceNr, defaults.stepVolume);
-    setConfigItem(OPT_INSERT_VOLUME, deviceNr, defaults.insertVolume);
-    setConfigItem(OPT_EJECT_VOLUME, deviceNr, defaults.ejectVolume);
+    setConfigItem(OPT_DRV_PAN, deviceNr, defaults.pan);
+    setConfigItem(OPT_DRV_POWER_VOL, deviceNr, defaults.powerVolume);
+    setConfigItem(OPT_DRV_STEP_VOL, deviceNr, defaults.stepVolume);
+    setConfigItem(OPT_DRV_INSERT_VOL, deviceNr, defaults.insertVolume);
+    setConfigItem(OPT_DRV_EJECT_VOL, deviceNr, defaults.ejectVolume);
 }
 
 i64
@@ -98,17 +102,18 @@ Drive::getConfigItem(Option option) const
 {
     switch (option) {
             
-        case OPT_DRIVE_TYPE:          return (i64)config.type;
-        case OPT_DRIVE_CONNECT:       return (i64)config.connected;
-        case OPT_DRIVE_POWER_SWITCH:  return (i64)config.switchedOn;
-        case OPT_DISK_EJECT_DELAY:    return (i64)config.ejectDelay;
-        case OPT_DISK_SWAP_DELAY:     return (i64)config.swapDelay;
-        case OPT_DISK_INSERT_DELAY:   return (i64)config.insertDelay;
-        case OPT_DRIVE_PAN:           return (i64)config.pan;
-        case OPT_POWER_VOLUME:        return (i64)config.powerVolume;
-        case OPT_STEP_VOLUME:         return (i64)config.stepVolume;
-        case OPT_INSERT_VOLUME:       return (i64)config.insertVolume;
-        case OPT_EJECT_VOLUME:        return (i64)config.ejectVolume;
+        case OPT_DRV_TYPE:          return (i64)config.type;
+        case OPT_DRV_CONNECT:       return (i64)config.connected;
+        case OPT_DRV_POWER_SWITCH:  return (i64)config.switchedOn;
+        case OPT_DRV_POWER_SAVE:      return (i64)config.powerSave;
+        case OPT_DRV_EJECT_DELAY:    return (i64)config.ejectDelay;
+        case OPT_DRV_SWAP_DELAY:     return (i64)config.swapDelay;
+        case OPT_DRV_INSERT_DELAY:   return (i64)config.insertDelay;
+        case OPT_DRV_PAN:           return (i64)config.pan;
+        case OPT_DRV_POWER_VOL:        return (i64)config.powerVolume;
+        case OPT_DRV_STEP_VOL:         return (i64)config.stepVolume;
+        case OPT_DRV_INSERT_VOL:       return (i64)config.insertVolume;
+        case OPT_DRV_EJECT_VOL:        return (i64)config.ejectVolume;
             
         default:
             assert(false);
@@ -132,14 +137,15 @@ Drive::setConfigItem(Option option, i64 value)
             durationOfOneCpuCycle = duration;
             return true;
         }
-        case OPT_DISK_EJECT_DELAY:
-        case OPT_DISK_SWAP_DELAY:
-        case OPT_DISK_INSERT_DELAY:
-        case OPT_POWER_VOLUME:
-        case OPT_STEP_VOLUME:
-        case OPT_INSERT_VOLUME:
-        case OPT_EJECT_VOLUME:
-        case OPT_DRIVE_PAN:
+        case OPT_DRV_POWER_SAVE:
+        case OPT_DRV_EJECT_DELAY:
+        case OPT_DRV_SWAP_DELAY:
+        case OPT_DRV_INSERT_DELAY:
+        case OPT_DRV_POWER_VOL:
+        case OPT_DRV_STEP_VOL:
+        case OPT_DRV_INSERT_VOL:
+        case OPT_DRV_EJECT_VOL:
+        case OPT_DRV_PAN:
         {
             bool result1 = setConfigItem(option, DRIVE8, value);
             bool result2 = setConfigItem(option, DRIVE9, value);
@@ -157,89 +163,83 @@ Drive::setConfigItem(Option option, long id, i64 value)
     
     switch (option) {
             
-        case OPT_DRIVE_TYPE:
+        case OPT_DRV_TYPE:
         {
             if (!DriveTypeEnum::isValid(value)) {
-                throw ConfigArgError(DriveTypeEnum::keyList());
+                throw VC64Error(ERROR_OPT_INV_ARG, DriveTypeEnum::keyList());
             }
-            // if (config.type == value) return false;
             
             config.type = (DriveType)value;
             return true;
         }
-        case OPT_DRIVE_CONNECT:
+        case OPT_DRV_CONNECT:
         {
-            /*
-            if (config.connected == value) {
-                return false;
-            }
-            */
             if (value && !c64.hasRom(ROM_TYPE_VC1541)) {
                 warn("Can't connect drive (ROM missing).\n");
                 return false;
             }
-            
             suspend();
             config.connected = value;
-            bool wasActive = active;
-            active = config.connected && config.switchedOn;
             reset(true);
             resume();
             messageQueue.put(value ? MSG_DRIVE_CONNECT : MSG_DRIVE_DISCONNECT, deviceNr);
-            if (wasActive != active)
-                messageQueue.put(active ? MSG_DRIVE_ACTIVE : MSG_DRIVE_INACTIVE, deviceNr);
             return true;
         }
-        case OPT_DRIVE_POWER_SWITCH:
+        case OPT_DRV_POWER_SWITCH:
         {
+            if (value && !isPoweredOn()) {
+                warn("Can't switch drive on (not connected).\n");
+                // throw VCError(ERROR_DRV_NOT_CONNECTED);
+                return false;
+            }
             suspend();
             config.switchedOn = value;
-            bool wasActive = active;
-            active = config.connected && config.switchedOn;
             reset(true);
             resume();
             messageQueue.put(value ? MSG_DRIVE_POWER_ON : MSG_DRIVE_POWER_OFF, deviceNr);
-            if (wasActive != active) {
-                messageQueue.put(active ? MSG_DRIVE_ACTIVE : MSG_DRIVE_INACTIVE,
-                                 config.pan << 24 | config.powerVolume << 16 | deviceNr);
-            }
             return true;
         }
-        case OPT_DISK_EJECT_DELAY:
+        case OPT_DRV_POWER_SAVE:
+        {
+            config.powerSave = value;
+            wakeUp();
+            return true;
+        }
+        case OPT_DRV_EJECT_DELAY:
         {
             config.ejectDelay = value;
             return true;
         }
-        case OPT_DISK_SWAP_DELAY:
+        case OPT_DRV_SWAP_DELAY:
         {
             config.swapDelay = value;
             return true;
         }
-        case OPT_DISK_INSERT_DELAY:
+        case OPT_DRV_INSERT_DELAY:
         {
             config.insertDelay = value;
             return true;
         }
-        case OPT_DRIVE_PAN:
+        case OPT_DRV_PAN:
         {
             config.pan = value;
             return true;
         }
-        case OPT_POWER_VOLUME:
+        case OPT_DRV_POWER_VOL:
         {
             value = std::clamp(value, 0LL, 100LL);
 
             config.powerVolume = value;
             return true;
         }
-        case OPT_STEP_VOLUME:
+        case OPT_DRV_STEP_VOL:
         {
             value = std::clamp(value, 0LL, 100LL);
 
             config.stepVolume = value;
             return true;
         }
-        case OPT_EJECT_VOLUME:
+        case OPT_DRV_EJECT_VOL:
         {
             value = std::clamp(value, 0LL, 100LL);
             
@@ -247,7 +247,7 @@ Drive::setConfigItem(Option option, long id, i64 value)
             printf("New eject volume: %d\n", config.ejectVolume);
             return true;
         }
-        case OPT_INSERT_VOLUME:
+        case OPT_DRV_INSERT_VOL:
         {
             value = std::clamp(value, 0LL, 100LL);
             
@@ -268,6 +268,8 @@ Drive::_dump(dump::Category category, std::ostream& os) const
     
         os << tab("Drive type");
         os << DriveTypeEnum::key(config.type) << std::endl;
+        os << tab("Power save mode");
+        os << bol(config.powerSave, "when idle", "never") << std::endl;
         os << tab("Connected");
         os << bol(config.connected) << std::endl;
         os << tab("Power switch");
@@ -488,9 +490,12 @@ Drive::setRedLED(bool b)
 {
     if (!redLED && b) {
         redLED = true;
+        wakeUp();
         c64.putMessage(MSG_DRIVE_LED_ON, deviceNr);
+        
     } else if (redLED && !b) {
         redLED = false;
+        wakeUp();
         c64.putMessage(MSG_DRIVE_LED_OFF, deviceNr);
     }
 }
@@ -503,6 +508,16 @@ Drive::setRotating(bool b)
     spinning = b;
     c64.putMessage(b ? MSG_DRIVE_MOTOR_ON : MSG_DRIVE_MOTOR_OFF, deviceNr);
     iec.updateTransferStatus();
+}
+
+void
+Drive::wakeUp()
+{
+    if (isIdle()) {
+        c64.putMessage(MSG_DRIVE_POWER_SAVE_OFF, deviceNr);
+        idleCounter = 0;
+        needsEmulation = true;
+    }
 }
 
 void
@@ -571,6 +586,7 @@ Drive::insertDisk(Disk *otherDisk, bool wp)
     if (!diskToInsert) {
         
         // Initiate the disk change procedure
+        wakeUp();
         diskToInsert = otherDisk;
         diskToInsertWP = wp;
         diskChangeCounter = 1;
@@ -624,6 +640,7 @@ Drive::ejectDisk()
     if (insertionStatus == DISK_FULLY_INSERTED && !diskToInsert) {
         
         // Initiate the disk change procedure
+        wakeUp();
         diskChangeCounter = 1;
     }
     
@@ -633,9 +650,32 @@ Drive::ejectDisk()
 void
 Drive::vsyncHandler()
 {
-    // Only proceed if a disk change state transition is to be performed
-    if (--diskChangeCounter) return;
-    
+    // Only proceed if the drive is connected and switched on
+    if (!config.connected || !config.switchedOn) return;
+
+    // Emulate an ongoing disk state transition
+    if (diskChangeCounter) {
+        
+        wakeUp();
+        
+        if (--diskChangeCounter == 0) {
+            executeStateTransition();
+        }
+        return;
+    }
+        
+    // Check if we sould enter power-safe mode
+    if (!spinning && config.powerSave) {
+        if (++idleCounter == powerSafeThreshold) {
+            needsEmulation = false;
+            messageQueue.put(MSG_DRIVE_POWER_SAVE_ON, deviceNr);
+        }
+    }
+}
+
+void
+Drive::executeStateTransition()
+{
     switch (insertionStatus) {
             
         case DISK_FULLY_INSERTED:

@@ -93,11 +93,12 @@ struct InsertionStatusEnum : util::Reflection<InsertionStatusEnum, InsertionStat
 typedef struct
 {
     DriveType type;
-    
+    bool powerSave;
+
     // State
     bool connected;
     bool switchedOn;
-    
+        
     // Disk handling delays
     isize ejectDelay;
     isize swapDelay;

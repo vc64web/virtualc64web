@@ -15,11 +15,11 @@
 
 // Snapshot version number
 #define V_MAJOR 4
-#define V_MINOR 2
+#define V_MINOR 3
 #define V_SUBMINOR 0
 
 // Uncomment these settings in a release build
-// #define RELEASEBUILD
+#define RELEASEBUILD
 
 
 //
@@ -88,6 +88,9 @@ static const int KBD_DEBUG       = 0; // Keyboard
 static const int PRT_DEBUG       = 0; // Control ports and connected devices
 static const int EXP_DEBUG       = 0; // Expansion port
 static const int LIP_DEBUG       = 0; // Light pen
+
+// Other components
+static const int REC_DEBUG       = 0; // Screen recorder
 
 
 //

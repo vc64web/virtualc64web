@@ -521,12 +521,12 @@ class C64Wrapper {
  //   c64->sid.dump();
 
 
-
+/*
     c64->configure(OPT_DRV_POWER_SAVE, 8, true); 
     c64->configure(OPT_SID_POWER_SAVE, true); 
     c64->configure(OPT_VIC_POWER_SAVE, true); 
 
-
+*/
 
     printf("waiting on emulator ready in javascript ...\n");
  
@@ -1149,3 +1149,31 @@ extern "C" char* wasm_translate(char c)
   return wasm_translate_json;
 }
 */
+
+extern "C" void wasm_configure(char* option, unsigned on)
+{
+  bool on_value = (on == 1);
+
+  printf("wasm_configure %s = %d\n", option, on);
+
+  if(strcmp(option,"OPT_DRV_POWER_SAVE") == 0)
+  {
+    printf("calling c64->configure %s = %d\n", option, on);
+    wrapper->c64->configure(OPT_DRV_POWER_SAVE, 8, on_value);
+  }
+  else if(strcmp(option,"OPT_SID_POWER_SAVE") == 0)
+  {
+    printf("calling c64->configure %s = %d\n", option, on);
+    wrapper->c64->configure(OPT_SID_POWER_SAVE, on_value);
+  }
+  else if(strcmp(option,"OPT_VIC_POWER_SAVE") == 0)
+  {
+    printf("calling c64->configure %s = %d\n", option, on);
+    wrapper->c64->configure(OPT_VIC_POWER_SAVE, on_value);
+  }
+  else
+  {
+    printf("error !!!!! unknown option= %s\n", option);
+  }
+}
+

@@ -1216,6 +1216,7 @@ function InitWrappers() {
     wasm_peek = Module.cwrap('wasm_peek', 'number', ['number']);
     wasm_poke = Module.cwrap('wasm_poke', 'undefined', ['number', 'number']);
     wasm_export_disk = Module.cwrap('wasm_export_disk', 'string');
+    wasm_configure = Module.cwrap('wasm_configure', 'undefined', ['string', 'number']);
 
 
     get_audio_context=function() {
@@ -1507,6 +1508,40 @@ borderless_switch.change( function() {
     wasm_set_borderless(this.checked);
     save_setting('borderless', this.checked);
 });
+
+//------
+
+
+drive_power_save_switch = $('#OPT_DRV_POWER_SAVE');
+var use_drive_power_save=load_setting('OPT_DRV_POWER_SAVE', true);
+drive_power_save_switch.prop('checked', use_drive_power_save);
+wasm_configure('OPT_DRV_POWER_SAVE',use_drive_power_save);
+drive_power_save_switch.change( function() {
+    wasm_configure('OPT_DRV_POWER_SAVE',this.checked);
+    save_setting('OPT_DRV_POWER_SAVE', this.checked);
+});
+
+
+
+vic_power_save_switch = $('#OPT_VIC_POWER_SAVE');
+var use_vic_power_save=load_setting('OPT_VIC_POWER_SAVE', true);
+vic_power_save_switch.prop('checked', use_vic_power_save);
+wasm_configure('OPT_VIC_POWER_SAVE',use_vic_power_save);
+vic_power_save_switch.change( function() {
+    wasm_configure('OPT_VIC_POWER_SAVE',this.checked);
+    save_setting('OPT_VIC_POWER_SAVE', this.checked);
+});
+
+sid_power_save_switch = $('#OPT_SID_POWER_SAVE');
+var use_sid_power_save=load_setting('OPT_SID_POWER_SAVE', true);
+sid_power_save_switch.prop('checked', use_sid_power_save);
+wasm_configure('OPT_SID_POWER_SAVE',use_sid_power_save);
+sid_power_save_switch.change( function() {
+    wasm_configure('OPT_SID_POWER_SAVE',this.checked);
+    save_setting('OPT_SID_POWER_SAVE', this.checked);
+});
+
+
 
 //------
 

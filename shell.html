@@ -179,8 +179,9 @@
     </div>      
   
     <div class="row mt-1" id="output_row">
-    <div class="col-12">
-      <textarea rows="20" id="output"></textarea>
+    <div class="col-12 px-1">
+      <!--textarea rows="20" id="output"></textarea-->
+      <div id="output" style="height:164px;width:100%;padding:1px;overflow-y:scroll;resize:vertical;display:flex;flex-direction:column-reverse;"></div>
     </div>
     </div>
     </div> <!-- end of fluid container -->
@@ -557,7 +558,7 @@
             DISCLAIMER:
 In 2021 the Demoscene was <a style="font-size:larger" class="mx-2" href="https://www.unesco.de/en/culture-and-nature/intangible-cultural-heritage/demoscene-culture-digital-real-time-animations">accepted as UNESCO cultural heritage</a>. Following this spirit, vc64web wants to connect people to those amazing artwork and culture. It therefore links to demo content of the biggest external Demoscene website for the c64.
 <a class="mx-2" style="font-size:larger" href="http://csdb.dk">Csdb.dk</a> is the biggest Demoscene site for the C64. The amount of demos is countless and every day new demos are added. Due to this nature we can not check the legal condition of every single demo from their site. 
-The operators or creators of external web resources are soley responsible for their content.
+The operators or creators of external web resources are soley responsible for their content. If you see an issue please contact us at <a style="font-size:larger" class="mx-2" href="https://github.com/vc64web/virtualc64web/issues">github issues</a>.
             </small>
 
           </div>
@@ -865,14 +866,14 @@ goes into edit mode which takes you right back to here ...
       var statusElement = document.getElementById('status');
       var progressElement = document.getElementById('progress');
       var spinnerElement = document.getElementById('spinner');
-
+ 
       var Module = {
         preRun: [function () {ENV.SDL_EMSCRIPTEN_KEYBOARD_ELEMENT = "#canvas";}],
         postRun: [InitWrappers],
         print: (function() {
-          var element = document.getElementById('output');
-          if (element) element.value = ''; // clear browser cache
-          return function(text) {
+          var outputElement = document.getElementById('output');
+          if (outputElement) outputElement.value = ''; // clear browser cache
+          return async function(text) {
             console.log(text);
 
             if(typeof live_debug_output == 'undefined') 
@@ -880,15 +881,19 @@ goes into edit mode which takes you right back to here ...
             if(!live_debug_output)
               return;
             if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-            // These replacements are necessary if you render to raw HTML
-            //text = text.replace(/&/g, "&amp;");
-            //text = text.replace(/</g, "&lt;");
-            //text = text.replace(/>/g, "&gt;");
-            //text = text.replace('\n', '<br>', 'g');
-            if (element) {
-              element.value += text + "\n";
-              element.scrollTop = element.scrollHeight; // focus on bottom
-            }
+            //setTimeout((text) => 
+            //{
+              // These replacements are necessary if you render to raw HTML
+              //text = text.replace(/&/g, "&amp;");
+              //text = text.replace(/</g, "&lt;");
+              //text = text.replace(/>/g, "&gt;");
+              //text = text.replace('\n', '<br>', 'g');
+              if (outputElement) {
+                outputElement.innerHTML += text +'<br>';
+                //outputElement.value += text + '\n';
+                //outputElement.scrollTop = outputElement.scrollHeight; // focus on bottom
+              }              
+            //}, 0);
           };
         })(),
         printErr: function(text) {

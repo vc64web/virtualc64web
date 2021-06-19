@@ -112,14 +112,14 @@ symbolic_map = {
     z: 'KeyZ',
     y: 'KeyY',
 
-    f1: 'F1',
-    f2: ['ShiftLeft','F1'],
-    f3: 'F3',
-    f4: ['ShiftLeft','F3'],
-    f5: 'F5',
-    f6: ['ShiftLeft','F5'],
-    f7: 'F7',
-    f8: ['ShiftLeft','F7'],
+    F1: 'F1',
+    F2: ['ShiftLeft','F1'],
+    F3: 'F3',
+    F4: ['ShiftLeft','F3'],
+    F5: 'F5',
+    F6: ['ShiftLeft','F5'],
+    F7: 'F7',
+    F8: ['ShiftLeft','F7'],
     ',': 'Comma',
     '*': 'BracketRight', 
     "1": 'Digit1',
@@ -157,8 +157,8 @@ symbolic_map = {
     '<': ['ShiftLeft','Comma'],
     '>': ['ShiftLeft','Period'],
     'shiftrunstop': ['ShiftLeft','runStop'],   //load from tape shortcut
-    'arrowleft': ['ShiftLeft','ArrowRight'],
-    'arrowup': ['ShiftLeft','ArrowDown']
+    'ArrowLeft': ['ShiftLeft','ArrowRight'],
+    'ArrowUp': ['ShiftLeft','ArrowDown']
 }
 
 c64keymap = [

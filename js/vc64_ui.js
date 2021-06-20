@@ -793,6 +793,7 @@ function is_any_text_input_active()
     return active;
 }
 
+var shift_pressed_state=false;
 function keydown(e) {
     if(is_any_text_input_active())
         return;
@@ -832,6 +833,7 @@ function keydown(e) {
 
     if(use_symbolic_map && e.code.toLowerCase().startsWith("shift"))
     {
+        shift_pressed_state=true;
         return;
     }
     var c64code = translateKey2(e.code, e.key, !use_symbolic_map);
@@ -872,13 +874,20 @@ function keyup(e) {
 
     if(use_symbolic_map && e.code.toLowerCase().startsWith("shift"))
     {
+        if(shift_pressed_state)
+        {//when shift is released before the keyup of the shiftkey is done
+         //release the shift in c64 too, because the following keyup will not include the shiftkey
+            shift_pressed_state=false;
+            var c64code = translateKey2(e.code, e.key, use_positional_mapping=true);
+            wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 1);
+        }
         return;
     }
     var c64code = translateKey2(e.code, e.key, !use_symbolic_map);
     if(c64code !== undefined )
     {
         wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 1);
-        if(c64code.modifier != null)
+        if(c64code.modifier != null )
         {
             wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, 1);
         }

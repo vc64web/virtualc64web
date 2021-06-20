@@ -158,7 +158,8 @@ symbolic_map = {
     '>': ['ShiftLeft','Period'],
     'shiftrunstop': ['ShiftLeft','runStop'],   //load from tape shortcut
     'ArrowLeft': ['ShiftLeft','ArrowRight'],
-    'ArrowUp': ['ShiftLeft','ArrowDown']
+    'ArrowUp': ['ShiftLeft','ArrowDown'],
+    '\n': 'Enter'
 }
 
 c64keymap = [

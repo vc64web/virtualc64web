@@ -185,7 +185,7 @@ async function execute_single_action(cmd, execute=true, execution_id=-1)
     cmd=cmd.trim();
     var valid = true;
     var joy_cmd_tokens=null;
-    if(cmd.match(/^'.+?'$/) != null)
+    if(cmd.match(/^'.+?'$/sm) != null)
     {
         if(execute)
         {

@@ -1,7 +1,7 @@
 {
   "name": "Virtual C64 web",
   "short_name": "vc64web",
-  "start_url": "./",
+  "start_url": "/",
   "scope": ".",
   "display": "standalone",
   "background_color": "#BBBBBB",

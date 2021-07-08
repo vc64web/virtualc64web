@@ -906,7 +906,7 @@ function draw_one_frame()
         gamepads = navigator.getGamepads();        
         var joy1= gamepads[port1];
         
-        if(timestampjoy1 != joy1.timestamp)
+        if(joy1 != null && timestampjoy1 != joy1.timestamp)
         {
             timestampjoy1 = joy1.timestamp;
             handleGamePad('1', joy1);
@@ -920,7 +920,7 @@ function draw_one_frame()
         }
         var joy2= gamepads[port2];
         
-        if(timestampjoy2 != joy2.timestamp)
+        if(joy2 != null && timestampjoy2 != joy2.timestamp)
         {
             timestampjoy2 = joy2.timestamp;
             handleGamePad('2', joy2);

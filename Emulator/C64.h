@@ -416,6 +416,11 @@ public:
     // Finishes the current frame
     void finishFrame();
     
+    void executeRS232();
+    void write_string_to_ser(const char *buf);
+    void configure_rs232_ser_speed(unsigned baud);
+
+    
 private:
     
     // Invoked before executing the first cycle of a rasterline

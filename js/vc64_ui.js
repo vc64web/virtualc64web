@@ -261,7 +261,7 @@ async function disk_loading_finished()
 }   
 
 
-function message_handler(msg)
+function message_handler(msg, data)
 {
     //UTF8ToString(cores_msg);
     if(msg == "MSG_READY_TO_RUN")
@@ -337,8 +337,14 @@ function message_handler(msg)
     {
         check_ready_to_fire(msg);
     }
+    else if(msg == "MSG_RS232")
+    {
+        //rs232_message.push(data);
+        rs232_message += String.fromCharCode(data);
+    }
 }
-
+rs232_message = "";
+//rs232_message=[];
 
 async function fetchOpenROMS(){
     var installer = async response => {
@@ -1226,7 +1232,7 @@ function InitWrappers() {
     wasm_poke = Module.cwrap('wasm_poke', 'undefined', ['number', 'number']);
     wasm_export_disk = Module.cwrap('wasm_export_disk', 'string');
     wasm_configure = Module.cwrap('wasm_configure', 'undefined', ['string', 'number']);
-
+    wasm_write_string_to_ser = Module.cwrap('wasm_write_string_to_ser', 'undefined', ['string']);
 
     get_audio_context=function() {
         if (typeof Module === 'undefined'

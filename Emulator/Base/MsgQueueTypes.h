@@ -119,7 +119,9 @@ enum_long(MSG)
     MSG_DMA_DEBUG_ON,
     MSG_DMA_DEBUG_OFF,
     
-    MSG_COUNT
+    MSG_COUNT,
+
+    MSG_RS232
 };
 typedef MSG MsgType;
 
@@ -223,6 +225,8 @@ struct MsgTypeEnum : util::Reflection<MsgType, MsgType> {
             case MSG_DMA_DEBUG_OFF:        return "DMA_DEBUG_OFF";
                 
             case MSG_COUNT:                return "???";
+            case MSG_RS232:                return "RS232";
+            
         }
         return "???";
     }

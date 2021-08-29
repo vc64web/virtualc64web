@@ -425,6 +425,16 @@ void send_message_to_js(const char * msg)
 
 }
 
+void send_message_to_js(const char * msg, long data)
+{
+    EM_ASM(
+    {
+        if (typeof message_handler === 'undefined')
+            return;
+        message_handler( "MSG_"+UTF8ToString($0), $1 );
+    }, msg, data );    
+
+}
 
 bool warp_mode=false;
 void theListener(const void * c64, long type, long data){
@@ -440,7 +450,7 @@ void theListener(const void * c64, long type, long data){
 
   const char *message_as_string =  (const char *)MsgTypeEnum::key((MsgType)type);
   printf("vC64 message=%s, data=%ld\n", message_as_string, data);
-  send_message_to_js(message_as_string);
+  send_message_to_js(message_as_string, data);
 }
 
 
@@ -1133,9 +1143,26 @@ extern "C" u8 wasm_peek(u16 addr)
   return wrapper->c64->mem.spypeek(addr);
 }
 
+
+extern "C" void wasm_write_string_to_ser(char* chars_to_send)
+{
+    wrapper->c64->write_string_to_ser(chars_to_send);
+}
+
+//const char chars_to_send[] = "HELLOMYWORLD!";
 extern "C" void wasm_poke(u16 addr, u8 value)
 {
-  return wrapper->c64->mem.poke(addr, value);
+  if(addr == 56577)
+  {//CIA2:PB
+    //CIA::portBexternal_value=0x00;
+    //wrapper->c64->cia2.portBexternal_value=value;
+    //wrapper->c64->cia2.triggerFallingEdgeOnFlagPin();    
+//    wrapper->c64->write_string_to_ser(chars_to_send,13);
+  }
+  else
+  {
+    return wrapper->c64->mem.poke(addr, value);
+  }
 }
 
 /*
@@ -1170,6 +1197,11 @@ extern "C" void wasm_configure(char* option, unsigned on)
   {
     printf("calling c64->configure %s = %d\n", option, on);
     wrapper->c64->configure(OPT_VIC_POWER_SAVE, on_value);
+  }
+  else if(strcmp(option,"OPT_SER_SPEED") == 0)
+  {
+    printf("calling c64->configure_rs232_ser_speed %d\n", on);
+    wrapper->c64->configure_rs232_ser_speed(on);
   }
   else
   {

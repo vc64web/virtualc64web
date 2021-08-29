@@ -77,7 +77,8 @@ public:
     
     TOD tod = TOD(c64, *this);
     
-    
+    u8 portBexternal_value=0xFF; //mithrendal: make it variable
+
     //
     // Internals
     //

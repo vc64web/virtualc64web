@@ -13,6 +13,17 @@ let call_param_SID=null;
 
 let virtual_keyboard_clipping = true; //keyboard scrolls when it clips
 
+const load_script= (url) => {
+    return new Promise(resolve =>
+    {
+        let script = document.createElement("script")
+        script.type = "text/javascript";
+        script.onload = resolve;
+        script.src = url;
+        document.getElementsByTagName("head")[0].appendChild(script);
+    });
+}
+
 function ToBase64(u8) 
 {
     return btoa(String.fromCharCode.apply(null, u8));
@@ -261,7 +272,7 @@ async function disk_loading_finished()
 }   
 
 
-function message_handler(msg)
+function message_handler(msg, data)
 {
     //UTF8ToString(cores_msg);
     if(msg == "MSG_READY_TO_RUN")
@@ -337,8 +348,14 @@ function message_handler(msg)
     {
         check_ready_to_fire(msg);
     }
+    else if(msg == "MSG_RS232")
+    {
+        //rs232_message.push(data);
+        rs232_message += String.fromCharCode(data);
+    }
 }
-
+rs232_message = "";
+//rs232_message=[];
 
 async function fetchOpenROMS(){
     var installer = async response => {
@@ -1226,7 +1243,7 @@ function InitWrappers() {
     wasm_poke = Module.cwrap('wasm_poke', 'undefined', ['number', 'number']);
     wasm_export_disk = Module.cwrap('wasm_export_disk', 'string');
     wasm_configure = Module.cwrap('wasm_configure', 'undefined', ['string', 'number']);
-
+    wasm_write_string_to_ser = Module.cwrap('wasm_write_string_to_ser', 'undefined', ['string']);
 
     get_audio_context=function() {
         if (typeof Module === 'undefined'
@@ -2497,7 +2514,7 @@ release_key('ControlLeft');`;
 
 
 
-        $('#modal_custom_key').on('shown.bs.modal', function () 
+        $('#modal_custom_key').on('shown.bs.modal', async function () 
         {
             if(typeof jshint_loaded != 'undefined')
             {
@@ -2510,23 +2527,6 @@ release_key('ControlLeft');`;
                     removeClass( "btn-primary" ).
                     addClass("btn-secondary");
                 });
-                //lazy load full editor now
-                var load_script= function (url, callback){
-                    var script = document.createElement("script")
-                    script.type = "text/javascript";
-                    script.onload = callback;
-                    script.src = url;
-                    document.getElementsByTagName("head")[0].appendChild(script);
-                }
-                load_script("js/cm/lib/jshint.js",
-                ()=>{ 
-                    jshint_loaded=true;  
-                    load_script("js/cm/lib/require.js",
-                ()=>{
-                    turn_on_full_editor();
-                });
-                });            
-
                 function load_css(url) {
                     var link = document.createElement("link");
                     link.type = "text/css";
@@ -2538,6 +2538,12 @@ release_key('ControlLeft');`;
                 load_css("css/cm/lint.css");
                 load_css("css/cm/show-hint.css");
                 load_css("css/cm/theme/vc64dark.css");
+
+                //lazy load full editor now
+                await load_script("js/cm/lib/jshint.js");
+                jshint_loaded=true;  
+                await load_script("js/cm/lib/require.js");
+                turn_on_full_editor();
             }
         });
 

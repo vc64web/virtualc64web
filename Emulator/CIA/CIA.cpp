@@ -829,11 +829,12 @@ CIA2::portBinternal() const
     return result;
 }
 
+
 u8
 CIA2::portBexternal() const
 {
     // User port is not implemented. All pins are high if nothing is connected.
-    return 0xFF;
+    return portBexternal_value;
 }
 
 void
@@ -842,13 +843,62 @@ CIA2::updatePB()
     PB = (portBinternal() & DDRB) | (portBexternal() & ~DDRB);
 }
 
+
+
+
+bool rs232_msg_started=false;    
+u64 target_txd_cycle = 0;
+
+u8 txd_char=0;
+//u16 txd_baud=300;
+//u16 txd_cycles_per_bit=982800/txd_baud;
+int txd_serpos=0;
+
 void
 CIA2::pokePA(u8 value)
 {
     CIA::pokePA(value);
-    
+
     // PA0 (VA14) and PA1 (VA15) determine the memory bank seen by VICII
     vic.switchBank(0xDD00);
+
+        
+    u8 txd_bit = (value >> 2) & 1; //second bit of PA
+    
+//    printf("pokePA bit2 %u (at cycle %llu)\n", txd_bit, cpu.cycle);
+    //accept only when bit pattern is 0 nnnn nnnn 1
+    //and maybe later in an more correct version assure that the poke comes in correct timing, if not then we excpect again a startbit that is 0
+    if(rs232_msg_started == false)
+    {//we are at the startbit
+        if(txd_bit == 0)
+        {//the startbit must be 0
+            rs232_msg_started=true;
+//            printf("char recording started (at cycle %llu)\n", cpu.cycle);
+            //target_txd_cycle = cpu.cycle + txd_cycles_per_bit;
+            txd_char=0;
+            txd_serpos=0;
+        }
+    }
+    else if(rs232_msg_started == true && txd_serpos < 8)
+    {//message bits
+//        printf("char recording pos=%u (at cycle %llu)\n", txd_serpos, cpu.cycle);
+
+        txd_char |= txd_bit << txd_serpos;
+        txd_serpos++; 
+    }
+    else if(txd_serpos == 8)
+    {//we are at the stopbit
+        if(txd_bit == 1)
+        {
+            messageQueue.put(MSG_RS232, txd_char);
+//            printf("txd = %c\n",txd_char);
+        }
+        else
+        {
+//            printf("ups no stop bit!\n");
+        }
+        rs232_msg_started = false;
+    }
 }
 
 void

@@ -13,6 +13,17 @@ let call_param_SID=null;
 
 let virtual_keyboard_clipping = true; //keyboard scrolls when it clips
 
+const load_script= (url) => {
+    return new Promise(resolve =>
+    {
+        let script = document.createElement("script")
+        script.type = "text/javascript";
+        script.onload = resolve;
+        script.src = url;
+        document.getElementsByTagName("head")[0].appendChild(script);
+    });
+}
+
 function ToBase64(u8) 
 {
     return btoa(String.fromCharCode.apply(null, u8));
@@ -2503,7 +2514,7 @@ release_key('ControlLeft');`;
 
 
 
-        $('#modal_custom_key').on('shown.bs.modal', function () 
+        $('#modal_custom_key').on('shown.bs.modal', async function () 
         {
             if(typeof jshint_loaded != 'undefined')
             {
@@ -2516,23 +2527,6 @@ release_key('ControlLeft');`;
                     removeClass( "btn-primary" ).
                     addClass("btn-secondary");
                 });
-                //lazy load full editor now
-                var load_script= function (url, callback){
-                    var script = document.createElement("script")
-                    script.type = "text/javascript";
-                    script.onload = callback;
-                    script.src = url;
-                    document.getElementsByTagName("head")[0].appendChild(script);
-                }
-                load_script("js/cm/lib/jshint.js",
-                ()=>{ 
-                    jshint_loaded=true;  
-                    load_script("js/cm/lib/require.js",
-                ()=>{
-                    turn_on_full_editor();
-                });
-                });            
-
                 function load_css(url) {
                     var link = document.createElement("link");
                     link.type = "text/css";
@@ -2544,6 +2538,12 @@ release_key('ControlLeft');`;
                 load_css("css/cm/lint.css");
                 load_css("css/cm/show-hint.css");
                 load_css("css/cm/theme/vc64dark.css");
+
+                //lazy load full editor now
+                await load_script("js/cm/lib/jshint.js");
+                jshint_loaded=true;  
+                await load_script("js/cm/lib/require.js");
+                turn_on_full_editor();
             }
         });
 

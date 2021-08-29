@@ -976,9 +976,18 @@ void C64::configure_rs232_ser_speed(unsigned baud_value)
 void C64::write_string_to_ser(const char *buf)
 {
     u16 length=strlen(buf);
-    for(int i=0; i<length;i++)
+    //printf("%d, %u\n",length, buf[0]);
+    if(length==1 && buf[0]== 24)
+    {//24 is ascii for Cancel (Device Control Character)
+     //clear queue
+        while(!rs232_queue.empty()) rs232_queue.pop();
+    }
+    else
     {
-        rs232_queue.push(buf[i]);
+        for(int i=0; i<length;i++)
+        {
+            rs232_queue.push(buf[i]);
+        }
     }
 }
 

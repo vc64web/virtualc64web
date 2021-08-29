@@ -72,7 +72,7 @@
         }
         else if(ssfile.url !== undefined)
         {
-            const response = await fetch(ssfile.url);
+            const response = await fetch(ssfile.url, {cache: "no-store"});
             file_descriptor.file = new Uint8Array(await response.arrayBuffer());
         }
 

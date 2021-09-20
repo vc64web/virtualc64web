@@ -9,10 +9,10 @@
 
 #pragma once
 
-#include "C64Component.h"
+#include "SubComponent.h"
 #include "Chrono.h"
 
-class Recorder : public C64Component {
+class Recorder : public SubComponent {
 
     //
     // Constants
@@ -51,7 +51,7 @@ class Recorder : public C64Component {
     //
     
     // The current recorder state
-    enum class State { wait, prepare, record, finalize };
+    enum class State { wait, prepare, record, finalize, abort };
     State state = State::wait;
 
     // Number of records that have been made
@@ -84,33 +84,29 @@ class Recorder : public C64Component {
     
 public:
     
-    using C64Component::C64Component;
-    // Recorder(C64& ref);
+    using SubComponent::SubComponent;
+    
+    bool hasFFmpeg() const;
+
+    
+    //
+    // Methods from C64Object
+    //
+
+private:
     
     const char *getDescription() const override { return "Recorder"; }
-
-    bool hasFFmpeg() const;
-    
-private:
-    
-    void _initialize() override;
-    void _reset(bool hard) override;
-
-    
-    //
-    // Analyzing
-    //
-
-private:
-    
     void _dump(dump::Category category, std::ostream& os) const override;
     
     
     //
-    // Serializing
+    // Methods from C64Object
     //
-    
+
 private:
+    
+    void _initialize() override;
+    void _reset(bool hard) override;
     
     template <class T>
     void applyToPersistentItems(T& worker)
@@ -178,4 +174,5 @@ private:
     void recordVideo();
     void recordAudio();
     void finalize();
+    void abort();
 };

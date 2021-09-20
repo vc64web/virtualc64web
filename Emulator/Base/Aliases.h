@@ -11,23 +11,17 @@
 
 #include "Macros.h"
 
-
 //
-// Cycles
+// Type aliases
 //
 
 typedef i64 Cycle;
 
+typedef isize Cylinder;
+typedef isize Head;
+typedef isize Track;
+typedef isize Halftrack;
+typedef isize Sector;
+typedef isize Block;
 
-//
-// Floppy drives and disks
-//
-
-typedef u32 Cylinder;
-typedef u32 Head;
-typedef u32 Track;
-typedef u32 Halftrack;
-typedef u32 Sector;
-typedef u32 Block;
-
-typedef i32 HeadPos;
+typedef isize HeadPos;

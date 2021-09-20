@@ -11,22 +11,21 @@
 
 #include "Aliases.h"
 #include "Reflection.h"
+#include "TODTypes.h"
 
 enum_long(CIAREV)
 {
     MOS_6526,
-    MOS_8521,
-    CIAREV_COUNT
+    MOS_8521
 };
 typedef CIAREV CIARevision;
 
 #ifdef __cplusplus
 struct CIARevisionEnum : util::Reflection<CIARevisionEnum, CIARevision> {
     
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < CIAREV_COUNT;
-    }
+    static long min() { return 0; }
+    static long max() { return MOS_8521; }
+    static bool isValid(long value) { return value >= min() && value <= max(); }
 
     static const char *prefix() { return nullptr; }
     static const char *key(CIARevision value)
@@ -35,7 +34,6 @@ struct CIARevisionEnum : util::Reflection<CIARevisionEnum, CIARevision> {
                 
             case MOS_6526:      return "MOS_6526";
             case MOS_8521:      return "MOS_8521";
-            case CIAREV_COUNT:  return "???";
         }
         return "";
     }
@@ -59,18 +57,16 @@ enum_long(CIAREG)
     CIAREG_SDR,
     CIAREG_ICR,
     CIAREG_CRA,
-    CIAREG_CRB,
-    CIAREG_COUNT
+    CIAREG_CRB
 };
 typedef CIAREG CIAReg;
 
 #ifdef __cplusplus
 struct CIARegEnum : util::Reflection<CIARegEnum, CIAReg> {
 
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < CIAREG_COUNT;
-    }
+    static long min() { return 0; }
+    static long max() { return CIAREG_CRB; }
+    static bool isValid(long value) { return value >= min() && value <= max(); }
     
     static const char *prefix() { return "CIAREG"; }
     static const char *key(CIAReg value)
@@ -93,7 +89,6 @@ struct CIARegEnum : util::Reflection<CIARegEnum, CIAReg> {
             case CIAREG_ICR:     return "ICR";
             case CIAREG_CRA:     return "CRA";
             case CIAREG_CRB:     return "CRB";
-            case CIAREG_COUNT:   return "???";
         }
         return "???";
     }
@@ -112,57 +107,32 @@ typedef struct
 }
 CIAConfig;
 
-typedef union
+typedef struct
 {
-    struct {
-        u8 tenth;
-        u8 sec;
-        u8 min;
-        u8 hour;
-    };
-    u32 value;
+    u8 port;
+    u8 reg;
+    u8 dir;
 }
-TimeOfDay;
+CIAPortInfo;
 
 typedef struct
 {
-    TimeOfDay time;
-    TimeOfDay latch;
-    TimeOfDay alarm;
+    u16 count;
+    u16 latch;
+    bool running;
+    bool toggle;
+    bool pbout;
+    bool oneShot;
 }
-TODInfo;
+CIATimerInfo;
 
 typedef struct
 {
-    struct {
-        u8 port;
-        u8 reg;
-        u8 dir;
-    } portA;
+    CIAPortInfo portA;
+    CIAPortInfo portB;
 
-    struct {
-        u8 port;
-        u8 reg;
-        u8 dir;
-    } portB;
-
-    struct {
-        u16 count;
-        u16 latch;
-        bool running;
-        bool toggle;
-        bool pbout;
-        bool oneShot;
-    } timerA;
-
-    struct {
-        u16 count;
-        u16 latch;
-        bool running;
-        bool toggle;
-        bool pbout;
-        bool oneShot;
-    } timerB;
+    CIATimerInfo timerA;
+    CIATimerInfo timerB;
 
     u8 sdr;
     u8 ssr;

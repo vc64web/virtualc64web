@@ -11,125 +11,72 @@
 #include "C64.h"
 #include "Checksum.h"
 #include "IO.h"
+#include <algorithm>
 
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#endif
-
-#ifdef __EMSCRIPTEN__
-bool paused_the_emscripten_main_loop=false;
-#endif
-
-
-//
-// Emulator thread
-//
-
-void 
-threadTerminated(void* thisC64)
-{
-    assert(thisC64 != nullptr);
-    
-    // Inform the C64 that the thread has been canceled
-    C64 *c64 = (C64 *)thisC64;
-    c64->threadDidTerminate();
-}
-
-
-extern void draw_one_frame_into_SDL(void *thisC64);
-
-void 
-*threadMain(void *thisC64) {
-    
-    assert(thisC64 != nullptr);
-        
-    // Inform the C64 that the thread is about to start
-    C64 *c64 = (C64 *)thisC64;
-    c64->threadWillStart();
-                
-    if(paused_the_emscripten_main_loop)
-    {
-   //     c64->trace("emscripten_resume_main_loop()\n");
-        emscripten_resume_main_loop();
-    }
-    else
-    {
-   //     c64->trace("emscripten_set_main_loop_arg()\n");
-        emscripten_set_main_loop_arg(draw_one_frame_into_SDL, thisC64, 0, 1);
-    }
-    return NULL;
-}
-
-
-//
-// Class methods
-//
+// Perform some consistency checks
+static_assert(sizeof(i8 ) == 1, "i8 size mismatch");
+static_assert(sizeof(i16) == 2, "i16 size mismatch");
+static_assert(sizeof(i32) == 4, "i32 size mismatch");
+static_assert(sizeof(i64) == 8, "i64 size mismatch");
+static_assert(sizeof(u8 ) == 1, "u8 size mismatch");
+static_assert(sizeof(u16) == 2, "u16 size mismatch");
+static_assert(sizeof(u32) == 4, "u32 size mismatch");
+static_assert(sizeof(u64) == 8, "u64 size mismatch");
 
 C64::C64()
 {
-    trace(RUN_DEBUG, "Creating virtual C64 [%p]\n", this);
+    trace(RUN_DEBUG, "Creating virtual C64\n");
         
-    subComponents = std::vector<HardwareComponent *> {
+    subComponents = std::vector<C64Component *> {
         
         &mem,
         &cpu,
         &cia1, &cia2,
         &vic,
-        &sid,
-        &keyboard,
+        &muxer,
+        &supply,
         &port1,
         &port2,
         &expansionport,
         &iec,
+        &keyboard,
         &drive8,
         &drive9,
+        &parCable,
         &datasette,
-        &oscillator
+//        &retroShell,
+//        &regressionTester,
+//        &recorder,
+        &msgQueue
     };
 
     // Set up the initial state
-    HardwareComponent::initialize();
-    _reset(true);
+    C64Component::initialize();
+    C64Component::reset(true);
 }
 
 C64::~C64()
 {
-    trace(RUN_DEBUG, "Destroying C64[%p]\n", this);
+    trace(RUN_DEBUG, "Destroying C64\n");
 }
 
 void
 C64::prefix() const
 {
-    fprintf(stderr, "[%lld] (%3d,%3d) %04X ", frame, rasterLine, rasterCycle, cpu.getPC0());
-}
-
-void
-C64::initialize(C64Model model)
-{
-    assert_enum(C64Model, model);
-    
-    // Power off the emulator
-    powerOff();
-
-    // Put all components into their initial state
-    HardwareComponent::initialize();
-    
-    // Apply the selected configuration scheme
-    configure(model);
+    fprintf(stderr, "[%lld] (%3d,%3d) %04X ", frame, scanline, rasterCycle, cpu.getPC0());
 }
 
 void
 C64::reset(bool hard)
 {
-    suspend();
-    
-    // Execute the standard reset routine
-    HardwareComponent::reset(hard);
-    
-    // Inform the GUI
-    putMessage(MSG_RESET);
-    
-    resume();
+    suspended {
+        
+        // Execute the standard reset routine
+        C64Component::reset(hard);
+                
+        // Inform the GUI
+        msgQueue.put(MSG_RESET);
+    }
 }
 
 void
@@ -140,7 +87,7 @@ C64::_reset(bool hard)
     // Initialize the program counter
     cpu.reg.pc = mem.resetVector();
     
-    runLoopCtrl = 0;
+    flags = 0;
     rasterCycle = 1;
 }
 
@@ -163,6 +110,7 @@ C64::getConfigItem(Option option) const
     switch (option) {
             
         case OPT_VIC_REVISION:
+        case OPT_VIC_SPEED:
         case OPT_VIC_POWER_SAVE:
         case OPT_GRAY_DOT_BUG:
         case OPT_GLUE_LOGIC:
@@ -189,7 +137,7 @@ C64::getConfigItem(Option option) const
             return cia1.getConfigItem(option);
 
         case OPT_POWER_GRID:
-            return oscillator.getConfigItem(option);
+            return supply.getConfigItem(option);
             
         case OPT_SID_REVISION:
         case OPT_SID_POWER_SAVE:
@@ -198,14 +146,13 @@ C64::getConfigItem(Option option) const
         case OPT_SID_SAMPLING:
         case OPT_AUDVOLL:
         case OPT_AUDVOLR:
-            return sid.getConfigItem(option);
+            return muxer.getConfigItem(option);
 
         case OPT_RAM_PATTERN:
             return mem.getConfigItem(option);
-
+            
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
@@ -218,18 +165,23 @@ C64::getConfigItem(Option option, long id) const
             
         case OPT_DMA_DEBUG_ENABLE:
         case OPT_DMA_DEBUG_COLOR:
+            
             return vic.dmaDebugger.getConfigItem(option, id);
 
         case OPT_SID_ENABLE:
         case OPT_SID_ADDRESS:
         case OPT_AUDPAN:
         case OPT_AUDVOL:
+            
             assert(id >= 0 && id <= 3);
-            return sid.getConfigItem(option, id);
+            return muxer.getConfigItem(option, id);
 
-        case OPT_DRV_TYPE:
-        case OPT_DRV_POWER_SAVE:
         case OPT_DRV_CONNECT:
+        case OPT_DRV_AUTO_CONFIG:
+        case OPT_DRV_TYPE:
+        case OPT_DRV_RAM:
+        case OPT_DRV_PARCABLE:
+        case OPT_DRV_POWER_SAVE:
         case OPT_DRV_POWER_SWITCH:
         case OPT_DRV_EJECT_DELAY:
         case OPT_DRV_SWAP_DELAY:
@@ -239,336 +191,572 @@ C64::getConfigItem(Option option, long id) const
         case OPT_DRV_STEP_VOL:
         case OPT_DRV_INSERT_VOL:
         case OPT_DRV_EJECT_VOL:
-            assert(id == DRIVE8 || id == DRIVE9);
+            
             return drive.getConfigItem(option);
 
         case OPT_MOUSE_MODEL:
         case OPT_SHAKE_DETECTION:
         case OPT_MOUSE_VELOCITY:
+            
             if (id == PORT_ONE) return port1.mouse.getConfigItem(option);
             if (id == PORT_TWO) return port2.mouse.getConfigItem(option);
-            assert(false);
+            fatalError;
 
         case OPT_AUTOFIRE:
         case OPT_AUTOFIRE_BULLETS:
         case OPT_AUTOFIRE_DELAY:
+            
             if (id == PORT_ONE) return port1.joystick.getConfigItem(option);
             if (id == PORT_TWO) return port2.joystick.getConfigItem(option);
-            assert(false);
+            fatalError;
 
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
-bool
+void
 C64::configure(Option option, i64 value)
 {
-    trace(CNF_DEBUG, "configure(option: %lld, value: %lld\n", option, value);
+    debug(CNF_DEBUG, "configure(%lld, %lld)\n", option, value);
 
-    // Propagate configuration request to all components
-    bool changed = HardwareComponent::configure(option, value);
+    // The following options do not send a message to the GUI
+    static std::vector<Option> quiet = {
         
-    // Inform the GUI if the configuration has changed
-    if (changed) msgQueue.put(MSG_CONFIG);
+        OPT_BRIGHTNESS,
+        OPT_CONTRAST,
+        OPT_SATURATION,
+        OPT_CUT_OPACITY,
+        OPT_DMA_DEBUG_OPACITY,
+        OPT_MOUSE_VELOCITY,
+        OPT_AUTOFIRE_DELAY,
+        OPT_AUDPAN,
+        OPT_AUDVOL,
+        OPT_AUDVOLL,
+        OPT_AUDVOLR,
+        OPT_DRV_PAN,
+        OPT_DRV_POWER_VOL,
+        OPT_DRV_STEP_VOL,
+        OPT_DRV_INSERT_VOL,
+        OPT_DRV_EJECT_VOL
+    };
     
-    // Dump the current configuration in debugging mode
-    if (changed && CNF_DEBUG) dump(dump::Config);
+    // Check if this option has been locked for debugging
+    value = overrideOption(option, value);
 
-    return changed;
+    switch (option) {
+            
+        case OPT_VIC_REVISION:
+        case OPT_VIC_SPEED:
+        case OPT_PALETTE:
+        case OPT_BRIGHTNESS:
+        case OPT_CONTRAST:
+        case OPT_SATURATION:
+        case OPT_GRAY_DOT_BUG:
+        case OPT_VIC_POWER_SAVE:
+        case OPT_HIDE_SPRITES:
+        case OPT_SS_COLLISIONS:
+        case OPT_SB_COLLISIONS:
+        case OPT_GLUE_LOGIC:
+
+            vic.setConfigItem(option, value);
+            break;
+                        
+        case OPT_CUT_LAYERS:
+        case OPT_CUT_OPACITY:
+        case OPT_DMA_DEBUG_ENABLE:
+        case OPT_DMA_DEBUG_MODE:
+        case OPT_DMA_DEBUG_COLOR:
+        case OPT_DMA_DEBUG_OPACITY:
+
+            vic.dmaDebugger.setConfigItem(option, value);
+            break;
+
+        case OPT_POWER_GRID:
+            
+            supply.setConfigItem(option, value);
+            break;
+
+        case OPT_CIA_REVISION:
+        case OPT_TIMER_B_BUG:
+            
+            cia1.setConfigItem(option, value);
+            cia2.setConfigItem(option, value);
+            break;
+
+        case OPT_MOUSE_MODEL:
+        case OPT_SHAKE_DETECTION:
+        case OPT_MOUSE_VELOCITY:
+
+            port1.mouse.setConfigItem(option, value);
+            port2.mouse.setConfigItem(option, value);
+            break;
+
+        case OPT_AUTOFIRE:
+        case OPT_AUTOFIRE_BULLETS:
+        case OPT_AUTOFIRE_DELAY:
+            
+            port1.joystick.setConfigItem(option, value);
+            port2.joystick.setConfigItem(option, value);
+            break;
+
+        case OPT_SID_ENABLE:
+        case OPT_SID_ADDRESS:
+
+            muxer.setConfigItem(option, 0, value);
+            muxer.setConfigItem(option, 1, value);
+            muxer.setConfigItem(option, 2, value);
+            muxer.setConfigItem(option, 3, value);
+
+        case OPT_SID_REVISION:
+        case OPT_SID_FILTER:
+        case OPT_SID_SAMPLING:
+        case OPT_SID_POWER_SAVE:
+        case OPT_SID_ENGINE:
+        case OPT_AUDPAN:
+        case OPT_AUDVOL:
+        case OPT_AUDVOLL:
+        case OPT_AUDVOLR:
+                
+            muxer.setConfigItem(option, value);
+            break;
+            
+        case OPT_RAM_PATTERN:
+            
+            mem.setConfigItem(option, value);
+            break;
+
+        case OPT_DRV_AUTO_CONFIG:
+        case OPT_DRV_TYPE:
+        case OPT_DRV_RAM:
+        case OPT_DRV_PARCABLE:
+        case OPT_DRV_CONNECT:
+        case OPT_DRV_POWER_SWITCH:
+        case OPT_DRV_POWER_SAVE:
+        case OPT_DRV_EJECT_DELAY:
+        case OPT_DRV_SWAP_DELAY:
+        case OPT_DRV_INSERT_DELAY:
+        case OPT_DRV_PAN:
+        case OPT_DRV_POWER_VOL:
+        case OPT_DRV_STEP_VOL:
+        case OPT_DRV_INSERT_VOL:
+        case OPT_DRV_EJECT_VOL:
+            
+            drive8.setConfigItem(option, value);
+            drive9.setConfigItem(option, value);
+            break;
+            
+        default:
+            fatalError;
+    }
+    
+    if (std::find(quiet.begin(), quiet.end(), option) == quiet.end()) {
+        msgQueue.put(MSG_CONFIG, option);
+    }
 }
 
-bool
+void
 C64::configure(Option option, long id, i64 value)
 {
-    trace(CNF_DEBUG, "configure(option: %lld, id: %ld, value: %lld\n", option, id, value);
-    
-    // Propagate configuration request to all components
-    bool changed = HardwareComponent::configure(option, id, value);
-    
-    // Inform the GUI if the configuration has changed
-    if (changed) msgQueue.put(MSG_CONFIG);
-    
-    // Dump the current configuration in debugging mode
-    if (changed && CNF_DEBUG) dump(dump::Config);
+    debug(CNF_DEBUG, "configure(%lld, %ld, %lld)\n", option, id, value);
 
-    return changed;
+    // Check if this option has been locked for debugging
+    value = overrideOption(option, value);
+
+    // The following options do not send a message to the GUI
+    static std::vector<Option> quiet = {
+        
+        OPT_MOUSE_VELOCITY,
+        OPT_AUTOFIRE_DELAY,
+        OPT_AUDPAN,
+        OPT_AUDVOL,
+        OPT_AUDVOLL,
+        OPT_AUDVOLR,
+        OPT_DRV_PAN,
+        OPT_DRV_POWER_VOL,
+        OPT_DRV_STEP_VOL,
+        OPT_DRV_INSERT_VOL,
+        OPT_DRV_EJECT_VOL
+    };
+    
+    switch (option) {
+            
+                        
+        case OPT_DMA_DEBUG_ENABLE:
+        case OPT_DMA_DEBUG_COLOR:
+            
+            vic.dmaDebugger.setConfigItem(option, id, value);
+            break;
+
+        case OPT_CIA_REVISION:
+        case OPT_TIMER_B_BUG:
+            
+            switch (id) {
+                case 0: cia1.setConfigItem(option, value); break;
+                case 1: cia2.setConfigItem(option, value); break;
+                default: fatalError;
+            }
+            break;
+
+        case OPT_MOUSE_MODEL:
+        case OPT_SHAKE_DETECTION:
+        case OPT_MOUSE_VELOCITY:
+
+            switch (id) {
+                case PORT_ONE: port1.mouse.setConfigItem(option, value); break;
+                case PORT_TWO: port2.mouse.setConfigItem(option, value); break;
+                default: fatalError;
+            }
+            break;
+
+        case OPT_AUTOFIRE:
+        case OPT_AUTOFIRE_BULLETS:
+        case OPT_AUTOFIRE_DELAY:
+
+            switch (id) {
+                case PORT_ONE: port1.joystick.setConfigItem(option, value); break;
+                case PORT_TWO: port2.joystick.setConfigItem(option, value); break;
+                default: fatalError;
+            }
+            break;
+
+        case OPT_SID_ENABLE:
+        case OPT_SID_ADDRESS:
+        case OPT_SID_REVISION:
+        case OPT_SID_FILTER:
+        case OPT_SID_POWER_SAVE:
+        case OPT_SID_ENGINE:
+        case OPT_SID_SAMPLING:
+        case OPT_AUDPAN:
+        case OPT_AUDVOL:
+        case OPT_AUDVOLL:
+        case OPT_AUDVOLR:
+                
+            muxer.setConfigItem(option, id, value);
+            break;
+            
+        case OPT_DRV_AUTO_CONFIG:
+        case OPT_DRV_TYPE:
+        case OPT_DRV_RAM:
+        case OPT_DRV_PARCABLE:
+        case OPT_DRV_CONNECT:
+        case OPT_DRV_POWER_SWITCH:
+        case OPT_DRV_POWER_SAVE:
+        case OPT_DRV_EJECT_DELAY:
+        case OPT_DRV_SWAP_DELAY:
+        case OPT_DRV_INSERT_DELAY:
+        case OPT_DRV_PAN:
+        case OPT_DRV_POWER_VOL:
+        case OPT_DRV_STEP_VOL:
+        case OPT_DRV_INSERT_VOL:
+        case OPT_DRV_EJECT_VOL:
+            
+            switch (id) {
+                case DRIVE8: drive8.setConfigItem(option, value); break;
+                case DRIVE9: drive9.setConfigItem(option, value); break;
+                default: fatalError;
+            }
+            break;
+            
+        default:
+            fatalError;
+    }
+    
+    if (std::find(quiet.begin(), quiet.end(), option) == quiet.end()) {
+        msgQueue.put(MSG_CONFIG, option);
+    }
 }
 
 void
 C64::configure(C64Model model)
 {
-    suspend();
+    assert_enum(C64Model, model);
     
-    switch(model) {
-            
-        case C64_MODEL_PAL:
-            configure(OPT_VIC_REVISION, VICII_PAL_6569_R3);
-            configure(OPT_GRAY_DOT_BUG, false);
-            configure(OPT_CIA_REVISION, MOS_6526);
-            configure(OPT_TIMER_B_BUG,  true);
-            configure(OPT_SID_REVISION, MOS_6581);
-            configure(OPT_SID_FILTER,   true);
-            configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
-            configure(OPT_GLUE_LOGIC,   GLUE_LOGIC_DISCRETE);
-            configure(OPT_RAM_PATTERN,  RAM_PATTERN_VICE);
-            break;
-            
-        case C64_MODEL_PAL_II:
-            configure(OPT_VIC_REVISION, VICII_PAL_8565);
-            configure(OPT_GRAY_DOT_BUG, true);
-            configure(OPT_CIA_REVISION, MOS_8521);
-            configure(OPT_TIMER_B_BUG,  false);
-            configure(OPT_SID_REVISION, MOS_8580);
-            configure(OPT_SID_FILTER,   true);
-            configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
-            configure(OPT_GLUE_LOGIC,   GLUE_LOGIC_IC);
-            configure(OPT_RAM_PATTERN,  RAM_PATTERN_VICE);
-            break;
-
-        case C64_MODEL_PAL_OLD:
-            configure(OPT_VIC_REVISION, VICII_PAL_6569_R1);
-            configure(OPT_GRAY_DOT_BUG, false);
-            configure(OPT_CIA_REVISION, MOS_6526);
-            configure(OPT_TIMER_B_BUG,  true);
-            configure(OPT_SID_REVISION, MOS_6581);
-            configure(OPT_SID_FILTER,   true);
-            configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
-            configure(OPT_GLUE_LOGIC,   GLUE_LOGIC_DISCRETE);
-            configure(OPT_RAM_PATTERN,  RAM_PATTERN_VICE);
-            break;
-
-        case C64_MODEL_NTSC:
-            configure(OPT_VIC_REVISION, VICII_NTSC_6567);
-            configure(OPT_GRAY_DOT_BUG, false);
-            configure(OPT_CIA_REVISION, MOS_6526);
-            configure(OPT_TIMER_B_BUG,  false);
-            configure(OPT_SID_REVISION, MOS_6581);
-            configure(OPT_SID_FILTER,   true);
-            configure(OPT_POWER_GRID,   GRID_STABLE_60HZ);
-            configure(OPT_GLUE_LOGIC,   GLUE_LOGIC_DISCRETE);
-            configure(OPT_RAM_PATTERN,  RAM_PATTERN_VICE);
-            break;
-
-        case C64_MODEL_NTSC_II:
-            configure(OPT_VIC_REVISION, VICII_NTSC_8562);
-            configure(OPT_GRAY_DOT_BUG, true);
-            configure(OPT_CIA_REVISION, MOS_8521);
-            configure(OPT_TIMER_B_BUG,  true);
-            configure(OPT_SID_REVISION, MOS_8580);
-            configure(OPT_SID_FILTER,   true);
-            configure(OPT_POWER_GRID,   GRID_STABLE_60HZ);
-            configure(OPT_GLUE_LOGIC,   GLUE_LOGIC_IC);
-            configure(OPT_RAM_PATTERN,  RAM_PATTERN_VICE);
-            break;
-
-        case C64_MODEL_NTSC_OLD:
-            configure(OPT_VIC_REVISION, VICII_NTSC_6567_R56A);
-            configure(OPT_GRAY_DOT_BUG, false);
-            configure(OPT_CIA_REVISION, MOS_6526);
-            configure(OPT_TIMER_B_BUG,  false);
-            configure(OPT_SID_REVISION, MOS_6581);
-            configure(OPT_SID_FILTER,   true);
-            configure(OPT_POWER_GRID,   GRID_STABLE_60HZ);
-            configure(OPT_GLUE_LOGIC,   GLUE_LOGIC_DISCRETE);
-            configure(OPT_RAM_PATTERN,  RAM_PATTERN_VICE);
-            break;
-
-        default:
-            assert(false);
-    }
-    
-    resume();
-}
-
-bool
-C64::setConfigItem(Option option, i64 value)
-{
-    switch (option) {
-            
-        case OPT_VIC_REVISION:
-        {
-            u64 newFrequency = VICII::getFrequency((VICIIRevision)value);
-
-            if (frequency == newFrequency) {
-                assert(durationOfOneCycle == 10000000000 / newFrequency);
-                return false;
-            }
-            
-            frequency = (u32)newFrequency;
-            durationOfOneCycle = 10000000000 / newFrequency;
-            return true;
-        }
-            
-        default:
-            return false;
-    }
-}
-
-void
-C64::setWarp(bool enable)
-{
-    if (warp != enable && !warpLock) {
+    suspended {
         
-        warp = enable;
-        HardwareComponent::setWarp(enable);
-    }
-}
-
-void
-C64::setDebug(bool enable)
-{
-    suspend();
-    HardwareComponent::setDebug(enable);
-    resume();
-}
-
-void
-C64::powerOn()
-{
-    debug(RUN_DEBUG, "powerOn()\n");
-    
-
-    if (!isPoweredOn() && isReady()) {
-
-
-        // Perform a reset
-        hardReset();
+        switch(model) {
                 
-        // Power on all subcomponents
-        HardwareComponent::powerOn();
-        
-        // Update the recorded debug information
-        inspect();
-
-        // Inform the GUI
-        msgQueue.put(MSG_POWER_ON);
+            case C64_MODEL_PAL:
+                
+                configure(OPT_VIC_REVISION, VICII_PAL_6569_R3);
+                configure(OPT_GRAY_DOT_BUG, false);
+                configure(OPT_CIA_REVISION, MOS_6526);
+                configure(OPT_TIMER_B_BUG,  true);
+                configure(OPT_SID_REVISION, MOS_6581);
+                configure(OPT_SID_FILTER,   true);
+                configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
+                configure(OPT_GLUE_LOGIC,   GLUE_LOGIC_DISCRETE);
+                configure(OPT_RAM_PATTERN,   RAM_PATTERN_VICE);
+                break;
+                
+            case C64_MODEL_PAL_II:
+                
+                configure(OPT_VIC_REVISION, VICII_PAL_8565);
+                configure(OPT_GRAY_DOT_BUG, true);
+                configure(OPT_CIA_REVISION, MOS_8521);
+                configure(OPT_TIMER_B_BUG,  false);
+                configure(OPT_SID_REVISION, MOS_8580);
+                configure(OPT_SID_FILTER,   true);
+                configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
+                configure(OPT_GLUE_LOGIC,   GLUE_LOGIC_IC);
+                configure(OPT_RAM_PATTERN,   RAM_PATTERN_VICE);
+                break;
+                
+            case C64_MODEL_PAL_OLD:
+                
+                configure(OPT_VIC_REVISION, VICII_PAL_6569_R1);
+                configure(OPT_GRAY_DOT_BUG, false);
+                configure(OPT_CIA_REVISION, MOS_6526);
+                configure(OPT_TIMER_B_BUG,  true);
+                configure(OPT_SID_REVISION, MOS_6581);
+                configure(OPT_SID_FILTER,   true);
+                configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
+                configure(OPT_GLUE_LOGIC,   GLUE_LOGIC_DISCRETE);
+                configure(OPT_RAM_PATTERN,   RAM_PATTERN_VICE);
+                break;
+                
+            case C64_MODEL_NTSC:
+                
+                configure(OPT_VIC_REVISION, VICII_NTSC_6567);
+                configure(OPT_GRAY_DOT_BUG, false);
+                configure(OPT_CIA_REVISION, MOS_6526);
+                configure(OPT_TIMER_B_BUG,  false);
+                configure(OPT_SID_REVISION, MOS_6581);
+                configure(OPT_SID_FILTER,   true);
+                configure(OPT_POWER_GRID,   GRID_STABLE_60HZ);
+                configure(OPT_GLUE_LOGIC,   GLUE_LOGIC_DISCRETE);
+                configure(OPT_RAM_PATTERN,   RAM_PATTERN_VICE);
+                break;
+                
+            case C64_MODEL_NTSC_II:
+                
+                configure(OPT_VIC_REVISION, VICII_NTSC_8562);
+                configure(OPT_GRAY_DOT_BUG, true);
+                configure(OPT_CIA_REVISION, MOS_8521);
+                configure(OPT_TIMER_B_BUG,  true);
+                configure(OPT_SID_REVISION, MOS_8580);
+                configure(OPT_SID_FILTER,   true);
+                configure(OPT_POWER_GRID,   GRID_STABLE_60HZ);
+                configure(OPT_GLUE_LOGIC,   GLUE_LOGIC_IC);
+                configure(OPT_RAM_PATTERN,   RAM_PATTERN_VICE);
+                break;
+                
+            case C64_MODEL_NTSC_OLD:
+                
+                configure(OPT_VIC_REVISION, VICII_NTSC_6567_R56A);
+                configure(OPT_GRAY_DOT_BUG, false);
+                configure(OPT_CIA_REVISION, MOS_6526);
+                configure(OPT_TIMER_B_BUG,  false);
+                configure(OPT_SID_REVISION, MOS_6581);
+                configure(OPT_SID_FILTER,   true);
+                configure(OPT_POWER_GRID,   GRID_STABLE_60HZ);
+                configure(OPT_GLUE_LOGIC,   GLUE_LOGIC_DISCRETE);
+                configure(OPT_RAM_PATTERN,   RAM_PATTERN_VICE);
+                break;
+                
+            default:
+                fatalError;
+        }
     }
+}
+
+void
+C64::revertToFactorySettings()
+{
+    // Power off the emulator
+    powerOff();
+
+    // Put all components into their initial state
+    initialize();
+}
+
+void
+C64::updateClockFrequency(VICIIRevision rev, VICIISpeed speed)
+{
+    durationOfOneCycle = 10000000000 / VICII::getFrequency(rev, speed);
+    nativeDurationOfOneCycle = 10000000000 / VICII::getNativeFrequency(rev);
+    setSyncDelay(VICII::getFrameDelay(rev, speed));
+}
+
+i64
+C64::overrideOption(Option option, i64 value)
+{
+    static std::map<Option,i64> overrides = OVERRIDES;
+
+    if (overrides.find(option) != overrides.end()) {
+
+        msg("Overriding option: %s = %lld\n", OptionEnum::key(option), value);
+        return overrides[option];
+    }
+
+    return value;
+}
+
+void
+C64::execute()
+{
+    cpu.debugger.watchpointPC = -1;
+    cpu.debugger.breakpointPC = -1;
+    
+    // Run the emulator
+    executeOneFrame();
+    
+    // Check if special action needs to be taken
+    if (flags) {
+        
+        // Are we requested to take a snapshot?
+        if (flags & RL::AUTO_SNAPSHOT) {
+            clearFlag(RL::AUTO_SNAPSHOT);
+            autoSnapshot = new Snapshot(*this);
+            msgQueue.put(MSG_AUTO_SNAPSHOT_TAKEN);
+        }
+        if (flags & RL::USER_SNAPSHOT) {
+            clearFlag(RL::USER_SNAPSHOT);
+            userSnapshot = new Snapshot(*this);
+            msgQueue.put(MSG_USER_SNAPSHOT_TAKEN);
+        }
+        
+        // Are we requested to update the debugger info structs?
+        if (flags & RL::INSPECT) {
+            clearFlag(RL::INSPECT);
+            inspect();
+        }
+        
+        // Did we reach a breakpoint?
+        if (flags & RL::BREAKPOINT) {
+            clearFlag(RL::BREAKPOINT);
+            msgQueue.put(MSG_BREAKPOINT_REACHED, cpu.debugger.breakpointPC);
+            newState = EXEC_PAUSED;
+        }
+        
+        // Did we reach a watchpoint?
+        if (flags & RL::WATCHPOINT) {
+            clearFlag(RL::WATCHPOINT);
+            msgQueue.put(MSG_WATCHPOINT_REACHED, cpu.debugger.watchpointPC);
+            newState = EXEC_PAUSED;
+        }
+        
+        // Are we requested to terminate the run loop?
+        if (flags & RL::STOP) {
+            clearFlag(RL::STOP);
+            newState = EXEC_PAUSED;
+        }
+        
+        // Are we requested to pull the NMI line down?
+        if (flags & RL::EXTERNAL_NMI) {
+            clearFlag(RL::EXTERNAL_NMI);
+            cpu.pullDownNmiLine(INTSRC_EXP);
+        }
+        
+        // Is the CPU jammed due the execution of an illegal instruction?
+        if (flags & RL::CPU_JAM) {
+            clearFlag(RL::CPU_JAM);
+            msgQueue.put(MSG_CPU_JAMMED);
+            newState = EXEC_PAUSED;
+        }
+                    
+        assert(flags == 0);
+    }
+}
+
+void
+C64::_isReady() const
+{
+    bool mega = hasMega65Rom(ROM_TYPE_BASIC) && hasMega65Rom(ROM_TYPE_KERNAL);
+    
+    if (!hasRom(ROM_TYPE_BASIC)) {
+        throw VC64Error(ERROR_ROM_BASIC_MISSING);
+    }
+    if (!hasRom(ROM_TYPE_CHAR)) {
+        throw VC64Error(ERROR_ROM_CHAR_MISSING);
+    }
+    if (!hasRom(ROM_TYPE_KERNAL) || FORCE_ROM_MISSING) {
+        throw VC64Error(ERROR_ROM_KERNAL_MISSING);
+    }
+    if (FORCE_MEGA64_MISMATCH || (mega && string(mega65BasicRev()) != string(mega65KernalRev()))) {
+        throw VC64Error(ERROR_ROM_MEGA65_MISMATCH);
+    }    
 }
 
 void
 C64::_powerOn()
 {
-    state = EMULATOR_STATE_PAUSED;
-}
+    debug(RUN_DEBUG, "_powerOn\n");
+    
+    // Perform a reset
+    hardReset();
+            
+    // Update the recorded debug information
+    inspect();
 
-void
-C64::powerOff()
-{
-    debug(RUN_DEBUG, "powerOff()\n");
-
-    if (!isPoweredOff()) {
-
-        // Pause if needed
-        pause(); assert(!isRunning());
-        
-        // Power off all subcomponents
-        HardwareComponent::powerOff();
-
-        // Update the recorded debug information
-        inspect();
-        
-        // Inform the GUI
-        msgQueue.put(MSG_POWER_OFF);
-    }
+    msgQueue.put(MSG_POWER_ON);
 }
 
 void
 C64::_powerOff()
 {
-    state = EMULATOR_STATE_OFF;
-}
+    debug(RUN_DEBUG, "_powerOff\n");
 
-void
-C64::run()
-{
-    debug(RUN_DEBUG, "run()\n");
-    
-    // Never call this function inside the emulator thread
-    assert(!isEmulatorThread());
-
-    if (!isRunning() && isReady()) {
-        
-        assert(p == (pthread_t)0);
-
-        // Power on if needed
-        powerOn(); assert(isPoweredOn());
-
-        // Launch all subcomponents
-        HardwareComponent::run();
-runLoopCtrl=0;
-        if(paused_the_emscripten_main_loop)
-        {
-            trace(RUN_DEBUG,"emscripten_resume_main_loop\n");
-            emscripten_resume_main_loop();
-        }
-        else
-        {
-            p=1; //<--------- use p here only as a flag
-
-            trace(RUN_DEBUG,"emscripten_set_main_loop_arg()\n");
-            emscripten_set_main_loop_arg(draw_one_frame_into_SDL, (void *)this, 0, 1);
-        }
-    }
+    inspect();
+    msgQueue.put(MSG_POWER_OFF);
 }
 
 void
 C64::_run()
 {
-    state = EMULATOR_STATE_RUNNING;
+    debug(RUN_DEBUG, "_run\n");
 
-    // Inform the GUI
     msgQueue.put(MSG_RUN);
-}
-
-void
-C64::pause()
-{
-    debug(RUN_DEBUG, "pause()\n");
-
-    // Never call this function inside the emulator thread
-    assert(!isEmulatorThread());
-    
-    if (isRunning()) {
-        paused_the_emscripten_main_loop=true;
-    
-        ::threadTerminated(this);   
-        HardwareComponent::pause();
-        
-        emscripten_pause_main_loop(); 
-        
-
-        // Ask the emulator thread to terminate
-        signalStop();
-        
-        // Wait until the emulator thread has terminated
-       // _pause();
-
-        // Assure the emulator is no longer running
-        assert(state == EMULATOR_STATE_PAUSED);
-    }
 }
 
 void
 C64::_pause()
 {
-    state = EMULATOR_STATE_PAUSED;
+    debug(RUN_DEBUG, "_pause\n");
+
+    // Finish the current instruction to reach a clean state
+    finishInstruction();
+    
+    inspect();
+    msgQueue.put(MSG_PAUSE);
 }
 
 void
-C64::shutdown()
+C64::_halt()
 {
-    // Assure the emulator is powered off
-    assert(isPoweredOff());
-    
-    /* Send the SHUTDOWN message which is the last message ever send. The
-     * purpose of this message is to signal the GUI that no more messages will
-     * show up in the message queue. When the GUI receives this message, it
-     * knows that the emulator is powered off and the message queue empty. From
-     * this time on, it is safe to destroy the emulator object.
-     */
-    msgQueue.put(MSG_SHUTDOWN);
+    debug(RUN_DEBUG, "_halt\n");
+
+    msgQueue.put(MSG_HALT);
+}
+
+void
+C64::_warpOn()
+{
+    debug(RUN_DEBUG, "_warpOn\n");
+
+    msgQueue.put(MSG_WARP_ON);
+}
+
+void
+C64::_warpOff()
+{
+    debug(RUN_DEBUG, "_warpOff\n");
+
+    msgQueue.put(MSG_WARP_OFF);
+}
+
+void
+C64::_debugOn()
+{
+    // debug(RUN_DEBUG, "_debugOn\n");
+    // vic.updateVicFunctionTable();
+}
+
+void
+C64::_debugOff()
+{
+    // debug(RUN_DEBUG, "_debugOff\n");
+    // vic.updateVicFunctionTable();
 }
 
 void
@@ -576,12 +764,14 @@ C64::inspect()
 {
     switch(inspectionTarget) {
             
-        case INSPECTION_TARGET_CPU: cpu.inspect(); break;
-        case INSPECTION_TARGET_MEM: mem.inspect(); break;
-        case INSPECTION_TARGET_CIA: cia1.inspect(); cia2.inspect(); break;
-        case INSPECTION_TARGET_VIC: vic.inspect(); break;
-        case INSPECTION_TARGET_SID: sid.inspect(); break;
-        default: break;
+        case INSPECTION_CPU: cpu.inspect(); break;
+        case INSPECTION_MEM: mem.inspect(); break;
+        case INSPECTION_CIA: cia1.inspect(); cia2.inspect(); break;
+        case INSPECTION_VIC: vic.inspect(); break;
+        case INSPECTION_SID: muxer.inspect(); break;
+            
+        default:
+            break;
     }
 }
 
@@ -592,205 +782,19 @@ C64::_dump(dump::Category category, std::ostream& os) const
         
     if (category & dump::State) {
                 
-        os << tab("Machine type") << bol(vic.isPAL(), "PAL", "NTSC") << std::endl;
-        os << tab("Frames per second") << vic.getFramesPerSecond() << std::endl;
-        os << tab("Rasterlines per frame") << vic.getRasterlinesPerFrame() << std::endl;
-        os << tab("Cycles per rasterline") << vic.getCyclesPerLine() << std::endl;
+        os << tab("Machine type") << bol(vic.pal(), "PAL", "NTSC") << std::endl;
+        os << tab("Frames per second") << vic.getFps() << std::endl;
+        os << tab("Lines per frame") << vic.getLinesPerFrame() << std::endl;
+        os << tab("Cycles per scanline") << vic.getCyclesPerLine() << std::endl;
         os << tab("Current cycle") << cpu.cycle << std::endl;
         os << tab("Current frame") << frame << std::endl;
-        os << tab("Current rasterline") << rasterLine << std::endl;
-        os << tab("Current rasterline cycle") << dec(rasterCycle) << std::endl;
+        os << tab("Current scanline") << scanline << std::endl;
+        os << tab("Current scanline cycle") << dec(rasterCycle) << std::endl;
         os << tab("Ultimax mode") << bol(getUltimax()) << std::endl;
-        os << tab("Warp mode") << bol(warp) << std::endl;
+        os << tab("Warp mode") << bol(inWarpMode()) << std::endl;
         os << tab("Debug mode") << bol(debugMode) << std::endl;
     }
 }
-
-void
-C64::_setWarp(bool enable)
-{
-    if (enable) {
-        
-        trace(RUN_DEBUG, "Warp on\n");
-        putMessage(MSG_WARP_ON);
-        
-    } else {
-
-        trace(RUN_DEBUG, "Warp off\n");
-        oscillator.restart();
-        putMessage(MSG_WARP_OFF);
-    }
-}
-
-void
-C64::_setDebug(bool enable)
-{
-    suspend();
-    vic.updateVicFunctionTable();
-    resume();
-}
-
-void
-C64::suspend()
-{
-    debug(RUN_DEBUG, "Suspending (%zu)...\n", suspendCounter);
-    
-    if (suspendCounter || isRunning()) {
-        pause();
-        suspendCounter++;
-    }
-}
-
-void
-C64::resume()
-{
-    trace(RUN_DEBUG, "Resuming (%zd)...\n", suspendCounter);
-    
-    if (suspendCounter && --suspendCounter == 0) {
-        run();
-    }
-}
- 
-bool
-C64::isReady(ErrorCode *err) const
-{
-    bool mega = hasMega65Rom(ROM_TYPE_BASIC) && hasMega65Rom(ROM_TYPE_KERNAL);
-    
-    if (!hasRom(ROM_TYPE_BASIC)) {
-        if (err) *err = ERROR_ROM_BASIC_MISSING;
-        return false;
-    }
-    if (!hasRom(ROM_TYPE_CHAR)) {
-        if (err) *err = ERROR_ROM_CHAR_MISSING;
-        return false;
-    }
-    if (!hasRom(ROM_TYPE_KERNAL) || FORCE_ROM_MISSING) {
-        if (err) *err = ERROR_ROM_KERNAL_MISSING;
-        return false;
-    }
-    if (FORCE_MEGA64_MISMATCH ||
-        (mega && strcmp(mega65BasicRev(), mega65KernalRev()) != 0)) {
-        if (err) *err = ERROR_ROM_MEGA65_MISMATCH;
-        return false;
-    }
-    
-    if (err) *err = ERROR_OK;
-    return true;
-}
-
-void
-C64::threadWillStart()
-{
-    trace(RUN_DEBUG, "Emulator thread started\n");
-}
-
-void
-C64::threadDidTerminate()
-{
-    trace(RUN_DEBUG, "Emulator thread terminated\n");
-    
-    // Trash the thread pointer
-    p = (pthread_t)0;
-}
-
-
-#ifndef __EMSCRIPTEN__
-void
-C64::runLoop()
-{
-    trace(RUN_DEBUG, "runLoop()\n");
-        
-    // Inform the GUI
-    msgQueue.put(MSG_RUN);
-    
-    // Restart the synchronization timer
-    oscillator.restart();
-    
-    // Enter the loop
-    while (1) {
-        
-        // Run the emulator
-        while (runLoopCtrl == 0) { executeOneFrame(); }
-        
-        // Check if special action needs to be taken
-        if (runLoopCtrl) {
-            
-            // Are we requested to take a snapshot?
-            if (runLoopCtrl & ACTION_FLAG_AUTO_SNAPSHOT) {
-                trace(RUN_DEBUG, "RL_AUTO_SNAPSHOT\n");
-                autoSnapshot = Snapshot::makeWithC64(this);
-                putMessage(MSG_AUTO_SNAPSHOT_TAKEN);
-                clearActionFlags(ACTION_FLAG_AUTO_SNAPSHOT);
-            }
-            if (runLoopCtrl & ACTION_FLAG_USER_SNAPSHOT) {
-                trace(RUN_DEBUG, "RL_USER_SNAPSHOT\n");
-                userSnapshot = Snapshot::makeWithC64(this);
-                putMessage(MSG_USER_SNAPSHOT_TAKEN);
-                clearActionFlags(ACTION_FLAG_USER_SNAPSHOT);
-            }
-            
-            // Are we requested to update the debugger info structs?
-            if (runLoopCtrl & ACTION_FLAG_INSPECT) {
-                trace(RUN_DEBUG, "RL_INSPECT\n");
-                inspect();
-                clearActionFlags(ACTION_FLAG_INSPECT);
-            }
-            
-            // Did we reach a breakpoint?
-            if (runLoopCtrl & ACTION_FLAG_BREAKPOINT) {
-                putMessage(MSG_BREAKPOINT_REACHED);
-                trace(RUN_DEBUG, "BREAKPOINT_REACHED pc: %x\n", cpu.getPC0());
-                clearActionFlags(ACTION_FLAG_BREAKPOINT);
-                break;
-            }
-            
-            // Did we reach a watchpoint?
-            if (runLoopCtrl & ACTION_FLAG_WATCHPOINT) {
-                putMessage(MSG_WATCHPOINT_REACHED);
-                trace(RUN_DEBUG, "WATCHPOINT_REACHED pc: %x\n", cpu.getPC0());
-                clearActionFlags(ACTION_FLAG_WATCHPOINT);
-                break;
-            }
-            
-            // Are we requested to terminate the run loop?
-            if (runLoopCtrl & ACTION_FLAG_STOP) {
-                clearActionFlags(ACTION_FLAG_STOP);
-                trace(RUN_DEBUG, "STOP\n");
-                break;
-            }
-            
-            // Are we requested to pull the NMI line down?
-            if (runLoopCtrl & ACTION_FLAG_EXTERNAL_NMI) {
-                cpu.pullDownNmiLine(INTSRC_EXP);
-                trace(RUN_DEBUG, "EXTERNAL_NMI\n");
-                clearActionFlags(ACTION_FLAG_EXTERNAL_NMI);
-            }
-            
-            // Is the CPU jammed due the execution of an illegal instruction?
-            if (runLoopCtrl & ACTION_FLAG_CPU_JAM) {
-                putMessage(MSG_CPU_JAMMED);
-                trace(RUN_DEBUG, "CPU_JAMMED\n");
-                clearActionFlags(ACTION_FLAG_CPU_JAM);
-                break;
-            }
-                        
-            assert(runLoopCtrl == 0);
-        }
-    }
-    
-    // Finish the current instruction to reach a clean state
-    finishInstruction();
-    
-    // Enter pause mode
-    HardwareComponent::pause();
-
-    // Update the recorded debug information
-    inspect();
-
-    // Inform the GUI
-    msgQueue.put(MSG_PAUSE);
-}
-#endif
 
 void
 C64::stopAndGo()
@@ -807,8 +811,8 @@ C64::stepInto()
     executeOneCycle();
     finishInstruction();
     
-    // Trigger a GUI refresh
-    putMessage(MSG_BREAKPOINT_REACHED);
+    // Inform the GUI
+    msgQueue.put(MSG_STEP);
 }
 
 void
@@ -829,39 +833,39 @@ C64::stepOver()
 void
 C64::executeOneFrame()
 {
-    do { executeOneLine(); } while (rasterLine != 0 && runLoopCtrl == 0);
+    do { executeOneLine(); } while (scanline != 0 && flags == 0);
 }
 
 void
 C64::executeOneLine()
 {
-    // Emulate the beginning of a rasterline
-    if (rasterCycle == 1) beginRasterLine();
+    // Emulate the beginning of a scanline
+    if (rasterCycle == 1) beginScanline();
     
-    // Emulate the middle of a rasterline
-    unsigned lastCycle = vic.getCyclesPerLine();
-    for (unsigned i = rasterCycle; i <= lastCycle; i++) {
+    // Emulate the middle of a scanline
+    isize lastCycle = vic.getCyclesPerLine();
+    for (isize i = rasterCycle; i <= lastCycle; i++) {
         
         _executeOneCycle();
-        if (runLoopCtrl != 0) {
-            if (i == lastCycle) endRasterLine();
+        if (flags != 0) {
+            if (i == lastCycle) endScanline();
             return;
         }
     }
     
-    // Emulate the end of a rasterline
-    endRasterLine();
+    // Emulate the end of a scanline
+    endScanline();
 }
 
 void
 C64::executeOneCycle()
 {
     bool isFirstCycle = rasterCycle == 1;
-    bool isLastCycle = vic.isLastCycleInRasterline(rasterCycle);
+    bool isLastCycle = vic.isLastCycleInLine(rasterCycle);
     
-    if (isFirstCycle) beginRasterLine();
+    if (isFirstCycle) beginScanline();
     _executeOneCycle();
-    if (isLastCycle) endRasterLine();
+    if (isLastCycle) endScanline();
 }
 
 void
@@ -895,8 +899,8 @@ C64::_executeOneCycle()
     
     // Second clock phase (o2 high)
     cpu.executeOneCycle();
-    if (drive8.needsEmulation) drive8.execute(durationOfOneCycle);
-    if (drive9.needsEmulation) drive9.execute(durationOfOneCycle);
+    if (drive8.needsEmulation) drive8.execute(nativeDurationOfOneCycle);
+    if (drive9.needsEmulation) drive9.execute(nativeDurationOfOneCycle);
     datasette.execute();
     
     rasterCycle++;
@@ -911,31 +915,28 @@ C64::finishInstruction()
 void
 C64::finishFrame()
 {
-    while (rasterLine != 0 || rasterCycle > 1) executeOneCycle();
+    while (scanline != 0 || rasterCycle > 1) executeOneCycle();
 }
 
 void
-C64::beginRasterLine()
+C64::beginScanline()
 {
-    // First cycle of rasterline
-    if (rasterLine == 0) {
-        vic.beginFrame();
-    }
-    vic.beginRasterline(rasterLine);
+    if (scanline == 0) vic.beginFrame();
+    vic.beginScanline(scanline);
 }
 
 void
-C64::endRasterLine()
+C64::endScanline()
 {
     cia1.tod.increment();
     cia2.tod.increment();
 
-    vic.endRasterline();
+    vic.endScanline();
     rasterCycle = 1;
-    rasterLine++;
+    scanline++;
     
-    if (rasterLine >= vic.getRasterlinesPerFrame()) {
-        rasterLine = 0;
+    if (scanline >= vic.getLinesPerFrame()) {
+        scanline = 0;
         endFrame();
     }
 
@@ -1025,6 +1026,10 @@ void C64::executeRS232()
 }
 
 
+
+
+
+
 void
 C64::endFrame()
 {
@@ -1033,7 +1038,7 @@ C64::endFrame()
     vic.endFrame();
         
     // Execute remaining SID cycles
-    sid.executeUntil(cpu.cycle);
+    muxer.executeUntil(cpu.cycle);
     
     // Execute other components
     iec.execute();
@@ -1045,29 +1050,19 @@ C64::endFrame()
     drive9.vsyncHandler();
     datasette.vsyncHandler();
 //    retroShell.vsyncHandler();
-//    recorder.vsyncHandler();
-    
-    #ifdef __EMSCRIPTEN__
-    //no need to synchronize as we are called by the 60hz SDL render thread ...
-    #else
-    // Count some sheep (zzzzzz) ...
-    if (!warp) oscillator.synchronize();
-    #endif
-
-}
-
-
-
-void
-C64::setActionFlags(u32 flags)
-{
-    synchronized { runLoopCtrl |= flags; }
+//    recorder.vsyncHandler();    
 }
 
 void
-C64::clearActionFlags(u32 flags)
+C64::setFlag(u32 flag)
 {
-    synchronized { runLoopCtrl &= ~flags; }
+    synchronized { flags |= flag; }
+}
+
+void
+C64::clearFlag(u32 flag)
+{
+    synchronized { flags &= ~flag; }
 }
 
 void
@@ -1076,8 +1071,9 @@ C64::requestAutoSnapshot()
     if (!isRunning()) {
         
         // Take snapshot immediately
-        autoSnapshot = Snapshot::makeWithC64(this);
-        putMessage(MSG_AUTO_SNAPSHOT_TAKEN);
+        // autoSnapshot = Snapshot::makeWithC64(this);
+        autoSnapshot = new Snapshot(*this);
+        msgQueue.put(MSG_AUTO_SNAPSHOT_TAKEN);
         
     } else {
         
@@ -1092,8 +1088,9 @@ C64::requestUserSnapshot()
     if (!isRunning()) {
         
         // Take snapshot immediately
-        userSnapshot = Snapshot::makeWithC64(this);
-        putMessage(MSG_USER_SNAPSHOT_TAKEN);
+        // userSnapshot = Snapshot::makeWithC64(this);
+        userSnapshot = new Snapshot(*this);
+        msgQueue.put(MSG_USER_SNAPSHOT_TAKEN);
         
     } else {
         
@@ -1118,71 +1115,64 @@ C64::latestUserSnapshot()
     return result;
 }
 
-bool
-C64::loadFromSnapshot(Snapshot *snapshot)
+void
+C64::loadSnapshot(const Snapshot &snapshot)
 {
-    assert(snapshot);
-    assert(snapshot->getData());
-    assert(!isRunning());
-    
     // Check if this snapshot is compatible with the emulator
-    if (snapshot->isTooOld() || FORCE_SNAPSHOT_TOO_OLD) {
-        msgQueue.put(MSG_SNAPSHOT_TOO_OLD);
-        return false;
+    if (snapshot.isTooOld() || FORCE_SNAPSHOT_TOO_OLD) {
+        throw VC64Error(ERROR_SNP_TOO_OLD);
     }
-    if (snapshot->isTooNew() || FORCE_SNAPSHOT_TOO_NEW) {
-        msgQueue.put(MSG_SNAPSHOT_TOO_NEW);
-        return false;
+    if (snapshot.isTooNew() || FORCE_SNAPSHOT_TOO_NEW) {
+        throw VC64Error(ERROR_SNP_TOO_NEW);
     }
     
-    // Restore the saved state
-    load(snapshot->getData());
-    
-    // Clear the keyboard matrix to avoid constantly pressed keys
-    keyboard.releaseAll();
+    suspended {
+        
+        // Restore the saved state
+        load(snapshot.getData());
+        
+        // Clear the keyboard matrix to avoid constantly pressed keys
+        keyboard.releaseAll();
+        
+        // Print some debug info if requested
+        if constexpr (SNP_DEBUG) dump();
+    }
     
     // Inform the GUI
     msgQueue.put(MSG_SNAPSHOT_RESTORED);
-    
-    if (SNP_DEBUG) dump();
-    return true;
 }
 
 u32
 C64::romCRC32(RomType type) const
 {
+    if (!hasRom(type)) return 0;
+    
     switch (type) {
             
-        case ROM_TYPE_BASIC:
-            return hasRom(ROM_TYPE_BASIC)  ? util::crc32(mem.rom + 0xA000, 0x2000) : 0;
-        case ROM_TYPE_CHAR:
-            return hasRom(ROM_TYPE_CHAR)   ? util::crc32(mem.rom + 0xD000, 0x1000) : 0;
-        case ROM_TYPE_KERNAL:
-            return hasRom(ROM_TYPE_KERNAL) ? util::crc32(mem.rom + 0xE000, 0x2000) : 0;
-        case ROM_TYPE_VC1541:
-            return hasRom(ROM_TYPE_VC1541) ? util::crc32(drive8.mem.rom, 0x4000) : 0;
+        case ROM_TYPE_BASIC:  return util::crc32(mem.rom + 0xA000, 0x2000);
+        case ROM_TYPE_CHAR:   return util::crc32(mem.rom + 0xD000, 0x1000);
+        case ROM_TYPE_KERNAL: return util::crc32(mem.rom + 0xE000, 0x2000);
+        case ROM_TYPE_VC1541: return drive8.mem.romCRC32();
+
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
 u64
 C64::romFNV64(RomType type) const
 {
+    if (!hasRom(type)) return 0;
+    
     switch (type) {
             
-        case ROM_TYPE_BASIC:
-            return hasRom(ROM_TYPE_BASIC)  ? util::fnv_1a_64(mem.rom + 0xA000, 0x2000) : 0;
-        case ROM_TYPE_CHAR:
-            return hasRom(ROM_TYPE_CHAR)   ? util::fnv_1a_64(mem.rom + 0xD000, 0x1000) : 0;
-        case ROM_TYPE_KERNAL:
-            return hasRom(ROM_TYPE_KERNAL) ? util::fnv_1a_64(mem.rom + 0xE000, 0x2000) : 0;
-        case ROM_TYPE_VC1541:
-            return hasRom(ROM_TYPE_VC1541) ? util::fnv_1a_64(drive8.mem.rom, 0x4000) : 0;
+        case ROM_TYPE_BASIC:  return util::fnv_1a_64(mem.rom + 0xA000, 0x2000);
+        case ROM_TYPE_CHAR:   return util::fnv_1a_64(mem.rom + 0xD000, 0x1000);
+        case ROM_TYPE_KERNAL: return util::fnv_1a_64(mem.rom + 0xE000, 0x2000);
+        case ROM_TYPE_VC1541: return drive8.mem.romFNV64();
+        
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
@@ -1192,46 +1182,38 @@ C64::romIdentifier(RomType type) const
     return RomFile::identifier(romFNV64(type));
 }
 
-const char *
+const string
 C64::romTitle(RomType type) const
 {
+    RomIdentifier rev = romIdentifier(type);
+    
     switch (type) {
             
         case ROM_TYPE_BASIC:
-        {
-            // Intercept if a MEGA65 Rom is installed
+
             if (hasMega65Rom(ROM_TYPE_BASIC)) return "M.E.G.A. C64 OpenROM";
-            
-            RomIdentifier rev = romIdentifier(ROM_TYPE_BASIC);
             return rev == ROM_UNKNOWN ? "Unknown Basic Rom" : RomFile::title(rev);
-        }
+
         case ROM_TYPE_CHAR:
-        {
-            // Intercept if a MEGA65 Rom is installed
+
             if (hasMega65Rom(ROM_TYPE_CHAR)) return "M.E.G.A. C64 OpenROM";
-            
-            RomIdentifier rev = romIdentifier(ROM_TYPE_CHAR);
             return rev == ROM_UNKNOWN ? "Unknown Character Rom" : RomFile::title(rev);
-        }
+
         case ROM_TYPE_KERNAL:
-        {
-            // Intercept if a MEGA65 Rom is installed
+
             if (hasMega65Rom(ROM_TYPE_KERNAL)) return "M.E.G.A. C64 OpenROM";
-            
-            RomIdentifier rev = romIdentifier(ROM_TYPE_KERNAL);
             return rev == ROM_UNKNOWN ? "Unknown Kernal Rom" : RomFile::title(rev);
-        }
+
         case ROM_TYPE_VC1541:
-        {
-            RomIdentifier rev = romIdentifier(ROM_TYPE_VC1541);
-            return rev == ROM_UNKNOWN ? "Unknown Kernal Rom" : RomFile::title(rev);
-        }
-        default: assert(false);
+
+            return rev == ROM_UNKNOWN ? "Unknown Drive Firmware" : RomFile::title(rev);
+
+        default:
+            fatalError;
     }
-    return nullptr;
 }
 
-const char *
+const string
 C64::romSubTitle(u64 fnv) const
 {
     RomIdentifier rev = RomFile::identifier(fnv);
@@ -1243,71 +1225,61 @@ C64::romSubTitle(u64 fnv) const
     return str;
 }
 
-const char *
+const string
 C64::romSubTitle(RomType type) const
 {
     switch (type) {
             
         case ROM_TYPE_BASIC:
-        {
-            // Intercept if a MEGA65 Rom is installed
+
             if (hasMega65Rom(ROM_TYPE_BASIC)) return "Free Basic Replacement";
-            
             return romSubTitle(romFNV64(ROM_TYPE_BASIC));
-        }
+
         case ROM_TYPE_CHAR:
-        {
-            // Intercept if a MEGA65 Rom is installed
+
             if (hasMega65Rom(ROM_TYPE_CHAR)) return "Free Charset Replacement";
-            
             return romSubTitle(romFNV64(ROM_TYPE_CHAR));
-        }
+
         case ROM_TYPE_KERNAL:
-        {
-            // Intercept if a MEGA65 Rom is installed
+
             if (hasMega65Rom(ROM_TYPE_KERNAL)) return "Free Kernal Replacement";
-            
             return romSubTitle(romFNV64(ROM_TYPE_KERNAL));
-        }
+
         case ROM_TYPE_VC1541:
-        {
+
             return romSubTitle(romFNV64(ROM_TYPE_VC1541));
-        }
-        default: assert(false);
+
+        default:
+            fatalError;
     }
-    return nullptr;
 }
 
-const char *
+const string
 C64::romRevision(RomType type) const
 {
     switch (type) {
              
          case ROM_TYPE_BASIC:
-         {
-             // Intercept if a MEGA65 Rom is installed
+
              if (hasMega65Rom(ROM_TYPE_BASIC)) return mega65BasicRev();
-             
              return RomFile::revision(romIdentifier(ROM_TYPE_BASIC));
-         }
+
          case ROM_TYPE_CHAR:
-         {
+
              return RomFile::revision(romIdentifier(ROM_TYPE_CHAR));
-         }
+
          case ROM_TYPE_KERNAL:
-         {
-             // Intercept if a MEGA65 Rom is installed
+
              if (hasMega65Rom(ROM_TYPE_KERNAL)) return mega65KernalRev();
-             
              return RomFile::revision(romIdentifier(ROM_TYPE_KERNAL));
-         }
+
          case ROM_TYPE_VC1541:
-         {
+
              return RomFile::revision(romIdentifier(ROM_TYPE_VC1541));
-         }
-         default: assert(false);
+
+         default:
+            fatalError;
      }
-     return nullptr;
 }
 
 bool
@@ -1316,74 +1288,75 @@ C64::hasRom(RomType type) const
     switch (type) {
             
         case ROM_TYPE_BASIC:
-        {
+
             return (mem.rom[0xA000] | mem.rom[0xA001]) != 0x00;
-        }
+
         case ROM_TYPE_CHAR:
-        {
+
             return (mem.rom[0xD000] | mem.rom[0xD001]) != 0x00;
-        }
+
         case ROM_TYPE_KERNAL:
-        {
+
             return (mem.rom[0xE000] | mem.rom[0xE001]) != 0x00;
-        }
+
         case ROM_TYPE_VC1541:
-        {
-            assert(drive8.mem.rom[0] == drive9.mem.rom[0]);
-            assert(drive8.mem.rom[1] == drive9.mem.rom[1]);
-            return (drive8.mem.rom[0] | drive8.mem.rom[1]) != 0x00;
-        }
-        default: assert(false);
+
+            assert(drive8.mem.hasRom() == drive9.mem.hasRom());
+            return drive8.mem.hasRom();
+
+        default:
+            fatalError;
     }
-    return false;
 }
 
 bool
 C64::hasMega65Rom(RomType type) const
 {
+    RomIdentifier id;
+    
     switch (type) {
             
         case ROM_TYPE_BASIC:
-        {
+
             return mem.rom[0xBF52] == 'O' && mem.rom[0xBF53] == 'R';
-        }
+
         case ROM_TYPE_CHAR:
-        {
-            auto id = romIdentifier(ROM_TYPE_CHAR);
+
+            id = romIdentifier(ROM_TYPE_CHAR);
             return id == CHAR_MEGA65 || id == CHAR_PXLFONT_V23;
-        }
+
         case ROM_TYPE_KERNAL:
-        {
+
             return mem.rom[0xE4B9] == 'O' && mem.rom[0xE4BA] == 'R';
-        }
+
         case ROM_TYPE_VC1541:
-        {
+
             return false;
-        }
-        default: assert(false);
+
+        default:
+            fatalError;
     }
-    return false;
 }
 
-char *
+const char *
 C64::mega65BasicRev() const
 {
     static char rev[17];
     rev[0] = 0;
     
-    if (hasMega65Rom(ROM_TYPE_BASIC)) memcpy(rev, &mem.rom[0xBF55], 16);
+    if (hasMega65Rom(ROM_TYPE_BASIC)) std::memcpy(rev, &mem.rom[0xBF55], 16);
     rev[16] = 0;
     
     return rev;
 }
 
-char *
+const char *
 C64::mega65KernalRev() const
 {
     static char rev[17];
     rev[0] = 0;
     
-    if (hasMega65Rom(ROM_TYPE_KERNAL)) memcpy(rev, &mem.rom[0xE4BC], 16);
+    if (hasMega65Rom(ROM_TYPE_KERNAL)) std::memcpy(rev, &mem.rom[0xE4BC], 16);
     rev[16] = 0;
     
     return rev;
@@ -1392,27 +1365,18 @@ C64::mega65KernalRev() const
 void
 C64::loadRom(const string &path)
 {
-    RomFile *file = RomFile::make <RomFile> (path.c_str());
+    RomFile file(path);
     loadRom(file);
 }
 
 void
-C64::loadRom(const string &path, ErrorCode *ec)
+C64::loadRom(const RomFile &file)
 {
-    try { loadRom(path); *ec = ERROR_OK; }
-    catch (VC64Error &exception) { *ec = exception.data; }
-}
-
-void
-C64::loadRom(RomFile *file)
-{
-    assert(file);
-    
-    switch (file->type()) {
+    switch (file.type()) {
             
         case FILETYPE_BASIC_ROM:
             
-            file->flash(mem.rom, 0xA000);
+            file.flash(mem.rom, 0xA000);
             debug(MEM_DEBUG, "Basic Rom flashed\n");
             debug(MEM_DEBUG, "hasMega65Rom() = %d\n", hasMega65Rom(ROM_TYPE_BASIC));
             debug(MEM_DEBUG, "mega65BasicRev() = %s\n", mega65BasicRev());
@@ -1420,13 +1384,13 @@ C64::loadRom(RomFile *file)
             
         case FILETYPE_CHAR_ROM:
             
-            file->flash(mem.rom, 0xD000);
+            file.flash(mem.rom, 0xD000);
             debug(MEM_DEBUG, "Character Rom flashed\n");
             break;
             
         case FILETYPE_KERNAL_ROM:
             
-            file->flash(mem.rom, 0xE000);
+            file.flash(mem.rom, 0xE000);
             debug(MEM_DEBUG, "Kernal Rom flashed\n");
             debug(MEM_DEBUG, "hasMega65Rom() = %d\n", hasMega65Rom(ROM_TYPE_KERNAL));
             debug(MEM_DEBUG, "mega65KernalRev() = %s\n", mega65KernalRev());
@@ -1434,13 +1398,13 @@ C64::loadRom(RomFile *file)
             
         case FILETYPE_VC1541_ROM:
             
-            file->flash(drive8.mem.rom);
-            file->flash(drive9.mem.rom);
+            drive8.mem.loadRom(file.data, file.size);
+            drive9.mem.loadRom(file.data, file.size);
             debug(MEM_DEBUG, "VC1541 Rom flashed\n");
             break;
             
         default:
-            assert(false);
+            fatalError;
     }
 }
 
@@ -1450,27 +1414,28 @@ C64::deleteRom(RomType type)
     switch (type) {
             
         case ROM_TYPE_BASIC:
-        {
+
             memset(mem.rom + 0xA000, 0, 0x2000);
             break;
-        }
+
         case ROM_TYPE_CHAR:
-        {
+
             memset(mem.rom + 0xD000, 0, 0x1000);
             break;
-        }
+
         case ROM_TYPE_KERNAL:
-        {
+
             memset(mem.rom + 0xE000, 0, 0x2000);
             break;
-        }
+
         case ROM_TYPE_VC1541:
-        {
-            memset(drive8.mem.rom, 0, 0x4000);
-            memset(drive9.mem.rom, 0, 0x4000);
+
+            drive8.mem.deleteRom();
+            drive9.mem.deleteRom();
             break;
-        }
-        default: assert(false);
+
+        default:
+            fatalError;
     }
 }
 
@@ -1480,142 +1445,119 @@ C64::saveRom(RomType type, const string &path)
     switch (type) {
             
         case ROM_TYPE_BASIC:
-        {
+
             if (hasRom(ROM_TYPE_BASIC)) {
-                RomFile *file = RomFile::make <RomFile> (mem.rom + 0xA000, 0x2000);
-                file->writeToFile(path);
-                delete file;
+                RomFile file(mem.rom + 0xA000, 0x2000);
+                file.writeToFile(path);
             }
             break;
-        }
+
         case ROM_TYPE_CHAR:
-        {
+
             if (hasRom(ROM_TYPE_CHAR)) {
-                RomFile *file = RomFile::make <RomFile> (mem.rom + 0xD000, 0x1000);
-                file->writeToFile(path);
-                delete file;
+                RomFile file(mem.rom + 0xD000, 0x1000);
+                file.writeToFile(path);
             }
             break;
-        }
+
         case ROM_TYPE_KERNAL:
-        {
+
             if (hasRom(ROM_TYPE_KERNAL)) {
-                RomFile *file = RomFile::make <RomFile> (mem.rom + 0xE000, 0x2000);
-                file->writeToFile(path);
-                delete file;
+                RomFile file(mem.rom + 0xE000, 0x2000);
+                file.writeToFile(path);
             }
             break;
-        }
+
         case ROM_TYPE_VC1541:
-        {
+
             if (hasRom(ROM_TYPE_VC1541)) {
-                RomFile *file = RomFile::make <RomFile> (drive8.mem.rom, 0x4000);
-                file->writeToFile(path);
-                delete file;
+                drive8.mem.saveRom(path);
             }
             break;
-        }
             
         default:
-            assert(false);
+            fatalError;
     }
 }
 
 void
-C64::saveRom(RomType type, const string &path, ErrorCode *ec)
+C64::flash(const AnyFile &file)
 {
-    try { saveRom(type, path); *ec = ERROR_OK; }
-    catch (VC64Error &exception) { *ec = exception.data; }
+    suspended {
+        
+        switch (file.type()) {
+                
+            case FILETYPE_BASIC_ROM:
+                file.flash(mem.rom, 0xA000);
+                break;
+                
+            case FILETYPE_CHAR_ROM:
+                file.flash(mem.rom, 0xD000);
+                break;
+                
+            case FILETYPE_KERNAL_ROM:
+                file.flash(mem.rom, 0xE000);
+                break;
+                
+            case FILETYPE_VC1541_ROM:
+                drive8.mem.loadRom(dynamic_cast<const RomFile &>(file));
+                drive9.mem.loadRom(dynamic_cast<const RomFile &>(file));
+                break;
+
+            case FILETYPE_SNAPSHOT:
+                loadSnapshot(dynamic_cast<const Snapshot &>(file));
+                break;
+                
+            default:
+                fatalError;
+        }
+    }
 }
 
-bool
-C64::flash(AnyFile *file)
+void
+C64::flash(const AnyCollection &file, isize nr)
 {
-    assert(file);
+    u16 addr = (u16)file.itemLoadAddr(nr);
+    u64 size = (u64)file.itemSize(nr);
+    if (size <= 2) return;
     
-    bool result = true;
-    
-    suspend();
-    switch (file->type()) {
-            
-        case FILETYPE_BASIC_ROM:
-            file->flash(mem.rom, 0xA000);
-            break;
-            
-        case FILETYPE_CHAR_ROM:
-            file->flash(mem.rom, 0xD000);
-            break;
-            
-        case FILETYPE_KERNAL_ROM:
-            file->flash(mem.rom, 0xE000);
-            break;
-            
-        case FILETYPE_VC1541_ROM:
-            file->flash(drive8.mem.rom);
-            file->flash(drive9.mem.rom);
-            break;
-            
-        case FILETYPE_V64:
-            result = loadFromSnapshot((Snapshot *)file);
-            break;
-            
-        default:
-            assert(false);
-            result = false;
+    suspended {
+        
+        switch (file.type()) {
+                
+            case FILETYPE_D64:
+            case FILETYPE_T64:
+            case FILETYPE_P00:
+            case FILETYPE_PRG:
+            case FILETYPE_FOLDER:
+                
+                size = std::min(size - 2, (u64)(0x10000 - addr));
+                file.copyItem(nr, mem.ram + addr, size, 2);
+                break;
+                
+            default:
+                fatalError;
+        }
     }
-    resume();
-    return result;
-}
-
-bool
-C64::flash(AnyCollection *file, isize nr)
-{
-    bool result = true;
-    
-    u16 addr = (u16)file->itemLoadAddr(nr);
-    u64 size = (u64)file->itemSize(nr);
-    if (size <= 2) return false;
-    
-    suspend();
-    
-    switch (file->type()) {
-            
-        case FILETYPE_D64:
-        case FILETYPE_T64:
-        case FILETYPE_P00:
-        case FILETYPE_PRG:
-        case FILETYPE_FOLDER:
-            
-            size = std::min(size - 2, (u64)(0x10000 - addr));
-            file->copyItem(nr, mem.ram + addr, size, 2);
-            break;
-            
-        default:
-            assert(false);
-            result = false;
-    }
-    resume();
     
     msgQueue.put(MSG_FILE_FLASHED);
-    return result;
 }
 
-bool
+void
 C64::flash(const FSDevice &fs, isize nr)
 {
-    bool result = true;
-    
     u16 addr = fs.loadAddr(nr);
     u64 size = fs.fileSize(nr);
-    if (size <= 2) return false;
     
-    suspend();
-                
-    size = std::min(size - 2, (u64)(0x10000 - addr));
-    fs.copyFile(nr, mem.ram + addr, size, 2);
-
-    resume();
+    if (size <= 2) {
+        return;
+    }
+    
+    suspended {
+        
+        size = std::min(size - 2, (u64)(0x10000 - addr));
+        fs.copyFile(nr, mem.ram + addr, size, 2);
+    }
     
     msgQueue.put(MSG_FILE_FLASHED);
-    return result;
 }

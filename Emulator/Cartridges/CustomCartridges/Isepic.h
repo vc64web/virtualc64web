@@ -14,7 +14,7 @@
 class Isepic : public Cartridge {
     
     // Selected page inside the selected RAM bank
-    u8 page;
+    isize page;
 
     // Original mapping of the uppermost memory page
     MemoryType oldPeekSource;
@@ -59,9 +59,9 @@ private:
         << page;
     }
     
-    usize __size() { COMPUTE_SNAPSHOT_SIZE }
-    usize __load(const u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
-    usize __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
+    isize __size() { COMPUTE_SNAPSHOT_SIZE }
+    isize __load(const u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
+    isize __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
     
     isize _size() override { return Cartridge::_size() + __size(); }
     isize _load(const u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
@@ -87,8 +87,8 @@ private:
     //
     
     bool hasSwitch() const override { return true; }
-    const char *getSwitchDescription(i8 pos) const override;
-    void setSwitch(i8 pos) override;
+    const string getSwitchDescription(isize pos) const override;
+    void setSwitch(isize pos) override;
     bool switchInOffPosition() const { return switchIsLeft(); }
     bool switchInOnPosition() const { return switchIsRight(); }
     

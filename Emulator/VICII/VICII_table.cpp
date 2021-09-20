@@ -12,9 +12,7 @@
 
 void
 VICII::updateVicFunctionTable()
-{
-    // bool headless = false;
-    
+{    
     trace(VIC_DEBUG, "updateVicFunctionTable (dmaDebug: %d)\n", dmaDebug());
     
     vicfunc[0] = nullptr;
@@ -22,7 +20,7 @@ VICII::updateVicFunctionTable()
     vicfunc[65] = nullptr;
 
     // Assign model specific execution functions
-    switch (getRevision()) {
+    switch (config.revision) {
             
         case VICII_PAL_6569_R1:
         case VICII_PAL_6569_R3:
@@ -73,7 +71,7 @@ VICII::updateVicFunctionTable()
             break;
             
         default:
-            assert(false);
+            fatalError;
     }
 }
 

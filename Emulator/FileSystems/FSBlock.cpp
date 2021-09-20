@@ -30,7 +30,7 @@ FSBlock::type() const
 }
 
 void
-FSBlock::writeBAM(const char *name)
+FSBlock::writeBAM(const string &name)
 {
     auto petName = PETName<16>(name);
     writeBAM(petName);
@@ -53,7 +53,7 @@ FSBlock::writeBAM(PETName<16> &name)
     data[0x03] = 0x00;
     
     // BAM entries for each track (in groups of four bytes)
-    for (unsigned k = 1; k <= 35; k++) {
+    for (Track k = 1; k <= 35; k++) {
 
         u8 *p = data + 4 * k;
 
@@ -66,7 +66,7 @@ FSBlock::writeBAM(PETName<16> &name)
             
         } else {
             
-            p[0] = device.layout.numSectors(k);
+            p[0] = (u8)device.layout.numSectors(k);
             p[1] = 0xFF;
             p[2] = 0xFF;
             p[3] = p[0] == 21 ? 0x1F : p[0] == 19 ? 0x07 : p[0] == 18 ? 0x03 : 0x01;
@@ -158,7 +158,7 @@ FSBlock::itemType(u32 byte) const
             return FS_USAGE_DATA;
             
         default:
-            assert(false);
+            fatalError;
     }
     
     return FS_USAGE_UNKNOWN;
@@ -221,16 +221,16 @@ FSBlock::check(u32 byte, u8 *expected, bool strict) const
             return ERROR_OK;
             
         default:
-            assert(false);
+            fatalError;
     }
     
     return ERROR_OK;
 }
 
-unsigned
+isize
 FSBlock::check(bool strict) const
 {
-    unsigned count = 0;
+    isize count = 0;
     u8 expected;
     
     for (u32 i = 0; i < 256; i++) {
@@ -238,7 +238,7 @@ FSBlock::check(bool strict) const
         ErrorCode err = check(i, &expected, strict);
         if (err != ERROR_OK) {
             count++;
-            debug(FS_DEBUG, "Block %d [%d.%d]: %s\n",
+            debug(FS_DEBUG, "Block %zd [%d.%d]: %s\n",
                   nr, i / 4, i % 4, ErrorCodeEnum::key(err));
         }
     }

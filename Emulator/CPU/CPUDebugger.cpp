@@ -177,7 +177,7 @@ Breakpoints::setNeedsCheck(bool value)
 void
 Watchpoints::setNeedsCheck(bool value)
 {
-    cpu.c64.mem.checkWatchpoints = value;
+    cpu.mem.checkWatchpoints = value;
 }
 
 //
@@ -229,16 +229,22 @@ CPUDebugger::breakpointMatches(u32 addr)
         return true;
     }
 
-    return breakpoints.eval(addr);
+    if (!breakpoints.eval(addr)) return false;
+        
+    breakpointPC = cpu.reg.pc;
+    return true;
 }
 
 bool
 CPUDebugger::watchpointMatches(u32 addr)
 {
-    return watchpoints.eval(addr);
+    if (!watchpoints.eval(addr)) return false;
+    
+    watchpointPC = cpu.reg.pc0;
+    return true;
 }
 
-usize
+isize
 CPUDebugger::loggedInstructions() const
 {
     return logCnt < LOG_BUFFER_CAPACITY ? logCnt : LOG_BUFFER_CAPACITY;
@@ -249,9 +255,9 @@ CPUDebugger::logInstruction()
 {
     u16 pc = cpu.getPC0();
     u8 opcode = cpu.mem.spypeek(pc);
-    usize length = getLengthOfInstruction(opcode);
+    isize length = getLengthOfInstruction(opcode);
 
-    usize i = logCnt++ % LOG_BUFFER_CAPACITY;
+    isize i = logCnt++ % LOG_BUFFER_CAPACITY;
     
     logBuffer[i].cycle = cpu.cycle;
     logBuffer[i].pc = pc;
@@ -266,34 +272,34 @@ CPUDebugger::logInstruction()
 }
 
 const RecordedInstruction &
-CPUDebugger::logEntryRel(usize n) const
+CPUDebugger::logEntryRel(isize n) const
 {
     assert(n < loggedInstructions());
     return logBuffer[(logCnt - 1 - n) % LOG_BUFFER_CAPACITY];
 }
 
 const RecordedInstruction &
-CPUDebugger::logEntryAbs(usize n) const
+CPUDebugger::logEntryAbs(isize n) const
 {
     assert(n < loggedInstructions());
     return logEntryRel(loggedInstructions() - n - 1);
 }
 
 u16
-CPUDebugger::loggedPC0Rel(usize n) const
+CPUDebugger::loggedPC0Rel(isize n) const
 {
     assert(n < loggedInstructions());
     return logBuffer[(logCnt - 1 - n) % LOG_BUFFER_CAPACITY].pc;
 }
 
 u16
-CPUDebugger::loggedPC0Abs(usize n) const
+CPUDebugger::loggedPC0Abs(isize n) const
 {
     assert(n < loggedInstructions());
     return loggedPC0Rel(loggedInstructions() - n - 1);
 }
 
-usize
+isize
 CPUDebugger::getLengthOfInstruction(u8 opcode) const
 {
     switch(addressingMode[opcode]) {
@@ -318,13 +324,13 @@ CPUDebugger::getLengthOfInstruction(u8 opcode) const
     return 1;
 }
 
-usize
+isize
 CPUDebugger::getLengthOfInstructionAtAddress(u16 addr) const
 {
     return getLengthOfInstruction(cpu.mem.spypeek(addr));
 }
 
-usize
+isize
 CPUDebugger::getLengthOfCurrentInstruction() const
 {
     return getLengthOfInstructionAtAddress(cpu.getPC0());
@@ -333,7 +339,7 @@ CPUDebugger::getLengthOfCurrentInstruction() const
 u16
 CPUDebugger::getAddressOfNextInstruction() const
 {
-    return cpu.getPC0() + getLengthOfCurrentInstruction();
+    return (u16)(cpu.getPC0() + getLengthOfCurrentInstruction());
 }
 
 const char *
@@ -415,6 +421,16 @@ CPUDebugger::disassemblePC() const
 const char *
 CPUDebugger::disassembleInstr(const RecordedInstruction &instr, long *len) const
 {
+    if (hex) {
+        return disassembleInstr<true>(instr, len);
+    } else {
+        return disassembleInstr<false>(instr, len);
+    }
+}
+
+template <bool hex> const char *
+CPUDebugger::disassembleInstr(const RecordedInstruction &instr, long *len) const
+{
     static char result[16];
         
     u8 opcode = instr.byte1;
@@ -429,7 +445,8 @@ CPUDebugger::disassembleInstr(const RecordedInstruction &instr, long *len) const
         case ADDR_ZERO_PAGE_X:
         case ADDR_ZERO_PAGE_Y:
         case ADDR_INDIRECT_X:
-        case ADDR_INDIRECT_Y: {
+        case ADDR_INDIRECT_Y:
+        {
             u8 value = instr.byte2;
             hex ? sprint8x(operand, value) : sprint8d(operand, value);
             break;
@@ -438,12 +455,14 @@ CPUDebugger::disassembleInstr(const RecordedInstruction &instr, long *len) const
         case ADDR_INDIRECT:
         case ADDR_ABSOLUTE:
         case ADDR_ABSOLUTE_X:
-        case ADDR_ABSOLUTE_Y: {
+        case ADDR_ABSOLUTE_Y:
+        {
             u16 value = LO_HI(instr.byte2, instr.byte3);
             hex ? sprint16x(operand, value) : sprint16d(operand, value);
             break;
         }
-        case ADDR_RELATIVE: {
+        case ADDR_RELATIVE:
+        {
             u16 value = instr.pc + 2 + (i8)instr.byte2;
             hex ? sprint16x(operand, value) : sprint16d(operand, value);
             break;
@@ -456,59 +475,85 @@ CPUDebugger::disassembleInstr(const RecordedInstruction &instr, long *len) const
             
         case ADDR_IMPLIED:
         case ADDR_ACCUMULATOR:
-            strcpy(result, "xxx");
+            
+            std::strcpy(result, "xxx");
             break;
+            
         case ADDR_IMMEDIATE:
-            strcpy(result, hex ? "xxx #hh" : "xxx #ddd");
-            memcpy(&result[5], operand, hex ? 2 : 3);
+            
+            std::strcpy(result, hex ? "xxx #hh" : "xxx #ddd");
+            std::memcpy(&result[5], operand, hex ? 2 : 3);
             break;
+            
         case ADDR_ZERO_PAGE:
-            strcpy(result, hex ? "xxx hh" : "xxx ddd");
-            memcpy(&result[4], operand, hex ? 2 : 3);
+            
+            std::strcpy(result, hex ? "xxx hh" : "xxx ddd");
+            std::memcpy(&result[4], operand, hex ? 2 : 3);
             break;
+            
         case ADDR_ZERO_PAGE_X:
-            strcpy(result, hex ? "xxx hh,X" : "xxx ddd,X");
-            memcpy(&result[4], operand, hex ? 2 : 3);
+            
+            std::strcpy(result, hex ? "xxx hh,X" : "xxx ddd,X");
+            std::memcpy(&result[4], operand, hex ? 2 : 3);
             break;
+            
         case ADDR_ZERO_PAGE_Y:
-            strcpy(result, hex ? "xxx hh,Y" : "xxx ddd,Y");
-            memcpy(&result[4], operand, hex ? 2 : 3);
+            
+            std::strcpy(result, hex ? "xxx hh,Y" : "xxx ddd,Y");
+            std::memcpy(&result[4], operand, hex ? 2 : 3);
             break;
+            
         case ADDR_ABSOLUTE:
         case ADDR_DIRECT:
-            strcpy(result, hex ? "xxx hhhh" : "xxx ddddd");
-            memcpy(&result[4], operand, hex ? 4 : 5);
+            
+            std::strcpy(result, hex ? "xxx hhhh" : "xxx ddddd");
+            std::memcpy(&result[4], operand, hex ? 4 : 5);
             break;
+            
         case ADDR_ABSOLUTE_X:
-            strcpy(result, hex ? "xxx hhhh,X" : "xxx ddddd,X");
-            memcpy(&result[4], operand, hex ? 4 : 5);
+            
+            std::strcpy(result, hex ? "xxx hhhh,X" : "xxx ddddd,X");
+            std::memcpy(&result[4], operand, hex ? 4 : 5);
             break;
+            
         case ADDR_ABSOLUTE_Y:
-            strcpy(result, hex ? "xxx hhhh,Y" : "xxx ddddd,Y");
-            memcpy(&result[4], operand, hex ? 4 : 5);
+            
+            std::strcpy(result, hex ? "xxx hhhh,Y" : "xxx ddddd,Y");
+            std::memcpy(&result[4], operand, hex ? 4 : 5);
             break;
+            
         case ADDR_INDIRECT:
-            strcpy(result, hex ? "xxx (hhhh)" : "xxx (ddddd)");
-            memcpy(&result[5], operand, hex ? 4 : 5);
+            
+            std::strcpy(result, hex ? "xxx (hhhh)" : "xxx (ddddd)");
+            std::memcpy(&result[5], operand, hex ? 4 : 5);
             break;
+            
         case ADDR_INDIRECT_X:
-            strcpy(result, hex ? "xxx (hh,X)" : "xxx (ddd,X)");
-            memcpy(&result[5], operand, hex ? 2 : 3);
+            
+            std::strcpy(result, hex ? "xxx (hh,X)" : "xxx (ddd,X)");
+            std::memcpy(&result[5], operand, hex ? 2 : 3);
             break;
+            
         case ADDR_INDIRECT_Y:
-            strcpy(result, hex ? "xxx (hh),Y" : "xxx (ddd),Y");
-            memcpy(&result[5], operand, hex ? 2 : 3);
+            
+            std::strcpy(result, hex ? "xxx (hh),Y" : "xxx (ddd),Y");
+            std::memcpy(&result[5], operand, hex ? 2 : 3);
             break;
+            
         case ADDR_RELATIVE:
-            strcpy(result, hex ? "xxx hhhh" : "xxx ddddd");
-            memcpy(&result[4], operand, hex ? 4 : 5);
+            
+            std::strcpy(result, hex ? "xxx hhhh" : "xxx ddddd");
+            std::memcpy(&result[4], operand, hex ? 4 : 5);
             break;
+            
         default:
-            strcpy(result, "???");
+            
+            std::strcpy(result, "???");
     }
     
     // Copy mnemonic
     strncpy(result, mnemonic[opcode], 3);
+    
     return result;
 }
 
@@ -517,13 +562,16 @@ CPUDebugger::disassembleBytes(const RecordedInstruction &instr) const
 {
     static char result[13]; char *ptr = result;
     
-    usize len = getLengthOfInstruction(instr.byte1);
+    isize len = getLengthOfInstruction(instr.byte1);
     
     if (hex) {
+        
         if (len >= 1) { sprint8x(ptr, instr.byte1); ptr[2] = ' '; ptr += 3; }
         if (len >= 2) { sprint8x(ptr, instr.byte2); ptr[2] = ' '; ptr += 3; }
         if (len >= 3) { sprint8x(ptr, instr.byte3); ptr[2] = ' '; ptr += 3; }
+        
     } else {
+        
         if (len >= 1) { sprint8d(ptr, instr.byte1); ptr[3] = ' '; ptr += 4; }
         if (len >= 2) { sprint8d(ptr, instr.byte2); ptr[3] = ' '; ptr += 4; }
         if (len >= 3) { sprint8d(ptr, instr.byte3); ptr[3] = ' '; ptr += 4; }

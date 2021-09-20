@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "C64Component.h"
+#include "SubComponent.h"
 
 /* The MOS 6510 CPU contains a processor port register and a data direction
  * register. The latter indicates if a port pin is configured as input or
@@ -18,7 +18,7 @@
  * certain memory regions. Secondly, it is used to communicate with the
  * datasette.
  */
-class ProcessorPort : public C64Component {
+class ProcessorPort : public SubComponent {
    
     // The processor port register
     u8 port;
@@ -51,29 +51,27 @@ class ProcessorPort : public C64Component {
     
 public:
     
-    ProcessorPort(C64 &ref) : C64Component(ref) { }
+    ProcessorPort(C64 &ref) : SubComponent(ref) { }
+    
+    
+    //
+    // Methods from C64Object
+    //
+
+private:
+    
     const char *getDescription() const override { return "ProcessorPort"; }
+    void _dump(dump::Category category, std::ostream& os) const override;
+
+    
+    //
+    // Methods from C64Component
+    //
 
 private:
     
     void _reset(bool hard) override;
 
-    
-    //
-    // Analyzing
-    //
-    
-private:
-    
-    void _dump(dump::Category category, std::ostream& os) const override;
-
-    
-    //
-    // Serializing
-    //
-    
-private:
-    
     template <class T>
     void applyToPersistentItems(T& worker)
     {

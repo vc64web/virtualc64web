@@ -1,31 +1,13 @@
 SUBDIRS = \
-Base Cartridges CIA CPU Datasette Drive FileSystems Files LogicBoard Memory  \
+Utilities Base Cartridges CIA CPU FileSystems LogicBoard Media Memory \
 Peripherals RetroShell SID VICII
 
-MYCC = g++ -O2 -std=c++17 -Wfatal-errors -Wall
-MYFLAGS = \
--I $(CURDIR)/.. \
--I $(CURDIR)/../Utilities \
--I $(CURDIR) \
--I $(CURDIR)/Base \
--I $(CURDIR)/Cartridges \
--I $(CURDIR)/Cartridges/CustomCartridges \
--I $(CURDIR)/CIA \
--I $(CURDIR)/CPU \
--I $(CURDIR)/Datasette \
--I $(CURDIR)/Drive \
--I $(CURDIR)/FileSystems \
--I $(CURDIR)/Files \
--I $(CURDIR)/LogicBoard \
--I $(CURDIR)/Memory \
--I $(CURDIR)/Peripherals \
--I $(CURDIR)/RetroShell \
--I $(CURDIR)/SID \
--I $(CURDIR)/SID/resid \
--I $(CURDIR)/SID/fastsid \
--I $(CURDIR)/VICII
+CXX        = emcc 
+CC         = $(CXX)
+CCFLAGS    = -std=c++17 -O2 -Wall -Wfatal-errors -fexceptions
+CPPFLAGS   = -I $(CURDIR)/.. $(addprefix -I, $(shell find $(CURDIR) -type d))
 
-export MYCC MYFLAGS
+export CC CCFLAGS CPPFLAGS
 
 SRC=$(wildcard *.cpp)
 OBJ=$(SRC:.cpp=.o)
@@ -57,4 +39,4 @@ bin:
 
 %.o: %.cpp $(DEPS)
 	@echo "Compiling $<"
-	@$(MYCC) $(MYFLAGS) -c -o $@ $<
+	@$(CC) $(CCFLAGS) $(CPPFLAGS) -c -o $@ $<

@@ -11,14 +11,8 @@
 #include "Recorder.h"
 #include "IO.h"
 #include "MsgQueue.h"
-#include "SIDBridge.h"
+#include "Muxer.h"
 #include "VICII.h"
-
-/*
-Recorder::Recorder(C64& ref) : C64Component(ref)
-{
-}
-*/
 
 bool
 Recorder::hasFFmpeg() const
@@ -82,7 +76,7 @@ Recorder::startRecording(int x1, int y1, int x2, int y2,
 
         // Set the bit rate, frame rate, and sample rate
         this->bitRate = bitRate;
-        frameRate = vic.isPAL() ? 50 : 60;
+        frameRate = vic.pal() ? 50 : 60;
         sampleRate = 44100;
         
         // Create pipes
@@ -268,6 +262,7 @@ Recorder::vsyncHandler()
             case State::prepare: prepare(); break;
             case State::record: record(); break;
             case State::finalize: finalize(); break;
+            case State::abort: abort(); break;
         }
     }
 }
@@ -292,23 +287,23 @@ Recorder::prepare()
      * apply a scaling factor that never makes SID produce less than the
      * required amout which would result in a buffer underflow.
      */
-    if (vic.isPAL()) {
-        sid.setSampleRate(sampleRate * 50.125 / 50.0);
+    if (vic.pal()) {
+        muxer.setSampleRate(sampleRate * 50.125 / 50.0);
         samplesPerFrame = 882;
     } else {
-        sid.setSampleRate(sampleRate * 59.827 / 60.0);
+        muxer.setSampleRate(sampleRate * 59.827 / 60.0);
         samplesPerFrame = 735;
     }
     
     // Start with a nearly empty buffer
-    sid.stream.lock();
-    while (sid.stream.count() > 1) sid.stream.read();
-    sid.stream.unlock();
+    muxer.stream.lock();
+    while (muxer.stream.count() > 1) muxer.stream.read();
+    muxer.stream.unlock();
 
     // Switch state and inform the GUI
     state = State::record;
     recStart = util::Time::now();
-    messageQueue.put(MSG_RECORDING_STARTED);
+    msgQueue.put(MSG_RECORDING_STARTED);
 }
 
 void
@@ -337,31 +332,41 @@ Recorder::recordVideo()
     u8 *dst = data;
     
     for (isize y = 0; y < height; y++, src += 4 * TEX_WIDTH, dst += width) {
-        memcpy(dst, src, width);
+        std::memcpy(dst, src, width);
     }
     
     // Feed the video pipe
-    (void)write(videoPipe, data, width * height);
+    isize written = write(videoPipe, data, width * height);
+    
+    if (written != width * height || FORCE_RECORDING_ERROR) {
+        state = State::abort;
+    }
 }
 
 void
 Recorder::recordAudio()
 {
-    if (sid.stream.count() != samplesPerFrame) {
+    if (muxer.stream.count() != samplesPerFrame) {
         
-        trace(REC_DEBUG, "Samples: %zd\n", sid.stream.count());
-        assert(sid.stream.count() >= samplesPerFrame);
+        trace(REC_DEBUG, "Samples: %zd\n", muxer.stream.count());
+        assert(muxer.stream.count() >= samplesPerFrame);
     }
     
     for (isize i = 0; i < samplesPerFrame; i++) {
     
+        isize written = 0;
+        
         // Feed the audio pipe
-        SamplePair pair = sid.stream.read();
-        (void)write(audioPipe, &pair.left, sizeof(float));
-        (void)write(audioPipe, &pair.right, sizeof(float));
+        SamplePair pair = muxer.stream.read();
+        written += write(audioPipe, &pair.left, sizeof(float));
+        written += write(audioPipe, &pair.right, sizeof(float));
+        
+        if (written != 2 * sizeof(float) || FORCE_RECORDING_ERROR) {
+            state = State::abort;
+        }
     }
     
-    sid.stream.clear();
+    muxer.stream.clear();
 }
 
 void
@@ -384,5 +389,12 @@ Recorder::finalize()
     // Switch state and inform the GUI
     state = State::wait;
     recStop = util::Time::now();
-    messageQueue.put(MSG_RECORDING_STOPPED);
+    msgQueue.put(MSG_RECORDING_STOPPED);
+}
+
+void
+Recorder::abort()
+{
+    finalize();
+    msgQueue.put(MSG_RECORDING_ABORTED);
 }

@@ -1244,6 +1244,9 @@ function InitWrappers() {
     wasm_export_disk = Module.cwrap('wasm_export_disk', 'string');
     wasm_configure = Module.cwrap('wasm_configure', 'undefined', ['string', 'number']);
     wasm_write_string_to_ser = Module.cwrap('wasm_write_string_to_ser', 'undefined', ['string']);
+    wasm_print_error = Module.cwrap('wasm_print_error', 'undefined', ['number']);
+
+
 
     get_audio_context=function() {
         if (typeof Module === 'undefined'

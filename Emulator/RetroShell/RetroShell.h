@@ -9,13 +9,13 @@
 
 #pragma once
 
-#include "C64Component.h"
+#include "SubComponent.h"
 #include "Interpreter.h"
 #include "IO.h"
 #include <sstream>
 #include <iostream>
 
-class RetroShell : public C64Component {
+class RetroShell : public SubComponent {
 
     // Interpreter for commands typed into the console window
     Interpreter interpreter;
@@ -32,7 +32,7 @@ class RetroShell : public C64Component {
     std::vector<string> input;
 
     // Input prompt
-    string prompt = "vc64\% ";
+    string prompt = "vc64% ";
     
     // The current cursor position
     isize cpos = 0;
@@ -173,7 +173,6 @@ public:
     
     // Prints a textual description of an error in the console
     void describe(const std::exception &exception);
-    // void describe(const struct VC64Error &error);
 
     
     //
@@ -193,7 +192,7 @@ public:
 
 private:
     
-    void dump(HardwareComponent &component, dump::Category category);
+    void dump(C64Component &component, dump::Category category);
     
     
     //

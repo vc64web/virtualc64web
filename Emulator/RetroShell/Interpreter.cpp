@@ -12,14 +12,10 @@
 #include "RetroShell.h"
 #include <sstream>
 
-Interpreter::Interpreter(C64 &ref) : C64Component(ref)
-{
-    registerInstructions();
-};
-
 Arguments
 Interpreter::split(const string& userInput)
 {
+    isize userInputSize = (isize)userInput.size();
     std::stringstream ss(userInput);
     Arguments result;
 
@@ -27,7 +23,7 @@ Interpreter::split(const string& userInput)
     bool str = false; // String mode
     bool esc = false; // Escape mode
     
-    for (usize i = 0; i < userInput.size(); i++) {
+    for (isize i = 0; i < userInputSize; i++) {
 
         char c = userInput[i];
         
@@ -51,28 +47,9 @@ Interpreter::split(const string& userInput)
     }
     if (!token.empty()) result.push_back(token);
     
-    /*
-    printf("Tokens:\n");
-    for (auto &it : result) {
-        printf("%s\n", it.c_str());
-    }
-    */
     return result;
 }
     
-void
-Interpreter::autoComplete(Arguments &argv)
-{
-    Command *current = &root;
-    string prefix, token;
-
-    for (auto it = argv.begin(); current && it != argv.end(); it++) {
-        
-        *it = current->autoComplete(*it);
-        current = current->seek(*it);
-    }
-}
-
 string
 Interpreter::autoComplete(const string& userInput)
 {
@@ -94,11 +71,27 @@ Interpreter::autoComplete(const string& userInput)
 }
 
 void
+Interpreter::autoComplete(Arguments &argv)
+{
+    Command *current = &root;
+    string prefix, token;
+
+    for (auto it = argv.begin(); current && it != argv.end(); it++) {
+        
+        *it = current->autoComplete(*it);
+        current = current->seek(*it);
+    }
+}
+
+void
 Interpreter::exec(const string& userInput, bool verbose)
 {
     // Split the command string
     Arguments tokens = split(userInput);
         
+    // Remove the 'try' keyword
+    if (tokens.front() == "try") tokens.erase(tokens.begin());
+
     // Auto complete the token list
     autoComplete(tokens);
             
@@ -107,12 +100,9 @@ Interpreter::exec(const string& userInput, bool verbose)
 }
 
 void
-Interpreter::exec(Arguments &argv, bool verbose)
+Interpreter::exec(const Arguments &argv, bool verbose)
 {
-/*    
-    Command *current = &root;
-    string token;
-
+/*
     // In 'verbose' mode, print the token list
     if (verbose) {
         for (const auto &it : argv) retroShell << it << ' ';
@@ -123,48 +113,41 @@ Interpreter::exec(Arguments &argv, bool verbose)
     if (argv.empty()) return;
     
     // Seek the command in the command tree
-    while (current) {
+    Command *current = &root, *next;
+    Arguments args = argv;
+
+    while (!args.empty() && ((next = current->seek(args.front())))) {
         
-        // Extract token
-        token = argv.empty() ? "" : argv.front();
-        
-        // Break the loop if this token is unknown
-        Command *next = current->seek(token);
-        if (next == nullptr) break;
-        
-        // Move one level down
-        current = next;
-        if (!argv.empty()) argv.pop_front();
+        current = current->seek(args.front());
+        args.erase(args.begin());
     }
-        
+                
     // Error out if no command handler is present
-    if (current->action == nullptr && !argv.empty()) {
-        throw util::ParseError(token);
+    if (current->action == nullptr && !args.empty()) {
+        throw util::ParseError(args.front());
     }
-    if (current->action == nullptr && argv.empty()) {
+    if (current->action == nullptr && args.empty()) {
         throw TooFewArgumentsError(current->tokens());
     }
     
     // Check the argument count
-    if ((isize)argv.size() < current->numArgs) throw TooFewArgumentsError(current->tokens());
-    if ((isize)argv.size() > current->numArgs) throw TooManyArgumentsError(current->tokens());
+    if ((isize)args.size() < current->numArgs) throw TooFewArgumentsError(current->tokens());
+    if ((isize)args.size() > current->numArgs) throw TooManyArgumentsError(current->tokens());
     
     // Call the command handler
-    (retroShell.*(current->action))(argv, current->param);
+    (retroShell.*(current->action))(args, current->param);
 */
 }
 
 void
-Interpreter::usage(Command& current)
+Interpreter::usage(const Command& current)
 {
 //    retroShell << "Usage: " << current.usage() << '\n' << '\n';
 }
 
 void
 Interpreter::help(const string& userInput)
-{
-    printf("help(%s)\n", userInput.c_str());
-    
+{    
     // Split the command string
     Arguments tokens = split(userInput);
         
@@ -176,33 +159,23 @@ Interpreter::help(const string& userInput)
 }
 
 void
-Interpreter::help(Arguments &argv)
+Interpreter::help(const Arguments &argv)
 {
     Command *current = &root;
     string prefix, token;
     
-//    retroShell << '\n';
-    
-    while (1) {
-                
-        // Extract token
-        token = argv.empty() ? "" : argv.front();
-        
-        // Check if this token matches a known command
-        Command *next = current->seek(token);
-        if (next == nullptr) break;
-        
-        prefix += next->token + " ";
-        current = next;
-        if (!argv.empty()) argv.pop_front();
+    for (auto &it : argv) {
+        if (current->seek(it) != nullptr) current = current->seek(it);
     }
-
+    
     help(*current);
 }
 
 void
-Interpreter::help(Command& current)
+Interpreter::help(const Command& current)
 {
+//    retroShell << '\n';
+ /*   
     // Print the usage string
     usage(current);
     
@@ -210,19 +183,18 @@ Interpreter::help(Command& current)
     auto types = current.types();
 
     // Determine tabular positions to align the output
-    int tab = 0;
-    // for (auto &it : types) tab = std::max(tab, (int)it.length());
+    isize tab = 0;
     for (auto &it : current.args) {
-        tab = std::max(tab, (int)it.token.length());
-        tab = std::max(tab, 2 + (int)it.type.length());
+        tab = std::max(tab, (isize)it.token.length());
+        tab = std::max(tab, 2 + (isize)it.type.length());
     }
     tab += 5;
-    
+
     for (auto &it : types) {
         
         auto opts = current.filterType(it);
-        int size = (int)it.length();
-/*
+        isize size = (isize)it.length();
+
         retroShell.tab(tab - size);
         retroShell << "<" << it << "> : ";
         retroShell << (int)opts.size() << (opts.size() == 1 ? " choice" : " choices");
@@ -231,13 +203,13 @@ Interpreter::help(Command& current)
         for (auto &opt : opts) {
 
             string name = opt->token == "" ? "<>" : opt->token;
-            retroShell.tab(tab + 2 - (int)name.length());
+            retroShell.tab(tab + 2 - (isize)name.length());
             retroShell << name;
             retroShell << " : ";
             retroShell << opt->info;
             retroShell << '\n';
         }
         retroShell << '\n';
-*/
     }
+    */
 }

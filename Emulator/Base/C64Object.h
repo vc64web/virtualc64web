@@ -11,10 +11,54 @@
 
 #include "Error.h"
 
-/* Base class for all C64 objects. This class contains a textual description
- * of the object and offers various functions for printing debug messages and
- * warnings.
+/* Object model:
+ *
+ * ------------------
+ * |   C64Object    |
+ * ------------------
+ *         |
+ * ------------------
+ * |  C64Component  |
+ * ------------------
+ *         |
+ *         |   ------------------   ---------------------   ----------------
+ *         |-->|     Thread     |-->| SuspendableThread |-->|     C64      |
+ *         |   ------------------   ---------------------   ----------------
+ *         |   ------------------
+ *         |-->|  SubComponent  |
+ *             ------------------
+ *
+ * C64Object is the base class for all C64 related classes. It provides a
+ * a textual description for the object as well as various functions for
+ * printing debug information.
+ *
+ * C64Component defines the base functionality of all hardware components. It
+ * comprises functions for initializing, configuring, and serializing the
+ * object, as well as functions for powering up and down, running and
+ * pausing. Furthermore, a 'synchronized' macro is provided to prevent mutual
+ * execution of certain code components.
+ *
+ * Thread adds the ability to run the component asynchroneously. It implements
+ * the emulator's state model (off, paused, running). SuspendableThread extends
+ * the Thread class with the suspend/resume mechanism which can be utilized to
+ * pause the emulator temporarily.
  */
+
+namespace dump {
+enum Category : usize {
+    
+    Config    = 0b000000001,
+    State     = 0b000000010,
+    Registers = 0b000000100,
+    Events    = 0b000001000,
+    Checksums = 0b000010000,
+    Dma       = 0b000100000,
+    BankMap   = 0b001000000,
+    Layout    = 0b010000000,
+    Disk      = 0b100000000
+};
+}
+
 class C64Object {
                              
     //
@@ -30,6 +74,13 @@ public:
     
     // Called by debug() and trace() to produce a detailed debug output
     virtual void prefix() const;
+    
+    // Prints debug information about this component
+    void dump(dump::Category category, std::ostream& ss) const;
+    void dump(dump::Category category) const;
+    void dump(std::ostream& ss) const;
+    void dump() const;
+    virtual void _dump(dump::Category category, std::ostream& ss) const { };
 };
 
 /* This file provides several macros for printing messages:
@@ -63,15 +114,15 @@ fprintf(stderr, "Warning: " format, ##__VA_ARGS__);
 #ifndef NDEBUG
 
 #define debug(verbose, format, ...) \
-if (verbose) { \
+if constexpr (verbose) { \
 fprintf(stderr, "%s:%d " format, getDescription(), __LINE__, ##__VA_ARGS__); }
 
 #define plain(verbose, format, ...) \
-if (verbose) { \
+if constexpr (verbose) { \
 fprintf(stderr, format, ##__VA_ARGS__); }
 
 #define trace(verbose, format, ...) \
-if (verbose) { \
+if constexpr (verbose) { \
 prefix(); \
 fprintf(stderr, "%s:%d " format, getDescription(), __LINE__, ##__VA_ARGS__); }
 

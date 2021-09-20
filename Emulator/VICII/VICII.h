@@ -10,39 +10,44 @@
 #pragma once
 
 #include "VICIITypes.h"
-#include "C64Component.h"
+#include "SubComponent.h"
 #include "Colors.h"
 #include "Constants.h"
 #include "DmaDebugger.h"
 #include "MemoryTypes.h"
 #include "TimeDelayed.h"
 
-class VICII : public C64Component {
+class VICII : public SubComponent {
 
     friend class C64Memory;
     friend class DmaDebugger;
     
     // Current configuration
-    VICIIConfig config = getDefaultConfig();
-        
+    VICIIConfig config = { };
+
     // Result of the latest inspection
-    VICIIInfo info;
-    SpriteInfo spriteInfo[8];
+    mutable VICIIInfo info = { };
+    mutable SpriteInfo spriteInfo[8] = { };
     
     // Statistics
-    VICIIStats stats;
-    
+    VICIIStats stats = { };
+
+    // Chip properties (derived from config.revision)
+    bool isPAL;
+    bool isNTSC;
+    bool is856x;
+    bool is656x;
+
 public:
     
     // Sub components
     DmaDebugger dmaDebugger;
     
     /* The VICII function table. Each entry in this table is a pointer to a
-     * VICII method executed in a certain rasterline cycle. vicfunc[0] is a
+     * VICII method executed in a certain scanline cycle. vicfunc[0] is a
      * stub. It is never called, because the first cycle is numbered 1.
      */
     typedef void (VICII::*ViciiFunc)(void);
-    // void (VICII::*vicfunc[66])(void);
     ViciiFunc vicfunc[66];
 
     // Indicates if VICII is run in headless mode (skipping pixel synthesis)
@@ -65,7 +70,7 @@ public:
     } reg;
 
 private:
-
+    
     // Raster interrupt line ($D011:8 + $D012)
     u16 rasterIrqLine;
     
@@ -147,7 +152,7 @@ private:
      */
     u16 xCounter;
     
-    /* Y raster counter (3): The rasterline counter is usually incremented in
+    /* Y raster counter (3): The scanline counter is usually incremented in
      * cycle 1. The only exception is the overflow condition which is handled
      * in cycle 2.
      */
@@ -167,12 +172,12 @@ private:
      */
     u8 rc;
     
-    /* Video matrix (6): Every 8th rasterline, the VICII chips performs a
+    /* Video matrix (6): Every 8th scanline, the VICII chips performs a
      * c-access and fills this array with character information.
      */
     u8 videoMatrix[40];
     
-    /* Color line (7): Every 8th rasterline, the VICII chips performs a
+    /* Color line (7): Every 8th scanline, the VICII chips performs a
      * c-access and fills the array with color information.
      */
     u8 colorLine[40];
@@ -227,12 +232,12 @@ private:
     } sr;
     
     /* Sprite data sequencer (11): The VICII chip has a 24 bit (3 byte) shift
-     * register for each sprite. It stores the sprite for one rasterline. If a
-     * sprite is a display candidate in the current rasterline, its shift
+     * register for each sprite. It stores the sprite for one scanline. If a
+     * sprite is a display candidate in the current scanline, its shift
      * register is activated when the raster X coordinate matches the sprites
      * X coordinate. The comparison is done in method drawSprite(). Once a
      * shift register is activated, it remains activated until the beginning of
-     * the next rasterline. However, after an activated shift register has
+     * the next scanline. However, after an activated shift register has
      * dumped out its 24 pixels, it can't draw anything else than transparent
      * pixels (which is the same as not to draw anything). An exception is
      * during DMA cycles. When a shift register is activated during such a
@@ -269,7 +274,7 @@ private:
     } flipflops;
     
     /* Vertical frame flipflop set condition. Indicates whether the vertical
-     * frame flipflop needs to be set in the current rasterline.
+     * frame flipflop needs to be set in the current scanline.
      */
     bool verticalFrameFFsetCond;
     
@@ -301,7 +306,7 @@ private:
     /* Indicates whether the current raster line matches the IRQ line. A
      * positive edge on this value triggers a raster interrupt.
      */
-    bool rasterlineMatchesIrqLine;
+    bool lineMatchesIrqLine;
     
     
     //
@@ -315,17 +320,17 @@ private:
      */
     bool isVisibleColumn;
         
-    // True if the current rasterline belongs to the VBLANK area
+    // True if the current scanline belongs to the VBLANK area
     bool vblank;
     
-    // Indicates if the current rasterline is a DMA line (bad line)
+    // Indicates if the current scanline is a DMA line (bad line)
     bool badLine;
     
     /* True, if DMA lines can occurr within the current frame. Bad lines can
-     * occur only if the DEN bit was set during an arbitary cycle in rasterline
+     * occur only if the DEN bit was set during an arbitary cycle in scanline
      * 30. The DEN bit is located in control register 1 (0x11).
      */
-    bool DENwasSetInRasterline30;
+    bool DENwasSetInLine30;
     
     /* Current display State
      *
@@ -362,7 +367,7 @@ private:
     // Flags the second or third DMA access for each sprite
     u8 isSecondDMAcycle;
         
-    // Determines if a sprite needs to be drawn in the current rasterline
+    // Determines if a sprite needs to be drawn in the current scanline
     u8 spriteDisplay;
 
     // Value of spriteDisplay, delayed by one cycle
@@ -519,11 +524,11 @@ private:
     u32 *emuTexture;
     u32 *dmaTexture;
 
-    /* Pointer to the beginning of the current rasterline inside the current
+    /* Pointer to the beginning of the current scanline inside the current
      * working textures. These pointers are used by all rendering methods to
-     * write pixels. It always points to the beginning of a rasterline, either
+     * write pixels. It always points to the beginning of a scanline, either
      * the first or the second texture buffer. They are reset at the beginning
-     * of each frame and incremented at the beginning of each rasterline.
+     * of each frame and incremented at the beginning of each scanline.
      */
     u32 *emuTexturePtr;
     u32 *dmaTexturePtr;
@@ -569,81 +574,56 @@ public:
 public:
 	
     VICII(C64 &ref);
-    const char *getDescription() const override { return "VICII"; }
 
     void updateVicFunctionTable();
 
 private:
     
-    void _reset(bool hard) override;
-
-    void resetEmuTexture(int nr);
+    void resetEmuTexture(isize nr);
     void resetEmuTextures() { resetEmuTexture(1); resetEmuTexture(2); }
-    void resetDmaTexture(int nr);
+    void resetDmaTexture(isize nr);
     void resetDmaTextures() { resetDmaTexture(1); resetDmaTexture(2); }
     void resetTexture(u32 *p);
 
     template <u16 flags> ViciiFunc getViciiFunc(isize cycle);
-    
-    //
-    // Configuring
-    //
-    
-public:
-    
-    static VICIIConfig getDefaultConfig();
-    VICIIConfig getConfig() const { return config; }
-    void resetConfig() override;
 
-    i64 getConfigItem(Option option) const;
-    bool setConfigItem(Option option, i64 value) override;
-
-    VICIIRevision getRevision() const { return config.revision; }    
-    void setRevision(VICIIRevision revision);
-        
-
-    //
-    // Analyzing
-    //
     
-public:
-    
-    VICIIInfo getInfo() { return HardwareComponent::getInfo(info); }
-    SpriteInfo getSpriteInfo(int nr);
+    //
+    // Methods from C64Object
+    //
 
 private:
     
-    void _inspect() override;
+    const char *getDescription() const override { return "VICII"; }
     void _dump(dump::Category category, std::ostream& os) const override;
 
-public:
-    
-    VICIIStats getStats() { return stats; }
-    
+
+    //
+    // Methods from C64Component
+    //
+
 private:
     
-    void clearStats();
-    
-public:
-    
-    // Returns true if the DMA debugger is switched on
-    bool dmaDebug() const { return dmaDebugger.config.dmaDebug; }
-    
-    
-    //
-    // Serializing
-    //
-    
-private:
-    
+    void _reset(bool hard) override;
+    void _inspect() const override;
+    void _run() override;
+    void _debugOn() override;
+    void _debugOff() override;
+
     template <class T>
     void applyToPersistentItems(T& worker)
     {
         worker
         
         << config.revision
-        << config.glueLogic
+        << config.speed
+        << config.powerSave
         << config.grayDotBug
+        << config.glueLogic
+        << isPAL
+        << isNTSC
+        << is856x
+        << is656x
         
         << memSrc;
     }
@@ -692,11 +672,11 @@ private:
             << rightComparisonVal
             << upperComparisonVal
             << lowerComparisonVal
-            << rasterlineMatchesIrqLine
+            << lineMatchesIrqLine
             << isVisibleColumn
             << vblank
             << badLine
-            << DENwasSetInRasterline30
+            << DENwasSetInLine30
             << displayState
             << mc
             << mcbase
@@ -725,75 +705,95 @@ private:
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-
-private:
     
-    void _run() override;
-
     
     //
-    // Accessing
+    // Configuring
     //
     
 public:
     
-    // Returns true if a PAL chip is plugged in
-    static bool isPAL(VICIIRevision revision);
-    bool isPAL() const { return isPAL(config.revision); }
-    
-    // Returns true if a NTSC chip is plugged in
-    static bool isNTSC(VICIIRevision revision);
-    bool isNTSC() const { return isNTSC(config.revision); }
+    static VICIIConfig getDefaultConfig();
+    const VICIIConfig &getConfig() const { return config; }
+    void resetConfig() override;
 
-    // Returns true if a newer MOS 856x chip is plugged in
-    static bool is856x(VICIIRevision revision);
-    bool is856x() const { return is856x(config.revision); }
-    
-    // Returns true if an older MOS 656x chip is plugged in
-    static bool is656x(VICIIRevision revision);
-    bool is656x() const { return is656x(config.revision); }
+    i64 getConfigItem(Option option) const;
+    void setConfigItem(Option option, i64 value);
 
+    bool dmaDebug() const { return dmaDebugger.config.dmaDebug; }
+
+private:
+    
+    void setRevision(VICIIRevision revision);
+    void setSpeed(VICIISpeed speed);
+
+
+    //
+    // Analyzing
+    //
+    
+public:
+    
+    VICIIInfo getInfo() const { return C64Component::getInfo(info); }
+    SpriteInfo getSpriteInfo(int nr);
+    VICIIStats getStats() { return stats; }
+    
+private:
+    
+    void clearStats();
+    
+    
+    //
+    // Deriving chip properties
+    //
+    
+public:
+    
+    // Returns true if a PAL or an NTSC chip is plugged in
+    bool pal() const { return isPAL; }
+    bool ntsc() const { return isNTSC; }
+        
     // Returns true if light pen interrupts are triggered with a delay
-    static bool delayedLightPenIrqs(VICIIRevision revision);
+    static bool delayedLightPenIrqs(VICIIRevision rev);
     bool delayedLightPenIrqs() { return delayedLightPenIrqs(config.revision); }
 
-    // Returns the clock frequencay of the selected VICII model
-    static unsigned getFrequency(VICIIRevision revision);
-    unsigned getFrequency() const { return getFrequency(config.revision); }
-    
-    // Returns the number of CPU cycles performed per rasterline
-    static unsigned getCyclesPerLine(VICIIRevision revision);
-    unsigned getCyclesPerLine() const { return getCyclesPerLine(config.revision); }
-    
-    // Returns true if the end of the rasterline has been reached
-    bool isLastCycleInRasterline(unsigned cycle) const;
-    
-    // Returns the number of rasterlines drawn per frame
-    long getRasterlinesPerFrame() const;
+    // Returns the refresh rate of the selected VICII configuration
+    static double getFps(VICIIRevision rev, VICIISpeed speed);
+    double getFps() const { return getFps(config.revision, config.speed); }
 
-    // Returns the number of visible rasterlines in a single frame
-    long numVisibleRasterlines() const;
-
-    // Returns true if rasterline belongs to the VBLANK area
-    bool isVBlankLine(unsigned rasterline) const;
-    
-    // Returns the number of CPU cycles executed in one frame
-    long getCyclesPerFrame() const {
-        return getRasterlinesPerFrame() * getCyclesPerLine(); }
-    
-    /* Returns the number of frames drawn per second. The result is returned as
-     * a floating point value, because Commodore did not manage to match the
-     * expected values exactly (50 Hz for PAL and 60 Hz for NTSC). E.g., a PAL
-     * C64 outputs 50.125 Hz.
-     */
-    double getFramesPerSecond() const {
-        return (double)getFrequency() / (double)getCyclesPerFrame();
-    }
-    
     // Returns the time interval between two frames in nanoseconds
-    u64 getFrameDelay() const {
-        return u64(1000000000.0 / getFramesPerSecond());
-    }
+    static i64 getFrameDelay(VICIIRevision rev, VICIISpeed speed);
+    i64 getFrameDelay() const { return getFrameDelay(config.revision, config.speed); }
+
+    // Returns the native clock frequency for a certain VICII revision
+    static isize getNativeFrequency(VICIIRevision rev);
+    isize getNativeFrequency() const { return getNativeFrequency(config.revision); }
+
+    // Returns the clock frequency for a certain VICII configuration
+    static isize getFrequency(VICIIRevision rev, VICIISpeed speed);
+    isize getFrequency() const { return getFrequency(config.revision, config.speed); }
+    
+    // Returns the number of CPU cycles performed per scanline
+    static isize getCyclesPerLine(VICIIRevision rev);
+    isize getCyclesPerLine() const { return getCyclesPerLine(config.revision); }
+        
+    // Returns the number of scanline drawn per frame
+    static isize getLinesPerFrame(VICIIRevision rev);
+    isize getLinesPerFrame() const { return getLinesPerFrame(config.revision); }
+
+    // Returns the number of CPU cycles executed in one frame
+    static isize getCyclesPerFrame(VICIIRevision rev);
+    isize getCyclesPerFrame() const { return getCyclesPerFrame(config.revision); }
+
+    // Returns the number of visible scanlines in a single frame
+    static isize numVisibleLines(VICIIRevision rev);
+    long numVisibleLines() const { return numVisibleLines(config.revision); }
+    
+    // Returns true if the end of the scanline has been reached
+    bool isLastCycleInLine(isize cycle) const;
+
+    // Returns true if scanline belongs to the VBLANK area
+    bool isVBlankLine(isize line) const;
     
     
     //
@@ -808,8 +808,8 @@ public:
     u32 *getNoise() const;
     
     // Returns a C64 color in 32 bit big endian RGBA format
-    u32 getColor(unsigned nr) const { return rgbaTable[nr]; }
-    u32 getColor(unsigned nr, Palette palette);
+    u32 getColor(isize nr) const { return rgbaTable[nr]; }
+    u32 getColor(isize nr, Palette palette);
         
 private:
     
@@ -850,7 +850,7 @@ private:
     /* Updates the VICII bank address. The new address is computed from the
      * provided bank number.
      */
-    void updateBankAddr(u8 bank) { assert(bank < 4); bankAddr = bank << 14; }
+    void updateBankAddr(u8 bank) { bankAddr = (u16)(bank << 14); }
 
     /* Updates the VICII bank address. The new address is computed from the
      * bits in CIA2::PA.
@@ -894,36 +894,36 @@ private:
     u16 gAccessAddr(bool bmm, bool ecm);
     
     // Performs a sprite pointer access (p-access)
-    template <u16 flags> void pAccess(unsigned sprite);
+    template <u16 flags> void pAccess(isize sprite);
     
     // Performs one of the three sprite data accesses
-    template <u16 flags, int sprite> void sAccess1();
-    template <u16 flags, int sprite> void sAccess2();
-    template <u16 flags, int sprite> void sAccess3();
+    template <u16 flags, isize sprite> void sAccess1();
+    template <u16 flags, isize sprite> void sAccess2();
+    template <u16 flags, isize sprite> void sAccess3();
     
     /* Finalizes the sprite data access. This method is invoked one cycle after
      * the second and third sprite DMA has occurred.
      */
-    void sFinalize(unsigned sprite);
+    void sFinalize(isize sprite);
     
 
     //
     // Handling the x and y counters
     //
     
-    /* Returns the current rasterline. This value is not always identical to
+    /* Returns the current scanline. This value is not always identical to
      * the yCounter, because the yCounter is incremented with a little delay.
      */
-    u16 rasterline() const;
+    u16 scanline() const;
 
-    // Returns the current rasterline cycle
+    // Returns the current scanline cycle
     u8 rastercycle() const;
 
-    /* Indicates if yCounter needs to be reset in this rasterline. PAL models
-     * reset the yCounter in cycle 2 in the first rasterline wheras NTSC models
+    /* Indicates if yCounter needs to be reset in this scanline. PAL models
+     * reset the yCounter in cycle 2 in the first scanline wheras NTSC models
      * reset the yCounter in cycle 2 in the middle of the lower border area.
      */
-    bool yCounterOverflow() const { return rasterline() == (isPAL() ? 0 : 238); }
+    bool yCounterOverflow() const { return scanline() == (isPAL ? 0 : 238); }
 
     /* Matches the yCounter with the raster interrupt line and stores the
      * result. If a positive edge is detected, a raster interrupt is triggered.
@@ -1072,7 +1072,7 @@ private:
 private:
 
     // Gets the depth of a sprite (will be written into the z buffer)
-    u8 spriteDepth(u8 nr) const;
+    u8 spriteDepth(isize nr) const;
     
     // Compares the Y coordinates of all sprites with the yCounter
     u8 compareSpriteY() const;
@@ -1101,11 +1101,7 @@ private:
     /* Loads a sprite shift register. The shift register is loaded with the
      * three data bytes fetched in the previous sAccesses.
      */
-    void loadSpriteShiftRegister(unsigned nr) {
-        spriteSr[nr].data = LO_LO_HI(spriteSr[nr].chunk3,
-                                     spriteSr[nr].chunk2,
-                                     spriteSr[nr].chunk1);
-    }
+    void loadSpriteShiftRegister(isize nr);
     
     /* Updates the sprite shift registers. Checks if a sprite has completed
      * it's last DMA fetch and calls loadSpriteShiftRegister() accordingly.
@@ -1115,7 +1111,7 @@ private:
     /* Toggles expansion flipflop for vertically stretched sprites. In cycle 56,
      * register D017 is read and the flipflop gets inverted for all sprites with
      * vertical stretching enabled. When the flipflop goes down, advanceMCBase()
-     * will have no effect in the next rasterline. This causes each sprite line
+     * will have no effect in the next scanline. This causes each sprite line
      * to be drawn twice.
      */
     void toggleExpansionFlipflop() { expansionFF ^= reg.current.sprExpandY; }
@@ -1132,15 +1128,15 @@ public:
      */
 	void beginFrame();
 	
-	/* Prepares VICII for drawing a new rasterline. This function is called
-     * prior to the first cycle of each rasterline.
+	/* Prepares VICII for drawing a new scanline. This function is called
+     * prior to the first cycle of each scanline.
      */
-	void beginRasterline(u16 rasterline);
+	void beginScanline(u16 line);
 
-	/* Finishes up a rasterline. This function is called after the last cycle
-     * of each rasterline.
+	/* Finishes up a scanline. This function is called after the last cycle
+     * of each scanline.
      */
-	void endRasterline();
+	void endScanline();
 	
 	/* Finishes up a frame. This function is called after the last cycle of
      * each frame.
@@ -1152,7 +1148,7 @@ public:
      */
     void processDelayedActions();
     
-	// Emulates a specific rasterline cycle
+	// Emulates a specific scanline cycle
     template <u16 flags> void cycle1();
     template <u16 flags> void cycle2();
     template <u16 flags> void cycle3();
@@ -1298,7 +1294,7 @@ private:
      *    enableBits : the spriteDisplay bits
      *    freezeBits : forces the sprites shift register to freeze temporarily
      */
-    void drawSpritePixel(unsigned pixel, u8 enableBits, u8 freezeBits);
+    void drawSpritePixel(isize pixel, u8 enableBits, u8 freezeBits);
          
     // Performs collision detection
     void checkCollisions();

@@ -10,15 +10,15 @@
 #pragma once
 
 #include "DmaDebuggerTypes.h"
-#include "C64Component.h"
+#include "SubComponent.h"
 #include "Colors.h"
 
-class DmaDebugger : public C64Component {
+class DmaDebugger : public SubComponent {
 
     friend class VICII;
     
     // Current configuration
-    DmaDebuggerConfig config = getDefaultConfig();
+    DmaDebuggerConfig config = { };
     
     // Color lookup table. There are 6 colors with different shades
     u32 debugColor[6][4];
@@ -31,12 +31,28 @@ class DmaDebugger : public C64Component {
 public:
     
     DmaDebugger(C64 &ref);
+    
+    
+    //
+    // Methods from C64Object
+    //
+
     const char *getDescription() const override { return "DmaDebugger"; }
+    void _dump(dump::Category category, std::ostream& os) const override;
+
+    
+    //
+    // Methods from C64Component
+    //
 
 private:
     
     void _reset(bool hard) override { };
-
+    
+    isize _size() override { return 0; }
+    isize _load(const u8 *buffer) override {return 0; }
+    isize _save(u8 *buffer) override { return 0; }
+    
     
     //
     // Configuring
@@ -45,33 +61,13 @@ private:
 public:
     
     static DmaDebuggerConfig getDefaultConfig();
-    DmaDebuggerConfig getConfig() const { return config; }
+    const DmaDebuggerConfig &getConfig() const { return config; }
     void resetConfig() override;
 
     i64 getConfigItem(Option option) const;
     i64 getConfigItem(Option option, long id) const;
-    bool setConfigItem(Option option, i64 value) override;
-    bool setConfigItem(Option option, long id, i64 value) override;
-
-    
-    //
-    // Analyzing
-    //
-
-private:
-    
-    void _dump(dump::Category category, std::ostream& os) const override;
-    
-    
-    //
-    // Serializing
-    //
-    
-private:
-    
-    isize _size() override { return 0; }
-    isize _load(const u8 *buffer) override {return 0; }
-    isize _save(u8 *buffer) override { return 0; }
+    void setConfigItem(Option option, i64 value);
+    void setConfigItem(Option option, long id, i64 value);
     
     
     //
@@ -92,7 +88,7 @@ public:
     void visualizeDma(isize offset, u8 data, MemAccess type);
     void visualizeDma(u32 *ptr, u8 data, MemAccess type);
     
-    // Superimposes the debug output onto the current rasterline
+    // Superimposes the debug output onto the current scanline
     void computeOverlay(u32 *emuTexture, u32 *dmaTexture);
 
     

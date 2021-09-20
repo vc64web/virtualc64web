@@ -104,7 +104,7 @@ VICII::switchBank(u16 addr) {
             break;
             
         default:
-            assert(false);
+            fatalError;
     }
    
     // Switch to final bank one cycle later
@@ -134,7 +134,7 @@ VICII::peek(u16 addr)
         case 0x0C:
         case 0x0E:
             
-            result = reg.current.sprX[addr >> 1];
+            result = (u8)reg.current.sprX[addr >> 1];
             break;
             
         case 0x01: // Sprite Y
@@ -314,7 +314,7 @@ VICII::spypeek(u16 addr) const
         case 0x0C:
         case 0x0E:
             
-            return reg.current.sprX[addr >> 1];
+            return (u8)reg.current.sprX[addr >> 1];
             
         case 0x01: // Sprite Y
         case 0x03:
@@ -482,7 +482,7 @@ VICII::poke(u16 addr, u8 value)
             
         case 0x10: // Sprite X (upper bit)
             
-            for (unsigned i = 0; i < 8; i++) {
+            for (isize i = 0; i < 8; i++) {
                 reg.current.sprX[i] &= 0xFF;
                 reg.current.sprX[i] |= GET_BIT(value, i) ? 0x100 : 0;
             }
@@ -495,8 +495,8 @@ VICII::poke(u16 addr, u8 value)
             
             // Check the DEN bit. If it gets set somehwere in line 30, a bad
             // line conditions occurs.
-            if (c64.rasterLine == 0x30 && (value & 0x10))
-                DENwasSetInRasterline30 = true;
+            if (c64.scanline == 0x30 && (value & 0x10))
+                DENwasSetInLine30 = true;
             
             if ((badLine = badLineCondition())) {
                 delay |= VICSetDisplayState;
@@ -504,7 +504,7 @@ VICII::poke(u16 addr, u8 value)
             upperComparisonVal = upperComparisonValue();
             lowerComparisonVal = lowerComparisonValue();
             
-            rasterIrqLine = (rasterIrqLine & 0x00FF) | ((value & 0x80) << 1);
+            rasterIrqLine = (u16)((rasterIrqLine & 0x00FF) | ((value & 0x80) << 1));
             break;
             
         case 0x12: // RASTER_COUNTER

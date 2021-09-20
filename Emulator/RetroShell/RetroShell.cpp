@@ -14,7 +14,7 @@
 
 #include <sstream>
 
-RetroShell::RetroShell(C64& ref) : C64Component(ref), interpreter(ref)
+RetroShell::RetroShell(C64& ref) : SubComponent(ref), interpreter(ref)
 {
     // Initialize the text storage
     storage.push_back("");
@@ -23,7 +23,7 @@ RetroShell::RetroShell(C64& ref) : C64Component(ref), interpreter(ref)
     input.push_back("");
     
     // Print a startup message
-    *this << "VirtualC64 " << V_MAJOR << '.' << V_MINOR << '.' << V_SUBMINOR;
+    *this << "VirtualC64 " << VER_MAJOR << '.' << VER_MINOR << '.' << VER_SUBMINOR;
     *this << " (" << __DATE__ << " " << __TIME__ << ")" << '\n';
     *this << '\n';
     *this << "Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de" << '\n';
@@ -277,10 +277,10 @@ RetroShell::text()
 {
     all = "";
     
-    if (auto numRows = storage.size()) {
+    if (isize numRows = (isize)storage.size()) {
         
         // Add all rows except the last one
-        for (usize i = 0; i < numRows - 1; i++) all += storage[i] + "\n";
+        for (isize i = 0; i < numRows - 1; i++) all += storage[i] + "\n";
         
         // Add the last row
         all += storage[numRows - 1] + " ";        
@@ -325,8 +325,6 @@ RetroShell::execScript(std::ifstream &fs)
 void
 RetroShell::execScript(const string &contents)
 {
-    printf("execScript(string)\n");
-
     script.str("");
     script << contents;
     scriptLine = 1;
@@ -350,14 +348,14 @@ RetroShell::continueScript()
             
         } catch (ScriptInterruption &e) {
             
-            messageQueue.put(MSG_SCRIPT_PAUSE, scriptLine);
+            msgQueue.put(MSG_SCRIPT_PAUSE, scriptLine);
             printPrompt();
             return;
         
         } catch (std::exception &e) {
             
             *this << "Aborted in line " << scriptLine << '\n';
-            messageQueue.put(MSG_SCRIPT_ABORT, scriptLine);
+            msgQueue.put(MSG_SCRIPT_ABORT, scriptLine);
             printPrompt();
             return;
         }
@@ -366,7 +364,7 @@ RetroShell::continueScript()
     }
     
     printPrompt();
-    messageQueue.put(MSG_SCRIPT_DONE, scriptLine);
+    msgQueue.put(MSG_SCRIPT_DONE, scriptLine);
 }
 
 void
@@ -404,19 +402,17 @@ RetroShell::describe(const std::exception &e)
 
     } else if (auto err = dynamic_cast<const VC64Error *>(&e)) {
 
-        *this << "Error: " << err->describe();
+        *this << err->what();
         *this << '\n';
     }
 }
 
 void
-RetroShell::dump(HardwareComponent &component, dump::Category category)
+RetroShell::dump(C64Component &component, dump::Category category)
 {
     std::stringstream ss; string line;
     
-    c64.suspend();
-    component.dump(category, ss);
-    c64.resume();
+    suspended { component.dump(category, ss); }
     
     while(std::getline(ss, line)) *this << line << '\n';
 }
@@ -427,7 +423,7 @@ RetroShell::vsyncHandler()
     if (cpu.cycle >= (u64)wakeUp) {
         
         // Ask the external thread (GUI) to continue the script
-        messageQueue.put(MSG_SCRIPT_WAKEUP);
+        msgQueue.put(MSG_SCRIPT_WAKEUP);
         wakeUp = INT64_MAX;
     }
 }

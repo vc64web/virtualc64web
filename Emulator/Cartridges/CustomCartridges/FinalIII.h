@@ -59,9 +59,9 @@ private:
         worker << qD;
     }
     
-    usize __size() { COMPUTE_SNAPSHOT_SIZE }
-    usize __load(const u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
-    usize __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
+    isize __size() { COMPUTE_SNAPSHOT_SIZE }
+    isize __load(const u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
+    isize __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
     
     isize _size() override { return Cartridge::_size() + __size(); }
     isize _load(const u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
@@ -115,8 +115,8 @@ private:
     // Operating buttons
     //
     
-    long numButtons() const override { return 2; }
-    const char *getButtonTitle(unsigned nr) const override;
-    void pressButton(unsigned nr) override;
-    void releaseButton(unsigned nr) override;
+    isize numButtons() const override { return 2; }
+    const string getButtonTitle(isize nr) const override;
+    void pressButton(isize nr) override;
+    void releaseButton(isize nr) override;
 };

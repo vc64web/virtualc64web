@@ -148,7 +148,7 @@ extern "C" void wasm_toggleFullscreen()
 }
 
 int eventFilter(void* thisC64, SDL_Event* event) {
-    C64 *c64 = (C64 *)thisC64;
+    //C64 *c64 = (C64 *)thisC64;
     switch(event->type){
       case SDL_WINDOWEVENT:
         //PrintEvent(event);
@@ -282,8 +282,8 @@ void draw_one_frame_into_SDL(void *thisC64)
  
   Uint8 *texture = (Uint8 *)c64->vic.stableEmuTexture(); //screenBuffer();
 
-  int surface_width = window_surface->w;
-  int surface_height = window_surface->h;
+//  int surface_width = window_surface->w;
+//  int surface_height = window_surface->h;
 
 //  SDL_RenderClear(renderer);
   SDL_Rect SrcR;
@@ -307,7 +307,7 @@ void MyAudioCallback(void*  thisC64,
     C64 *c64 = (C64 *)thisC64;
     
     int n = len /  sizeof(float);
-    c64->sid.copyMono((float *)stream, n);
+    c64->muxer.copyMono((float *)stream, n);
 /*    printf("copyMono[%d]: ", n);
     for(int i=0; i<n; i++)
     {
@@ -401,8 +401,8 @@ void initSDL(void *thisC64)
     }
 
     printf("set SID to freq= %d\n", have.freq);
-    c64->sid.setSampleRate(have.freq);
-    printf("freq in SIDBridge= %f\n", c64->sid.getSampleRate());
+    c64->muxer.setSampleRate(have.freq);
+    printf("freq in SIDBridge= %f\n", c64->muxer.getSampleRate());
  
 
     SDL_PauseAudioDevice(device_id, 0); //unpause the audio device
@@ -436,21 +436,54 @@ void send_message_to_js(const char * msg, long data)
 
 }
 
+bool paused_the_emscripten_main_loop=false;
 bool warp_mode=false;
 void theListener(const void * c64, long type, long data){
   
   if(warp_mode && type == MSG_IEC_BUS_BUSY && !((C64 *)c64)->inWarpMode())
   {
-      ((C64 *)c64)->setWarp(true);
+    ((C64 *)c64)->warpOn(); //setWarp(true);
   }
   else if(type == MSG_IEC_BUS_IDLE && ((C64 *)c64)->inWarpMode())
   {
-      ((C64 *)c64)->setWarp(false);
+    ((C64 *)c64)->warpOff(); //setWarp(false);
   }
 
   const char *message_as_string =  (const char *)MsgTypeEnum::key((MsgType)type);
   printf("vC64 message=%s, data=%ld\n", message_as_string, data);
   send_message_to_js(message_as_string, data);
+
+
+/*  if(type == MSG_RUN)
+  {
+    if(paused_the_emscripten_main_loop)
+    {
+      printf("emscripten_resume_main_loop at MSG_RUN\n");
+      emscripten_resume_main_loop();
+    }
+    else
+    {
+      printf("emscripten_set_main_loop_arg() at MSG_RUN\n");
+      emscripten_set_main_loop_arg(draw_one_frame_into_SDL, (void *)c64, 0, 1);
+      printf("after emscripten_set_main_loop_arg() at MSG_RUN\n");
+
+    }
+  }
+  else if(type == MSG_PAUSE)
+  {
+    printf("emscripten_pause_main_loop() at MSG_PAUSE\n");
+    paused_the_emscripten_main_loop=true;
+    emscripten_pause_main_loop();
+      printf("after emscripten_set_main_loop_arg() at MSG_RUN\n");
+
+  }
+*/
+
+  if(type == MSG_DISK_INSERT)
+  {
+    ((C64 *)c64)->drive8.dump();
+  }
+
 }
 
 
@@ -468,7 +501,6 @@ class C64Wrapper {
     printf("adding a listener to C64 message queue...\n");
 
     c64->msgQueue.setListener(this->c64, &theListener);
-
   }
   ~C64Wrapper()
   {
@@ -483,10 +515,8 @@ class C64Wrapper {
     c64->loadRom(ROM_CHAR, "roms/characters.901225-01.bin");
     c64->loadRom(ROM_VC1541, "roms/1541-II.251968-03.bin");
 */
-    if(!c64->isReady())
-    {
-      c64->putMessage(MSG_ROM_MISSING);
-    }
+
+    try { c64->isReady(); } catch(...) { c64->msgQueue.put(MSG_ROM_MISSING); }
     /*
     EM_ASM({
       setTimeout(function() {message_handler( $0 );}, 0);
@@ -512,6 +542,7 @@ class C64Wrapper {
     c64->configure(OPT_AUDVOL, 0, 100); 
     c64->configure(OPT_AUDPAN, 0, 0);
 
+    c64->configure(OPT_DRV_AUTO_CONFIG,DRIVE8,1);
     //SID1 Volumne
 /*    c64->configure(OPT_AUDVOL, 1, 100);
     c64->configure(OPT_AUDPAN, 1, 50);
@@ -522,10 +553,11 @@ class C64Wrapper {
 
     //c64->configure(OPT_HIDE_SPRITES, true); 
     //c64->dump();
-//    printf("is running = %u\n",c64->isRunning()); 
+
+ //printf("is running = %u\n",c64->isRunning()); 
  //   c64->dump();
  //   c64->drive1.dump();
-    //c64->setDebugLevel(2);also 
+ //   c64->setDebugLevel(2);
     //c64->sid.setDebugLevel(4);
  //   c64->drive1.setDebugLevel(3);
  //   c64->sid.dump();
@@ -626,8 +658,11 @@ extern "C" char* wasm_export_disk()
     return wasm_pull_user_snapshot_file_json_result;
   }
 
-  FSDevice *fs = FSDevice::makeWithDisk(wrapper->c64->drive8.disk);    
-  D64File *d64 = D64File::makeWithFileSystem(*fs);
+//  FSDevice *fs = FSDevice::makeWithDisk(wrapper->c64->drive8.disk);    
+//  D64File *d64 = D64File::makeWithFileSystem(*fs);
+
+  FSDevice *fs = new FSDevice(*wrapper->c64->drive8.disk);
+  D64File *d64 = new D64File(*fs);
 
   size_t size = d64->size;
   uint8_t *buffer = new uint8_t[size];
@@ -659,11 +694,11 @@ extern "C" char* wasm_pull_user_snapshot_file()
     printf("%d",buffer[i]);
   }
   printf("\n");
-  sprintf(wasm_pull_user_snapshot_file_json_result, "{\"address\":%lu, \"size\": %lu, \"width\": %u, \"height\":%u }",
+  sprintf(wasm_pull_user_snapshot_file_json_result, "{\"address\":%lu, \"size\": %lu, \"width\": %lu, \"height\":%lu }",
   (unsigned long)buffer, 
   size,
-  snapshot->header()->screenshot.width,
-  snapshot->header()->screenshot.height
+  snapshot->getHeader()->screenshot.width,
+  snapshot->getHeader()->screenshot.height
   );
   printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
   return wasm_pull_user_snapshot_file_json_result;
@@ -686,7 +721,10 @@ extern "C" void wasm_set_warp(unsigned on)
       )
   )
   {
-      wrapper->c64->setWarp(warp_mode);
+    if(warp_mode)
+      wrapper->c64->warpOn();
+    else
+      wrapper->c64->warpOff();
   }
 }
 
@@ -712,10 +750,10 @@ extern "C" void wasm_set_borderless(float on)
 
 }
 
+
 extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 {
   printf("load file=%s len=%ld, header bytes= %x, %x, %x\n", name, len, blob[0],blob[1],blob[2]);
-  ErrorCode error;
   filename=name;
   auto file_suffix= util::extractSuffix(name); 
   if(wrapper == NULL)
@@ -723,48 +761,46 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     return "";
   }
   bool file_still_unprocessed=true;   
-  if (D64File::isCompatibleName(filename)) {
+  if (D64File::isCompatible(filename)) {
     printf("try to build D64File\n");
     
-    //D64File *file = D64File::make<D64File>(blob, len, &error);
-    D64File *file = NULL;
     try{
-      file = D64File::make<D64File>(blob, len);
+      D64File d64 = D64File(blob, len);
+      auto disk = std::make_unique<Disk>(d64);
+      printf("isD64\n");  
+      wrapper->c64->drive8.insertDisk(std::move(disk));
+      file_still_unprocessed=false;
     } catch(VC64Error &exception) {
       ErrorCode ec=exception.data;
       printf("%s\n", ErrorCodeEnum::key(ec));
     }
-    if(file != NULL)
-    {
-      printf("isD64\n");  
-      FSDevice *fs= FSDevice::makeWithD64(*file); 
-      wrapper->c64->drive8.insertFileSystem(fs, false);
-      file_still_unprocessed=false;
-    }
   }
-  if (file_still_unprocessed && G64File::isCompatibleName(filename)) {
+  if (file_still_unprocessed && G64File::isCompatible(filename)) {
     printf("try to build G64File\n");
-    G64File *file = G64File::make<G64File>(blob, len, &error);
-    if(file != NULL)
-    {
-      printf("isG64\n");
-      wrapper->c64->drive8.insertDisk(Disk::makeWithG64(*(wrapper->c64), file), false);
+    try{
+      G64File g64 = G64File(blob, len);
+      auto disk = std::make_unique<Disk>(g64);
+      printf("isG64 ...\n");  
+      wrapper->c64->drive8.insertDisk(std::move(disk));
       file_still_unprocessed=false;
+    } catch(VC64Error &exception) {
+      ErrorCode ec=exception.data;
+      printf("%s\n", ErrorCodeEnum::key(ec));
     }
   }
-  if (file_still_unprocessed && PRGFile::isCompatibleName(filename)) {
+  if (file_still_unprocessed && PRGFile::isCompatible(filename)) {
     printf("try to build PRGFile\n");
-    PRGFile *file = PRGFile::make<PRGFile>(blob, len, &error);
+    PRGFile *file = new PRGFile(blob, len);
     if(file != NULL)
     {
       printf("isPRG\n");
-      wrapper->c64->flash(file,0);
+      wrapper->c64->flash(*file ,0);
       file_still_unprocessed=false;
     }
   }
-  if (file_still_unprocessed && CRTFile::isCompatibleName(filename)) {
+  if (file_still_unprocessed && CRTFile::isCompatible(filename)) {
     printf("try to build CRTFile\n");
-    CRTFile *file = CRTFile::make<CRTFile>(blob, len, &error);
+    CRTFile *file = new CRTFile(blob, len);
     if(file != NULL)
     {
       printf("isCRT\n");
@@ -773,49 +809,51 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       file_still_unprocessed=false;
     } 
   }
-  if (file_still_unprocessed && TAPFile::isCompatibleName(filename)) {
+  if (file_still_unprocessed && TAPFile::isCompatible(filename)) {
     printf("try to build TAPFile\n");
 
-    TAPFile *file = TAPFile::make<TAPFile>(blob, len, &error);
+    TAPFile *file = new TAPFile(blob, len);
     if(file != NULL)
     {  
       printf("isTAP\n");
-      wrapper->c64->datasette.insertTape(file);
+      wrapper->c64->datasette.insertTape(*file);
       wrapper->c64->datasette.rewind();
     //  wrapper->c64->datasette.pressPlay();
     //  wrapper->c64->datasette.pressStop();
       file_still_unprocessed=false;
     } 
   }
-  if (file_still_unprocessed && T64File::isCompatibleName(filename)) {
+  if (file_still_unprocessed && T64File::isCompatible(filename)) {
     printf("try to build T64File\n");
 
-    T64File *file = T64File::make<T64File>(blob, len, &error);
+    T64File *file = new T64File(blob, len);
     if(file != NULL)
     { 
       printf("isT64\n");
-      wrapper->c64->flash(file,0);
+      wrapper->c64->flash(*file ,0);
       file_still_unprocessed=false;
     } 
   }
-  if (file_still_unprocessed && Snapshot::isCompatibleName(filename) && util::extractSuffix(filename)!="bin") {
+  if (file_still_unprocessed && Snapshot::isCompatible(filename) && util::extractSuffix(filename)!="bin") {
     printf("try to build Snapshot\n");
-    Snapshot *file = Snapshot::make<Snapshot>(blob, len, &error);
+    Snapshot *file = new Snapshot(blob, len);
     if(file != NULL)
     {     
       printf("isSnapshot\n");
-      wrapper->c64->loadFromSnapshot(file);
+      wrapper->c64->loadSnapshot(*file);
       file_still_unprocessed=false;
     } 
   }
   if(file_still_unprocessed)
   {
-    bool result;
-    ErrorCode error;
-    bool wasRunnable = wrapper->c64->isReady(&error);
+//    ErrorCode error;
+
+    bool wasRunnable = true; //wrapper->c64->isReady(&error);
+    try { wrapper->c64->isReady(); } catch(...) { wasRunnable=false; }
+
 
     printf("try to build RomFile\n");
-    RomFile *rom = RomFile::make<RomFile>(blob, len, &error);
+    RomFile *rom = new RomFile(blob, len);
 
     if (!rom) {
         printf("Failed to read ROM image file %s\n", name);
@@ -823,27 +861,31 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     }
     
     wrapper->c64->suspend();
-    result = wrapper->c64->flash(rom);
-    wrapper->c64->resume();
-    
-    if (result) {
-        printf("Loaded ROM image %s.\n", name);
-    } else {
-        printf("Failed to flash ROM image %s.\n", name);
+    try { 
+      wrapper->c64->flash(*rom); 
+      printf("Loaded ROM image %s.\n", name);
+    }  
+    catch(...) { 
+      printf("Failed to flash ROM image %s.\n", name);
     }
-    
-    if (!wasRunnable && wrapper->c64->isReady(&error))
+    wrapper->c64->resume();
+
+
+    bool is_ready_now = true;
+    try { wrapper->c64->isReady(); } catch(...) { is_ready_now=false; }
+
+    if (!wasRunnable && is_ready_now)
     {
        //wrapper->c64->putMessage(MSG_READY_TO_RUN);
       const char* ready_msg= "READY_TO_RUN";
       printf("sending ready message %s.\n", ready_msg);
       send_message_to_js(ready_msg);    
     }
-    if(error != ERROR_OK)
+/*    if(error != ERROR_OK)
     {
       printf("%s\n", ErrorCodeEnum::key(error));
     }
-
+*/
 
     const char *rom_type="";
     if(rom->isRomBuffer(ROM_TYPE_KERNAL, blob,len))
@@ -854,6 +896,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     {
       rom_type = "vc1541_rom";
       wrapper->c64->configure(OPT_DRV_CONNECT,DRIVE8,1);
+      wrapper->c64->drive8.dump(dump::Config);
     }
     else if(rom->isRomBuffer(ROM_TYPE_CHAR, blob,len))
     {
@@ -878,16 +921,40 @@ extern "C" void wasm_reset()
   wrapper->c64->reset(true);
 }
 
+
 extern "C" void wasm_halt()
 {
   printf("wasm_halt\n");
   wrapper->c64->pause();
+
+      printf("emscripten_pause_main_loop() at MSG_PAUSE\n");
+    paused_the_emscripten_main_loop=true;
+    emscripten_pause_main_loop();
+      printf("after emscripten_set_main_loop_arg() at MSG_RUN\n");
+
 }
 
 extern "C" void wasm_run()
 {
   printf("wasm_run\n");
+  
+  printf("is running = %u\n",wrapper->c64->isRunning());
+
   wrapper->c64->run();
+
+  if(paused_the_emscripten_main_loop)
+  {
+    printf("emscripten_resume_main_loop at MSG_RUN\n");
+    emscripten_resume_main_loop();
+  }
+  else
+  {
+    printf("emscripten_set_main_loop_arg() at MSG_RUN\n");
+    emscripten_set_main_loop_arg(draw_one_frame_into_SDL, (void *)wrapper->c64, 0, 1);
+    printf("after emscripten_set_main_loop_arg() at MSG_RUN\n");
+
+  }
+
 }
 
 
@@ -1146,23 +1213,13 @@ extern "C" u8 wasm_peek(u16 addr)
 
 extern "C" void wasm_write_string_to_ser(char* chars_to_send)
 {
-    wrapper->c64->write_string_to_ser(chars_to_send);
+  wrapper->c64->write_string_to_ser(chars_to_send);
 }
 
 //const char chars_to_send[] = "HELLOMYWORLD!";
 extern "C" void wasm_poke(u16 addr, u8 value)
 {
-  if(addr == 56577)
-  {//CIA2:PB
-    //CIA::portBexternal_value=0x00;
-    //wrapper->c64->cia2.portBexternal_value=value;
-    //wrapper->c64->cia2.triggerFallingEdgeOnFlagPin();    
-//    wrapper->c64->write_string_to_ser(chars_to_send,13);
-  }
-  else
-  {
-    return wrapper->c64->mem.poke(addr, value);
-  }
+    wrapper->c64->mem.poke(addr, value);
 }
 
 /*
@@ -1209,3 +1266,8 @@ extern "C" void wasm_configure(char* option, unsigned on)
   }
 }
 
+extern "C" void wasm_print_error(unsigned exception_ptr)
+{
+  string s= std::string(reinterpret_cast<std::exception *>(exception_ptr)->what());
+  printf("uncaught exception %u: %s\n",exception_ptr, s.c_str());
+}

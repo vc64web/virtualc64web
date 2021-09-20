@@ -84,28 +84,21 @@ VICClrSprBgCollReg);
 
 enum_long(VICII_REV)
 {
-    VICII_PAL_6569_R1 = 1,
-    VICII_PAL_6569_R3 = 2,
-    VICII_PAL_8565 = 4,
-    VICII_NTSC_6567_R56A = 8,
-    VICII_NTSC_6567 = 16,
-    VICII_NTSC_8562 = 32
+    VICII_PAL_6569_R1,
+    VICII_PAL_6569_R3,
+    VICII_PAL_8565,
+    VICII_NTSC_6567_R56A,
+    VICII_NTSC_6567,
+    VICII_NTSC_8562
 };
 typedef VICII_REV VICIIRevision;
 
 #ifdef __cplusplus
 struct VICIIRevisionEnum : util::Reflection<VICIIRevisionEnum, VICIIRevision> {
     
-    static bool isValid(long value)
-    {
-        return
-        (value == VICII_PAL_6569_R1) ||
-        (value == VICII_PAL_6569_R3) ||
-        (value == VICII_PAL_8565) ||
-        (value == VICII_NTSC_6567) ||
-        (value == VICII_NTSC_6567_R56A) ||
-        (value == VICII_NTSC_8562);
-    }
+    static long min() { return 0; }
+    static long max() { return VICII_NTSC_8562; }
+    static bool isValid(long value) { return value >= min() && value <= max(); }
 
     static const char *prefix() { return "VICII"; }
     static const char *key(VICIIRevision value)
@@ -121,26 +114,59 @@ struct VICIIRevisionEnum : util::Reflection<VICIIRevisionEnum, VICIIRevision> {
         }
         return "???";
     }
+};
+#endif
+
+enum_long(VICII_SPEED)
+{
+    VICII_NATIVE,
+    VICII_TRUE_25,
+    VICII_TRUE_30,
+    VICII_TRUE_50,
+    VICII_TRUE_60,
+    VICII_TRUE_100,
+    VICII_TRUE_120
+};
+typedef VICII_SPEED VICIISpeed;
+
+#ifdef __cplusplus
+struct VICIISpeedEnum : util::Reflection<VICIISpeedEnum, VICIISpeed> {
     
-    static std::map <string, long> pairs() { return Reflection::pairs(VICII_NTSC_8562); }
+    static long min() { return 0; }
+    static long max() { return VICII_TRUE_120; }
+    static bool isValid(long value) { return value >= min() && value <= max(); }
+    
+    static const char *prefix() { return "VICII"; }
+    static const char *key(VICIIRevision value)
+    {
+        switch (value) {
+                
+            case VICII_NATIVE:    return "VICII_NATIVE";
+            case VICII_TRUE_25:   return "VICII_TRUE_25";
+            case VICII_TRUE_30:   return "VICII_TRUE_30";
+            case VICII_TRUE_50:   return "VICII_TRUE_50";
+            case VICII_TRUE_60:   return "VICII_TRUE_60";
+            case VICII_TRUE_100:  return "VICII_TRUE_100";
+            case VICII_TRUE_120:  return "VICII_TRUE_120";
+        }
+        return "???";
+    }    
 };
 #endif
 
 enum_long(GLUE_LOGIC)
 {
     GLUE_LOGIC_DISCRETE,
-    GLUE_LOGIC_IC,
-    GLUE_LOGIC_COUNT
+    GLUE_LOGIC_IC
 };
 typedef GLUE_LOGIC GlueLogic;
 
 #ifdef __cplusplus
 struct GlueLogicEnum : util::Reflection<GlueLogicEnum, GlueLogic> {
     
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < GLUE_LOGIC_COUNT;
-    }
+    static long min() { return 0; }
+    static long max() { return GLUE_LOGIC_IC; }
+    static bool isValid(long value) { return value >= min() && value <= max(); }
 
     static const char *prefix() { return "GLUE_LOGIC"; }
     static const char *key(GlueLogic value)
@@ -149,7 +175,6 @@ struct GlueLogicEnum : util::Reflection<GlueLogicEnum, GlueLogic> {
                 
             case GLUE_LOGIC_DISCRETE:  return "DISCRETE";
             case GLUE_LOGIC_IC:        return "IC";
-            case GLUE_LOGIC_COUNT:     return "???";
         }
         return "???";
     }
@@ -163,18 +188,16 @@ enum_long(PALETTE)
     PALETTE_PAPER_WHITE,
     PALETTE_GREEN,
     PALETTE_AMBER,
-    PALETTE_SEPIA,
-    PALETTE_COUNT
+    PALETTE_SEPIA
 };
 typedef PALETTE Palette;
 
 #ifdef __cplusplus
 struct PaletteEnum : util::Reflection<PaletteEnum, Palette> {
     
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < PALETTE_COUNT;
-    }
+    static long min() { return 0; }
+    static long max() { return PALETTE_SEPIA; }
+    static bool isValid(long value) { return value >= min() && value <= max(); }
 
     static const char *prefix() { return "PALETTE"; }
     static const char *key(Palette value)
@@ -187,7 +210,6 @@ struct PaletteEnum : util::Reflection<PaletteEnum, Palette> {
             case PALETTE_GREEN:        return "GREEN";
             case PALETTE_AMBER:        return "AMBER";
             case PALETTE_SEPIA:        return "SEPIA";
-            case PALETTE_COUNT:        return "???";
         }
         return "???";
     }
@@ -199,18 +221,16 @@ enum_long(SCREEN_GEOMETRY)
     SCREEN_GEOMETRY_25_40 = 1,
     SCREEN_GEOMETRY_25_38,
     SCREEN_GEOMETRY_24_40,
-    SCREEN_GEOMETRY_24_38,
-    SCREEN_GEOMETRY_COUNT
+    SCREEN_GEOMETRY_24_38
 };
 typedef SCREEN_GEOMETRY ScreenGeometry;
 
 #ifdef __cplusplus
 struct ScreenGeometryEnum : util::Reflection<ScreenGeometryEnum, ScreenGeometry> {
     
-    static bool isValid(long value)
-    {
-        return value >= 1 && value < SCREEN_GEOMETRY_COUNT;
-    }
+    static long min() { return 1; }
+    static long max() { return SCREEN_GEOMETRY_24_38; }
+    static bool isValid(long value) { return value >= min() && value <= max(); }
 
     static const char *prefix() { return "SCREEN_GEOMETRY"; }
     static const char *key(ScreenGeometry value)
@@ -221,7 +241,6 @@ struct ScreenGeometryEnum : util::Reflection<ScreenGeometryEnum, ScreenGeometry>
             case SCREEN_GEOMETRY_25_38:  return "25_38";
             case SCREEN_GEOMETRY_24_40:  return "24_40";
             case SCREEN_GEOMETRY_24_38:  return "24_38";
-            case SCREEN_GEOMETRY_COUNT:  return "???";
         }
         return "???";
     }
@@ -244,10 +263,9 @@ typedef DISPLAY_MODE DisplayMode;
 #ifdef __cplusplus
 struct DisplayModeEnum : util::Reflection<DisplayModeEnum, DisplayMode> {
     
-    static bool isValid(long value)
-    {
-        return (unsigned long)value <= DISPLAY_MODE_INV_MULTICOL_BITMAP;
-    }
+    static long min() { return 0; }
+    static long max() { return DISPLAY_MODE_INV_MULTICOL_BITMAP; }
+    static bool isValid(long value) { return value >= min() && value <= max(); }
 
     static const char *prefix() { return "DISPLAY_MODE"; }
     static const char *key(DisplayMode value)
@@ -285,10 +303,9 @@ typedef COLSRC ColorSource;
 #ifdef __cplusplus
 struct ColorSourceEnum : util::Reflection<ColorSourceEnum, ColorSource> {
     
-    static bool isValid(long value)
-    {
-        return (unsigned long)value <= COLSRC_ZERO;
-    }
+    static long min() { return 0; }
+    static long max() { return COLSRC_ZERO; }
+    static bool isValid(long value) { return value >= min() && value <= max(); }
 
     static const char *prefix() { return "COLSRC"; }
     static const char *key(Palette value)
@@ -368,6 +385,7 @@ typedef struct
 {
     // Silicon
     VICIIRevision revision;
+    VICIISpeed speed;
     bool powerSave;
     bool grayDotBug;
     GlueLogic glueLogic;
@@ -409,7 +427,7 @@ FrameFlipflops;
 typedef struct
 {
     // Counters
-    u16 rasterLine;
+    u16 scanline;
     u8 rasterCycle;
     u32 yCounter;
     u16 xCounter;
@@ -444,7 +462,7 @@ typedef struct
     u16 charMemoryAddr;
 
     // Interrupts
-    u16 irqRasterline;
+    u16 irqLine;
     u8 irr;
     u8 imr;
 

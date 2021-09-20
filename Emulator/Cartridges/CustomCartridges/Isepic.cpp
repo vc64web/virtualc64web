@@ -39,7 +39,7 @@ Isepic::peek(u16 addr)
 
     // Intercept if the NMI vector is accessed
     if (cartIsVisible() && (addr == 0xFFFA || addr == 0xFFFB)) {
-        return peekRAM((page * 256) + (addr & 0xFF));
+        return peekRAM((u16)(page << 8 | (addr & 0xFF)));
     } else {
         return mem.peek(addr, oldPeekSource);
     }
@@ -69,7 +69,7 @@ Isepic::peekIO2(u16 addr)
     assert(addr >= 0xDF00 && addr <= 0xDFFF);
 
     if (cartIsVisible()) {
-        return peekRAM((page * 256) + (addr & 0xFF));
+        return peekRAM((u16)(page << 8 | (addr & 0xFF)));
     } else {
         return Cartridge::peekIO2(addr);
     }
@@ -79,7 +79,7 @@ u8
 Isepic::spypeekIO2(u16 addr) const
 {
     if (cartIsVisible()) {
-        return peekRAM((page * 256) + (addr & 0xFF));
+        return peekRAM((u16)(page << 8 | (addr & 0xFF)));
     } else {
         return Cartridge::spypeekIO2(addr);
     }
@@ -92,7 +92,7 @@ Isepic::poke(u16 addr, u8 value)
 
     // Intercept if the NMI vector is accessed
     if (cartIsVisible() && (addr == 0xFFFA || addr == 0xFFFB)) {
-        pokeRAM((page * 256) + (addr & 0xFF), value);
+        pokeRAM((u16)(page << 8 | (addr & 0xFF)), value);
     } else {
         mem.poke(addr, value, oldPokeTarget);
     }
@@ -112,47 +112,46 @@ Isepic::pokeIO2(u16 addr, u8 value)
     assert(addr >= 0xDF00 && addr <= 0xDFFF);
 
     if (cartIsVisible()) {
-        pokeRAM((page * 256) + (addr & 0xFF), value);
+        pokeRAM((u16)(page << 8 | (addr & 0xFF)), value);
     } else {
         Cartridge::pokeIO2(addr, value);
     }
 }
 
-const char *
-Isepic::getSwitchDescription(i8 pos) const
+const string
+Isepic::getSwitchDescription(isize pos) const
 {
-    return (pos == -1) ? "Off" : (pos == 1) ? "On" : nullptr;
+    return (pos == -1) ? "Off" : (pos == 1) ? "On" : "";
 }
 
 void
-Isepic::setSwitch(i8 pos)
+Isepic::setSwitch(isize pos)
 {
-    suspend();
-
-    bool oldVisible = cartIsVisible();
-    Cartridge::setSwitch(pos);
-    bool newVisible = cartIsVisible();
-
-    if (oldVisible != newVisible) {
-
-        // Enforce a call to updatePeekPokeLookupTables()
-        expansionport.setCartridgeMode(CRTMODE_OFF);
-
-        if (newVisible) {
-
-            trace(CRT_DEBUG, "Activating Ipsec cartridge\n");
-
-            // Trigger NMI
-            cpu.pullDownNmiLine(INTSRC_EXP);
-            cpu.releaseNmiLine(INTSRC_EXP);
-
-        } else {
-
-            trace(CRT_DEBUG, "Hiding Ipsec cartridge\n");
+    suspended {
+        
+        bool oldVisible = cartIsVisible();
+        Cartridge::setSwitch(pos);
+        bool newVisible = cartIsVisible();
+        
+        if (oldVisible != newVisible) {
+            
+            // Enforce a call to updatePeekPokeLookupTables()
+            expansionport.setCartridgeMode(CRTMODE_OFF);
+            
+            if (newVisible) {
+                
+                trace(CRT_DEBUG, "Activating Ipsec cartridge\n");
+                
+                // Trigger NMI
+                cpu.pullDownNmiLine(INTSRC_EXP);
+                cpu.releaseNmiLine(INTSRC_EXP);
+                
+            } else {
+                
+                trace(CRT_DEBUG, "Hiding Ipsec cartridge\n");
+            }
         }
     }
-
-    resume();
 }
 
 void

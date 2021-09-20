@@ -17,30 +17,31 @@
 void
 RegressionTester::prepare(C64 &c64, C64Model model)
 {
-    // Revert to factory settings
-    c64.initialize(model);
+    // Initialize the emulator according to the specified model
+    c64.revertToFactorySettings();
+    c64.configure(model);
     
     // Select the default texture cutout
-    x1 = 104; y1 = 17; x2 = 488; y2 = c64.vic.isPAL() ? 291 : 241;
+    x1 = 104; y1 = 17; x2 = 488; y2 = c64.vic.pal() ? 291 : 241;
     
     // Run as fast as possible
-    c64.setWarp(true);
+    c64.warpOn();
     
     // Prevent the GUI from disabling warp mode
-    c64.lockWarpMode();
+    c64.setWarpLock(true);
     
     // Launch the emulator
     c64.run();
 }
 
 void
-RegressionTester::dumpTexture(C64 &c64) const
+RegressionTester::dumpTexture(C64 &c64)
 {
     dumpTexture(c64, dumpTexturePath);
 }
 
 void
-RegressionTester::dumpTexture(C64 &c64, const string &filename) const
+RegressionTester::dumpTexture(C64 &c64, const string &filename)
 {
     /* This function is used for automatic regression testing. It generates a
      * TIFF image of the current emulator texture in the /tmp directory and
@@ -76,24 +77,23 @@ RegressionTester::dumpTexture(C64 &c64, const string &filename) const
 }
 
 void
-RegressionTester::dumpTexture(C64 &c64, std::ostream& os) const
+RegressionTester::dumpTexture(C64 &c64, std::ostream& os)
 {
-    c64.suspend();
-    
-    auto buffer = (u32 *) c64.vic.stableEmuTexture();
-
-    for (isize y = y1; y < y2; y++) {
+    suspended {
         
-        for (isize x = x1; x < x2; x++) {
+        auto buffer = (u32 *) c64.vic.stableEmuTexture();
+        
+        for (isize y = y1; y < y2; y++) {
             
-            char *cptr = (char *)(buffer + y * TEX_WIDTH + x);
-            os.write(cptr + 0, 1);
-            os.write(cptr + 1, 1);
-            os.write(cptr + 2, 1);
+            for (isize x = x1; x < x2; x++) {
+                
+                char *cptr = (char *)(buffer + y * TEX_WIDTH + x);
+                os.write(cptr + 0, 1);
+                os.write(cptr + 1, 1);
+                os.write(cptr + 2, 1);
+            }
         }
     }
-    
-    c64.resume();
 }
 
 void

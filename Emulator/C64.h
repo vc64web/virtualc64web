@@ -9,13 +9,37 @@
 
 #pragma once
 
-// General
-#include "C64Component.h"
-#include "Serialization.h"
-#include "MsgQueue.h"
-
-// Data types and constants
 #include "C64Types.h"
+#include "MsgQueue.h"
+#include "SuspendableThread.h"
+
+// Sub components
+#include "ExpansionPort.h"
+#include "IEC.h"
+#include "Keyboard.h"
+#include "ControlPort.h"
+#include "C64Memory.h"
+#include "DriveMemory.h"
+#include "FlashRom.h"
+#include "VICII.h"
+#include "Muxer.h"
+#include "TOD.h"
+#include "CIA.h"
+#include "CPU.h"
+#include "PowerSupply.h"
+#include "Recorder.h"
+#include "RegressionTester.h"
+#include "RetroShell.h"
+
+// Cartridges
+#include "Cartridge.h"
+#include "CustomCartridges.h"
+
+// Peripherals
+#include "Drive.h"
+#include "ParCable.h"
+#include "Datasette.h"
+#include "Mouse.h"
 
 // Loading and saving
 #include "Snapshot.h"
@@ -30,32 +54,6 @@
 #include "CRTFile.h"
 #include "FSDevice.h"
 
-// Sub components
-#include "ExpansionPort.h"
-#include "IEC.h"
-#include "Keyboard.h"
-#include "ControlPort.h"
-#include "C64Memory.h"
-#include "DriveMemory.h"
-#include "FlashRom.h"
-#include "VICII.h"
-#include "SIDBridge.h"
-#include "TOD.h"
-#include "CIA.h"
-#include "CPU.h"
-#include "Oscillator.h"
-#include "RegressionTester.h"
-#include "RetroShell.h"
-
-// Cartridges
-#include "Cartridge.h"
-#include "CustomCartridges.h"
-
-// Peripherals
-#include "Drive.h"
-#include "Datasette.h"
-#include "Mouse.h"
-
 
 /* A complete virtual C64. This class is the most prominent one of all. To run
  * the emulator, it is sufficient to create a single object of this type. All
@@ -64,12 +62,12 @@
  * Please note that most subcomponents have their own public API. E.g., to
  * query information from VICII, you need to invoke a method on c64.vicii.
  */
-class C64 : public HardwareComponent {
-        
-    // The currently set inspection target (only evaluated in debug mode)
+class C64 : public SuspendableThread {
+                
+    // The component which is currently observed by the debugger
     InspectionTarget inspectionTarget;
 
-    
+
     //
     // Sub components
     //
@@ -79,117 +77,46 @@ public:
     // Core components
     C64Memory mem = C64Memory(*this);
     C64CPU cpu = C64CPU(*this, mem);
-    VICII vic = VICII(*this);
     CIA1 cia1 = CIA1(*this);
     CIA2 cia2 = CIA2(*this);
-    SIDBridge sid = SIDBridge(*this);
+    VICII vic = VICII(*this);
+    Muxer muxer = Muxer(*this);
 
     // Logic board
-    Oscillator oscillator = Oscillator(*this);
-    
-    // Keyboard
-    Keyboard keyboard = Keyboard(*this);
-    
-    // Control ports
+    PowerSupply supply = PowerSupply(*this);
     ControlPort port1 = ControlPort(*this, PORT_ONE);
     ControlPort port2 = ControlPort(*this, PORT_TWO);
-    
-    // Expansion port (cartridge port)
     ExpansionPort expansionport = ExpansionPort(*this);
-    
-    // IEC bus (connects the VC1541 floppy drives)
     IEC iec = IEC(*this);
     
-    // Floppy drives
+    // Peripherals
+    Keyboard keyboard = Keyboard(*this);
     Drive drive8 = Drive(DRIVE8, *this);
     Drive drive9 = Drive(DRIVE9, *this);
-    
-    // Datasette
+    ParCable parCable = ParCable(*this);
     Datasette datasette = Datasette(*this);
     
-    // Command console
- //   RetroShell retroShell = RetroShell(*this);
-    
-    // Communication channel to the GUI
+    // Misc
+  //  RetroShell retroShell = RetroShell(*this);
+    RegressionTester regressionTester = RegressionTester(*this);
+    Recorder recorder = Recorder(*this);
     MsgQueue msgQueue = MsgQueue(*this);
 
-    // Regression test manager
-    RegressionTester regressionTester;
-    
-    
-    //
-    // Frame, rasterline, and rasterline cycle information
-    //
-    
-    // The total number of frames drawn since power up
-    u64 frame;
-    
-    /* The currently drawn rasterline. The first rasterline is numbered 0. The
-     * number of the last rasterline varies between PAL and NTSC models.
-     */
-    u16 rasterLine;
-    
-    /* The currently executed rasterline cycle. The first rasterline cycle is
-     * numbered 1. The number of the last cycle varies between PAL and NTSC
-     * models.
-     */
-    u8 rasterCycle;
-    
-    // Clock frequency
-    u32 frequency;
-    
-    // Duration of a CPU cycle in 1/10 nano seconds
-    u64 durationOfOneCycle;
-        
     
     //
     // Emulator thread
     //
     
 private:
-    
-    // The current emulator state
-    EmulatorState state = EMULATOR_STATE_OFF;
-    
-    /* Run loop control. This variable is checked at the end of each runloop
+        
+    /* Run loop flags. This variable is checked at the end of each runloop
      * iteration. Most of the time, the variable is 0 which causes the runloop
      * to repeat. A value greater than 0 means that one or more runloop control
      * flags are set. These flags are flags processed and the loop either
      * repeats or terminates depending on the provided flags.
      */
-    u32 runLoopCtrl = 0;
-        
-    // The invocation counter for implementing suspend() / resume()
-    isize suspendCounter = 0;
-    
-    // The emulator thread
-    pthread_t p = (pthread_t)0;
-    
+    RunLoopFlags flags = 0;
 
-    //
-    // Operation modes
-    //
-    
-    /* Indicates if the emulator should be executed in warp mode. To speed up
-     * emulation (e.g., during disk accesses), the virtual hardware may be put
-     * into warp mode. In this mode, the emulation thread is no longer paused
-     * to match the target frequency and runs as fast as possible.
-     */
-    bool warp = false;
-    
-    /* Indicates if the current warp mode is locked. By default, this variable
-     * false. It is set to true by the regression tester to prevent the GUI
-     * from disabling warp mode during an ongoing regression test.
-     */
-    bool warpLock = false;
-    
-    /* Indicates whether C64 is running in ultimax mode. Ultimax mode can be
-     * enabled by external cartridges by pulling game line low and keeping
-     * exrom line high. In ultimax mode, most of the C64's RAM and ROM is
-     * invisible.
-     */
-    bool ultimax = false;
-    
     
     //
     // Snapshot storage
@@ -199,6 +126,45 @@ private:
     
     Snapshot *autoSnapshot = nullptr;
     Snapshot *userSnapshot = nullptr;
+
+    
+    //
+    // State
+    //
+    
+public:
+    
+    // The total number of frames drawn since power up
+    u64 frame = 0;
+    
+    /* The currently drawn scanline. The first scanline is numbered 0. The
+     * number of the last scanline varies between PAL and NTSC models.
+     */
+    u16 scanline = 0;
+    
+    /* The currently executed scanline cycle. The first scanline cycle is
+     * numbered 1. The number of the last cycle varies between PAL and NTSC
+     * models.
+     */
+    u8 rasterCycle = 1;
+        
+private:
+    
+    /* Indicates whether C64 is running in ultimax mode. Ultimax mode can be
+     * enabled by external cartridges by pulling game line low and keeping
+     * exrom line high. In ultimax mode, most of the C64's RAM and ROM is
+     * invisible.
+     */
+    bool ultimax = false;
+
+    /* Duration of a CPU cycle in 1/10 nano seconds. The first value depends
+     * on the selected VICII model and the selected speed setting. The second
+     * value depends on the VICII model, only. Both values match if VICII is
+     * run in speed mode "native".
+     */
+    i64 durationOfOneCycle;
+    i64 nativeDurationOfOneCycle;
+        
     
     //
     // Initializing
@@ -208,11 +174,9 @@ public:
     
     C64();
     ~C64();
+    
     const char *getDescription() const override { return "C64"; }
     void prefix() const override;
-
-    // Prepares the emulator for regression testing
-    void initialize(C64Model model);
 
     void reset(bool hard);
     void hardReset() { reset(true); }
@@ -229,19 +193,28 @@ private:
 
 public:
     
+    // Gets a single configuration item
     i64 getConfigItem(Option option) const;
     i64 getConfigItem(Option option, long id) const;
     
-    bool configure(Option option, i64 value) throws;
-    bool configure(Option option, long id, i64 value) throws;
-
+    // Sets a single configuration item
+    void configure(Option option, i64 value) throws;
+    void configure(Option option, long id, i64 value) throws;
+    
     // Configures the C64 to match a specific C64 model
     void configure(C64Model model);
         
+    // Powers off and resets the emulator to it's initial state
+    void revertToFactorySettings();
+
+    // Updates the clock frequency and all variables derived from it
+    void updateClockFrequency(VICIIRevision rev, VICIISpeed speed);
+
 private:
-
-    bool setConfigItem(Option option, i64 value) override;
-
+    
+    // Overrides a config option if the corresponding debug option is enabled
+    i64 overrideOption(Option option, i64 value);
+    
     
     //
     // Analyzing
@@ -252,8 +225,8 @@ public:
     void inspect();
     InspectionTarget getInspectionTarget() const;
     void setInspectionTarget(InspectionTarget target);
-    void clearInspectionTarget() { setInspectionTarget(INSPECTION_TARGET_NONE); }
-    
+    void removeInspectionTarget() { setInspectionTarget(INSPECTION_NONE); }
+        
 private:
     
     void _dump(dump::Category category, std::ostream& os) const override;
@@ -270,8 +243,8 @@ private:
     {
         worker
         
-        << frequency
-        << durationOfOneCycle;
+        << durationOfOneCycle
+        << nativeDurationOfOneCycle;
     }
     
     template <class T>
@@ -282,7 +255,7 @@ private:
             worker
             
             << frame
-            << rasterLine
+            << scanline
             << rasterCycle
             << ultimax;
         }
@@ -291,95 +264,62 @@ private:
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    
+
     
     //
     // Controlling
     //
-    
-public:
-
-    bool isPoweredOff() const override { return state == EMULATOR_STATE_OFF; }
-    bool isPoweredOn() const override { return state != EMULATOR_STATE_OFF; }
-    bool isPaused() const override { return state == EMULATOR_STATE_PAUSED; }
-    bool isRunning() const override { return state == EMULATOR_STATE_RUNNING; }
-
-    void powerOn();
-    void powerOff();
-    void run();
-    void pause();
-    void shutdown();
-    
-    void setWarp(bool enable);
-    bool inWarpMode() const { return warp; }
-    void lockWarpMode() { warpLock = true; }
-    void unlockWarpMode() { warpLock = false; }
-
-    void setDebug(bool enable);
-    bool inDebugMode() const { return debugMode; }
-    
+        
 private:
 
+    void _isReady() const throws override;
     void _powerOn() override;
     void _powerOff() override;
     void _run() override;
     void _pause() override;
-    void _setWarp(bool enable) override;
-    void _setDebug(bool enable) override;
+    void _halt() override;
+    void _warpOn() override;
+    void _warpOff() override;
+    void _debugOn() override;
+    void _debugOff() override;
 
-
+    
     //
-    // Working with the emulator thread
+    // Running the emulator
     //
+    
+private:
+    
+    // Main execution method (from Thread class)
+    void execute() override;
 
 public:
-    
-    // Returns true if the currently executed thread is the emulator thread
-    bool isEmulatorThread() { return pthread_self() == p; }
 
-    /* Returns true if a call to powerOn() will be successful.
-     * It returns false, e.g., if no Rom is installed.
+    bool getUltimax() const { return ultimax; }
+    void setUltimax(bool b) { ultimax = b; }
+
+    /* Sets or clears a flag for controlling the run loop. The functions are
+     * thread-safe and can be called safely from outside the emulator thread.
      */
-    bool isReady(ErrorCode *err = nullptr) const;
+    void setFlag(u32 flags);
+    void clearFlag(u32 flags);
     
-    
-    //
-    // Accessing the message queue
-    //
-    
-public:
-        
-    // Feeds a notification message into message queue
-    void putMessage(MsgType msg, u64 data = 0) { msgQueue.put(msg, data); }
-    
-    /* The thread enter function. This (private) method is invoked when the
-     * emulator thread launches. It has to be declared public to make it
-     * accessible by the emulator thread.
-     */
-    void threadWillStart();
-    
-    /* The thread exit function. This (private) method is invoked when the
-     * emulator thread terminates. It has to be declared public to make it
-     * accessible by the emulator thread.
-     */
-    void threadDidTerminate();
-        
-    /* The C64 run loop.
-     * This function is one of the most prominent ones. It implements the
-     * outermost loop of the emulator and therefore the place where emulation
-     * starts. If you want to understand how the emulator works, this function
-     * should be your starting point.
-     */
-    void runLoop();
-    
-    /* Runs or pauses the emulator.
-     */
+    // Convenience wrappers
+    void signalAutoSnapshot() { setFlag(RL::AUTO_SNAPSHOT); }
+    void signalUserSnapshot() { setFlag(RL::USER_SNAPSHOT); }
+    void signalBreakpoint() { setFlag(RL::BREAKPOINT); }
+    void signalWatchpoint() { setFlag(RL::WATCHPOINT); }
+    void signalInspect() { setFlag(RL::INSPECT); }
+    void signalJammed() { setFlag(RL::CPU_JAM); }
+    void signalStop() { setFlag(RL::STOP); }
+    void signalExpPortNmi() { setFlag(RL::EXTERNAL_NMI); }
+
+    // Runs or pauses the emulator
     void stopAndGo();
 
-    /* Executes a single instruction.
-     * This function is used for single-stepping through the code inside the
-     * debugger. It starts the execution thread and terminates it after the
-     * next instruction has been executed.
+    /* Executes a single instruction. This function is used for single-stepping
+     * through the code inside the debugger. It starts the execution thread and
+     * terminates it after the next instruction has been executed.
      */
     void stepInto();
     
@@ -398,7 +338,7 @@ public:
      */
     void executeOneFrame();
     
-    /* Emulates the C64 until the end of the current rasterline. This function
+    /* Emulates the C64 until the end of the current scanline. This function
      * is called inside executeOneFrame().
      */
     void executeOneLine();
@@ -415,60 +355,24 @@ public:
     
     // Finishes the current frame
     void finishFrame();
-    
+
+    // mithrendal
     void executeRS232();
     void write_string_to_ser(const char *buf);
     void configure_rs232_ser_speed(unsigned baud);
 
-    
 private:
     
-    // Invoked before executing the first cycle of a rasterline
-    void beginRasterLine();
+    // Invoked before executing the first cycle of a scanline
+    void beginScanline();
     
-    // Invoked after executing the last cycle of a rasterline
-    void endRasterLine();
+    // Invoked after executing the last cycle of a scanline
+    void endScanline();
     
-    // Invoked after executing the last rasterline of a frame
+    // Invoked after executing the last scanline of a frame
     void endFrame();
     
     
-    //
-    // Managing the emulator thread
-    //
-    
-public:
-    
-    /* Pauses the emulation thread temporarily. Because the emulator is running
-     * in a separate thread, the GUI has to pause the emulator before changing
-     * it's internal state. This is done by embedding the code inside a
-     * suspend / resume block:
-     *
-     *           suspend();
-     *           do something with the internal state;
-     *           resume();
-     *
-     * It it safe to nest multiple suspend() / resume() blocks.
-     */
-    void suspend();
-    void resume();
-    
-    /* Sets or clears a run loop control flag. The functions are thread-safe
-     * and can be called from inside or outside the emulator thread.
-     */
-    void setActionFlags(u32 flags);
-    void clearActionFlags(u32 flags);
-    
-    // Convenience wrappers for controlling the run loop
-    void signalAutoSnapshot() { setActionFlags(ACTION_FLAG_AUTO_SNAPSHOT); }
-    void signalUserSnapshot() { setActionFlags(ACTION_FLAG_USER_SNAPSHOT); }
-    void signalBreakpoint() { setActionFlags(ACTION_FLAG_BREAKPOINT); }
-    void signalWatchpoint() { setActionFlags(ACTION_FLAG_WATCHPOINT); }
-    void signalInspect() { setActionFlags(ACTION_FLAG_INSPECT); }
-    void signalJammed() { setActionFlags(ACTION_FLAG_CPU_JAM); }
-    void signalStop() { setActionFlags(ACTION_FLAG_STOP); }
-    void signalExpPortNmi() { setActionFlags(ACTION_FLAG_EXTERNAL_NMI); }
-
     //
     // Handling snapshots
     //
@@ -487,10 +391,8 @@ public:
     Snapshot *latestAutoSnapshot();
     Snapshot *latestUserSnapshot();
     
-    /* Loads the current state from a snapshot file. This function is not
-     * thread-safe and must not be called on a running emulator.
-     */
-    bool loadFromSnapshot(Snapshot *snapshot);
+    // Loads the current state from a snapshot file
+    void loadSnapshot(const Snapshot &snapshot) throws;
     
     
     //
@@ -507,14 +409,14 @@ public:
     RomIdentifier romIdentifier(RomType type) const;
     
     // Returns printable titles for the installed ROMs
-    const char *romTitle(RomType type) const;
+    const string romTitle(RomType type) const;
     
     // Returns printable sub titles for the installed ROMs
-    const char *romSubTitle(u64 fnv) const;
-    const char *romSubTitle(RomType type) const;
+    const string romSubTitle(u64 fnv) const;
+    const string romSubTitle(RomType type) const;
     
     // Returns printable revision strings or hash values for the installed ROMs
-    const char *romRevision(RomType type) const;
+    const string romRevision(RomType type) const;
     
     // Checks if a certain Rom is present
     bool hasRom(RomType type) const;
@@ -523,22 +425,20 @@ public:
 private:
     
     // Returns a revision string if a Mega65 Rom is installed
-    char *mega65BasicRev() const;
-    char *mega65KernalRev() const;
+    const char *mega65BasicRev() const;
+    const char *mega65KernalRev() const;
 
 public:
     
     // Installs a Rom
     void loadRom(const string &path) throws;
-    void loadRom(const string &path, ErrorCode *ec);
-    void loadRom(RomFile *file);
+    void loadRom(const RomFile &file);
     
     // Erases an installed Rom
     void deleteRom(RomType type);
     
     // Saves a Rom to disk
     void saveRom(RomType rom, const string &path) throws;
-    void saveRom(RomType rom, const string &path, ErrorCode *ec);
 
     
     //
@@ -546,22 +446,7 @@ public:
     //
     
     // Flashes a single file into memory
-    bool flash(AnyFile *file);
-    bool flash(AnyCollection *file, isize item);
-    bool flash(const FSDevice &fs, isize item);
-    
-    //
-    // Set and query ultimax mode
-    //
-    
-public:
-    
-    // Returns the ultimax flag
-    bool getUltimax() const { return ultimax; }
-    
-    /* Setter for ultimax mode. When the peek / poke lookup table is updated,
-     * this function is called if a certain combination is present on the Game
-     * and Exrom lines.
-     */
-    void setUltimax(bool b) { ultimax = b; }
+    void flash(const AnyFile &file) throws;
+    void flash(const AnyCollection &file, isize item) throws;
+    void flash(const FSDevice &fs, isize item) throws;
 };

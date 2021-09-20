@@ -115,55 +115,53 @@ FinalIII::updateGame()
     expansionport.setGameLine(game() && qD);
 }
 
-const char *
-FinalIII::getButtonTitle(unsigned nr) const
+const string
+FinalIII::getButtonTitle(isize nr) const
 {
-    return nr == 1 ? "Freeze" : nr == 2 ? "Reset" : nullptr;
+    return nr == 1 ? "Freeze" : nr == 2 ? "Reset" : "";
 }
 
 void
-FinalIII::pressButton(unsigned nr)
+FinalIII::pressButton(isize nr)
 {
     assert(nr <= numButtons());
-    trace(CRT_DEBUG, "Pressing %s button.\n", getButtonTitle(nr));
+    trace(CRT_DEBUG, "Pressing %s button.\n", getButtonTitle(nr).c_str());
     
-    suspend();
-    
-    switch (nr) {
-            
-        case 1: // Freeze
-            
-            freeezeButtonIsPressed = true;
-            updateNMI();
-            break;
-            
-        case 2: // Reset
-            
-            resetWithoutDeletingRam();
-            break;
+    suspended {
+        
+        switch (nr) {
+                
+            case 1: // Freeze
+                
+                freeezeButtonIsPressed = true;
+                updateNMI();
+                break;
+                
+            case 2: // Reset
+                
+                c64.softReset();
+                break;
+        }
     }
-    
-    resume();
 }
 
 void
-FinalIII::releaseButton(unsigned nr)
+FinalIII::releaseButton(isize nr)
 {
     assert(nr <= numButtons());
-    trace(CRT_DEBUG, "Releasing %s button.\n", getButtonTitle(nr));
+    trace(CRT_DEBUG, "Releasing %s button.\n", getButtonTitle(nr).c_str());
     
-    suspend();
-    
-    switch (nr) {
-            
-        case 1: // Freeze
-            
-            freeezeButtonIsPressed = false;
-            qD = true;
-            updateNMI();
-            updateGame();
-            break;
+    suspended {
+        
+        switch (nr) {
+                
+            case 1: // Freeze
+                
+                freeezeButtonIsPressed = false;
+                qD = true;
+                updateNMI();
+                updateGame();
+                break;
+        }
     }
-    
-    resume();
 }

@@ -31,12 +31,11 @@ FlashRom::getStateAsString(FlashState state)
         case FLASH_SECTOR_ERASE_SUSPEND: return "FLASH_SECTOR_ERASE_SUSPEND";
         
         default:
-            assert(false);
-            return "";
+            fatalError;
     }
 }
 
-FlashRom::FlashRom(C64 &ref) : C64Component(ref)
+FlashRom::FlashRom(C64 &ref) : SubComponent(ref)
 {
     state = FLASH_READ;
     baseState = FLASH_READ;
@@ -51,10 +50,10 @@ FlashRom::~FlashRom()
 }
 
 void
-FlashRom::loadBank(unsigned bank, u8 *data)
+FlashRom::loadBank(isize bank, u8 *data)
 {
     assert(data);
-    memcpy(rom + bank * 0x2000, data, 0x2000);
+    memcpy(rom + (u32)bank * 0x2000, data, 0x2000);
 }
 
 void

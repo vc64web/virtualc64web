@@ -761,10 +761,9 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     return "";
   }
   bool file_still_unprocessed=true;   
-  if (D64File::isCompatible(filename)) {
-    printf("try to build D64File\n");
-    
+  if (D64File::isCompatible(filename)) {    
     try{
+      printf("try to build D64File\n");
       D64File d64 = D64File(blob, len);
       auto disk = std::make_unique<Disk>(d64);
       printf("isD64\n");  
@@ -776,8 +775,8 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     }
   }
   if (file_still_unprocessed && G64File::isCompatible(filename)) {
-    printf("try to build G64File\n");
     try{
+      printf("try to build G64File\n");
       G64File g64 = G64File(blob, len);
       auto disk = std::make_unique<Disk>(g64);
       printf("isG64 ...\n");  
@@ -789,75 +788,96 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     }
   }
   if (file_still_unprocessed && PRGFile::isCompatible(filename)) {
-    printf("try to build PRGFile\n");
-    PRGFile *file = new PRGFile(blob, len);
-    if(file != NULL)
+    try
     {
+      printf("try to build PRGFile\n");
+      PRGFile *file = new PRGFile(blob, len);
       printf("isPRG\n");
       wrapper->c64->flash(*file ,0);
       file_still_unprocessed=false;
     }
+    catch(VC64Error &exception) {
+      ErrorCode ec=exception.data;
+      printf("%s\n", ErrorCodeEnum::key(ec));
+    }
   }
   if (file_still_unprocessed && CRTFile::isCompatible(filename)) {
-    printf("try to build CRTFile\n");
-    CRTFile *file = new CRTFile(blob, len);
-    if(file != NULL)
+    try
     {
+      printf("try to build CRTFile\n");
+      CRTFile *file = new CRTFile(blob, len);
+
       printf("isCRT\n");
       wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(*(wrapper->c64),*file));
       wrapper->c64->reset(true);
       file_still_unprocessed=false;
     } 
+    catch(VC64Error &exception) {
+      ErrorCode ec=exception.data;
+      printf("%s\n", ErrorCodeEnum::key(ec));
+    }
   }
   if (file_still_unprocessed && TAPFile::isCompatible(filename)) {
-    printf("try to build TAPFile\n");
-
-    TAPFile *file = new TAPFile(blob, len);
-    if(file != NULL)
-    {  
+    try
+    {
+      printf("try to build TAPFile\n");
+      TAPFile *file = new TAPFile(blob, len);
       printf("isTAP\n");
       wrapper->c64->datasette.insertTape(*file);
       wrapper->c64->datasette.rewind();
-    //  wrapper->c64->datasette.pressPlay();
-    //  wrapper->c64->datasette.pressStop();
+  //  wrapper->c64->datasette.pressPlay();
+  //  wrapper->c64->datasette.pressStop();
       file_still_unprocessed=false;
-    } 
+    }
+    catch(VC64Error &exception) {
+      ErrorCode ec=exception.data;
+      printf("%s\n", ErrorCodeEnum::key(ec));
+    }
   }
   if (file_still_unprocessed && T64File::isCompatible(filename)) {
-    printf("try to build T64File\n");
-
-    T64File *file = new T64File(blob, len);
-    if(file != NULL)
-    { 
+    try
+    {
+      printf("try to build T64File\n");
+      T64File *file = new T64File(blob, len);
       printf("isT64\n");
       wrapper->c64->flash(*file ,0);
       file_still_unprocessed=false;
-    } 
+    }
+    catch(VC64Error &exception) {
+      ErrorCode ec=exception.data;
+      printf("%s\n", ErrorCodeEnum::key(ec));
+    }
   }
-  if (file_still_unprocessed && Snapshot::isCompatible(filename) && util::extractSuffix(filename)!="bin") {
-    printf("try to build Snapshot\n");
-    Snapshot *file = new Snapshot(blob, len);
-    if(file != NULL)
-    {     
+  if (file_still_unprocessed && Snapshot::isCompatible(filename) && util::extractSuffix(filename)!="rom") {
+    try
+    {
+      printf("try to build Snapshot\n");
+      Snapshot *file = new Snapshot(blob, len);      
       printf("isSnapshot\n");
       wrapper->c64->loadSnapshot(*file);
       file_still_unprocessed=false;
-    } 
+    }
+    catch(VC64Error &exception) {
+      ErrorCode ec=exception.data;
+      printf("%s\n", ErrorCodeEnum::key(ec));
+    }
   }
   if(file_still_unprocessed)
   {
-//    ErrorCode error;
-
-    bool wasRunnable = true; //wrapper->c64->isReady(&error);
+    bool wasRunnable = true;
     try { wrapper->c64->isReady(); } catch(...) { wasRunnable=false; }
 
-
-    printf("try to build RomFile\n");
-    RomFile *rom = new RomFile(blob, len);
-
-    if (!rom) {
-        printf("Failed to read ROM image file %s\n", name);
-        return "";
+    RomFile *rom = NULL;
+    try
+    {
+      printf("try to build RomFile\n");
+      rom = new RomFile(blob, len);
+    }
+    catch(VC64Error &exception) {
+      printf("Failed to read ROM image file %s\n", name);
+      ErrorCode ec=exception.data;
+      printf("%s\n", ErrorCodeEnum::key(ec));
+      return "";
     }
     
     wrapper->c64->suspend();
@@ -865,8 +885,10 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       wrapper->c64->flash(*rom); 
       printf("Loaded ROM image %s.\n", name);
     }  
-    catch(...) { 
+    catch(VC64Error &exception) { 
       printf("Failed to flash ROM image %s.\n", name);
+      ErrorCode ec=exception.data;
+      printf("%s\n", ErrorCodeEnum::key(ec));
     }
     wrapper->c64->resume();
 
@@ -881,11 +903,6 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       printf("sending ready message %s.\n", ready_msg);
       send_message_to_js(ready_msg);    
     }
-/*    if(error != ERROR_OK)
-    {
-      printf("%s\n", ErrorCodeEnum::key(error));
-    }
-*/
 
     const char *rom_type="";
     if(rom->isRomBuffer(ROM_TYPE_KERNAL, blob,len))

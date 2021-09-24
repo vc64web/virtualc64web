@@ -745,7 +745,7 @@ CIA1::portBinternal() const
 u8
 CIA1::portBexternal() const
 {
-    return portBexternal_value; //mithrendal make it variable
+    return 0xFF;
 }
 
 void
@@ -875,7 +875,8 @@ u8
 CIA2::portBexternal() const
 {
     // User port is not implemented. All pins are high if nothing is connected.
-    return 0xFF;
+    //return 0xFF;
+    return portBexternal_value; //mithrendal
 }
 
 void
@@ -887,7 +888,9 @@ CIA2::updatePB()
 u8
 CIA2::computePB() const
 {
-    return parCable.getValue();
+    //serielles Kabel
+    return (portBinternal() & DDRB) | (portBexternal() & ~DDRB); 
+    //return parCable.getValue();
 }
 
 

@@ -445,9 +445,11 @@ function load_roms(install_to_core){
         }
         else
         {
+            let kernal_title =JSON.parse(wasm_rom_info()).kernal; 
             $("#rom_kernal").attr("src", 
-            JSON.parse(wasm_rom_info()).kernal.startsWith("mega") ?
-            "img/rom_mega65.png":"img/rom.png");
+            kernal_title.startsWith("mega") ? "img/rom_mega65.png":
+            kernal_title.startsWith("Patched") ? "img/rom_patched.png":
+            "img/rom.png");
             $("#button_delete_kernal").show();
         }
 
@@ -481,7 +483,9 @@ function load_roms(install_to_core){
         }
         else
         {
-            $("#rom_disk_drive").attr("src", "img/rom.png");
+            let drive_rom =JSON.parse(wasm_rom_info()).drive_rom; 
+            $("#rom_disk_drive").attr("src", 
+            drive_rom.startsWith("Patched") ? "img/rom_patched.png":"img/rom.png");
             $("#button_delete_disk_drive_rom").show();
         }
     } catch(e){}
@@ -1780,7 +1784,7 @@ $('.layer').change( function(event) {
 */
                 }
                 else
-                {
+                {                    
                     emit_string(['Enter','l','o','a','d','"','*','"',',','8',',', '1', 'Enter']);
                     if(do_auto_run)
                     {
@@ -1807,7 +1811,8 @@ $('.layer').change( function(event) {
         {
             $("#button_run").click();
         }
-        var faster_open_roms_installed = JSON.parse(wasm_rom_info()).kernal.startsWith("mega");
+        let kernal_rom=JSON.parse(wasm_rom_info()).kernal;
+        var faster_open_roms_installed = kernal_rom.startsWith("mega") || kernal_rom.startsWith("Patched");
         
         //the roms differ from cold-start to ready prompt, orig-roms 3300ms and open-roms 250ms   
         var time_since_start=wasm_get_cpu_cycles();

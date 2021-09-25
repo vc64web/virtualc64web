@@ -1112,16 +1112,28 @@ extern "C" void wasm_cut_layers(unsigned cut_layers)
 
 
 
-char json_result[255];
+char json_result[1024];
 extern "C" const char* wasm_rom_info()
 {
-  sprintf(json_result, "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\", \"has_floppy_rom\":%s}",
-  wrapper->c64->hasMega65Rom(ROM_TYPE_KERNAL) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_KERNAL) ? "commodore": "none", 
-  wrapper->c64->hasMega65Rom(ROM_TYPE_BASIC) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_BASIC) ? "commodore": "none", 
-  wrapper->c64->hasMega65Rom(ROM_TYPE_CHAR) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_CHAR) ? "commodore": "none",
-  wrapper->c64->hasRom(ROM_TYPE_VC1541) /*&& 
-  wrapper->c64->drive8.getConfigItem(OPT_DRIVE_CONNECT)*/ ? "true":"false"
+  sprintf(json_result, "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\", \"has_floppy_rom\":%s, \"drive_rom\":\"%s\"}",
+
+  wrapper->c64->hasMega65Rom(ROM_TYPE_KERNAL) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_KERNAL) ? wrapper->c64->romTitle(ROM_TYPE_KERNAL).c_str(): "none", 
+  wrapper->c64->hasMega65Rom(ROM_TYPE_BASIC) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_BASIC) ? wrapper->c64->romTitle(ROM_TYPE_BASIC).c_str() : "none", 
+  wrapper->c64->hasMega65Rom(ROM_TYPE_CHAR) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_CHAR) ? wrapper->c64->romTitle(ROM_TYPE_CHAR).c_str(): "none",
+  wrapper->c64->hasRom(ROM_TYPE_VC1541) ? "true":"false",
+  wrapper->c64->romTitle(ROM_TYPE_VC1541).c_str()
+  /*&& 
+  wrapper->c64->drive8.getConfigItem(OPT_DRIVE_CONNECT)*/
   );
+
+//  printf("json: %s\n",  json_result);
+
+
+  printf("%s, %s, %s, %s\n",  wrapper->c64->romTitle(ROM_TYPE_KERNAL).c_str(),
+  wrapper->c64->romTitle(ROM_TYPE_BASIC).c_str(),
+  wrapper->c64->romTitle(ROM_TYPE_CHAR).c_str(),
+  wrapper->c64->romTitle(ROM_TYPE_VC1541).c_str()
+);
   return json_result;
 }
 

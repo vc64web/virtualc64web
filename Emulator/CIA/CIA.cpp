@@ -889,7 +889,7 @@ u8
 CIA2::computePB() const
 {
     if(drive8.getParCableType()== PAR_CABLE_NONE)
-    {//if no parcable connected we can connect a serial cable
+    {//if no parcable connected we can connect a serial cable to userport instead
         return (portBinternal() & DDRB) | (portBexternal() & ~DDRB); 
     }
     else

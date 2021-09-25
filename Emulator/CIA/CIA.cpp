@@ -888,9 +888,14 @@ CIA2::updatePB()
 u8
 CIA2::computePB() const
 {
-    //serielles Kabel
-    return (portBinternal() & DDRB) | (portBexternal() & ~DDRB); 
-    //return parCable.getValue();
+    if(drive8.getParCableType()== PAR_CABLE_NONE)
+    {//if no parcable connected we can connect a serial cable
+        return (portBinternal() & DDRB) | (portBexternal() & ~DDRB); 
+    }
+    else
+    {
+        return parCable.getValue();
+    }
 }
 
 

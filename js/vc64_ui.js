@@ -225,6 +225,7 @@ function load_parameter_link()
 var wasm_first_run=null;
 var required_roms_loaded =false;
 
+var last_drive_event=0;
 var msg_callback_stack = []
 function fire_on_message( msg, callback_fn)
 {
@@ -265,10 +266,23 @@ function check_ready_to_fire(msg)
 
 async function disk_loading_finished()
 {//await disk_loading_finished() before typing 'run'
-    await wait_on_message("MSG_IEC_BUS_BUSY");
-    await wait_on_message("MSG_IEC_BUS_IDLE");
-    await wait_on_message("MSG_IEC_BUS_BUSY");
-    await wait_on_message("MSG_IEC_BUS_IDLE");
+    if(JSON.parse(wasm_rom_info()).drive_rom.startsWith("Patched"))
+    {
+        last_drive_event=wasm_get_cpu_cycles();
+        while (wasm_get_cpu_cycles() < last_drive_event + 9*100000*1.5)
+        {
+            console.log("wait for disk_loading_finished: "+ wasm_get_cpu_cycles()+" "+last_drive_event);       
+            await sleep(100);  
+        }   
+    }
+    else
+    {
+        await wait_on_message("MSG_IEC_BUS_BUSY");
+        await wait_on_message("MSG_IEC_BUS_IDLE");
+        await wait_on_message("MSG_IEC_BUS_BUSY");
+        await wait_on_message("MSG_IEC_BUS_IDLE");
+    }
+    console.log("detected disk_loading_finished: "+wasm_get_cpu_cycles()+" "+last_drive_event);
 }   
 
 
@@ -340,12 +354,12 @@ function message_handler(msg, data)
     {
         emulator_currently_runs=false;
     }
-    else if(msg == "MSG_IEC_BUS_IDLE")
+    else if(msg == "MSG_IEC_BUS_IDLE" || 
+            msg == "MSG_IEC_BUS_BUSY" || 
+            msg.startsWith("MSG_DRIVE_")
+        )
     {
-        check_ready_to_fire(msg);
-    }
-    else if(msg == "MSG_IEC_BUS_BUSY")
-    {
+        try { last_drive_event = wasm_get_cpu_cycles(); } catch {};
         check_ready_to_fire(msg);
     }
     else if(msg == "MSG_RS232")
@@ -1231,7 +1245,6 @@ function InitWrappers() {
 
     wasm_cut_layers = Module.cwrap('wasm_cut_layers', 'undefined', ['number']);
 
-//    wasm_rom_classifier = Module.cwrap('wasm_rom_classifier', 'string', ['array', 'number']);
     wasm_rom_info = Module.cwrap('wasm_rom_info', 'string');
 
     wasm_set_2nd_sid = Module.cwrap('wasm_set_2nd_sid', 'undefined', ['number']);

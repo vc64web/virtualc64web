@@ -45,14 +45,14 @@ GameKiller::pokeIO2(u16 addr, u8 value)
     }
 }
 
-const char *
-GameKiller::getButtonTitle(unsigned nr) const
+const string
+GameKiller::getButtonTitle(isize nr) const
 {
-    return nr == 1 ? "Freeze" : nullptr;
+    return nr == 1 ? "Freeze" : "";
 }
 
 void
-GameKiller::pressButton(unsigned nr)
+GameKiller::pressButton(isize nr)
 {
     if (nr == 1) {
         c64.signalExpPortNmi();
@@ -60,12 +60,10 @@ GameKiller::pressButton(unsigned nr)
 }
 
 void
-GameKiller::releaseButton(unsigned nr)
+GameKiller::releaseButton(isize nr)
 {
     if (nr == 1) {
-        suspend();
-        cpu.releaseNmiLine(INTSRC_EXP);
-        resume();
+        suspended { cpu.releaseNmiLine(INTSRC_EXP); }
     }
 }
 

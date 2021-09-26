@@ -12,7 +12,7 @@
 #include "C64.h"
 #include "IO.h"
 
-ReSID::ReSID(C64 &ref, SIDBridge &bridgeref, int n) : C64Component(ref), bridge(bridgeref), nr(n)
+ReSID::ReSID(C64 &ref, int n) : SubComponent(ref), nr(n)
 {
     model = MOS_6581;
     emulateFilter = true;
@@ -73,7 +73,7 @@ ReSID::setClockFrequency(u32 frequency)
 }
 
 void
-ReSID::_inspect()
+ReSID::_inspect() const
 {
     synchronized {
         
@@ -181,9 +181,7 @@ ReSID::setRevision(SIDRevision revision)
     assert(revision == 0 || revision == 1);
     model = revision;
     
-    suspend();
-    sid->set_chip_model((reSID::chip_model)revision);
-    resume();
+    suspended { sid->set_chip_model((reSID::chip_model)revision); }
         
     assert((SIDRevision)sid->sid_model == revision);
     trace(SID_DEBUG, "Emulating SID revision %s.\n", SIDRevisionEnum::key(revision));
@@ -192,8 +190,6 @@ ReSID::setRevision(SIDRevision revision)
 void
 ReSID::setSampleRate(double value)
 {
-    // assert(!isRunning());
-
     sampleRate = value;
 
     sid->set_sampling_parameters((double)clockFrequency,
@@ -210,9 +206,7 @@ ReSID::setAudioFilter(bool value)
 
     emulateFilter = value;
     
-    suspend();
-    sid->enable_filter(value);
-    resume();
+    suspended { sid->enable_filter(value); }
     
     trace(SID_DEBUG, "%s audio filter emulation.\n", value ? "Enabling" : "Disabling");
 }
@@ -249,11 +243,11 @@ ReSID::setSamplingMethod(SamplingMethod value)
 
     samplingMethod = value;
     
-    suspend();
-    sid->set_sampling_parameters((double)clockFrequency,
-                                 (reSID::sampling_method)samplingMethod,
-                                 (double)sampleRate);
-    resume();
+    suspended {
+        sid->set_sampling_parameters((double)clockFrequency,
+                                     (reSID::sampling_method)samplingMethod,
+                                     (double)sampleRate);
+    }
     
     assert((SamplingMethod)sid->sampling == samplingMethod);
 }
@@ -274,7 +268,7 @@ i64
 ReSID::executeCycles(isize numCycles, SampleStream &stream)
 {
     short buf[2049];
-    usize buflength = 2048;
+    isize buflength = 2048;
     
     if (numCycles > PAL_CYCLES_PER_SECOND) {
         warn("Number of missing SID cycles is far too large\n");
@@ -286,8 +280,7 @@ ReSID::executeCycles(isize numCycles, SampleStream &stream)
     reSID::cycle_count cycles = (reSID::cycle_count)numCycles;
     while (cycles) {
         int resid = sid->clock(cycles, buf + samples, int(buflength) - int(samples));
-        assert(resid >= 0); // TODO: REMOVE AFTER A WHILE
-        samples += (usize)resid;
+        samples += (isize)resid;
     }
     
     // Check for a buffer overflow
@@ -305,5 +298,5 @@ ReSID::executeCycles(isize numCycles, SampleStream &stream)
 i64
 ReSID::executeCycles(isize numCycles)
 {
-    return executeCycles(numCycles, bridge.sidStream[nr]);
+    return executeCycles(numCycles, muxer.sidStream[nr]);
 }

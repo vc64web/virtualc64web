@@ -75,32 +75,31 @@ KcsPower::pokeIO2(u16 addr, u8 value)
     }
 }
 
-const char *
-KcsPower::getButtonTitle(unsigned nr) const
+const string
+KcsPower::getButtonTitle(isize nr) const
 {
-    return nr == 1 ? "Freeze" : nullptr;
+    return nr == 1 ? "Freeze" : "";
 }
 
 void
-KcsPower::pressButton(unsigned nr)
+KcsPower::pressButton(isize nr)
 {
     if (nr == 1) {
  
         // Pressing the button triggers an NMI in Ultimax mode
-        suspend();
-        expansionport.setCartridgeMode(CRTMODE_ULTIMAX);
-        cpu.pullDownNmiLine(INTSRC_EXP);
-        resume();
+        suspended {
+
+            expansionport.setCartridgeMode(CRTMODE_ULTIMAX);
+            cpu.pullDownNmiLine(INTSRC_EXP);
+        }
     }
 };
 
 void
-KcsPower::releaseButton(unsigned nr)
+KcsPower::releaseButton(isize nr)
 {
     if (nr == 1) {
     
-        suspend();
-        cpu.releaseNmiLine(INTSRC_EXP);
-        resume();
+        suspended { cpu.releaseNmiLine(INTSRC_EXP); }
     }
 };

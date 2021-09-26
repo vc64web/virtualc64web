@@ -225,6 +225,7 @@ function load_parameter_link()
 var wasm_first_run=null;
 var required_roms_loaded =false;
 
+var last_drive_event=0;
 var msg_callback_stack = []
 function fire_on_message( msg, callback_fn)
 {
@@ -265,10 +266,23 @@ function check_ready_to_fire(msg)
 
 async function disk_loading_finished()
 {//await disk_loading_finished() before typing 'run'
-    await wait_on_message("MSG_IEC_BUS_BUSY");
-    await wait_on_message("MSG_IEC_BUS_IDLE");
-    await wait_on_message("MSG_IEC_BUS_BUSY");
-    await wait_on_message("MSG_IEC_BUS_IDLE");
+    if(JSON.parse(wasm_rom_info()).drive_rom.startsWith("Patched"))
+    {
+        last_drive_event=wasm_get_cpu_cycles();
+        while (wasm_get_cpu_cycles() < last_drive_event + 982000*1.6)
+        {
+            console.log("wait for disk_loading_finished: "+ wasm_get_cpu_cycles()+" "+last_drive_event);       
+            await sleep(100);  
+        }   
+    }
+    else
+    {
+        await wait_on_message("MSG_IEC_BUS_BUSY");
+        await wait_on_message("MSG_IEC_BUS_IDLE");
+        await wait_on_message("MSG_IEC_BUS_BUSY");
+        await wait_on_message("MSG_IEC_BUS_IDLE");
+    }
+    console.log("detected disk_loading_finished: "+wasm_get_cpu_cycles()+" "+last_drive_event);
 }   
 
 
@@ -340,12 +354,12 @@ function message_handler(msg, data)
     {
         emulator_currently_runs=false;
     }
-    else if(msg == "MSG_IEC_BUS_IDLE")
+    else if(msg == "MSG_IEC_BUS_IDLE" || 
+            msg == "MSG_IEC_BUS_BUSY" || 
+            msg.startsWith("MSG_DRIVE_")
+        )
     {
-        check_ready_to_fire(msg);
-    }
-    else if(msg == "MSG_IEC_BUS_BUSY")
-    {
+        try { last_drive_event = wasm_get_cpu_cycles(); } catch {};
         check_ready_to_fire(msg);
     }
     else if(msg == "MSG_RS232")
@@ -445,9 +459,11 @@ function load_roms(install_to_core){
         }
         else
         {
+            let kernal_title =JSON.parse(wasm_rom_info()).kernal; 
             $("#rom_kernal").attr("src", 
-            JSON.parse(wasm_rom_info()).kernal.startsWith("mega") ?
-            "img/rom_mega65.png":"img/rom.png");
+            kernal_title.startsWith("mega") ? "img/rom_mega65.png":
+            kernal_title.startsWith("Patched") ? "img/rom_patched.png":
+            "img/rom.png");
             $("#button_delete_kernal").show();
         }
 
@@ -481,7 +497,9 @@ function load_roms(install_to_core){
         }
         else
         {
-            $("#rom_disk_drive").attr("src", "img/rom.png");
+            let drive_rom =JSON.parse(wasm_rom_info()).drive_rom; 
+            $("#rom_disk_drive").attr("src", 
+            drive_rom.startsWith("Patched") ? "img/rom_patched.png":"img/rom.png");
             $("#button_delete_disk_drive_rom").show();
         }
     } catch(e){}
@@ -1227,7 +1245,6 @@ function InitWrappers() {
 
     wasm_cut_layers = Module.cwrap('wasm_cut_layers', 'undefined', ['number']);
 
-//    wasm_rom_classifier = Module.cwrap('wasm_rom_classifier', 'string', ['array', 'number']);
     wasm_rom_info = Module.cwrap('wasm_rom_info', 'string');
 
     wasm_set_2nd_sid = Module.cwrap('wasm_set_2nd_sid', 'undefined', ['number']);
@@ -1244,6 +1261,9 @@ function InitWrappers() {
     wasm_export_disk = Module.cwrap('wasm_export_disk', 'string');
     wasm_configure = Module.cwrap('wasm_configure', 'undefined', ['string', 'number']);
     wasm_write_string_to_ser = Module.cwrap('wasm_write_string_to_ser', 'undefined', ['string']);
+    wasm_print_error = Module.cwrap('wasm_print_error', 'undefined', ['number']);
+
+
 
     get_audio_context=function() {
         if (typeof Module === 'undefined'
@@ -1777,7 +1797,7 @@ $('.layer').change( function(event) {
 */
                 }
                 else
-                {
+                {                    
                     emit_string(['Enter','l','o','a','d','"','*','"',',','8',',', '1', 'Enter']);
                     if(do_auto_run)
                     {
@@ -1804,7 +1824,8 @@ $('.layer').change( function(event) {
         {
             $("#button_run").click();
         }
-        var faster_open_roms_installed = JSON.parse(wasm_rom_info()).kernal.startsWith("mega");
+        let kernal_rom=JSON.parse(wasm_rom_info()).kernal;
+        var faster_open_roms_installed = kernal_rom.startsWith("mega") || kernal_rom.startsWith("Patched");
         
         //the roms differ from cold-start to ready prompt, orig-roms 3300ms and open-roms 250ms   
         var time_since_start=wasm_get_cpu_cycles();

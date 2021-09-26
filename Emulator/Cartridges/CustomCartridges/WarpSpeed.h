@@ -42,7 +42,7 @@ public:
     
 public:
     
-    long numButtons() const override { return 1; }
-    const char *getButtonTitle(unsigned nr) const override;
-    void pressButton(unsigned nr) override;
+    isize numButtons() const override { return 1; }
+    const string getButtonTitle(isize nr) const override;
+    void pressButton(isize nr) override;
 };

@@ -35,9 +35,9 @@
 
 #include <cmath>
 
-FastSID::FastSID(C64 &ref, SIDBridge &bridgeref, int n) : C64Component(ref), bridge(bridgeref), nr(n)
+FastSID::FastSID(C64 &ref, int n) : SubComponent(ref), nr(n)
 {    
-    subComponents = std::vector<HardwareComponent *> {
+    subComponents = std::vector<C64Component *> {
         
         &voice[0],
         &voice[1],
@@ -120,7 +120,7 @@ FastSID::initFilter(double sampleRate)
     yAdd = (float)((yMax - yMin) / 2048.0);
     yTmp = yMin;
     for (uk = 0, rk = 0; rk < 0x800; rk++, uk++) {
-        bandPassParam[uk] = (yTmp * filterRefFreq) / sampleRate;
+        bandPassParam[uk] = (float)((yTmp * filterRefFreq) / sampleRate);
         yTmp += yAdd;
     }
     
@@ -131,7 +131,7 @@ FastSID::initFilter(double sampleRate)
     }
     filterResTable[0] = resDyMin;
     filterResTable[15] = resDyMax;
-    filterAmpl = emulateFilter ? 0.7 : 1.0;
+    filterAmpl = emulateFilter ? 0.7f : 1.0f;
     
     // Amplifier lookup table
     for (uk = 0, si = 0; si < 256; si++, uk++) {
@@ -203,7 +203,7 @@ FastSID::_dump(dump::Category category, std::ostream& os) const
     }
     
     /*
-    for (unsigned i = 0; i < 3; i++) {
+    for (isize i = 0; i < 3; i++) {
         VoiceInfo vinfo = getVoiceInfo(i);
         u8 wf = vinfo.waveform;
         msg("Voice %d:       Frequency: %d\n", i, vinfo.frequency);
@@ -239,12 +239,12 @@ FastSID::getInfo()
 }
 
 VoiceInfo
-FastSID::getVoiceInfo(unsigned i)
+FastSID::getVoiceInfo(isize i)
 {
     assert(i < 3);
     
     VoiceInfo info;
-    for (unsigned j = 0; j < 7; j++) {
+    for (isize j = 0; j < 7; j++) {
         info.reg[j] = sidreg[7*i+j];
     }
     info.frequency = voice[i].frequency();
@@ -413,7 +413,7 @@ FastSID::executeCycles(isize numCycles, SampleStream &stream)
     }
     
     // Compute missing samples
-    for (unsigned i = 0; i < samples; i++) {
+    for (isize i = 0; i < samples; i++) {
         stream.write(calculateSingleSample());
     }
     
@@ -423,7 +423,7 @@ FastSID::executeCycles(isize numCycles, SampleStream &stream)
 i64
 FastSID::executeCycles(isize numCycles)
 {
-    return executeCycles(numCycles, bridge.sidStream[nr]);
+    return executeCycles(numCycles, muxer.sidStream[nr]);
 }
 
 void
@@ -433,7 +433,7 @@ FastSID::updateInternals()
     u8 res = filterResonance();
     u16 cutoff = filterCutoff();
     
-    for (unsigned i = 0; i < 3; i++) {
+    for (isize i = 0; i < 3; i++) {
     
         voice[i].setFilterType(type);
         

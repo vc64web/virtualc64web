@@ -19,7 +19,7 @@
  *   Phi 1 phase     |  Phi1.2 Draw
  *                   |  Phi1.3 Fetch
  *                   |-------------------------------
- *   Current cycle   |  Phi2.1 Rasterline interrupt
+ *   Current cycle   |  Phi2.1 Scanline interrupt
  *   Phi 2 phase     |  Phi2.2 Sprite logic
  *                   |  Phi2.3 VC/RC logic
  *                   |  Phi2.4 BA logic
@@ -49,7 +49,7 @@ VICII::cycle1()
     NTSC { sAccess2 <flags,3> (); }
     NTSC { assert(isSecondDMAcycle); }
     
-    // Phi2.1 Rasterline interrupt
+    // Phi2.1 Scanline interrupt
     checkForRasterIrq();
     
     // Phi2.4 BA logic
@@ -65,8 +65,8 @@ VICII::cycle2()
 {
     NTSC { assert(isSecondDMAcycle); }
     
-    // Check for lightpen IRQ in first rasterline
-    if (!lpLine && c64.rasterLine == 0)
+    // Check for lightpen IRQ in first scanline
+    if (!lpLine && c64.scanline == 0)
         checkForLightpenIrqAtStartOfFrame();
     
     // Phi2.5 Fetch (previous cycle)
@@ -768,7 +768,7 @@ VICII::cycle64()
     // Phi2.5 Fetch (previous cycle)
     NTSC { sAccess1 <flags,2> (); }
 
-    PAL { assert(false); } // NTSC only
+    PAL { fatalError; } // NTSC only
     
     // Phi1.1 Frame logic
     checkVerticalFrameFF();
@@ -791,7 +791,7 @@ VICII::cycle64()
 template <u16 flags> void
 VICII::cycle65()
 {
-    PAL { assert(false); } // NTSC only
+    PAL { fatalError; } // NTSC only
 
     // Phi1.1 Frame logic
     checkVerticalFrameFF();
@@ -813,7 +813,7 @@ VICII::cycle65()
 // Access functions
 //
 
-template <u16 flags, int sprite> void
+template <u16 flags, isize sprite> void
 VICII::sAccess1()
 {
     assert(sprite < 8);
@@ -837,7 +837,7 @@ VICII::sAccess1()
     spriteSr[sprite].chunk1 = dataBusPhi2;
 }
 
-template <u16 flags, int sprite> void
+template <u16 flags, isize sprite> void
 VICII::sAccess2()
 {
     assert(sprite < 8);
@@ -864,7 +864,7 @@ VICII::sAccess2()
     spriteSr[sprite].chunk2 = dataBusPhi1;
 }
 
-template <u16 flags, int sprite> void
+template <u16 flags, isize sprite> void
 VICII::sAccess3()
 {
     assert(sprite < 8);
@@ -910,7 +910,7 @@ VICII::cAccess()
     if (BApulledDownForAtLeastThreeCycles()) {
         
         // |VM13|VM12|VM11|VM10| VC9| VC8| VC7| VC6| VC5| VC4| VC3| VC2| VC1| VC0|
-        u16 addr = (VM13VM12VM11VM10() << 6) | vc;
+        u16 addr = (u16)(VM13VM12VM11VM10() << 6 | vc);
         
         dataBusPhi2 = memAccess(addr);
         videoMatrix[vmli] = dataBusPhi2;
@@ -965,7 +965,7 @@ VICII::gAccess()
          */
  
         // Get address
-        addr = is856x() ? gAccessAddr85x() : gAccessAddr65x();
+        addr = is856x ? gAccessAddr85x() : gAccessAddr65x();
         
         // Fetch
         dataBusPhi1 = memAccess(addr);
@@ -984,7 +984,7 @@ VICII::gAccess()
         
         // Get address. In idle state, g-accesses read from $39FF or $3FFF,
         // depending on the ECM bit.
-        if (is856x()) {
+        if (is856x) {
             addr = GET_BIT(reg.delayed.ctrl1, 6) ? 0x39FF : 0x3FFF;
         } else {
             addr = GET_BIT(reg.current.ctrl1, 6) ? 0x39FF : 0x3FFF;
@@ -1048,9 +1048,9 @@ VICII::gAccessAddr(bool bmm, bool ecm)
      *  BMM=0: |CB13|CB12|CB11|D7 |D6 |D5 |D4 |D3 |D2 |D1 |D0 |RC2|RC1|RC0|
      */
      if (bmm) {
-        addr = (CB13() << 10) | (vc << 3) | rc;
+        addr = (u16)(CB13() << 10 | vc << 3 | rc);
     } else {
-        addr = (CB13CB12CB11() << 10) | (videoMatrix[vmli] << 3) | rc;
+        addr = (u16)(CB13CB12CB11() << 10 | videoMatrix[vmli] << 3 | rc);
     }
     
     /* "If the ECM bit is set, the address generator always holds the
@@ -1064,20 +1064,20 @@ VICII::gAccessAddr(bool bmm, bool ecm)
 }
 
 template <u16 flags> void
-VICII::pAccess(unsigned sprite)
+VICII::pAccess(isize sprite)
 {
     assert(sprite < 8);
     
     // |VM13|VM12|VM11|VM10|  1 |  1 |  1 |  1 |  1 |  1 |  1 |  Spr.-Nummer |
-    dataBusPhi1 = memAccess((VM13VM12VM11VM10() << 6) | 0x03F8 | sprite);
-    spritePtr[sprite] = dataBusPhi1 << 6;
+    dataBusPhi1 = memAccess((u16)(VM13VM12VM11VM10() << 6 | 0x03F8 | sprite));
+    spritePtr[sprite] = (u16)(dataBusPhi1 << 6);
     
     if (flags & DEBUG_CYCLE) {
         dmaDebugger.visualizeDma(bufferoffset, dataBusPhi1, MEMACCESS_P);
     }
 }
 
-void VICII::sFinalize(unsigned sprite)
+void VICII::sFinalize(isize sprite)
 {
     isSecondDMAcycle = 0;
 }

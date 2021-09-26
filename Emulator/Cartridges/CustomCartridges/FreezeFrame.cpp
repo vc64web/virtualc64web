@@ -49,32 +49,31 @@ FreezeFrame::spypeekIO2(u16 addr) const
     return 0;
 }
 
-const char *
-FreezeFrame::getButtonTitle(unsigned nr) const
+const string
+FreezeFrame::getButtonTitle(isize nr) const
 {
-    return nr == 1 ? "Freeze" : nullptr;
+    return nr == 1 ? "Freeze" : "";
 }
 
 void
-FreezeFrame::pressButton(unsigned nr)
+FreezeFrame::pressButton(isize nr)
 {
     if (nr == 1) {
         
         // Pressing the freeze button triggers an NMI in Ultimax mode
-        suspend();
-        expansionport.setCartridgeMode(CRTMODE_ULTIMAX);
-        cpu.pullDownNmiLine(INTSRC_EXP);
-        resume();
+        suspended {
+            
+            expansionport.setCartridgeMode(CRTMODE_ULTIMAX);
+            cpu.pullDownNmiLine(INTSRC_EXP);
+        }
     }
 }
 
 void
-FreezeFrame::releaseButton(unsigned nr)
+FreezeFrame::releaseButton(isize nr)
 {
     if (nr == 1) {
         
-        suspend();
-        cpu.releaseNmiLine(INTSRC_EXP);
-        resume();
+        suspended { cpu.releaseNmiLine(INTSRC_EXP); }
     }
 }

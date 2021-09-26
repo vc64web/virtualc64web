@@ -11,6 +11,7 @@
 #include "FSDevice.h"
 #include "Disk.h"
 #include "IO.h"
+#include "Folder.h"
 #include "PRGFile.h"
 #include "P00File.h"
 #include "T64File.h"
@@ -18,6 +19,7 @@
 #include <limits.h>
 #include <set>
 
+/*
 FSDevice *
 FSDevice::makeWithFormat(FSDeviceDescriptor &layout)
 {
@@ -40,7 +42,7 @@ FSDevice::makeWithType(DiskType type, DOSType vType)
 }
 
 FSDevice *
-FSDevice::makeWithD64(D64File &d64)
+FSDevice::makeWithD64(const D64File &d64)
 {
     // Get device descriptor
     FSDeviceDescriptor descriptor = FSDeviceDescriptor(d64);
@@ -53,7 +55,7 @@ FSDevice::makeWithD64(D64File &d64)
     catch (VC64Error &exception) { delete device; throw exception; }
     
     // Import error codes (if any)
-    for (Block b = 0; b < device->blocks.size(); b++) {
+    for (Block b = 0; b < (Block)device->blocks.size(); b++) {
         device->setErrorCode(b, d64.getErrorCode(b));
     }
     
@@ -61,20 +63,11 @@ FSDevice::makeWithD64(D64File &d64)
 }
 
 FSDevice *
-FSDevice::makeWithD64(D64File &d64, ErrorCode *err)
-{
-    *err = ERROR_OK;
-    try { return makeWithD64(d64); }
-    catch (VC64Error &exception) { *err = exception.data; }
-    return nullptr;
-}
-  
-FSDevice *
 FSDevice::makeWithDisk(class Disk &disk)
 {
     // Translate the GCR stream into a byte stream
     u8 buffer[D64File::D64_802_SECTORS];
-    usize len = disk.decodeDisk(buffer);
+    isize len = disk.decodeDisk(buffer);
     
     // Create a suitable device descriptor
     FSDeviceDescriptor descriptor = FSDeviceDescriptor(DISK_TYPE_SS_SD);
@@ -96,15 +89,6 @@ FSDevice::makeWithDisk(class Disk &disk)
     catch (VC64Error &exception) { delete device; throw exception; }
         
     return device;
-}
-
-FSDevice *
-FSDevice::makeWithDisk(class Disk &disk, ErrorCode *err)
-{
-    *err = ERROR_OK;
-    try { return makeWithDisk(disk); }
-    catch (VC64Error &exception) { *err = exception.data; }
-    return nullptr;
 }
 
 FSDevice *
@@ -137,46 +121,25 @@ FSDevice::makeWithCollection(AnyCollection &collection)
 }
 
 FSDevice *
-FSDevice::makeWithCollection(AnyCollection &collection, ErrorCode *err)
+FSDevice::makeWithPath(const string &path)
 {
-    *err = ERROR_OK;
-    try { return makeWithCollection(collection); }
-    catch (VC64Error &exception) { *err = exception.data; }
-    return nullptr;
-}
-
-FSDevice *
-FSDevice::makeWithPath(const std::string &path)
-{
-    ErrorCode ec;
+    try { auto file = D64File(path); return makeWithD64(file); }
+    catch (...) { }
         
-    if (auto file = AnyFile::make <D64File> (path, &ec)) {
-        return makeWithD64(*file);
-    }
-    if (auto file = AnyFile::make <T64File> (path, &ec)) {
-        return makeWithCollection(*file);
-    }
-    if (auto file = AnyFile::make <PRGFile> (path, &ec)) {
-        return makeWithCollection(*file);
-    }
-    if (auto file = AnyFile::make <P00File> (path, &ec)) {
-        return makeWithCollection(*file);
-    }
-    
+    try { auto file = T64File(path); return makeWithCollection(file); }
+    catch (...) { }
+
+    try { auto file = PRGFile(path); return makeWithCollection(file); }
+    catch (...) { }
+
+    try { auto file = P00File(path); return makeWithCollection(file); }
+    catch (...) { }
+        
     throw VC64Error(ERROR_FILE_TYPE_MISMATCH);
  }
 
 FSDevice *
-FSDevice::makeWithPath(const std::string &path, ErrorCode *err)
-{
-    *err = ERROR_OK;
-    try { return makeWithPath(path); }
-    catch (VC64Error &exception) { *err = exception.data; }
-    return nullptr;
-}
-
-FSDevice *
-FSDevice::makeWithFolder(const std::string &path)
+FSDevice::makeWithFolder(const string &path)
 {
     // Create the device
     FSDevice *device = makeWithType(DISK_TYPE_SS_SD);
@@ -193,20 +156,18 @@ FSDevice::makeWithFolder(const std::string &path)
     device->printDirectory();
     return device;
 }
+*/
 
-FSDevice *
-FSDevice::makeWithFolder(const std::string &path, ErrorCode *err)
+FSDevice::~FSDevice()
 {
-    *err = ERROR_OK;
-    try { return makeWithFolder(path); }
-    catch (VC64Error &exception) { *err = exception.data; }
-    return nullptr;
+    for (auto &b : blocks) delete b;
 }
 
-FSDevice::FSDevice(u32 capacity)
+void
+FSDevice::init(isize capacity)
 {
-    debug(FS_DEBUG, "Creating device with %d blocks\n", capacity);
-    
+    debug(FS_DEBUG, "Creating device with %zd blocks\n", capacity);
+
     // Initialize the block storage
     blocks.reserve(capacity);
     blocks.assign(capacity, 0);
@@ -215,9 +176,139 @@ FSDevice::FSDevice(u32 capacity)
     for (u32 i = 0; i < capacity; i++) blocks[i] = new FSBlock(*this, i);
 }
 
-FSDevice::~FSDevice()
+void
+FSDevice::init(FSDeviceDescriptor &layout)
 {
-    for (auto &b : blocks) delete b;
+    init(layout.numBlocks());
+    this->layout = layout;
+}
+
+void
+FSDevice::init(DiskType type, DOSType vType)
+{
+    FSDeviceDescriptor layout = FSDeviceDescriptor(type);
+    init(layout);
+    
+    if (vType != DOS_TYPE_NODOS) {
+        bamPtr()->writeBAM();
+    }
+}
+
+void
+FSDevice::init(const D64File &d64)
+{
+    // Get device descriptor
+    FSDeviceDescriptor descriptor = FSDeviceDescriptor(d64);
+        
+    // Create the device
+    init(descriptor);
+
+    // Import file system
+    importVolume(d64.data, d64.size);
+    
+    // Import error codes (if any)
+    for (Block b = 0; b < (Block)blocks.size(); b++) {
+        setErrorCode(b, d64.getErrorCode(b));
+    }
+}
+
+void
+FSDevice::init(class Disk &disk)
+{
+    // Translate the GCR stream into a byte stream
+    u8 buffer[D64File::D64_802_SECTORS];
+    isize len = disk.decodeDisk(buffer);
+    
+    // Create a suitable device descriptor
+    FSDeviceDescriptor descriptor = FSDeviceDescriptor(DISK_TYPE_SS_SD);
+    switch (len) {
+            
+        case D64File::D64_683_SECTORS: descriptor.numCyls = 35; break;
+        case D64File::D64_768_SECTORS: descriptor.numCyls = 40; break;
+        case D64File::D64_802_SECTORS: descriptor.numCyls = 42; break;
+
+        default:
+            throw VC64Error(ERROR_FS_CORRUPTED);
+    }
+        
+    // Create the device
+    init(descriptor);
+
+    // Import file system
+    importVolume(buffer, len);
+}
+
+void
+FSDevice::init(AnyCollection &collection)
+{
+    // Create the device
+    init(DISK_TYPE_SS_SD, DOS_TYPE_CBM);
+    
+    // Write BAM
+    auto name = PETName<16>(collection.collectionName());
+    bamPtr()->writeBAM(name);
+
+    // Loop over all items
+    isize numberOfItems = collection.collectionCount();
+    for (isize i = 0; i < numberOfItems; i++) {
+        
+        // Serialize item into a buffer
+        u64 size = collection.itemSize(i);
+        u8 *buffer = new u8[size];
+        collection.copyItem(i, buffer, size);
+        
+        // Create a file for this item
+        makeFile(collection.itemName(i), buffer, size);
+        delete[] buffer;
+    }
+    
+    printDirectory();
+}
+
+void
+FSDevice::init(const string &path)
+{
+    if (Folder::isCompatible(path)) {
+    
+        // Create the device
+        init(DISK_TYPE_SS_SD);
+        
+        // Write BAM
+        auto name = PETName<16>(util::extractName(path));
+        bamPtr()->writeBAM(name);
+        
+        // Import the folder
+        importDirectory(path);
+        
+        printDirectory();
+        return;
+    }
+    if (D64File::isCompatible(path)) {
+    
+        auto file = D64File(path);
+        init(file);
+        return;
+    }
+    if (T64File::isCompatible(path)) {
+        
+        auto file = T64File(path);
+        init(file);
+        return;
+    }
+    if (PRGFile::isCompatible(path)) {
+        
+        auto file = PRGFile(path);
+        init(file);
+        return;
+    }
+    if (P00File::isCompatible(path)) {
+        
+        auto file = P00File(path);
+        init(file);
+        return;
+    }
+        
+    throw VC64Error(ERROR_FILE_TYPE_MISMATCH);
 }
 
 void
@@ -229,10 +320,11 @@ FSDevice::info()
 void
 FSDevice::dump() const
 {
-    // Dump all blocks
-    for (usize i = 0; i < blocks.size(); i++)  {
+    isize blocksSize = (isize)blocks.size();
+    
+    for (isize i = 0; i < blocksSize; i++)  {
         
-        msg("\nBlock %zu (%d):", i, blocks[i]->nr);
+        msg("\nBlock %zu (%zd):", i, blocks[i]->nr);
         msg(" %s\n", FSBlockTypeEnum::key(blocks[i]->type()));
         
         blocks[i]->dump();
@@ -247,28 +339,30 @@ FSDevice::printDirectory()
     for (auto &item : dir) {
         msg("%3llu \"%-16s\" %s (%5llu bytes)\n",
             fileBlocks(item),
-            item->getName().c_str(), item->typeString(), fileSize(item));
+            item->getName().c_str(), item->typeString().c_str(), fileSize(item));
     }
 }
 
-u32
+i32
 FSDevice::numFreeBlocks() const
 {
     u32 result = 0;
+    isize blocksSize = (isize)blocks.size();
     
-    for (usize i = 0; i < blocks.size(); i++) {
+    for (isize i = 0; i < blocksSize; i++) {
         if (isFree((Block)i)) result++;
     }
     
     return result;
 }
 
-u32
+i32
 FSDevice::numUsedBlocks() const
 {
     u32 result = 0;
+    isize blocksSize = (isize)blocks.size();
     
-    for (usize i = 0; i < blocks.size(); i++) {
+    for (isize i = 0; i < blocksSize; i++) {
         if (!isFree((Block)i)) result++;
     }
     
@@ -339,7 +433,7 @@ FSDevice::setName(PETName<16> name)
 bool
 FSDevice::isFree(TSLink ts) const
 {
-    u32 byte, bit;
+    isize byte, bit;
     FSBlock *bam = locateAllocBit(ts, &byte, &bit);
     
     return GET_BIT(bam->data[byte], bit);
@@ -360,7 +454,7 @@ FSDevice::nextFreeBlock(TSLink ref) const
 void
 FSDevice::setAllocBit(TSLink ts, bool value)
 {
-    u32 byte, bit;
+    isize byte, bit;
     FSBlock *bam = locateAllocBit(ts, &byte, &bit);
 
     if (value && !GET_BIT(bam->data[byte], bit)) {
@@ -404,8 +498,8 @@ FSDevice::allocate(TSLink ts, u32 n)
             // Link this block
             block = blockPtr(ts);
             ts = layout.nextBlockRef(ts);
-            block->data[0] = ts.t;
-            block->data[1] = ts.s;
+            block->data[0] = (u8)ts.t;
+            block->data[1] = (u8)ts.s;
         }
         
         // Delete the block reference in the last block
@@ -417,13 +511,13 @@ FSDevice::allocate(TSLink ts, u32 n)
 }
 
 FSBlock *
-FSDevice::locateAllocBit(Block b, u32 *byte, u32 *bit) const
+FSDevice::locateAllocBit(Block b, isize *byte, isize *bit) const
 {
     return locateAllocBit(layout.tsLink(b), byte, bit);
 }
 
 FSBlock *
-FSDevice::locateAllocBit(TSLink ts, u32 *byte, u32 *bit) const
+FSDevice::locateAllocBit(TSLink ts, isize *byte, isize *bit) const
 {
     assert(layout.isValidLink(ts));
         
@@ -442,7 +536,7 @@ FSDevice::locateAllocBit(TSLink ts, u32 *byte, u32 *bit) const
 }
 
 PETName<16>
-FSDevice::fileName(usize nr) const
+FSDevice::fileName(isize nr) const
 {
     assert(nr < numFiles());
     return fileName(dir[nr]);
@@ -456,7 +550,7 @@ FSDevice::fileName(FSDirEntry *entry) const
 }
 
 FSFileType
-FSDevice::fileType(usize nr) const
+FSDevice::fileType(isize nr) const
 {
     assert(nr < numFiles());
     return fileType(dir[nr]);
@@ -470,7 +564,7 @@ FSDevice::fileType(FSDirEntry *entry) const
 }
 
 u64
-FSDevice::fileSize(usize nr) const
+FSDevice::fileSize(isize nr) const
 {
     assert(nr < numFiles());
     return fileSize(dir[nr]);
@@ -506,7 +600,7 @@ FSDevice::fileSize(FSDirEntry *entry) const
 }
 
 u64
-FSDevice::fileBlocks(usize nr) const
+FSDevice::fileBlocks(isize nr) const
 {
     assert(nr < numFiles());
     return fileBlocks(dir[nr]);
@@ -520,7 +614,7 @@ FSDevice::fileBlocks(FSDirEntry *entry) const
 }
 
 u16
-FSDevice::loadAddr(usize nr) const
+FSDevice::loadAddr(isize nr) const
 {
     assert(nr < numFiles());
     return loadAddr(dir[nr]);
@@ -535,7 +629,7 @@ FSDevice::loadAddr(FSDirEntry *entry) const
 }
 
 void
-FSDevice::copyFile(usize nr, u8 *buf, u64 len, u64 offset) const
+FSDevice::copyFile(isize nr, u8 *buf, u64 len, u64 offset) const
 {
     assert(nr < numFiles());
     copyFile(dir[nr], buf, len, offset);
@@ -589,8 +683,8 @@ FSDevice::getOrCreateNextFreeDirEntry()
         
         // Create a new directory block and link to it
         TSLink ts = layout.nextBlockRef(layout.tsLink(ptr->nr));
-        ptr->data[0] = ts.t;
-        ptr->data[1] = ts.s;
+        ptr->data[0] = (u8)ts.t;
+        ptr->data[1] = (u8)ts.s;
     }
     
     return nullptr;
@@ -622,7 +716,7 @@ FSDevice::scanDirectory(bool skipInvisible)
 }
 
 bool
-FSDevice::makeFile(PETName<16> name, const u8 *buf, usize cnt)
+FSDevice::makeFile(PETName<16> name, const u8 *buf, isize cnt)
 {
     // Search the next free directory slot
     FSDirEntry *dir = getOrCreateNextFreeDirEntry();
@@ -634,13 +728,11 @@ FSDevice::makeFile(PETName<16> name, const u8 *buf, usize cnt)
 }
 
 bool
-FSDevice::makeFile(PETName<16> name, FSDirEntry *dir, const u8 *buf, usize cnt)
+FSDevice::makeFile(PETName<16> name, FSDirEntry *dir, const u8 *buf, isize cnt)
 {
     // Determine the number of blocks needed for this file
     u32 numBlocks = (u32)((cnt + 253) / 254);
-    
-    printf("size = %zu (%02x %02x)\n", cnt, buf[0], buf[1]);
-    
+        
     // Allocate data blocks
     auto blockList = allocate(numBlocks);
     if (blockList.empty()) return false;
@@ -649,7 +741,7 @@ FSDevice::makeFile(PETName<16> name, FSDirEntry *dir, const u8 *buf, usize cnt)
     FSBlock *ptr = blockPtr(*it);
     
     // Write data
-    usize i, j;
+    isize i, j;
     for (i = 0, j = 2; i < cnt; i++, j++) {
 
         if (j == 0x100) {
@@ -676,7 +768,7 @@ FSDevice::check(bool strict)
     FSErrorReport result;
 
     long total = 0, min = LONG_MAX, max = 0;
-    usize numBlocks = blocks.size();
+    isize numBlocks = blocks.size();
     
     // Analyze all blocks
     for (u32 i = 0; i < numBlocks; i++) {
@@ -719,7 +811,7 @@ FSDevice::getCorrupted(u32 blockNr) const
 bool
 FSDevice::isCorrupted(u32 blockNr, u32 n) const
 {
-    usize numBlocks = blocks.size();
+    isize numBlocks = blocks.size();
     
     for (u32 i = 0, cnt = 0; i < numBlocks; i++) {
         
@@ -734,7 +826,7 @@ FSDevice::isCorrupted(u32 blockNr, u32 n) const
 u32
 FSDevice::nextCorrupted(u32 blockNr) const
 {
-    usize numBlocks = blocks.size();
+    isize numBlocks = blocks.size();
     
     for (u32 i = blockNr + 1; i < numBlocks; i++) {
         if (isCorrupted(i)) return i;
@@ -745,7 +837,7 @@ FSDevice::nextCorrupted(u32 blockNr) const
 u32
 FSDevice::prevCorrupted(u32 blockNr) const
 {
-    usize numBlocks = blocks.size();
+    isize numBlocks = blocks.size();
     
     for (u32 i = blockNr - 1; i < numBlocks; i--) {
         if (isCorrupted(i)) return i;
@@ -754,16 +846,16 @@ FSDevice::prevCorrupted(u32 blockNr) const
 }
 
 u8
-FSDevice::readByte(u32 block, u32 offset) const
+FSDevice::readByte(Block block, u32 offset) const
 {
     assert(offset < 256);
-    assert(block < blocks.size());
+    assert(block < (Block)blocks.size());
     
     return blocks[block]->data[offset];
 }
 
 void
-FSDevice::importVolume(const u8 *src, usize size)
+FSDevice::importVolume(const u8 *src, isize size)
 {
     ErrorCode err;
     importVolume(src, size, &err);
@@ -771,14 +863,14 @@ FSDevice::importVolume(const u8 *src, usize size)
 }
 
 bool
-FSDevice::importVolume(const u8 *src, usize size, ErrorCode *err)
+FSDevice::importVolume(const u8 *src, isize size, ErrorCode *err)
 {
     assert(src != nullptr);
 
     debug(FS_DEBUG, "Importing file system (%zu bytes)...\n", size);
 
     // Only proceed if the buffer size matches
-    if (blocks.size() * 256 > size) {
+    if ((isize)blocks.size() * 256 > size) {
         warn("BUFFER SIZE MISMATCH (%lu %lu)\n", blocks.size(), blocks.size() * 256);
         if (err) *err = ERROR_FS_WRONG_CAPACITY;
         return false;
@@ -796,7 +888,7 @@ FSDevice::importVolume(const u8 *src, usize size, ErrorCode *err)
     // Run a directory scan
     scanDirectory();
     
-    if (FS_DEBUG) {
+    if constexpr (FS_DEBUG) {
         // info();
         // dump();
         printDirectory();
@@ -829,7 +921,7 @@ FSDevice::importDirectory(const char *path)
 */
 
 bool
-FSDevice::importDirectory(const std::string &path, DIR *dir)
+FSDevice::importDirectory(const string &path, DIR *dir)
 {
     struct dirent *item;
     bool result = true;
@@ -839,9 +931,9 @@ FSDevice::importDirectory(const std::string &path, DIR *dir)
         // Skip '.', '..' and all hidden files
         if (item->d_name[0] == '.') continue;
         
-        // Assemble file name (TODO: PORT TO std::string)
-        std::string name = std::string(item->d_name);
-        std::string full = path + "/" + name;
+        // Assemble file name
+        string name = string(item->d_name);
+        string full = path + "/" + name;
         
         msg("importDirectory: Processing %s (%s)\n", name.c_str(), full.c_str());
 
@@ -861,37 +953,28 @@ FSDevice::importDirectory(const std::string &path, DIR *dir)
     return result;
 }
 
-/*
 bool
-FSDevice::importDirectory(const char *path, DIR *dir)
-{
-    assert(dir);
-    return importDirectory(std::string(path), dir);
-}
-*/
-
-bool
-FSDevice::exportVolume(u8 *dst, usize size, ErrorCode *err)
+FSDevice::exportVolume(u8 *dst, isize size, ErrorCode *err)
 {
     return exportBlocks(0, layout.numBlocks() - 1, dst, size, err);
 }
 
 bool
-FSDevice::exportBlock(u32 nr, u8 *dst, usize size, ErrorCode *err)
+FSDevice::exportBlock(isize nr, u8 *dst, isize size, ErrorCode *err)
 {
     return exportBlocks(nr, nr, dst, size, err);
 }
 
 bool
-FSDevice::exportBlocks(u32 first, u32 last, u8 *dst, usize size, ErrorCode *err)
+FSDevice::exportBlocks(isize first, isize last, u8 *dst, isize size, ErrorCode *err)
 {
-    assert(last < layout.numBlocks());
+    assert(last < (u32)layout.numBlocks());
     assert(first <= last);
     assert(dst);
     
-    u32 count = last - first + 1;
+    isize count = last - first + 1;
     
-    debug(FS_DEBUG, "Exporting %d blocks (%d - %d)\n", count, first, last);
+    debug(FS_DEBUG, "Exporting %zd blocks (%zd - %zd)\n", count, first, last);
 
     // Only proceed if the source buffer contains the right amount of data
     if (count * 256 != size) {
@@ -914,15 +997,13 @@ FSDevice::exportBlocks(u32 first, u32 last, u8 *dst, usize size, ErrorCode *err)
     return true;
 }
 
-bool
-FSDevice::exportDirectory(const std::string &path, ErrorCode *err)
+void
+FSDevice::exportDirectory(const string &path)
 {
+    isize numItems = util::numDirectoryItems(path);
+
     // Only proceed if path points to an empty directory
-    usize numItems = util::numDirectoryItems(path);
-    if (numItems != 0) {
-        if (err) *err = ERROR_DIR_NOT_EMPTY;
-        return false;
-    }
+    if (numItems != 0) throw VC64Error(ERROR_DIR_NOT_EMPTY);
     
     // Rescan the directory to get the directory cache up to date
     scanDirectory();
@@ -935,36 +1016,26 @@ FSDevice::exportDirectory(const std::string &path, ErrorCode *err)
             continue;
         }
         
-        if (!exportFile(entry, path, err)) {
-            msg("Export error: %ld\n", (long)*err);
-            return false;
-        }
+        exportFile(entry, path);
     }
     
     msg("Exported %lu items", dir.size());
-    if (err) *err = ERROR_OK;
-    return true;
-}
-
-bool
-FSDevice::exportFile(FSDirEntry *entry, const std::string &path, ErrorCode *err)
-{
-    std::string name = path + "/" + entry->getName().str();
-    debug(FS_DEBUG, "Exporting file to %s\n", name.c_str());
-
-    std::ofstream stream(name);
-    if (!stream.is_open()) {
-        // TODO: throw
-        *err = ERROR_FILE_CANT_CREATE;
-        return false;
-    }
-
-    exportFile(entry, stream, err);
-    return true;
 }
 
 void
-FSDevice::exportFile(FSDirEntry *entry, std::ofstream &stream, ErrorCode *err)
+FSDevice::exportFile(FSDirEntry *entry, const string &path)
+{
+    string name = path + "/" + entry->getName().str();
+    debug(FS_DEBUG, "Exporting file to %s\n", name.c_str());
+
+    std::ofstream stream(name);
+    if (!stream.is_open()) throw VC64Error(ERROR_FILE_CANT_CREATE);
+
+    exportFile(entry, stream);
+}
+
+void
+FSDevice::exportFile(FSDirEntry *entry, std::ofstream &stream)
 {
     std::set<Block> visited;
 
@@ -977,7 +1048,7 @@ FSDevice::exportFile(FSDirEntry *entry, std::ofstream &stream, ErrorCode *err)
         visited.insert(b->nr);
         BlockPtr next = nextBlockPtr(b);
                 
-        usize size = next ? 254 : b->data[1] ? b->data[1] - 1 : 0;
+        isize size = next ? 254 : b->data[1] ? b->data[1] - 1 : 0;
         stream.write((char *)(b->data + 2), size);
         
         b = next;

@@ -28,24 +28,36 @@
 
 
 //
+// Bit fields
+//
+
+typedef u8 IntSource;
+
+#define INTSRC_CIA  0b00000001
+#define INTSRC_VIC  0b00000010
+#define INTSRC_VIA1 0b00000100
+#define INTSRC_VIA2 0b00001000
+#define INTSRC_EXP  0b00010000
+#define INTSRC_KBD  0b00100000
+
+
+//
 // Enumerations
 //
 
 enum_long(CPUREV)
 {
     MOS_6510,
-    MOS_6502,
-    CPUREV_COUNT
+    MOS_6502
 };
 typedef CPUREV CPURevision;
 
 #ifdef __cplusplus
 struct CPURevisionEnum : util::Reflection<CPURevisionEnum, CPURevision> {
     
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < CPUREV_COUNT;
-    }
+    static long min() { return 0; }
+    static long max() { return MOS_6502; }
+    static bool isValid(long value) { return value >= min() && value <= max(); }
     
     static const char *prefix() { return nullptr; }
     static const char *key(CPURevision value)
@@ -54,54 +66,9 @@ struct CPURevisionEnum : util::Reflection<CPURevisionEnum, CPURevision> {
                 
             case MOS_6510:      return "MOS_6510";
             case MOS_6502:      return "MOS_6502";
-            case CPUREV_COUNT:  return "???";
         }
         return "???";
     }
-};
-#endif
-
-enum_u8(INTSRC)
-{
-    INTSRC_CIA  = 0x01,
-    INTSRC_VIC  = 0x02,
-    INTSRC_VIA1 = 0x04,
-    INTSRC_VIA2 = 0x08,
-    INTSRC_EXP  = 0x10,
-    INTSRC_KBD  = 0x20
-};
-typedef INTSRC IntSource;
-
-#ifdef __cplusplus
-struct IntSourceEnum : util::Reflection<IntSourceEnum, IntSource> {
-    
-    static bool isValid(long value)
-    {
-        return
-        value == INTSRC_CIA  ||
-        value == INTSRC_VIC  ||
-        value == INTSRC_VIA1 ||
-        value == INTSRC_VIA2 ||
-        value == INTSRC_EXP  ||
-        value == INTSRC_KBD;
-    }
-    
-    static const char *prefix() { return "INTSRC"; }
-    static const char *key(IntSource value)
-    {
-        switch (value) {
-                
-            case INTSRC_CIA:   return "CIA";
-            case INTSRC_VIC:   return "VIC";
-            case INTSRC_VIA1:  return "VIA1";
-            case INTSRC_VIA2:  return "VIA2";
-            case INTSRC_EXP:   return "EXP";
-            case INTSRC_KBD:   return "KBD";
-        }
-        return "???";
-    }
-    
-    static std::map <string, long> pairs() { return Reflection::pairs(INTSRC_KBD); }
 };
 #endif
 
@@ -109,18 +76,16 @@ enum_long(BPTYPE)
 {
     BPTYPE_NONE,
     BPTYPE_HARD,
-    BPTYPE_SOFT,
-    BPTYPE_COUNT
+    BPTYPE_SOFT
 };
 typedef BPTYPE BreakpointType;
 
 #ifdef __cplusplus
 struct BreakpointTypeEnum : util::Reflection<BreakpointTypeEnum, BreakpointType> {
     
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < BPTYPE_COUNT;
-    }
+    static long min() { return 0; }
+    static long max() { return BPTYPE_SOFT; }
+    static bool isValid(long value) { return value >= min() && value <= max(); }
     
     static const char *prefix() { return "BPTYPE"; }
     static const char *key(BreakpointType value)
@@ -130,7 +95,6 @@ struct BreakpointTypeEnum : util::Reflection<BreakpointTypeEnum, BreakpointType>
             case BPTYPE_NONE:   return "NONE";
             case BPTYPE_HARD:   return "HARD";
             case BPTYPE_SOFT:   return "SOFT";
-            case BPTYPE_COUNT:  return "???";
         }
         return "???";
     }

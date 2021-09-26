@@ -40,24 +40,16 @@ public:
     
 public:
 
+    /*
     static FSDevice *makeWithFormat(FSDeviceDescriptor &layout);
     static FSDevice *makeWithType(DiskType type, DOSType vType = DOS_TYPE_NODOS);
-    
-    static FSDevice *makeWithD64(class D64File &d64) throws;
-    static FSDevice *makeWithD64(class D64File &d64, ErrorCode *err);
-    
+    static FSDevice *makeWithD64(const class D64File &d64) throws;
     static FSDevice *makeWithDisk(class Disk &disk) throws;
-    static FSDevice *makeWithDisk(class Disk &disk, ErrorCode *err);
-    
     static FSDevice *makeWithCollection(AnyCollection &collection) throws;
-    static FSDevice *makeWithCollection(AnyCollection &collection, ErrorCode *err);
+    static FSDevice *makeWithPath(const string &path) throws;
+    static FSDevice *makeWithFolder(const string &path) throws;
+    */
     
-    static FSDevice *makeWithPath(const std::string &path) throws;
-    static FSDevice *makeWithPath(const std::string &path, ErrorCode *err);
-
-    static FSDevice *makeWithFolder(const std::string &path) throws;
-    static FSDevice *makeWithFolder(const std::string &path, ErrorCode *err);
-
     
     //
     // Initializing
@@ -65,8 +57,27 @@ public:
     
 public:
 
-    FSDevice(u32 capacity);
+    FSDevice(isize capacity) { init(capacity); }
+    FSDevice(FSDeviceDescriptor &layout) { init(layout); }
+    FSDevice(DiskType type, DOSType vType) { init(type, vType); }
+    FSDevice(const class D64File &d64) throws { init(d64); }
+    FSDevice(class Disk &disk) throws { init(disk); }
+    FSDevice(AnyCollection &collection) throws { init(collection); }
+    FSDevice(const string &path) throws { init(path); }
     ~FSDevice();
+    
+private:
+    
+    void init(isize capacity);
+    void init(FSDeviceDescriptor &layout);
+    void init(DiskType type, DOSType vType);
+    void init(const class D64File &d64) throws;
+    void init(class Disk &disk) throws;
+    void init(AnyCollection &collection) throws;
+    void init(const string &path) throws;
+
+    
+public:
     
     const char *getDescription() const override { return "FSVolume"; }
         
@@ -105,18 +116,18 @@ public:
     u8 diskId2() const { return bamPtr()->data[0xA3]; }
     
     // Reports layout information
-    u32 getNumCyls() const { return layout.numCyls; }
-    u32 getNumHeads() const { return layout.numHeads; }
-    u32 getNumTracks() const { return layout.numTracks(); }
-    u32 getNumSectors(Track track) const { return layout.numSectors(track); }
-    u32 getNumBlocks() const { return layout.numBlocks(); }
+    isize getNumCyls() const { return layout.numCyls; }
+    isize getNumHeads() const { return layout.numHeads; }
+    isize getNumTracks() const { return layout.numTracks(); }
+    isize getNumSectors(Track track) const { return layout.numSectors(track); }
+    isize getNumBlocks() const { return layout.numBlocks(); }
 
     // Returns the number of free or used blocks
-    u32 numFreeBlocks() const;
-    u32 numUsedBlocks() const;
+    i32 numFreeBlocks() const;
+    i32 numUsedBlocks() const;
 
     // Returns the number of stored files (run a directory scan first!)
-    u32 numFiles() const { return (u32)dir.size(); }
+    i32 numFiles() const { return (u32)dir.size(); }
     
     
     //
@@ -179,8 +190,8 @@ public:
 private:
     
     // Locates the allocation bit for a certain block
-    FSBlock *locateAllocBit(Block b, u32 *byte, u32 *bit) const;
-    FSBlock *locateAllocBit(TSLink ref, u32 *byte, u32 *bit) const;
+    FSBlock *locateAllocBit(Block b, isize *byte, isize *bit) const;
+    FSBlock *locateAllocBit(TSLink ref, isize *byte, isize *bit) const;
 
     
     //
@@ -190,27 +201,27 @@ private:
 public:
     
     // Returns the name of a file
-    PETName<16> fileName(usize nr) const;
+    PETName<16> fileName(isize nr) const;
     PETName<16> fileName(FSDirEntry *entry) const;
 
     // Returns the type of a file
-    FSFileType fileType(usize nr) const;
+    FSFileType fileType(isize nr) const;
     FSFileType fileType(FSDirEntry *entry) const;
     
     // Returns the precise size of a file in bytes
-    u64 fileSize(usize nr) const;
+    u64 fileSize(isize nr) const;
     u64 fileSize(FSDirEntry *entry) const;
     
     // Returns the size of a file in blocks (read from the BAM)
-    u64 fileBlocks(usize nr) const;
+    u64 fileBlocks(isize nr) const;
     u64 fileBlocks(FSDirEntry *entry) const;
 
     // Returns the load address of a file
-    u16 loadAddr(usize nr) const;
+    u16 loadAddr(isize nr) const;
     u16 loadAddr(FSDirEntry *entry) const;
     
     // Copies the file contents into a buffer
-    void copyFile(usize nr, u8 *buf, u64 len, u64 offset = 0) const;
+    void copyFile(isize nr, u8 *buf, u64 len, u64 offset = 0) const;
     void copyFile(FSDirEntry *entry, u8 *buf, u64 len, u64 offset = 0) const;
 
     // Scans the directory and stores the result in variable 'dir'
@@ -225,11 +236,11 @@ public:
     FSDirEntry *getOrCreateNextFreeDirEntry(); 
                     
     // Creates a new file
-    bool makeFile(PETName<16> name, const u8 *buf, usize cnt);
+    bool makeFile(PETName<16> name, const u8 *buf, isize cnt);
 
 private:
     
-    bool makeFile(PETName<16> name, FSDirEntry *entry, const u8 *buf, usize cnt);
+    bool makeFile(PETName<16> name, FSDirEntry *entry, const u8 *buf, isize cnt);
 
     
     //
@@ -272,23 +283,23 @@ public:
     u8 readByte(TSLink ts, u32 offset) const { return readByte(layout.blockNr(ts), offset); }
 
     // Imports the volume from a buffer
-    void importVolume(const u8 *src, usize size) throws;
-    bool importVolume(const u8 *src, usize size, ErrorCode *err);
+    void importVolume(const u8 *src, isize size) throws;
+    bool importVolume(const u8 *src, isize size, ErrorCode *err);
     
     // Imports a folder from the host file system
-    bool importDirectory(const std::string &path);
-    bool importDirectory(const std::string &path, DIR *dir);
+    bool importDirectory(const string &path);
+    bool importDirectory(const string &path, DIR *dir);
 
     // Exports the volume to a buffer
-    bool exportVolume(u8 *dst, usize size, ErrorCode *err = nullptr);
+    bool exportVolume(u8 *dst, isize size, ErrorCode *err = nullptr);
 
     // Exports a single block or a range of blocks
-    bool exportBlock(u32 nr, u8 *dst, usize size, ErrorCode *err = nullptr);
-    bool exportBlocks(u32 first, u32 last, u8 *dst, usize size, ErrorCode *err = nullptr);
+    bool exportBlock(isize nr, u8 *dst, isize size, ErrorCode *err = nullptr);
+    bool exportBlocks(isize first, isize last, u8 *dst, isize size, ErrorCode *err = nullptr);
 
     // Exports all files or a single file to a folder in the host file system
-    bool exportDirectory(const std::string &path, ErrorCode *err);
-    bool exportFile(FSDirEntry *item, const std::string &path, ErrorCode *err);
-    void exportFile(FSDirEntry *entry, std::ofstream &stream, ErrorCode *err);
+    void exportDirectory(const string &path) throws;
+    void exportFile(FSDirEntry *item, const string &path) throws;
+    void exportFile(FSDirEntry *entry, std::ofstream &stream) throws;
 
 };

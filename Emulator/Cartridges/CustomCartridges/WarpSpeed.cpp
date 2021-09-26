@@ -52,18 +52,16 @@ WarpSpeed::pokeIO2(u16 addr, u8 value)
     expansionport.setCartridgeMode(CRTMODE_OFF);
 }
 
-const char *
-WarpSpeed::getButtonTitle(unsigned nr) const
+const string
+WarpSpeed::getButtonTitle(isize nr) const
 {
-    return nr == 1 ? "Reset" : nullptr;
+    return nr == 1 ? "Reset" : "";
 }
 
 void
-WarpSpeed::pressButton(unsigned nr)
+WarpSpeed::pressButton(isize nr)
 {
     assert(nr <= numButtons());
 
-    suspend();
-    resetWithoutDeletingRam();
-    resume();
+    suspended { c64.softReset(); }
 }

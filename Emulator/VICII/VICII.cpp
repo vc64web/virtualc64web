@@ -21,18 +21,18 @@
 #define SPR6 0x40
 #define SPR7 0x80
 
-VICII::VICII(C64 &ref) : C64Component(ref), dmaDebugger(ref)
+VICII::VICII(C64 &ref) : SubComponent(ref), dmaDebugger(ref)
 {    
-    subComponents = std::vector<HardwareComponent *> { &dmaDebugger };
+    subComponents = std::vector<C64Component *> { &dmaDebugger };
 
     // Assign reference clock to all time delayed variables
     baLine.setClock(&cpu.cycle);
     gAccessResult.setClock(&cpu.cycle);
     
     // Create random background noise pattern
-    const usize noiseSize = 16 * 512 * 512;
+    const isize noiseSize = 16 * 512 * 512;
     noise = new u32[noiseSize];
-    for (usize i = 0; i < noiseSize; i++) {
+    for (isize i = 0; i < noiseSize; i++) {
         noise[i] = rand() % 2 ? 0xFF000000 : 0xFFFFFFFF;
     }
 }
@@ -47,10 +47,10 @@ VICII::_reset(bool hard)
         clearStats();
         
         // See README of VICE test VICII/spritemcbase
-        for (isize i = 0; i < 8; i++) mcbase[i] = is656x() ? 0x3F : 0x00;
+        for (isize i = 0; i < 8; i++) mcbase[i] = is656x ? 0x3F : 0x00;
         
         // Reset counters
-        yCounter = (u32)getRasterlinesPerFrame();
+        yCounter = (u32)getLinesPerFrame();
         
         // Reset the memory source lookup table
         setUltimax(false);
@@ -71,18 +71,19 @@ VICII::_reset(bool hard)
 }
 
 void
-VICII::resetEmuTexture(int nr)
+VICII::resetEmuTexture(isize nr)
 {
-    if (nr == 1) { resetTexture(emuTexture1); return; }
-    if (nr == 2) { resetTexture(emuTexture2); return; }
-    
-    assert(false);
+    assert(nr == 1 || nr == 2);
+
+    if (nr == 1) { resetTexture(emuTexture1); }
+    if (nr == 2) { resetTexture(emuTexture2); }
 }
 
 void
-VICII::resetDmaTexture(int nr)
+VICII::resetDmaTexture(isize nr)
 {
     assert(nr == 1 || nr == 2);
+    
     u32 *p = nr == 1 ? dmaTexture1 : dmaTexture2;
 
     for (int i = 0; i < TEX_HEIGHT * TEX_WIDTH; i++) {
@@ -94,8 +95,8 @@ void
 VICII::resetTexture(u32 *p)
 {
     // Determine the HBLANK / VBLANK area
-    long width = isPAL() ? PAL_PIXELS : NTSC_PIXELS;
-    long height = getRasterlinesPerFrame();
+    long width = isPAL ? PAL_PIXELS : NTSC_PIXELS;
+    long height = getLinesPerFrame();
     
     for (int y = 0; y < TEX_HEIGHT; y++) {
         for (int x = 0; x < TEX_WIDTH; x++) {
@@ -122,6 +123,7 @@ VICII::getDefaultConfig()
     VICIIConfig defaults;
     
     defaults.revision = VICII_PAL_8565;
+    defaults.speed = VICII_NATIVE;
     defaults.powerSave = true;
     defaults.grayDotBug = true;
     defaults.glueLogic = GLUE_LOGIC_DISCRETE;
@@ -145,6 +147,7 @@ VICII::resetConfig()
     VICIIConfig defaults = getDefaultConfig();
     
     setConfigItem(OPT_VIC_REVISION, defaults.revision);
+    setConfigItem(OPT_VIC_SPEED, defaults.speed);
     setConfigItem(OPT_VIC_POWER_SAVE, defaults.powerSave);
     setConfigItem(OPT_GRAY_DOT_BUG, defaults.grayDotBug);
     setConfigItem(OPT_GLUE_LOGIC, defaults.glueLogic);
@@ -166,6 +169,7 @@ VICII::getConfigItem(Option option) const
     switch (option) {
             
         case OPT_VIC_REVISION:      return config.revision;
+        case OPT_VIC_SPEED:         return config.speed;
         case OPT_VIC_POWER_SAVE:    return config.powerSave;
         case OPT_PALETTE:           return config.palette;
         case OPT_BRIGHTNESS:        return config.brightness;
@@ -178,12 +182,11 @@ VICII::getConfigItem(Option option) const
         case OPT_SB_COLLISIONS:     return config.checkSBCollisions;
 
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
-bool
+void
 VICII::setConfigItem(Option option, i64 value)
 {
     switch (option) {
@@ -191,92 +194,99 @@ VICII::setConfigItem(Option option, i64 value)
         case OPT_VIC_REVISION:
             
             if (!VICIIRevisionEnum::isValid(value)) {
-                throw VC64Error(ERROR_OPT_INV_ARG, VICIIRevisionEnum::keyList());
+                throw VC64Error(ERROR_OPT_INVARG, VICIIRevisionEnum::keyList());
             }
             
-            suspend();
             setRevision((VICIIRevision)value);
-            resume();
-            return true;
+            return;
+
+        case OPT_VIC_SPEED:
+            
+            if (!VICIISpeedEnum::isValid(value)) {
+                throw VC64Error(ERROR_OPT_INVARG, VICIISpeedEnum::keyList());
+            }
+            
+            setSpeed((VICIISpeed)value);
+            return;
 
         case OPT_VIC_POWER_SAVE:
             
             config.powerSave = value;
-            return true;
+            return;
             
         case OPT_PALETTE:
             
             if (!PaletteEnum::isValid(value)) {
-                throw VC64Error(ERROR_OPT_INV_ARG, PaletteEnum::keyList());
+                throw VC64Error(ERROR_OPT_INVARG, PaletteEnum::keyList());
             }
             
-            suspend();
-            config.palette = (Palette)value;
-            updatePalette();
-            resume();
-            return true;
+            suspended {
+                config.palette = (Palette)value;
+                updatePalette();
+            }
+            return;
             
         case OPT_BRIGHTNESS:
             
             if (config.brightness < 0 || config.brightness > 100) {
-                throw VC64Error(ERROR_OPT_INV_ARG, "Expected 0...100");
+                throw VC64Error(ERROR_OPT_INVARG, "Expected 0...100");
             }
 
             config.brightness = value;
             updatePalette();
-            return true;
+            return;
             
         case OPT_CONTRAST:
 
             if (config.contrast < 0 || config.contrast > 100) {
-                throw VC64Error(ERROR_OPT_INV_ARG, "Expected 0...100");
+                throw VC64Error(ERROR_OPT_INVARG, "Expected 0...100");
             }
 
             config.contrast = value;
             updatePalette();
-            return true;
+            return;
 
         case OPT_SATURATION:
         
             if (config.saturation < 0 || config.saturation > 100) {
-                throw VC64Error(ERROR_OPT_INV_ARG, "Expected 0...100");
+                throw VC64Error(ERROR_OPT_INVARG, "Expected 0...100");
             }
 
             config.saturation = value;
             updatePalette();
-            return true;
+            return;
 
         case OPT_GRAY_DOT_BUG:
             
             config.grayDotBug = value;
-            return true;
+            return;
             
         case OPT_HIDE_SPRITES:
             
             config.hideSprites = value;
-            return true;
+            return;
             
         case OPT_SS_COLLISIONS:
             
             config.checkSSCollisions = value;
-            return true;
+            return;
 
         case OPT_SB_COLLISIONS:
             
             config.checkSBCollisions = value;
-            return true;
+            return;
 
         case OPT_GLUE_LOGIC:
             
             if (!GlueLogicEnum::isValid(value)) {
-                throw VC64Error(ERROR_OPT_INV_ARG, GlueLogicEnum::keyList());
+                throw VC64Error(ERROR_OPT_INVARG, GlueLogicEnum::keyList());
             }
             
             config.glueLogic = (GlueLogic)value;
-            return true;
+            return;
             
         default:
-            return false;
+            fatalError;
     }
 }
 
@@ -284,41 +294,71 @@ void
 VICII::setRevision(VICIIRevision revision)
 {
     assert_enum(VICIIRevision, revision);
-    assert(!isRunning());
     
-    debug(VIC_DEBUG, "setRevision(%s)\n", VICIIRevisionEnum::key(revision));
-
-    /* If the VICII revision is changed while the emulator is powered on, some
-     * precautions must be taken. First, we interrupt a running screen capture.
-     * After that, we move the emulator to a safe spot by finishing the current
-     * frame.
-     */
-    if (isPoweredOn()) {
-#ifndef __EMSCRIPTEN__
-        recorder.stopRecording();
-#endif
-        c64.finishFrame();
+    suspended {
+        
+        if (isPoweredOn()) {
+            
+            /* If the VICII revision is changed while the emulator is powered
+             * on, we take some precautions. Firstly, we interrupt a running
+             * screen capture. Secondly, we move the emulator to a safe spot by
+             * finishing the current frame.
+             */
+            recorder.stopRecording();
+            c64.finishFrame();
+        }
+        
+        config.revision = revision;
+        isFirstDMAcycle = isSecondDMAcycle = 0;
+        updatePalette();
+        resetEmuTextures();
+        resetDmaTextures();
+        vic.updateVicFunctionTable();
+        
+        isPAL =
+        revision == VICII_PAL_6569_R1 ||
+        revision == VICII_PAL_6569_R3 ||
+        revision == VICII_PAL_8565;
+        
+        is856x =
+        revision == VICII_PAL_8565 ||
+        revision == VICII_NTSC_8562;
+        
+        isNTSC = !isPAL;
+        is656x = !is856x;
+        
+        // Update other components
+        isize newFrequency = VICII::getFrequency();
+        muxer.setClockFrequency((u32)newFrequency);
+        c64.updateClockFrequency(config.revision, config.speed);
     }
     
-    config.revision = revision;
-    isFirstDMAcycle = isSecondDMAcycle = 0;
-    updatePalette();
-    resetEmuTextures();
-    resetDmaTextures();
-    vic.updateVicFunctionTable();
-    
-    c64.putMessage(isPAL() ? MSG_PAL : MSG_NTSC);
+    msgQueue.put(isPAL ? MSG_PAL : MSG_NTSC);
 }
 
 void
-VICII::_inspect()
+VICII::setSpeed(VICIISpeed speed)
+{
+    suspended {
+        
+        config.speed = speed;
+        
+        // Update other components
+        isize newFrequency = VICII::getFrequency();
+        muxer.setClockFrequency((u32)newFrequency);
+        c64.updateClockFrequency(config.revision, config.speed);
+    }
+}
+
+void
+VICII::_inspect() const
 {
     synchronized {
         
         u8 ctrl1 = reg.current.ctrl1;
         u8 ctrl2 = reg.current.ctrl2;
         
-        info.rasterLine = c64.rasterLine;
+        info.scanline = c64.scanline;
         info.rasterCycle = c64.rasterCycle;
         info.yCounter = yCounter;
         info.xCounter = xCounter;
@@ -347,10 +387,10 @@ VICII::_inspect()
         info.memSelect = memSelect;
         info.ultimax = ultimax;
         info.memoryBankAddr = bankAddr;
-        info.screenMemoryAddr = VM13VM12VM11VM10() << 6;
+        info.screenMemoryAddr = (u16)(VM13VM12VM11VM10() << 6);
         info.charMemoryAddr = (CB13CB12CB11() << 10) % 0x4000;
         
-        info.irqRasterline = rasterIrqLine;
+        info.irqLine = rasterIrqLine;
         info.imr = imr;
         info.irr = irr;
         
@@ -386,18 +426,20 @@ VICII::_dump(dump::Category category, std::ostream& os) const
 
         os << tab("Chip model");
         os << VICIIRevisionEnum::key(config.revision) << std::endl;
+        os << tab("Speed");
+        os << VICIISpeedEnum::key(config.speed) << std::endl;
         os << tab("Power save mode");
         os << bol(config.powerSave, "during warp", "never") << std::endl;
         os << tab("Gray dot bug");
         os << bol(config.grayDotBug) << std::endl;
         os << tab("PAL");
-        os << bol(isPAL()) << std::endl;
+        os << bol(isPAL) << std::endl;
         os << tab("NTSC");
-        os << bol (isNTSC()) << std::endl;
+        os << bol (isNTSC) << std::endl;
         os << tab("is656x");
-        os << bol(is656x()) << std::endl;
+        os << bol(is656x) << std::endl;
         os << tab("is856x");
-        os << bol(is856x()) << std::endl;
+        os << bol(is856x) << std::endl;
         os << tab("Glue logic");
         os << GlueLogicEnum::key(config.glueLogic) << std::endl;
         os << tab("Check SS collisions");
@@ -414,7 +456,9 @@ VICII::_dump(dump::Category category, std::ostream& os) const
         
         for (isize i = 0; i < 6; i++) {
             os << tab(addr[i]);
-            for (isize j = 0; j < 8; j++) os << hex(spypeek(8 * i + j)) << " ";
+            for (isize j = 0; j < 8; j++) {
+                os << hex(spypeek((u16)(8 * i + j))) << " ";
+            }
             os << std::endl;
         }
     }
@@ -449,7 +493,7 @@ VICII::_dump(dump::Category category, std::ostream& os) const
         os << tab("badLine");
         os << bol(badLine) << std::endl;
         os << tab("DENwasSetIn30");
-        os << bol(DENwasSetInRasterline30) << std::endl;
+        os << bol(DENwasSetInLine30) << std::endl;
         os << tab("VC");
         os << hex(vc) << std::endl;
         os << tab("VCBASE");
@@ -516,42 +560,59 @@ VICII::getSpriteInfo(int nr)
 void
 VICII::_run()
 {
+    
+}
+
+void
+VICII::_debugOn()
+{
+    debug(RUN_DEBUG, "_debugOn\n");
+
+    updateVicFunctionTable();
+}
+
+void
+VICII::_debugOff()
+{
+    debug(RUN_DEBUG, "_debugOff\n");
+
+    updateVicFunctionTable();
 }
 
 bool
-VICII::isPAL(VICIIRevision revision)
+VICII::delayedLightPenIrqs(VICIIRevision rev)
 {
-    return revision & (VICII_PAL_6569_R1 | VICII_PAL_6569_R3 | VICII_PAL_8565);
+     return rev & (VICII_PAL_6569_R1 | VICII_NTSC_6567_R56A);
 }
 
-bool
-VICII::isNTSC(VICIIRevision revision)
+double
+VICII::getFps(VICIIRevision rev, VICIISpeed speed)
 {
-     return revision & (VICII_NTSC_6567 | VICII_NTSC_6567_R56A | VICII_NTSC_8562);
+    switch (speed) {
+            
+        case VICII_TRUE_25: return 25;
+        case VICII_TRUE_30: return 30;
+        case VICII_TRUE_50: return 50;
+        case VICII_TRUE_60: return 60;
+        case VICII_TRUE_100: return 100;
+        case VICII_TRUE_120: return 120;
+            
+        default:
+            assert(speed == VICII_NATIVE);
+            return (double)getFrequency(rev, speed) / (double)getCyclesPerFrame(rev);
+    }
 }
 
-bool
-VICII::is856x(VICIIRevision revision)
+i64
+VICII::getFrameDelay(VICIIRevision rev, VICIISpeed speed)
 {
-     return revision & (VICII_PAL_8565 | VICII_NTSC_8562);
-}
- 
-bool
-VICII::is656x(VICIIRevision revision)
-{
-     return revision & ~(VICII_PAL_8565 | VICII_NTSC_8562);
+    return i64(1000000000 / getFps(rev, speed));
 }
 
-bool
-VICII::delayedLightPenIrqs(VICIIRevision revision)
+isize
+VICII::getNativeFrequency(VICIIRevision rev)
 {
-     return revision & (VICII_PAL_6569_R1 | VICII_NTSC_6567_R56A);
-}
-
-unsigned
-VICII::getFrequency(VICIIRevision revision)
-{
-    switch (revision) {
+    switch (rev) {
             
         case VICII_NTSC_6567:
         case VICII_NTSC_8562:
@@ -563,10 +624,28 @@ VICII::getFrequency(VICIIRevision revision)
     }
 }
 
-unsigned
-VICII::getCyclesPerLine(VICIIRevision revision)
+isize
+VICII::getFrequency(VICIIRevision rev, VICIISpeed speed)
 {
-    switch (revision) {
+    switch (speed) {
+            
+        case VICII_TRUE_25: return getCyclesPerFrame(rev) * 25;
+        case VICII_TRUE_30: return getCyclesPerFrame(rev) * 30;
+        case VICII_TRUE_50: return getCyclesPerFrame(rev) * 50;
+        case VICII_TRUE_60: return getCyclesPerFrame(rev) * 60;
+        case VICII_TRUE_100: return getCyclesPerFrame(rev) * 100;
+        case VICII_TRUE_120: return getCyclesPerFrame(rev) * 120;
+            
+        default:
+            assert(speed == VICII_NATIVE);
+            return getNativeFrequency(rev);
+    }
+}
+
+isize
+VICII::getCyclesPerLine(VICIIRevision rev)
+{
+    switch (rev) {
             
         case VICII_NTSC_6567_R56A:
             return 64;
@@ -580,16 +659,10 @@ VICII::getCyclesPerLine(VICIIRevision revision)
     }
 }
 
-bool
-VICII::isLastCycleInRasterline(unsigned cycle) const
+isize
+VICII::getLinesPerFrame(VICIIRevision rev)
 {
-    return cycle >= getCyclesPerLine();
-}
-
-long
-VICII::getRasterlinesPerFrame() const
-{
-    switch (config.revision) {
+    switch (rev) {
             
         case VICII_NTSC_6567_R56A:
             return 262;
@@ -603,10 +676,16 @@ VICII::getRasterlinesPerFrame() const
     }
 }
 
-long
-VICII::numVisibleRasterlines() const
+isize
+VICII::getCyclesPerFrame(VICIIRevision rev)
 {
-    switch (config.revision) {
+    return getLinesPerFrame(rev) * getCyclesPerLine(rev);
+}
+
+isize
+VICII::numVisibleLines(VICIIRevision rev)
+{
+    switch (rev) {
             
         case VICII_NTSC_6567_R56A:
             return 234;
@@ -621,19 +700,25 @@ VICII::numVisibleRasterlines() const
 }
 
 bool
-VICII::isVBlankLine(unsigned rasterline) const
+VICII::isLastCycleInLine(isize cycle) const
+{
+    return cycle >= getCyclesPerLine();
+}
+
+bool
+VICII::isVBlankLine(isize line) const
 {
     switch (config.revision) {
             
         case VICII_NTSC_6567_R56A:
-            return rasterline < 16 || rasterline >= 16 + 234;
+            return line < 16 || line >= 16 + 234;
             
         case VICII_NTSC_6567:
         case VICII_NTSC_8562:
-            return rasterline < 16 || rasterline >= 16 + 235;
+            return line < 16 || line >= 16 + 235;
             
         default:
-            return rasterline < 16 || rasterline >= 16 + 284;
+            return line < 16 || line >= 16 + 284;
     }
 }
 
@@ -657,9 +742,9 @@ VICII::getNoise() const
 }
 
 u16
-VICII::rasterline() const
+VICII::scanline() const
 {
-    return c64.rasterLine;
+    return c64.scanline;
 }
 
 u8
@@ -672,19 +757,19 @@ void
 VICII::checkForRasterIrq()
 {
     // Determine the comparison value
-    u32 counter = isLastCycleInRasterline(c64.rasterCycle) ? yCounter + 1 : yCounter;
+    u32 counter = isLastCycleInLine(c64.rasterCycle) ? yCounter + 1 : yCounter;
     
     // Check if the interrupt line matches
     bool match = rasterIrqLine == counter;
 
     // A positive edge triggers a raster interrupt
-    if (match && !rasterlineMatchesIrqLine) {
+    if (match && !lineMatchesIrqLine) {
         
         trace(RASTERIRQ_DEBUG, "Triggering raster interrupt\n");
         triggerIrq(1);
     }
     
-    rasterlineMatchesIrqLine = match;
+    lineMatchesIrqLine = match;
 }
 
 
@@ -770,7 +855,7 @@ VICII::badLineCondition() const
     return
     (yCounter >= 0x30 && yCounter <= 0xf7) && /* [1] */
     (yCounter & 0x07) == (reg.current.ctrl1 & 0x07) && /* [2] */
-    DENwasSetInRasterline30; /* [3] */
+    DENwasSetInLine30; /* [3] */
 }
 
 void
@@ -823,16 +908,14 @@ VICII::lightpenX() const
             return 2 + (cycle < 14 ? 400 + (8 * cycle) : (cycle - 14) * 8);
             
         default:
-            
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
 u16
 VICII::lightpenY() const
 {
-    return yCounter;
+    return (u16)yCounter;
 }
 
 void
@@ -856,12 +939,12 @@ VICII::checkForLightpenIrq()
     // ... a previous interrupt has occurred in the current frame
     if (lpIrqHasOccurred) return;
 
-    // ... we are in the last PAL rasterline and not in cycle 1
+    // ... we are in the last PAL scanline and not in cycle 1
     if (yCounter == 311 && vicCycle != 1) return;
     
     // Latch coordinates
-    latchedLPX = lightpenX() / 2;
-    latchedLPY = lightpenY();
+    latchedLPX = (u8)(lightpenX() / 2);
+    latchedLPY = (u8)(lightpenY());
     
     // Newer VICII models trigger an interrupt immediately
     if (!delayedLightPenIrqs()) triggerIrq(8);
@@ -874,7 +957,7 @@ void
 VICII::checkForLightpenIrqAtStartOfFrame()
 {
     // This function is called at the beginning of a frame, only.
-    assert(c64.rasterLine == 0);
+    assert(c64.scanline == 0);
     assert(c64.rasterCycle == 2);
  
     // Latch coordinate (values according to VICE 3.1)
@@ -910,12 +993,12 @@ VICII::checkForLightpenIrqAtStartOfFrame()
 //
 
 u8
-VICII::spriteDepth(u8 nr) const
+VICII::spriteDepth(isize nr) const
 {
     return
     GET_BIT(reg.delayed.sprPriority, nr) ?
-    (DEPTH_SPRITE_BG | nr) :
-    (DEPTH_SPRITE_FG | nr);
+    (u8)(DEPTH_SPRITE_BG | nr) :
+    (u8)(DEPTH_SPRITE_FG | nr);
 }
 
 u8
@@ -923,7 +1006,7 @@ VICII::compareSpriteY() const
 {
     u8 result = 0;
     
-    for (unsigned i = 0; i < 8; i++) {
+    for (isize i = 0; i < 8; i++) {
         result |= (reg.current.sprY[i] == (yCounter & 0xFF)) << i;
     }
     
@@ -943,7 +1026,7 @@ VICII::turnSpriteDmaOff()
      *     After the MCBASE update, [5] the VIC checks if MCBASE is equal to 63
      *     and [6] turns off the DMA of the sprite if it is." [VIC Addendum]
      */
-    for (unsigned i = 0; i < 8; i++) {
+    for (isize i = 0; i < 8; i++) {
         
         if (GET_BIT(expansionFF,i)) { /* [1] */
             if (GET_BIT(cleared_bits_in_d017,i)) { /* [3] */
@@ -972,7 +1055,7 @@ VICII::turnSpriteDmaOn()
      */
     u8 risingEdges = ~spriteDmaOnOff & (reg.current.sprEnable & compareSpriteY());
     
-    for (unsigned i = 0; i < 8; i++) {
+    for (isize i = 0; i < 8; i++) {
         if (GET_BIT(risingEdges,i))
             mcbase[i] = 0;
     }
@@ -989,7 +1072,7 @@ VICII::turnSpritesOnOrOff()
      *  the lower 8 bits of RASTER. If this is the case, the display of the
      *  sprite is turned on."
      */
-    for (unsigned i = 0; i < 8; i++) {
+    for (isize i = 0; i < 8; i++) {
         mc[i] = mcbase[i];
     }
     
@@ -998,12 +1081,22 @@ VICII::turnSpritesOnOrOff()
 }
 
 void
-VICII::updateSpriteShiftRegisters() {
-    if (isSecondDMAcycle) {
-        for (unsigned sprite = 0; sprite < 8; sprite++) {
-            if (GET_BIT(isSecondDMAcycle, sprite)) {
-                loadSpriteShiftRegister(sprite);
-            }
+VICII::loadSpriteShiftRegister(isize nr)
+{
+    spriteSr[nr].data = LO_LO_HI(spriteSr[nr].chunk3,
+                                 spriteSr[nr].chunk2,
+                                 spriteSr[nr].chunk1);
+}
+
+void
+VICII::updateSpriteShiftRegisters()
+{
+    if (!isSecondDMAcycle) return;
+    
+    for (isize sprite = 0; sprite < 8; sprite++) {
+        
+        if (GET_BIT(isSecondDMAcycle, sprite)) {
+            loadSpriteShiftRegister(sprite);
         }
     }
 }
@@ -1104,7 +1197,7 @@ VICII::processDelayedActions()
 }
 
 void 
-VICII::beginRasterline(u16 line)
+VICII::beginScanline(u16 line)
 {
     verticalFrameFFsetCond = false;
 
@@ -1118,8 +1211,8 @@ VICII::beginRasterline(u16 line)
     // Increase the y counter (overflow is handled in cycle 2)
     if (!yCounterOverflow()) yCounter++;
     
-    // Check the DEN bit in rasterline 30 (value might change later)
-    if (line == 0x30) DENwasSetInRasterline30 = DENbit();
+    // Check the DEN bit in line 30 (value might change later)
+    if (line == 0x30) DENwasSetInLine30 = DENbit();
 
     // Check if this line is a DMA line (bad line) (value might change later)
     if ((badLine = badLineCondition())) delay |= VICSetDisplayState;
@@ -1129,7 +1222,7 @@ VICII::beginRasterline(u16 line)
 }
 
 void 
-VICII::endRasterline()
+VICII::endScanline()
 {
     // Set vertical flipflop if condition was hit
     if (verticalFrameFFsetCond) setVerticalFrameFF(true);
@@ -1138,5 +1231,5 @@ VICII::endRasterline()
     dmaDebugger.cutLayers();
 
     // Prepare buffers for the next line
-    for (unsigned i = 0; i < TEX_WIDTH; i++) { zBuffer[i] = 0; }
+    for (isize i = 0; i < TEX_WIDTH; i++) { zBuffer[i] = 0; }
 }

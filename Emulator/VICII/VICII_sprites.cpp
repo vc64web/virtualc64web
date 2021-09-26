@@ -156,7 +156,7 @@ VICII::drawSpritesSlowPath()
     // After the first pixel, color register changes show up
     reg.delayed.colors[COLREG_SPR_EX1] = reg.current.colors[COLREG_SPR_EX1];
     reg.delayed.colors[COLREG_SPR_EX2] = reg.current.colors[COLREG_SPR_EX2];
-    for (unsigned i = 0; i < 8; i++) {
+    for (isize i = 0; i < 8; i++) {
         reg.delayed.colors[COLREG_SPR0 + i] = reg.current.colors[COLREG_SPR0 + i];
     }
     
@@ -188,7 +188,7 @@ VICII::drawSpritesSlowPath()
 
     // Update multicolor bits if a new VICII is emulated
     u8 toggle = reg.delayed.sprMC ^ reg.current.sprMC;
-    if (toggle && is856x()) {
+    if (toggle && is856x) {
         
         // VICE:
         // BYTE next_mc_bits = vicii.regs[0x1c];
@@ -197,7 +197,7 @@ VICII::drawSpritesSlowPath()
         // sprite_mc_bits = next_mc_bits;
         
         reg.delayed.sprMC = reg.current.sprMC;
-        for (unsigned i = 0; i < 8; i++) {
+        for (isize i = 0; i < 8; i++) {
             if (GET_BIT(toggle,i))
                 spriteSr[i].mcFlop ^= !spriteSr[i].expFlop;
         }
@@ -210,10 +210,10 @@ VICII::drawSpritesSlowPath()
     drawSpritePixel(6, spriteDisplay, firstDMA | secondDMA);
     
     // Update multicolor bits if an old VICII is emulated
-    if (toggle && is656x()) {
+    if (toggle && is656x) {
         
         reg.delayed.sprMC = reg.current.sprMC;
-        for (unsigned i = 0; i < 8; i++) {
+        for (isize i = 0; i < 8; i++) {
             if (GET_BIT(toggle,i))
                 spriteSr[i].mcFlop = 0;
         }
@@ -227,12 +227,12 @@ VICII::drawSpritesSlowPath()
 }
 
 void
-VICII::drawSpritePixel(unsigned pixel, u8 enableBits, u8 freezeBits)
+VICII::drawSpritePixel(isize pixel, u8 enableBits, u8 freezeBits)
 {
     if (!enableBits && !spriteSrActive) return;
     
     // Iterate over all sprites
-    for (unsigned sprite = 0; sprite < 8; sprite++) {
+    for (isize sprite = 0; sprite < 8; sprite++) {
         
         bool enable = GET_BIT(enableBits, sprite);
         bool active = GET_BIT(spriteSrActive, sprite);

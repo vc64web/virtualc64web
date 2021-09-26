@@ -16,13 +16,13 @@
 
 #define CHECK_WATCHPOINT(x) \
 if (checkWatchpoints && cpu.debugger.watchpointMatches(x)) { \
-    c64.signalWatchpoint(); \
+c64.signalWatchpoint(); \
 }
 
-C64Memory::C64Memory(C64 &ref) : C64Component(ref)
+C64Memory::C64Memory(C64 &ref) : SubComponent(ref)
 {    		
     memset(rom, 0, sizeof(rom));
-
+    
     /* Memory bank map
      *
      * If x == (EXROM, GAME, CHAREN, HIRAM, LORAM) then
@@ -73,7 +73,7 @@ C64Memory::C64Memory(C64 &ref) : C64Component(ref)
         { M_RAM,  M_RAM,   M_BASIC, M_RAM,  M_IO,   M_KERNAL }
     };
     
-    for (unsigned i = 0; i < 32; i++) {
+    for (isize i = 0; i < 32; i++) {
         
         bankMap[i][0x0] = M_PP;
         bankMap[i][0x1] = map[i][0];
@@ -95,7 +95,7 @@ C64Memory::C64Memory(C64 &ref) : C64Component(ref)
     
     // Initialize peekSource and pokeTarket tables
     peekSrc[0x0] = pokeTarget[0x0] = M_PP;
-    for (unsigned i = 0x1; i <= 0xF; i++) {
+    for (isize i = 0x1; i <= 0xF; i++) {
         peekSrc[i] = pokeTarget[i] = M_RAM;
     }
 }
@@ -112,7 +112,7 @@ C64Memory::_reset(bool hard)
         
         // Initialize color RAM with random numbers
         srand(1000);
-        for (unsigned i = 0; i < sizeof(colorRam); i++) {
+        for (isize i = 0; i < isizeof(colorRam); i++) {
             colorRam[i] = (rand() & 0xFF);
         }
     }
@@ -144,12 +144,11 @@ C64Memory::getConfigItem(Option option) const
         case OPT_RAM_PATTERN:  return config.ramPattern;
             
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
-bool
+void
 C64Memory::setConfigItem(Option option, i64 value)
 {
     switch (option) {
@@ -157,19 +156,19 @@ C64Memory::setConfigItem(Option option, i64 value)
         case OPT_RAM_PATTERN:
             
             if (!RamPatternEnum::isValid(value)) {
-                throw VC64Error(ERROR_OPT_INV_ARG, RamPatternEnum::keyList());
+                throw VC64Error(ERROR_OPT_INVARG, RamPatternEnum::keyList());
             }
             
             config.ramPattern = (RamPattern)value;
-            return true;
-                        
+            return;
+            
         default:
-            return false;
+            fatalError;
     }
 }
 
 void
-C64Memory::_inspect()
+C64Memory::_inspect() const
 {
     synchronized {
         
@@ -194,7 +193,7 @@ C64Memory::_dump(dump::Category category, std::ostream& os) const
     using namespace util;
     
     if (category & dump::Config) {
-    
+        
         os << tab("Ram pattern");
         os << RamPatternEnum::key(config.ramPattern) << std::endl;
     }
@@ -209,7 +208,7 @@ C64Memory::_dump(dump::Category category, std::ostream& os) const
         os << bol(c64.hasRom(ROM_TYPE_KERNAL)) << std::endl;
     }
 }
-    
+
 void
 C64Memory::eraseWithPattern(RamPattern pattern)
 {
@@ -228,52 +227,52 @@ C64Memory::eraseWithPattern(RamPattern pattern)
     switch (pattern) {
             
         case RAM_PATTERN_VICE:
-        
+            
             // $00 $00 $FF $FF $FF $FF $00 $00 ...
             for (isize i = 0; i < isizeof(ram); i++)
                 ram[i] = (i & 0x6) == 0x2 || (i & 0x6) == 0x4 ? 0xFF : 0x00;
-
+            
             // In addition, the 2nd and 3rd 16K bank are inverted
             for (isize i = 0; i < isizeof(ram); i++)
                 ram[i] ^= (i & 0x4000) ? 0xFF : 0x00;
             
             break;
-        
+            
         case RAM_PATTERN_CCS:
-        
+            
             // (64 x $FF) (64 x $00) ...
             for (isize i = 0; i < isizeof(ram); i++)
                 ram[i] = (i & 0x40) ? 0x00 : 0xFF;
             
             break;
-        
+            
         case RAM_PATTERN_ZEROES:
-        
+            
             for (isize i = 0; i < isizeof(ram); i++)
                 ram[i] = 0;
             
             break;
-
+            
         case RAM_PATTERN_ONES:
-        
+            
             for (isize i = 0; i < isizeof(ram); i++)
                 ram[i] = 0xFF;
             
             break;
-
+            
         case RAM_PATTERN_RANDOM:
         {
             std::random_device rd;
             std::mt19937 gen(rd());
             std::uniform_int_distribution<> distrib(0, 0xFF);
-         
+            
             for (isize i = 0; i < isizeof(ram); i++)
-                ram[i] = distrib(gen);
-        
+                ram[i] = (u8)distrib(gen);
+            
             break;
         }
         default:
-            assert(false);
+            fatalError;
     }
 }
 
@@ -284,12 +283,12 @@ C64Memory::updatePeekPokeLookupTables()
     u8 game  = expansionport.getGameLine() ? 0x08 : 0x00;
     u8 exrom = expansionport.getExromLine() ? 0x10 : 0x00;
     u8 index = (cpu.pport.read() & 0x07) | exrom | game;
-
+    
     // Set ultimax flag
     c64.setUltimax(exrom && !game);
-
+    
     // Update table entries
-    for (unsigned bank = 1; bank < 16; bank++) {
+    for (isize bank = 1; bank < 16; bank++) {
         peekSrc[bank] = pokeTarget[bank] = bankMap[index][bank];
     }
     
@@ -303,37 +302,42 @@ C64Memory::peek(u16 addr, MemoryType source)
     CHECK_WATCHPOINT(addr)
     
     switch(source) {
-        
+            
         case M_RAM:
-        return ram[addr];
-        
+            
+            return ram[addr];
+            
         case M_BASIC:
         case M_CHAR:
         case M_KERNAL:
-        return rom[addr];
-        
+            
+            return rom[addr];
+            
         case M_IO:
-        return peekIO(addr);
-        
+            
+            return peekIO(addr);
+            
         case M_CRTLO:
         case M_CRTHI:
-        return expansionport.peek(addr);
-        
+            
+            return expansionport.peek(addr);
+            
         case M_PP:
-        if (likely(addr >= 0x02)) {
-            return ram[addr];
-        } else if (addr == 0x00) {
-            return cpu.pport.readDirection();
-        } else {
-            return cpu.pport.read();
-        }
-        
+            
+            if (likely(addr >= 0x02)) {
+                return ram[addr];
+            } else if (addr == 0x00) {
+                return cpu.pport.readDirection();
+            } else {
+                return cpu.pport.read();
+            }
+            
         case M_NONE:
-        return vic.getDataBusPhi1();
-        
+            
+            return vic.getDataBusPhi1();
+            
         default:
-        assert(false);
-        return 0;
+            fatalError;
     }
 }
 
@@ -386,27 +390,27 @@ C64Memory::peekIO(u16 addr)
             // Only the lower 6 bits are used for adressing the VIC I/O space.
             // As a result, VICII's I/O memory repeats every 64 bytes.
             return vic.peek(addr & 0x003F);
-
+            
         case 0x4: // SID
         case 0x5: // SID
         case 0x6: // SID
         case 0x7: // SID
             
-            return sid.peek(addr);
-
+            return muxer.peek(addr);
+            
         case 0x8: // Color RAM
         case 0x9: // Color RAM
         case 0xA: // Color RAM
         case 0xB: // Color RAM
- 
+            
             return (colorRam[addr - 0xD800] & 0x0F) | (vic.getDataBusPhi1() & 0xF0);
-
+            
         case 0xC: // CIA 1
- 
+            
             // Only the lower 4 bits are used for adressing the CIA I/O space.
             // As a result, CIA's I/O memory repeats every 16 bytes.
             return cia1.peek(addr & 0x000F);
-	
+            
         case 0xD: // CIA 2
             
             return cia2.peek(addr & 0x000F);
@@ -416,12 +420,11 @@ C64Memory::peekIO(u16 addr)
             return expansionport.peekIO1(addr);
             
         case 0xF: // I/O space 2
-
+            
             return expansionport.peekIO2(addr);
-	}
+    }
     
-	assert(false);
-	return 0;
+    fatalError;
 }
 
 u8
@@ -430,21 +433,26 @@ C64Memory::spypeek(u16 addr, MemoryType source) const
     switch(source) {
             
         case M_RAM:
+            
             return ram[addr];
             
         case M_BASIC:
         case M_CHAR:
         case M_KERNAL:
+            
             return rom[addr];
             
         case M_IO:
+            
             return spypeekIO(addr);
             
         case M_CRTLO:
         case M_CRTHI:
+            
             return expansionport.spypeek(addr);
             
         case M_PP:
+            
             if (addr >= 0x02) {
                 return ram[addr];
             } else if (addr == 0x00) {
@@ -452,13 +460,13 @@ C64Memory::spypeek(u16 addr, MemoryType source) const
             } else {
                 return cpu.pport.read();
             }
-      
+            
         case M_NONE:
+            
             return ram[addr];
             
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
@@ -481,14 +489,14 @@ C64Memory::spypeekIO(u16 addr) const
         case 0x6: // SID
         case 0x7: // SID
             
-            return sid.spypeek(addr & 0x001F);
+            return muxer.spypeek(addr & 0x001F);
             
         case 0x8: // Color Ram
         case 0x9: // Color Ram
         case 0xA: // Color Ram
         case 0xB: // Color Ram
-            return spypeekColor(addr - 0xD8000);
-
+            return spypeekColor(addr - 0xD800);
+            
         case 0xC: // CIA 1
             
             // Only the lower 4 bits are used for adressing the CIA I/O space.
@@ -506,10 +514,9 @@ C64Memory::spypeekIO(u16 addr) const
         case 0xF: // I/O space 2
             
             return expansionport.spypeekIO2(addr);
-
+            
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
@@ -531,19 +538,23 @@ C64Memory::poke(u16 addr, u8 value, MemoryType target)
         case M_BASIC:
         case M_CHAR:
         case M_KERNAL:
+            
             ram[addr] = value;
             return;
             
         case M_IO:
+            
             pokeIO(addr, value);
             return;
             
         case M_CRTLO:
         case M_CRTHI:
+            
             expansionport.poke(addr, value);
             return;
             
         case M_PP:
+            
             if (likely(addr >= 0x02)) {
                 ram[addr] = value;
             } else if (addr == 0x00) {
@@ -554,11 +565,11 @@ C64Memory::poke(u16 addr, u8 value, MemoryType target)
             return;
             
         case M_NONE:
+            
             return;
             
         default:
-            assert(false);
-            return;
+            fatalError;
     }
 }
 
@@ -618,10 +629,10 @@ C64Memory::pokeIO(u16 addr, u8 value)
         case 0x6: // SID
         case 0x7: // SID
             
-            sid.poke(addr, value);
-
+            muxer.poke(addr, value);
+            
             // Check the error register (debugcart feature)
-            if (addr == 0xD7FF) c64.regressionTester.debugcart(value);
+            if (addr == 0xD7FF) regressionTester.debugcart(value);
             return;
             
         case 0x8: // Color RAM
@@ -655,47 +666,47 @@ C64Memory::pokeIO(u16 addr, u8 value)
             return;
     }
     
-    assert(false);
+    fatalError;
 }
 
 u16
-C64Memory::nmiVector() {
+C64Memory::nmiVector() const {
     
     if (peekSrc[0xF] != M_KERNAL || c64.hasRom(ROM_TYPE_KERNAL)) {
-        return LO_HI(peek(0xFFFA), peek(0xFFFB));
+        return LO_HI(spypeek(0xFFFA), spypeek(0xFFFB));
     } else {
         return 0xFE43;
     }
 }
 
 u16
-C64Memory::irqVector() {
+C64Memory::irqVector() const {
     
     if (peekSrc[0xF] != M_KERNAL || c64.hasRom(ROM_TYPE_KERNAL)) {
-        return LO_HI(peek(0xFFFE), peek(0xFFFF));
+        return LO_HI(spypeek(0xFFFE), spypeek(0xFFFF));
     } else {
         return 0xFF48;
     }
 }
 
 u16
-C64Memory::resetVector() {
+C64Memory::resetVector() const {
     
     if (peekSrc[0xF] != M_KERNAL || c64.hasRom(ROM_TYPE_KERNAL)) {
-        return LO_HI(peek(0xFFFC), peek(0xFFFD));
+        return LO_HI(spypeek(0xFFFC), spypeek(0xFFFD));
     } else {
         return 0xFCE2;
     }
 }
 
-char *
-C64Memory::memdump(u16 addr, long num, bool hex, MemoryType src)
+string
+C64Memory::memdump(u16 addr, long num, bool hex, MemoryType src) const
 {
-    static char result[128];
+    char result[128];
     char *p = result;
     
     assert(num <= 16);
-
+    
     if (src == M_NONE) {
         
         for (int i = 0; i < num; i++) {
@@ -706,7 +717,7 @@ C64Memory::memdump(u16 addr, long num, bool hex, MemoryType src)
             }
         }
         *p = 0;
-
+        
     } else {
         
         for (int i = 0; i < num; i++) {
@@ -723,13 +734,13 @@ C64Memory::memdump(u16 addr, long num, bool hex, MemoryType src)
         }
     }
     
-    return result;
+    return string(result);
 }
 
-char *
-C64Memory::txtdump(u16 addr, long num, MemoryType src)
+string
+C64Memory::txtdump(u16 addr, long num, MemoryType src) const
 {
-    static char result[17];
+    char result[17];
     char *p = result;
     
     assert(num <= 16);
@@ -740,14 +751,12 @@ C64Memory::txtdump(u16 addr, long num, MemoryType src)
             
             u8 byte = spypeek(addr++, src);
             
-            // if (byte >=  1 && byte <= 26) { *p++ = (byte - 1) + 'A'; continue; }
-            // if (byte >= 48 && byte <= 57) { *p++ = (byte - 48) + '0'; continue; }
             if (byte >= 65 && byte <= 90) { *p++ = byte; continue; }
             if (byte >= 32 && byte <= 57) { *p++ = byte; continue; }
             *p++ = '.';
         }
     }
     *p = 0;
-
-    return result;
+    
+    return string(result);
 }

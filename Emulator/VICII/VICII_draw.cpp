@@ -18,7 +18,7 @@ VICII::drawBorder()
         
         SET_FRAME_PIXEL(0, reg.delayed.colors[COLREG_BORDER]);
 
-        for (unsigned pixel = 1; pixel <= 7; pixel++) {
+        for (isize pixel = 1; pixel <= 7; pixel++) {
             SET_FRAME_PIXEL(pixel, reg.current.colors[COLREG_BORDER]);
         }
     }
@@ -31,7 +31,7 @@ VICII::drawBorder17()
         
         // 38 column mode (only pixels 0...6 are drawn)
         SET_FRAME_PIXEL(0, reg.delayed.colors[COLREG_BORDER]);
-        for (unsigned pixel = 1; pixel <= 6; pixel++) {
+        for (isize pixel = 1; pixel <= 6; pixel++) {
             SET_FRAME_PIXEL(pixel, reg.current.colors[COLREG_BORDER]);
         }
         
@@ -230,7 +230,7 @@ VICII::drawCanvasSlowPath()
      * VICIIs, the one bits of D011 show up, too.
      */
     u8 newD016 = reg.current.ctrl2;
-    if (is656x()) d011 |= reg.current.ctrl1;
+    if (is656x) d011 |= reg.current.ctrl1;
     mode = (d011 & 0x60) | (newD016 & 0x10);
     
     //
@@ -241,7 +241,7 @@ VICII::drawCanvasSlowPath()
     drawCanvasPixel(5, mode, d016);
     
     // In older VICIIs, the zero bits of D011 show up here.
-    if (is656x()) {
+    if (is656x) {
         d011 = reg.current.ctrl1;
         mode = (d011 & 0x60) | (newD016 & 0x10);
     }
@@ -293,7 +293,7 @@ VICII::drawCanvasPixel(u8 pixel, u8 mode, u8 d016)
     } else {
         
         // Update every cycle
-        sr.colorbits = (sr.data >> 7) << multicolorDisplayMode;
+        sr.colorbits = (u8)((sr.data >> 7) << multicolorDisplayMode);
     }
     sr.data <<= 1;
     sr.mcFlop = !sr.mcFlop;

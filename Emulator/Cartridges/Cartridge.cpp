@@ -12,9 +12,17 @@
 #include "C64.h"
 
 bool
+Cartridge::isKnownType(CartridgeType type)
+{
+    if (FORCE_CRT_UNKNOWN) return false;
+    
+    return type >= CRT_NORMAL && type <= CRT_GMOD2;
+}
+
+bool
 Cartridge::isSupportedType(CartridgeType type)
 {
-    if (FORCE_UNSUPPORTED_CRT) return false;
+    if (FORCE_CRT_UNSUPPORTED) return false;
     
     switch (type) {
         
@@ -40,7 +48,7 @@ Cartridge::isSupportedType(CartridgeType type)
         case CRT_COMAL80:
         case CRT_STRUCTURED_BASIC:
             
-        case CRT_MIKRO_ASS:
+        case CRT_MIKRO_ASSEMBLER:
 
         case CRT_STARDOS:
         case CRT_EASYFLASH:
@@ -103,7 +111,7 @@ Cartridge::makeWithType(C64 &c64, CartridgeType type)
         case CRT_MAGIC_DESK:       return new MagicDesk(c64);
         case CRT_COMAL80:          return new Comal80(c64);
         case CRT_STRUCTURED_BASIC: return new StructuredBasic(c64);
-        case CRT_MIKRO_ASS:        return new MikroAss(c64);
+        case CRT_MIKRO_ASSEMBLER:  return new MikroAss(c64);
         case CRT_STARDOS:          return new StarDos(c64);
         case CRT_EASYFLASH:        return new EasyFlash(c64);
         case CRT_ACTION_REPLAY3:   return new ActionReplay3(c64);
@@ -116,15 +124,21 @@ Cartridge::makeWithType(C64 &c64, CartridgeType type)
         case CRT_GEO_RAM:          return new GeoRAM(c64);
             
         default:
-            throw VC64Error(ERROR_CRT_UNSUPPORTED);
+            throw VC64Error(ERROR_CRT_UNSUPPORTED,
+                            std::to_string(type) + " (" + CartridgeTypeEnum::key(type) + ")");
     }
 }
 
 Cartridge *
 Cartridge::makeWithCRTFile(C64 &c64, CRTFile &file)
 {
+    auto type = file.cartridgeType();
+
+    // Only proceed if the cartridge ID is valid
+    if (!isKnownType(type)) throw VC64Error(ERROR_CRT_UNKNOWN, std::to_string(type));
+    
+    // Try to create the cartridge
     Cartridge *cart = makeWithType(c64, file.cartridgeType());
-    assert(cart);
     
     // Remember powerup values for game line and exrom line
     cart->gameLineInCrtFile = file.initialGameLine();
@@ -132,20 +146,17 @@ Cartridge::makeWithCRTFile(C64 &c64, CRTFile &file)
 
     // Load chip packets
     cart->numPackets = 0;
-    for (unsigned i = 0; i < file.chipCount(); i++) {
+    for (isize i = 0; i < file.chipCount(); i++) {
         cart->loadChip(i, file);
     }
     
-    if (CRT_DEBUG) cart->dump();
+    if constexpr (CRT_DEBUG) cart->dump();
     return cart;
 }
 
-Cartridge::Cartridge(C64 &ref) : C64Component(ref)
+Cartridge::Cartridge(C64 &ref) : SubComponent(ref)
 {
-    trace(CRT_DEBUG, "Creating cartridge at address %p...\n", this);
-    
-    // REMOVE ASAP
-    for (usize i = 0; i < MAX_PACKETS; i++) assert(packet[i] == nullptr);
+    trace(CRT_DEBUG, "Creating cartridge at address %p...\n", (void *)this);
 }
 
 Cartridge::~Cartridge()
@@ -157,7 +168,7 @@ Cartridge::~Cartridge()
 void
 Cartridge::dealloc()
 {
-    for (unsigned i = 0; i < numPackets; i++) {
+    for (isize i = 0; i < numPackets; i++) {
         assert(packet[i] != nullptr);
         delete packet[i];
         packet[i] = nullptr;
@@ -187,23 +198,10 @@ Cartridge::_reset(bool hard)
     if (externalRam && !battery) memset(externalRam, 0xFF, ramCapacity);
  
     // Reset all chip packets
-    for (unsigned i = 0; i < numPackets; i++) packet[i]->_reset(hard);
+    for (isize i = 0; i < numPackets; i++) packet[i]->_reset(hard);
         
     // Bank in visibile chips (chips with low numbers show up first)
     for (int i = MAX_PACKETS - 1; i >= 0; i--) bankIn(i);
-}
-
-void
-Cartridge::resetWithoutDeletingRam()
-{
-    u8 ram[0x10000];
-    
-    trace(RUN_DEBUG, "Resetting virtual C64 (preserving RAM)\n");
-    
-    // TODO: REPLACE THE FOLLOWING BY c64.softReset()
-    memcpy(ram, mem.ram, 0x10000);
-    c64.hardReset();
-    memcpy(mem.ram, ram, 0x10000);
 }
 
 void
@@ -239,8 +237,8 @@ Cartridge::_size()
     applyToResetItems(counter);
  
     // Determine size of all packets
-    usize packetSize = 0;
-    for (unsigned i = 0; i < numPackets; i++) {
+    isize packetSize = 0;
+    for (isize i = 0; i < numPackets; i++) {
         assert(packet[i] != nullptr);
         packetSize += packet[i]->_size();
     }
@@ -253,16 +251,12 @@ Cartridge::_load(const u8 *buffer)
 {
     dealloc();
     
-    printf("Cartridge::_load = %d\n", numPackets);
-
     util::SerReader reader(buffer);
     applyToPersistentItems(reader);
     applyToResetItems(reader);
-    
-    printf("Cartridge::_load2 = %d\n", numPackets);
-    
+        
     // Load ROM packets
-    for (unsigned i = 0; i < numPackets; i++) {
+    for (isize i = 0; i < numPackets; i++) {
         assert(packet[i] == nullptr);
         packet[i] = new CartridgeRom(c64);
         reader.ptr += packet[i]->_load(reader.ptr);
@@ -272,7 +266,7 @@ Cartridge::_load(const u8 *buffer)
     if (ramCapacity) {
         assert(externalRam == nullptr);
         externalRam = new u8[ramCapacity];
-        for (unsigned i = 0; i < ramCapacity; i++) externalRam[i] = util::read8(reader.ptr);
+        for (isize i = 0; i < ramCapacity; i++) externalRam[i] = util::read8(reader.ptr);
     }
 
     trace(SNP_DEBUG, "Recreated from %ld bytes\n", reader.ptr - buffer);
@@ -282,16 +276,12 @@ Cartridge::_load(const u8 *buffer)
 isize
 Cartridge::_save(u8 *buffer)
 {
-    printf("Cartridge::_save = %d\n", numPackets);
-
     util::SerWriter writer(buffer);
     applyToPersistentItems(writer);
     applyToResetItems(writer);
     
-    printf("Cartridge::_save2 = %d\n", numPackets);
-
     // Save ROM packets
-    for (unsigned i = 0; i < numPackets; i++) {
+    for (isize i = 0; i < numPackets; i++) {
         assert(packet[i] != nullptr);
         writer.ptr += packet[i]->_save(writer.ptr);
     }
@@ -299,7 +289,9 @@ Cartridge::_save(u8 *buffer)
     // Save on-board RAM
     if (ramCapacity) {
         assert(externalRam != nullptr);
-        for (unsigned i = 0; i < ramCapacity; i++) util::write8(writer.ptr, externalRam[i]);
+        for (isize i = 0; i < ramCapacity; i++) {
+            util::write8(writer.ptr, externalRam[i]);
+        }
     }
     
     trace(SNP_DEBUG, "Serialized %ld bytes\n", writer.ptr - buffer);
@@ -390,7 +382,7 @@ Cartridge::poke(u16 addr, u8 value)
     if (!c64.getUltimax()) mem.ram[addr] = value;
 }
 
-usize
+isize
 Cartridge::getRamCapacity() const
 {
     if (ramCapacity == 0) {
@@ -402,7 +394,7 @@ Cartridge::getRamCapacity() const
 }
 
 void
-Cartridge::setRamCapacity(usize size)
+Cartridge::setRamCapacity(isize size)
 {
     // Free
     if (getRamCapacity() > 0) {
@@ -556,8 +548,8 @@ Cartridge::bankOut(isize nr)
 }
 
 void
-Cartridge::setSwitch(i8 pos)
+Cartridge::setSwitch(isize pos)
 {
     switchPos = pos;
-    c64.putMessage(MSG_CART_SWITCH);
+    c64.msgQueue.put(MSG_CART_SWITCH);
 }

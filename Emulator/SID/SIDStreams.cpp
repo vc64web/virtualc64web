@@ -8,7 +8,13 @@
 // -----------------------------------------------------------------------------
 
 #include "config.h"
-#include "SIDBridge.h"
+#include "Muxer.h"
+
+void
+StereoStream::alignWritePtr()
+{
+    this->align(this->cap() / 2);
+}
 
 void
 StereoStream::copyMono(float *buffer, isize n, Volume &volL, Volume &volR)

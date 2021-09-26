@@ -29,8 +29,7 @@ ActionReplay3::peek(u16 addr)
         return packet[bank()]->peek(addr - 0xA000);
     }
     
-    assert(false);
-    return 0;
+    fatalError;
 }
 
 u8
@@ -52,60 +51,59 @@ ActionReplay3::pokeIO1(u16 addr, u8 value)
         setControlReg(value);
 }
 
-const char *
-ActionReplay3::getButtonTitle(unsigned nr) const
+const string
+ActionReplay3::getButtonTitle(isize nr) const
 {
-    return nr == 1 ? "Freeze" : nr == 2 ? "Reset" : nullptr;
+    return nr == 1 ? "Freeze" : nr == 2 ? "Reset" : "";
 }
 
 void
-ActionReplay3::pressButton(unsigned nr)
+ActionReplay3::pressButton(isize nr)
 {
     assert(nr <= numButtons());
-    trace(CRT_DEBUG, "Pressing %s button.\n", getButtonTitle(nr));
+    trace(CRT_DEBUG, "Pressing %s button.\n", getButtonTitle(nr).c_str());
     
-    suspend();
-    
-    switch (nr) {
-            
-        case 1: // Freeze
-            
-            cpu.pullDownNmiLine(INTSRC_EXP);
-            cpu.pullDownIrqLine(INTSRC_EXP);
-            
-            // By setting the control register to 0, exrom/game is set to 1/0
-            // which activates ultimax mode. This mode is reset later, in the
-            // ActionReplay's interrupt handler.
-            setControlReg(0);
-            break;
-            
-        case 2: // Reset
-            
-            resetWithoutDeletingRam();
-            break;
+    suspended {
+        
+        switch (nr) {
+                
+            case 1: // Freeze
+                
+                cpu.pullDownNmiLine(INTSRC_EXP);
+                cpu.pullDownIrqLine(INTSRC_EXP);
+                
+                /* By setting the control register to 0, exrom/game is set to
+                 * 1/0 which activates ultimax mode. This mode is reset later,
+                 * in the ActionReplay's interrupt handler.
+                 */
+                setControlReg(0);
+                break;
+                
+            case 2: // Reset
+                
+                c64.softReset();
+                break;
+        }
     }
-    
-    resume();
 }
 
 void
-ActionReplay3::releaseButton(unsigned nr)
+ActionReplay3::releaseButton(isize nr)
 {
     assert(nr <= numButtons());
-    trace(CRT_DEBUG, "Releasing %s button.\n", getButtonTitle(nr));
+    trace(CRT_DEBUG, "Releasing %s button.\n", getButtonTitle(nr).c_str());
     
-    suspend();
-    
-    switch (nr) {
-            
-        case 1: // Freeze
-            
-            cpu.releaseNmiLine(INTSRC_EXP);
-            cpu.releaseIrqLine(INTSRC_EXP);
-            break;
+    suspended {
+        
+        switch (nr) {
+                
+            case 1: // Freeze
+                
+                cpu.releaseNmiLine(INTSRC_EXP);
+                cpu.releaseIrqLine(INTSRC_EXP);
+                break;
+        }
     }
-    
-    resume();
 }
 
 void
@@ -211,59 +209,57 @@ ActionReplay::pokeIO2(u16 addr, u8 value)
     }
 }
 
-const char *
-ActionReplay::getButtonTitle(unsigned nr) const
+const string
+ActionReplay::getButtonTitle(isize nr) const
 {
-    return nr == 1 ? "Freeze" : nr == 2 ? "Reset" : nullptr;
+    return nr == 1 ? "Freeze" : nr == 2 ? "Reset" : "";
 }
 
 void
-ActionReplay::pressButton(unsigned nr)
+ActionReplay::pressButton(isize nr)
 {
     assert(nr <= numButtons());
-    trace(CRT_DEBUG, "Pressing %s button.\n", getButtonTitle(nr));
+    trace(CRT_DEBUG, "Pressing %s button.\n", getButtonTitle(nr).c_str());
     
-    suspend();
-    
-    switch (nr) {
-            
-        case 1: // Freeze
-            
-            // Turn Ultimax mode on
-            setControlReg(0x23);
-            
-            // Pressing the freeze bottom pulls down both the NMI and the IRQ line
-            cpu.pullDownNmiLine(INTSRC_EXP);
-            cpu.pullDownIrqLine(INTSRC_EXP);
-            break;
-            
-        case 2: // Reset
-            
-            resetWithoutDeletingRam();
-            break;
+    suspended {
+        
+        switch (nr) {
+                
+            case 1: // Freeze
+                
+                // Turn Ultimax mode on
+                setControlReg(0x23);
+                
+                // Pressing the freeze bottom pulls down both the NMI and the IRQ line
+                cpu.pullDownNmiLine(INTSRC_EXP);
+                cpu.pullDownIrqLine(INTSRC_EXP);
+                break;
+                
+            case 2: // Reset
+                
+                c64.softReset();
+                break;
+        }
     }
-    
-    resume();
 }
 
 void
-ActionReplay::releaseButton(unsigned nr)
+ActionReplay::releaseButton(isize nr)
 {
     assert(nr <= numButtons());
-    trace(CRT_DEBUG, "Releasing %s button.\n", getButtonTitle(nr));
+    trace(CRT_DEBUG, "Releasing %s button.\n", getButtonTitle(nr).c_str());
     
-    suspend();
-    
-    switch (nr) {
-            
-        case 1: // Freeze
-            
-            cpu.releaseNmiLine(INTSRC_EXP);
-            cpu.releaseIrqLine(INTSRC_EXP);
-            break;
+    suspended {
+        
+        switch (nr) {
+                
+            case 1: // Freeze
+                
+                cpu.releaseNmiLine(INTSRC_EXP);
+                cpu.releaseIrqLine(INTSRC_EXP);
+                break;
+        }
     }
-    
-    resume();
 }
 
 void

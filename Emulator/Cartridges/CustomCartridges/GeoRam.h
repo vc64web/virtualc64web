@@ -29,6 +29,7 @@ private:
 public:
     
     GeoRAM(C64 &ref) : Cartridge(ref) { };
+    GeoRAM(C64 &ref, isize kb) : GeoRAM(ref) { setRamCapacity(kb * 1024); }
     const char *getDescription() const override { return "GeoRam"; }
     CartridgeType getCartridgeType() const override { return CRT_GEO_RAM; }
     
@@ -57,9 +58,9 @@ private:
     {
     }
     
-    usize __size() { COMPUTE_SNAPSHOT_SIZE }
-    usize __load(const u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
-    usize __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
+    isize __size() { COMPUTE_SNAPSHOT_SIZE }
+    isize __load(const u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
+    isize __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
     
     isize _size() override { return Cartridge::_size() + __size(); }
     isize _load(const u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
@@ -82,5 +83,5 @@ public:
 private:
     
     // Maps an address to the proper position in cartridge RAM
-    unsigned offset(u8 addr) const;
+    isize offset(u8 addr) const;
 };

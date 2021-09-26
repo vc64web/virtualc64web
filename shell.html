@@ -165,7 +165,7 @@
       </button>       
     </div>
     <div class="col-4">
-      <select id="port1" class="custom-select mr-1" data-toggle="tooltip" data-placement="left" title="game port 1">
+      <select id="port1" class="custom-select mr-0" data-toggle="tooltip" data-placement="left" title="game port 1">
         <option value="none">none</option>
         <option value="keys">cursor keys, space to fire</option>
         <option value="touch">touch</option>
@@ -940,14 +940,17 @@ goes into edit mode which takes you right back to here ...
       };
       Module.setStatus('Downloading...');
       window.onerror = function(msg, url, lineNo, columnNo, error) {
+        if(msg.startsWith('Uncaught ')){
+          _wasm_print_error( JSON.stringify(error));
+        }
         var message = [
           'Error-Message: ' + msg,
           'URL: ' + url,
           'Line: ' + lineNo,
           'Column: ' + columnNo,
           'Error object: ' + JSON.stringify(error)
-        ].join(' - ');
-        alert(message + " -- go to settings open live debug console ...");
+        ].join('\n');
+        //alert(message + " -- go to settings open live debug console ...");
         document.getElementById('output').value += "\n"+ message + "\n";
 
         Module.setStatus('Exception thrown, see JavaScript console');

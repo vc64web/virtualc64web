@@ -11,7 +11,7 @@
 #include "DmaDebugger.h"
 #include "C64.h"
 
-DmaDebugger::DmaDebugger(C64 &ref) : C64Component(ref)
+DmaDebugger::DmaDebugger(C64 &ref) : SubComponent(ref)
 {
 }
 
@@ -80,8 +80,7 @@ DmaDebugger::getConfigItem(Option option) const
         case OPT_CUT_OPACITY:       return config.cutOpacity;
 
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
@@ -93,62 +92,63 @@ DmaDebugger::getConfigItem(Option option, long id) const
     switch (option) {
             
         case OPT_DMA_DEBUG_ENABLE: return config.dmaChannel[id];
-        case OPT_DMA_DEBUG_COLOR: return config.dmaColor[id];
+        case OPT_DMA_DEBUG_COLOR:  return config.dmaColor[id];
             
         default:
-            assert(false);
-            return 0;
+            fatalError;
     }
 }
 
-bool
+void
 DmaDebugger::setConfigItem(Option option, i64 value)
 {
     switch (option) {
             
         case OPT_DMA_DEBUG_ENABLE:
                      
-            suspend();
-            config.dmaDebug = value;
-            vic.resetDmaTextures();
-            vic.resetEmuTextures();
-            vic.updateVicFunctionTable();
-            messageQueue.put(value ? MSG_DMA_DEBUG_ON : MSG_DMA_DEBUG_OFF);
-            resume();
-            return true;
+            suspended {
+                
+                config.dmaDebug = value;
+                vic.resetDmaTextures();
+                vic.resetEmuTextures();
+                vic.updateVicFunctionTable();
+                msgQueue.put(value ? MSG_DMA_DEBUG_ON : MSG_DMA_DEBUG_OFF);
+            }
+            return;
 
         case OPT_DMA_DEBUG_MODE:
             
             if (!DmaDisplayModeEnum::isValid(value)) {
-                throw VC64Error(ERROR_OPT_INV_ARG, DmaDisplayModeEnum::keyList());
+                throw VC64Error(ERROR_OPT_INVARG, DmaDisplayModeEnum::keyList());
             }
             config.dmaDisplayMode = (DmaDisplayMode)value;
-            return true;
+            return;
 
         case OPT_DMA_DEBUG_OPACITY:
             
-            config.dmaOpacity = value;
-            return false; // 'false' to avoid a MSG_CONFIG being sent
+            config.dmaOpacity = (u8)value;
+            return;
             
         case OPT_CUT_LAYERS:
             
-            config.cutLayers = value;
-            return true;
+            config.cutLayers = (u16)value;
+            return;
             
         case OPT_CUT_OPACITY:
             
-            config.cutOpacity = value;
-            return false; // 'false' to avoid a MSG_CONFIG being sent
+            config.cutOpacity = (u8)value;
+            return;
 
         default:
-            return false;
+            fatalError;
     }
 }
 
-bool
+void
 DmaDebugger::setConfigItem(Option option, long id, i64 value)
 {
-    if (!MemAccessEnum::isValid(id)) { return false; }
+    if (!MemAccessEnum::isValid(id)) return;
+    
     MemAccess access = (MemAccess)id;
     
     switch (option) {
@@ -156,15 +156,15 @@ DmaDebugger::setConfigItem(Option option, long id, i64 value)
         case OPT_DMA_DEBUG_ENABLE:
             
             config.dmaChannel[access] = value;
-            return true;
+            return;
             
         case OPT_DMA_DEBUG_COLOR:
             
             setDmaDebugColor(access, GpuColor((u32)value));
-            return true;
+            return;
             
         default:
-            return false;
+            return;
     }
 }
 
@@ -291,7 +291,8 @@ DmaDebugger::computeOverlay(u32 *emuTexture, u32 *dmaTexture)
             }
             break;
             
-        default: assert(false);
+        default:
+            fatalError;
     }
 }
 
@@ -342,7 +343,7 @@ DmaDebugger::cutLayers()
             u8 b = (emuTexturePtr[i] >> 16) & 0xFF;
 
             double scale = config.cutOpacity / 255.0;
-            u8 bg = (vic.rasterline() / 4) % 2 == (i / 4) % 2 ? 0x22 : 0x44;
+            u8 bg = (vic.scanline() / 4) % 2 == (i / 4) % 2 ? 0x22 : 0x44;
             u8 newr = (u8)(r * (1 - scale) + bg * scale);
             u8 newg = (u8)(g * (1 - scale) + bg * scale);
             u8 newb = (u8)(b * (1 - scale) + bg * scale);

@@ -9,64 +9,120 @@
 
 #pragma once
 
-#include "C64Component.h"
+#include "CIATypes.h"
+#include "SubComponent.h"
 #include "TOD.h"
 
-// Action flags
-#define CIACountA0     (1ULL << 0) // Decrements timer A
-#define CIACountA1     (1ULL << 1)
-#define CIACountA2     (1ULL << 2)
-#define CIACountA3     (1ULL << 3)
-#define CIACountB0     (1ULL << 4) // Decrements timer B
-#define CIACountB1     (1ULL << 5)
-#define CIACountB2     (1ULL << 6)
-#define CIACountB3     (1ULL << 7)
-#define CIALoadA0      (1ULL << 8) // Loads timer A
-#define CIALoadA1      (1ULL << 9)
-#define CIALoadA2      (1ULL << 10)
-#define CIALoadB0      (1ULL << 11) // Loads timer B
-#define CIALoadB1      (1ULL << 12)
-#define CIALoadB2      (1ULL << 13)
-#define CIAPB6Low0     (1ULL << 14) // Sets pin PB6 low
-#define CIAPB6Low1     (1ULL << 15)
-#define CIAPB7Low0     (1ULL << 16) // Sets pin PB7 low
-#define CIAPB7Low1     (1ULL << 17)
-#define CIASetInt0     (1ULL << 18) // Triggers an interrupt
-#define CIASetInt1     (1ULL << 19)
-#define CIAClearInt0   (1ULL << 20) // Releases the interrupt line
-#define CIAOneShotA0   (1ULL << 21)
-#define CIAOneShotB0   (1ULL << 22)
-#define CIAReadIcr0    (1ULL << 23) // Indicates that ICR was read recently
-#define CIAReadIcr1    (1ULL << 24)
-#define CIAClearIcr0   (1ULL << 25) // Clears bit 8 in ICR register
-#define CIAClearIcr1   (1ULL << 26)
-#define CIAClearIcr2   (1ULL << 27)
-#define CIAAckIcr0     (1ULL << 28) // Clears bit 0 - 7 in ICR register
-#define CIAAckIcr1     (1ULL << 29)
-#define CIASetIcr0     (1ULL << 30) // Sets bit 8 in ICR register
-#define CIASetIcr1     (1ULL << 31)
-#define CIATODInt0     (1ULL << 32) // Triggers an interrupt with TOD as source
-#define CIASerInt0     (1ULL << 33) // Triggers an interrupt with serial register as source
-#define CIASerInt1     (1ULL << 34)
-#define CIASerInt2     (1ULL << 35)
-#define CIASerLoad0    (1ULL << 36) // Loads the serial shift register
-#define CIASerLoad1    (1ULL << 37)
-#define CIASerClk0     (1ULL << 38) // Clock signal driving the serial register
-#define CIASerClk1     (1ULL << 39)
-#define CIASerClk2     (1ULL << 40)
-#define CIASerClk3     (1ULL << 41)
-
-#define DelayMask ~((1ULL << 42) | CIACountA0 | CIACountB0 | CIALoadA0 | CIALoadB0 | CIAPB6Low0 | CIAPB7Low0 | CIASetInt0 | CIAClearInt0 | CIAOneShotA0 | CIAOneShotB0 | CIAReadIcr0 | CIAClearIcr0 | CIAAckIcr0 | CIASetIcr0 | CIATODInt0 | CIASerInt0 | CIASerLoad0 | CIASerClk0)
-
-class CIA : public C64Component {
-        
-    friend class TOD;
+class CIA : public SubComponent {
     
+    friend class TOD;
+    friend class ParCable;
+
+    //
+    // Action flags
+    //
+    
+    // Decrements timer A
+    static constexpr u64 CIACountA0 =   (1ULL << 0);
+    static constexpr u64 CIACountA1 =   (1ULL << 1);
+    static constexpr u64 CIACountA2 =   (1ULL << 2);
+    static constexpr u64 CIACountA3 =   (1ULL << 3);
+    
+    // Decrements timer B
+    static constexpr u64 CIACountB0 =   (1ULL << 4);
+    static constexpr u64 CIACountB1 =   (1ULL << 5);
+    static constexpr u64 CIACountB2 =   (1ULL << 6);
+    static constexpr u64 CIACountB3 =   (1ULL << 7);
+    
+    // Loads timer A
+    static constexpr u64 CIALoadA0 =    (1ULL << 8);
+    static constexpr u64 CIALoadA1 =    (1ULL << 9);
+    static constexpr u64 CIALoadA2 =    (1ULL << 10);
+    
+    // Loads timer B
+    static constexpr u64 CIALoadB0 =    (1ULL << 11);
+    static constexpr u64 CIALoadB1 =    (1ULL << 12);
+    static constexpr u64 CIALoadB2 =    (1ULL << 13);
+    
+    // Sets pin PB6 low
+    static constexpr u64 CIAPB6Low0 =   (1ULL << 14);
+    static constexpr u64 CIAPB6Low1 =   (1ULL << 15);
+    
+    // Sets pin PB7 low
+    static constexpr u64 CIAPB7Low0 =   (1ULL << 16);
+    static constexpr u64 CIAPB7Low1 =   (1ULL << 17);
+    
+    // Triggers an interrupt
+    static constexpr u64 CIASetInt0 =   (1ULL << 18);
+    static constexpr u64 CIASetInt1 =   (1ULL << 19);
+    
+    // Releases the interrupt line
+    static constexpr u64 CIAClearInt0 = (1ULL << 20);
+    static constexpr u64 CIAOneShotA0 = (1ULL << 21);
+    static constexpr u64 CIAOneShotB0 = (1ULL << 22);
+    
+    // Indicates that ICR was read recently
+    static constexpr u64 CIAReadIcr0 =  (1ULL << 23);
+    static constexpr u64 CIAReadIcr1 =  (1ULL << 24);
+    
+    // Clears bit 8 in ICR register
+    static constexpr u64 CIAClearIcr0 = (1ULL << 25);
+    static constexpr u64 CIAClearIcr1 = (1ULL << 26);
+    static constexpr u64 CIAClearIcr2 = (1ULL << 27);
+    
+    // Clears bit 0 - 7 in ICR register
+    static constexpr u64 CIAAckIcr0 =   (1ULL << 28);
+    static constexpr u64 CIAAckIcr1 =   (1ULL << 29);
+    
+    // Sets bit 8 in ICR register
+    static constexpr u64 CIASetIcr0 =   (1ULL << 30);
+    static constexpr u64 CIASetIcr1 =   (1ULL << 31);
+    
+    // Triggers an IRQ with TOD as source
+    static constexpr u64 CIATODInt0 =   (1ULL << 32);
+    
+    // Triggers an IRQ with serial reg as source
+    static constexpr u64 CIASerInt0 =   (1ULL << 33);
+    static constexpr u64 CIASerInt1 =   (1ULL << 34);
+    static constexpr u64 CIASerInt2 =   (1ULL << 35);
+    
+    // Loads the serial shift register
+    static constexpr u64 CIASerLoad0 =  (1ULL << 36);
+    static constexpr u64 CIASerLoad1 =  (1ULL << 37);
+    
+    // Clock signal driving the serial register
+    static constexpr u64 CIASerClk0 =   (1ULL << 38);
+    static constexpr u64 CIASerClk1 =   (1ULL << 39);
+    static constexpr u64 CIASerClk2 =   (1ULL << 40);
+    static constexpr u64 CIASerClk3 =   (1ULL << 41);
+    
+    static constexpr u64 CIALast =      (1ULL << 42);
+    
+    /* vAmiga:
+     static constexpr u64 CIASdrToSsr0 = (1ULL << 36); // Move serial data reg to serial shift reg
+     static constexpr u64 CIASdrToSsr1 = (1ULL << 37);
+     static constexpr u64 CIASsrToSdr0 = (1ULL << 38); // Move serial shift reg to serial data reg
+     static constexpr u64 CIASsrToSdr1 = (1ULL << 39);
+     static constexpr u64 CIASsrToSdr2 = (1ULL << 40);
+     static constexpr u64 CIASsrToSdr3 = (1ULL << 41);
+     static constexpr u64 CIASerClk0 =   (1ULL << 42); // Clock signal driving the serial register
+     static constexpr u64 CIASerClk1 =   (1ULL << 43);
+     static constexpr u64 CIASerClk2 =   (1ULL << 44);
+     static constexpr u64 CIASerClk3 =   (1ULL << 45);
+     static constexpr u64 CIALast =      (1ULL << 46);
+     */
+    
+    static constexpr u64 CIADelayMask = ~CIALast
+    & ~CIACountA0 & ~CIACountB0 & ~CIALoadA0 & ~CIALoadB0 & ~CIAPB6Low0
+    & ~CIAPB7Low0 & ~CIASetInt0 & ~CIAClearInt0 & ~CIAOneShotA0 & ~CIAOneShotB0
+    & ~CIAReadIcr0 & ~CIAClearIcr0 & ~CIAAckIcr0 & ~CIASetIcr0 & ~CIATODInt0
+    & ~CIASerInt0 & ~CIASerLoad0 & ~CIASerClk0;
+            
     // Current configuration
-    CIAConfig config = getDefaultConfig();
+    CIAConfig config = { };
     
     // Result of the latest inspection
-    CIAInfo info;
+    mutable CIAInfo info = { };
     
     
     //
@@ -76,9 +132,10 @@ class CIA : public C64Component {
 public:
     
     TOD tod = TOD(c64, *this);
-    
-    u8 portBexternal_value=0xFF; //mithrendal: make it variable
 
+
+    u8 portBexternal_value=0xFF; //mithrendal: make it variable
+    
     //
     // Internals
     //
@@ -247,43 +304,25 @@ public:
     virtual bool isCIA1() const = 0;
     virtual bool isCIA2() const = 0;
 
+    
+    //
+    // Methods from C64Object
+    //
+
+private:
+    
+    void _dump(dump::Category category, std::ostream& os) const override;
+
+    
+    //
+    // Methods from C64Component
+    //
+
 protected:
     
     void _reset(bool hard) override;
-    
-    
-    //
-    // Configuring
-    //
-    
-public:
-    
-    static CIAConfig getDefaultConfig();
-    CIAConfig getConfig() const { return config; }
-    void resetConfig() override;
-
-    i64 getConfigItem(Option option) const;
-    bool setConfigItem(Option option, i64 value) override;
-
-    
-    //
-    // Analyzing
-    //
-
-public:
-    
-    CIAInfo getInfo() { return HardwareComponent::getInfo(info); }
-    
-protected:
-    
-    void _inspect() override;
-    void _dump(dump::Category category, std::ostream& os) const override;
-    
-    
-    //
-    // Serializing
-    //
-    
+    void _inspect() const override;
+        
 private:
     
     template <class T>
@@ -336,6 +375,29 @@ private:
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
     
+    
+    //
+    // Analyzing
+    //
+
+public:
+    
+    CIAInfo getInfo() const { return C64Component::getInfo(info); }
+
+    
+    //
+    // Configuring
+    //
+    
+public:
+    
+    static CIAConfig getDefaultConfig();
+    const CIAConfig &getConfig() const { return config; }
+    void resetConfig() override;
+
+    i64 getConfigItem(Option option) const;
+    void setConfigItem(Option option, i64 value);
+
         
     //
     // Accessing the I/O register space
@@ -351,6 +413,7 @@ public:
 
     // Writes a value into a CIA register
     void poke(u16 addr, u8 value);
+    
     
     //
     // Accessing the port registers
@@ -370,6 +433,7 @@ private:
     
     // Computes the value we currently see at port A
     virtual void updatePA() = 0;
+    virtual u8 computePA() const = 0;
     
     // Returns the value driving port A from inside the chip
     virtual u8 portAinternal() const = 0;
@@ -379,6 +443,7 @@ private:
     
     // Computes the value we currently see at port B
     virtual void updatePB() = 0;
+    virtual u8 computePB() const = 0;
     
     // Returns the value driving port B from inside the chip
     virtual u8 portBinternal() const = 0;
@@ -387,10 +452,14 @@ private:
     virtual u8 portBexternal() const = 0;
     
 protected:
-    
+
+    // Action method for peeking the port registers
+    virtual u8 peekPA() { updatePA(); return PA; }
+    virtual u8 peekPB() { updatePB(); return PB; }
+
     // Action method for poking the port registers
-    virtual void pokePA(u8 value) { PRA = value; updatePA(); }
-    virtual void pokePB(u8 value) { PRB = value; updatePB(); }
+    virtual void pokePRA(u8 value) { PRA = value; updatePA(); }
+    virtual void pokePRB(u8 value) { PRB = value; updatePB(); }
 
     // Action method for poking the port direction registers
     virtual void pokeDDRA(u8 value) { DDRA = value; updatePA(); }
@@ -407,6 +476,9 @@ public:
     void triggerRisingEdgeOnFlagPin();
     void triggerFallingEdgeOnFlagPin();
     
+    // Emulates a pulse on the PC pin
+    virtual void pulsePC() { };
+
     
     //
     // Handling interrupts
@@ -421,13 +493,13 @@ private:
     virtual void releaseInterruptLine() = 0;
     
     // Loads a latched value into timer
-    void reloadTimerA() { counterA = latchA; delay &= ~CIACountA2; }
-    void reloadTimerB() { counterB = latchB; delay &= ~CIACountB2; }
+    void reloadTimerA(u64 *delay);
+    void reloadTimerB(u64 *delay);
     
     // Triggers an interrupt (invoked inside executeOneCycle())
-    void triggerTimerIrq();
-    void triggerTodIrq();
-    void triggerSerialIrq();
+    void triggerTimerIrq(u64 *delay);
+    void triggerTodIrq(u64 *delay);
+    void triggerSerialIrq(u64 *delay);
     
 public:
     
@@ -495,9 +567,12 @@ private:
     u8 portAinternal() const override;
     u8 portAexternal() const override;
     void updatePA() override;
+    u8 computePA() const override;
+    
     u8 portBinternal() const override;
     u8 portBexternal() const override;
     void updatePB() override;
+    u8 computePB() const override;
 };
 	
 
@@ -507,6 +582,8 @@ private:
 
 class CIA2 : public CIA {
 
+    friend class ParCable;
+    
 public:
 
     CIA2(C64 &ref) : CIA(ref) { };
@@ -525,12 +602,16 @@ private:
 public:
     
     void updatePA() override;
+    u8 computePA() const override;
     
 private:
     
     u8 portBinternal() const override;
     u8 portBexternal() const override;
     void updatePB() override;
-    void pokePA(u8 value) override;
+    u8 computePB() const override;
+    void pokePRA(u8 value) override;
+    void pokePRB(u8 value) override;
     void pokeDDRA(u8 value) override;
+    void pulsePC() override;
 };

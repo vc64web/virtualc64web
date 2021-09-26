@@ -10,7 +10,7 @@
 #pragma once
 
 #include "CPUTypes.h"
-#include "C64Component.h"
+#include "SubComponent.h"
 
 // Base structure for a single breakpoint or watchpoint
 struct Guard {
@@ -136,10 +136,11 @@ public:
     void setNeedsCheck(bool value) override;
 };
 
-class CPUDebugger : public C64Component {
+class CPUDebugger : public SubComponent {
     
     friend class CPU<C64Memory>;
-    
+    friend class CPU<DriveMemory>;
+
     // Textual representation for each opcode (used by the disassembler)
     const char *mnemonic[256];
      
@@ -157,6 +158,10 @@ public:
     // Watchpoint storage (not yet supported)
     Watchpoints watchpoints = Watchpoints(cpu);
     
+    // Saved program counters
+    i32 breakpointPC = -1;
+    i32 watchpointPC = -1;
+
 private:
     
     /* Number of logged instructions.
@@ -164,7 +169,7 @@ private:
      * eventually exceeds the log buffer capacity. Use 'loggedInstruction()'
      * to obtain the number of available instructions in the log buffer.
      */
-    usize logCnt = 0;
+    isize logCnt = 0;
 
     /* Soft breakpoint for implementing single-stepping.
      * In contrast to a standard (hard) breakpoint, a soft breakpoint is
@@ -188,24 +193,31 @@ public:
     
 public:
     
-    CPUDebugger(C64 &ref) : C64Component(ref) { };
+    CPUDebugger(C64 &ref) : SubComponent(ref) { };
 
+private:
+    
+    void registerInstruction(u8 opcode, const char *mnemonic, AddressingMode mode);
+
+    
+    //
+    // Methods from C64Object
+    //
+
+private:
+    
     const char *getDescription() const override { return "CPUDebugger"; }
 
-    // Initializes an entry of the lookup tables
-    void registerInstruction(u8 opcode, const char *mnemonic, AddressingMode mode);
+    
+    //
+    // Methods from C64Component
+    //
 
 private:
     
     void _reset(bool hard) override;
+    void _powerOn() override;
 
-    
-    //
-    // Serializing
-    //
-    
-private:
-    
     template <class T>
     void applyToPersistentItems(T& worker)
     {
@@ -219,15 +231,6 @@ private:
     isize _size() override { COMPUTE_SNAPSHOT_SIZE }
     isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
     isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    
-    
-    //
-    // Controlling
-    //
-    
-private:
-    
-    void _powerOn() override;
 
 
     //
@@ -252,7 +255,7 @@ public:
     //
         
     // Returns the number of logged instructions
-    usize loggedInstructions() const;
+    isize loggedInstructions() const;
     
     // Logs an instruction
     void logInstruction();
@@ -262,25 +265,27 @@ public:
      *    xxxRel: n == 0 returns the most recently recorded entry
      *    xxxAbs: n == 0 returns the oldest entry
      */
-    const RecordedInstruction &logEntryRel(usize n) const;
-    const RecordedInstruction &logEntryAbs(usize n) const;
-    u16 loggedPC0Rel(usize n) const;
-    u16 loggedPC0Abs(usize n) const;
+    const RecordedInstruction &logEntryRel(isize n) const;
+    const RecordedInstruction &logEntryAbs(isize n) const;
+    u16 loggedPC0Rel(isize n) const;
+    u16 loggedPC0Abs(isize n) const;
 
     // Clears the log buffer
     void clearLog() { logCnt = 0; }
+    
     
     //
     // Examining instructions
     //
     
     // Returns the length of an instruction in bytes
-    usize getLengthOfInstruction(u8 opcode) const;
-    usize getLengthOfInstructionAtAddress(u16 addr) const;
-    usize getLengthOfCurrentInstruction() const;
+    isize getLengthOfInstruction(u8 opcode) const;
+    isize getLengthOfInstructionAtAddress(u16 addr) const;
+    isize getLengthOfCurrentInstruction() const;
 
     // Returns the address of the instruction following the current one
     u16 getAddressOfNextInstruction() const;
+    
     
     //
     // Running the disassembler
@@ -307,4 +312,7 @@ private:
     const char *disassembleInstr(const RecordedInstruction &instr, long *len) const;
     const char *disassembleBytes(const RecordedInstruction &instr) const;
     const char *disassembleRecordedFlags(const RecordedInstruction &instr) const;
+
+    template <bool hex>
+    const char *disassembleInstr(const RecordedInstruction &instr, long *len) const;
 };

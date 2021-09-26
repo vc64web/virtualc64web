@@ -16,7 +16,7 @@
 // Enumerations
 //
 
-enum_long(MSG)
+enum_long(MSG_TYPE)
 {
     MSG_NONE = 0,
     
@@ -30,16 +30,19 @@ enum_long(MSG)
     MSG_POWER_OFF,
     MSG_RUN,
     MSG_PAUSE,
+    MSG_STEP,
     MSG_RESET,
-    MSG_SCRIPT_DONE,
-    MSG_SCRIPT_PAUSE,
-    MSG_SCRIPT_ABORT,
-    MSG_SCRIPT_WAKEUP,
-    MSG_SHUTDOWN,
+    MSG_HALT,
     MSG_WARP_ON,
     MSG_WARP_OFF,
     MSG_MUTE_ON,
     MSG_MUTE_OFF,
+    
+    // Scripting
+    MSG_SCRIPT_DONE,
+    MSG_SCRIPT_PAUSE,
+    MSG_SCRIPT_ABORT,
+    MSG_SCRIPT_WAKEUP,
 
     // ROMs
     MSG_BASIC_ROM_LOADED,
@@ -90,7 +93,6 @@ enum_long(MSG)
     MSG_VC1530_COUNTER,
 
     // Peripherals (Expansion port)
-    MSG_CRT_UNSUPPORTED,
     MSG_CRT_ATTACHED,
     MSG_CRT_DETACHED,
     MSG_CART_SWITCH,
@@ -102,8 +104,6 @@ enum_long(MSG)
     MSG_SHAKING,
     
     // Snapshots
-    MSG_SNAPSHOT_TOO_OLD,
-    MSG_SNAPSHOT_TOO_NEW,
     MSG_AUTO_SNAPSHOT_TAKEN,
     MSG_USER_SNAPSHOT_TAKEN,
     MSG_SNAPSHOT_RESTORED,
@@ -111,6 +111,7 @@ enum_long(MSG)
     // Screen recording
     MSG_RECORDING_STARTED,
     MSG_RECORDING_STOPPED,
+    MSG_RECORDING_ABORTED,
     
     // Console
     MSG_CLOSE_CONSOLE,
@@ -120,18 +121,16 @@ enum_long(MSG)
     MSG_DMA_DEBUG_OFF,
     
     MSG_COUNT,
-
-    MSG_RS232
+    MSG_RS232 //mithrendal
 };
-typedef MSG MsgType;
+typedef MSG_TYPE MsgType;
 
 #ifdef __cplusplus
 struct MsgTypeEnum : util::Reflection<MsgType, MsgType> {
     
-    static bool isValid(long value)
-    {
-        return (unsigned long)value < MSG_COUNT;
-    }
+    static long min() { return 0; }
+    static long max() { return MSG_DMA_DEBUG_OFF; }
+    static bool isValid(long value) { return value >= min() && value <= max(); }
 
     static const char *prefix() { return "MSG"; }
     static const char *key(MsgType value)
@@ -153,7 +152,7 @@ struct MsgTypeEnum : util::Reflection<MsgType, MsgType> {
             case MSG_SCRIPT_PAUSE:         return "SCRIPT_PAUSE";
             case MSG_SCRIPT_ABORT:         return "SCRIPT_ABORT";
             case MSG_SCRIPT_WAKEUP:        return "MSG_SCRIPT_WAKEUP";
-            case MSG_SHUTDOWN:             return "SHUTDOWN";
+            case MSG_HALT:                 return "HALT";
             case MSG_WARP_ON:              return "WARP_ON";
             case MSG_WARP_OFF:             return "WARP_OFF";
             case MSG_MUTE_ON:              return "MUTE_ON";
@@ -201,7 +200,6 @@ struct MsgTypeEnum : util::Reflection<MsgType, MsgType> {
             case MSG_VC1530_MOTOR:         return "VC1530_MOTOR";
             case MSG_VC1530_COUNTER:       return "VC1530_COUNTER";
                 
-            case MSG_CRT_UNSUPPORTED:      return "CRT_UNSUPPORTED";
             case MSG_CRT_ATTACHED:         return "CRT_ATTACHED";
             case MSG_CRT_DETACHED:         return "CRT_DETACHED";
             case MSG_CART_SWITCH:          return "CART_SWITCH";
@@ -210,14 +208,13 @@ struct MsgTypeEnum : util::Reflection<MsgType, MsgType> {
 
             case MSG_SHAKING:              return "SHAKING";
                 
-            case MSG_SNAPSHOT_TOO_OLD:     return "SNAPSHOT_TOO_OLD";
-            case MSG_SNAPSHOT_TOO_NEW:     return "SNAPSHOT_TOO_NEW";
             case MSG_AUTO_SNAPSHOT_TAKEN:  return "AUTO_SNAPSHOT_TAKEN";
             case MSG_USER_SNAPSHOT_TAKEN:  return "USER_SNAPSHOT_TAKEN";
             case MSG_SNAPSHOT_RESTORED:    return "SNAPSHOT_RESTORED";
                 
             case MSG_RECORDING_STARTED:    return "MSG_RECORDING_STARTED";
             case MSG_RECORDING_STOPPED:    return "MSG_RECORDING_STOPPED";
+            case MSG_RECORDING_ABORTED:    return "MSG_RECORDING_ABORTED";
                 
             case MSG_CLOSE_CONSOLE:        return "CLOSE_CONSOLE";
                 
@@ -226,7 +223,6 @@ struct MsgTypeEnum : util::Reflection<MsgType, MsgType> {
                 
             case MSG_COUNT:                return "???";
             case MSG_RS232:                return "RS232";
-            
         }
         return "???";
     }

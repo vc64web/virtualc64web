@@ -9,13 +9,11 @@
 
 #pragma once
 
-#include "C64Component.h"
+#include "SubComponent.h"
 #include "Command.h"
 #include "Exception.h"
 #include "Error.h"
 #include "Parser.h"
-
-typedef std::list<string> Arguments;
 
 enum class Token
 {
@@ -23,7 +21,7 @@ enum class Token
     
     // Components
     c64, cia, controlport, cpu, datasette, drive, expansion, fastsid, keyboard,
-    memory, monitor, mouse, resid, sid, vicii,
+    memory, monitor, mouse, parcable, resid, sid, vicii,
 
     // Commands
     about, attach, audiate, autosync, clear, close, config, connect, disconnect,
@@ -57,7 +55,7 @@ struct ScriptInterruption: util::Exception {
     using Exception::Exception;
 };
 
-class Interpreter: C64Component
+class Interpreter: SubComponent
 {
     // The registered instruction set
     Command root;
@@ -69,7 +67,7 @@ class Interpreter: C64Component
 
 public:
     
-    Interpreter(C64 &ref);
+    Interpreter(C64 &ref) : SubComponent(ref) { registerInstructions(); }
 
     const char *getDescription() const override { return "Interpreter"; }
 
@@ -98,12 +96,16 @@ private:
     
 public:
     
+    // Auto-completes a user command
+    string autoComplete(const string& userInput);
+    
+private:
+    
     // Splits an input string into an argument list
     Arguments split(const string& userInput);
 
-    // Auto-completes a command. Returns the number of auto-completed tokens
+    // Auto-completes an argument list
     void autoComplete(Arguments &argv);
-    string autoComplete(const string& userInput);
 
     
     //
@@ -114,14 +116,14 @@ public:
     
     // Executes a single command
     void exec(const string& userInput, bool verbose = false) throws;
-    void exec(Arguments &argv, bool verbose = false) throws;
+    void exec(const Arguments &argv, bool verbose = false) throws;
             
     // Prints a usage string for a command
-    void usage(Command &command);
+    void usage(const Command &command);
     
     // Displays a help text for a (partially typed in) command
     void help(const string &userInput);
-    void help(Arguments &argv);
-    void help(Command &command);
+    void help(const Arguments &argv);
+    void help(const Command &command);
 
 };

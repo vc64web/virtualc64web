@@ -61,9 +61,9 @@ private:
     {
     }
     
-    usize __size() { COMPUTE_SNAPSHOT_SIZE }
-    usize __load(const u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
-    usize __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
+    isize __size() { COMPUTE_SNAPSHOT_SIZE }
+    isize __load(const u8 *buffer) { LOAD_SNAPSHOT_ITEMS }
+    isize __save(u8 *buffer) { SAVE_SNAPSHOT_ITEMS }
     
     isize _size() override { return Cartridge::_size() + __size(); }
     isize _load(const u8 *buf) override { return Cartridge::_load(buf) + __load(buf); }
@@ -100,6 +100,6 @@ public:
     
 private:
     
-    u16 ramAddrL(u16 addr) const { return (bankSelect() << 14) + (addr & 0x1FFF); }
+    u16 ramAddrL(u16 addr) const { return (u16)(bankSelect() << 14 | (addr & 0x1FFF)); }
     u16 ramAddrH(u16 addr) const { return 0x2000 + ramAddrL(addr); }
 };

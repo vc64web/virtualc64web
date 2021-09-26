@@ -66,7 +66,7 @@ Expert::loadChip(isize nr, const CRTFile &crt)
     // Initialize RAM with data from CRT file
     trace(CRT_DEBUG, "Copying file contents into Expert RAM\n");
     assert(getRamCapacity() == chipSize);
-    for (unsigned i = 0; i < chipSize; i++) pokeRAM(i, chipData[i]);
+    for (isize i = 0; i < chipSize; i++) pokeRAM((u16)i, chipData[i]);
 }
 
 u8
@@ -127,64 +127,62 @@ Expert::pokeIO1(u16 addr, u8 value)
     active = false;
 }
 
-const char *
-Expert::getButtonTitle(unsigned nr) const
+const string
+Expert::getButtonTitle(isize nr) const
 {
-    return nr == 1 ? "Reset" : nr == 2 ? "ESM" : nullptr;
+    return nr == 1 ? "Reset" : nr == 2 ? "ESM" : "";
 }
 
 void
-Expert::pressButton(unsigned nr)
+Expert::pressButton(isize nr)
 {
     assert(nr <= numButtons());
-    trace(CRT_DEBUG, "Pressing %s button.\n", getButtonTitle(nr));
+    trace(CRT_DEBUG, "Pressing %s button.\n", getButtonTitle(nr).c_str());
     
-    suspend();
-    
-    switch (nr) {
-            
-        case 1: // Reset
-            
-            if (switchInOnPosition()) { active = true; }
-            resetWithoutDeletingRam();
-            break;
-            
-        case 2: // ESM (Freeze)
-            
-            if (switchInOnPosition()) { active = true; }
-            
-            /* The Expert cartridge uses two three-state buffers in parallel to
-             * force the NMI line high, even if a program leaves it low to
-             * protect itself against freezers. The following code is surely
-             * not accurate, but it forces an NMI a trigger, regardless of the
-             * current value of the NMI line.
-             */
-            u8 oldLine = cpu.nmiLine;
-            u8 newLine = oldLine | INTSRC_EXP;
-            
-            cpu.releaseNmiLine((IntSource)0xFF);
-            cpu.pullDownNmiLine((IntSource)newLine);
-            cpu.releaseNmiLine(INTSRC_EXP);
-            break;
+    suspended {
+        
+        switch (nr) {
+                
+            case 1: // Reset
+                
+                if (switchInOnPosition()) { active = true; }
+                c64.softReset();
+                break;
+                
+            case 2: // ESM (Freeze)
+                
+                if (switchInOnPosition()) { active = true; }
+                
+                /* The Expert cartridge uses two three-state buffers in parallel
+                 * to force the NMI line high, even if a program leaves it low
+                 * to protect itself against freezers. The following code is
+                 * surely not accurate, but it forces an NMI a trigger,
+                 * regardless of the current value of the NMI line.
+                 */
+                u8 oldLine = cpu.nmiLine;
+                u8 newLine = oldLine | INTSRC_EXP;
+                
+                cpu.releaseNmiLine((IntSource)0xFF);
+                cpu.pullDownNmiLine((IntSource)newLine);
+                cpu.releaseNmiLine(INTSRC_EXP);
+                break;
+        }
     }
-    
-    resume();
 }
 
 
 
-const char *
-Expert::getSwitchDescription(i8 pos) const
+const string
+Expert::getSwitchDescription(isize pos) const
 {
-    return (pos == -1) ? "Prg" : (pos == 0) ? "Off" : (pos == 1) ? "On" : nullptr;
+    return (pos == -1) ? "Prg" : (pos == 0) ? "Off" : (pos == 1) ? "On" : "";
 }
 
 bool
 Expert::cartridgeRamIsVisible(u16 addr) const
 {
     if (addr < 0x8000) {
-        assert(false); // Should never be called for this address space
-        return false;
+        fatalError; // Should never be called for this address space
     }
     if (addr < 0xA000) {
         return switchInPrgPosition() || (switchInOnPosition() && active);

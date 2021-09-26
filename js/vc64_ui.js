@@ -269,7 +269,7 @@ async function disk_loading_finished()
     if(JSON.parse(wasm_rom_info()).drive_rom.startsWith("Patched"))
     {
         last_drive_event=wasm_get_cpu_cycles();
-        while (wasm_get_cpu_cycles() < last_drive_event + 9*100000*1.5)
+        while (wasm_get_cpu_cycles() < last_drive_event + 982000*1.6)
         {
             console.log("wait for disk_loading_finished: "+ wasm_get_cpu_cycles()+" "+last_drive_event);       
             await sleep(100);  

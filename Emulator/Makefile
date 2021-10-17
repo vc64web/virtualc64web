@@ -4,7 +4,7 @@ Peripherals RetroShell SID VICII
 
 CXX        = emcc 
 CC         = $(CXX)
-CCFLAGS    = -std=c++17 -O2 -Wall -Wfatal-errors -fexceptions
+CCFLAGS    = -std=c++17 -O3 -Wall -Wfatal-errors -fexceptions
 CPPFLAGS   = -I $(CURDIR)/.. $(addprefix -I, $(shell find $(CURDIR) -type d))
 
 export CC CCFLAGS CPPFLAGS

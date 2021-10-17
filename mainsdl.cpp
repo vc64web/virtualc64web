@@ -391,7 +391,7 @@ void initSDL(void *thisC64)
     want.format = AUDIO_F32;
     want.channels = 1;
     //sample buffer 512 in original vc64, vc64web=512 under macOs ok, but iOS needs 2048;
-    want.samples = 2048;
+    want.samples = 2048*2;
     want.callback = MyAudioCallback;
     want.userdata = thisC64;   //will be passed to the callback
     device_id = SDL_OpenAudioDevice(NULL, 0, &want, &have, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
@@ -664,7 +664,7 @@ extern "C" char* wasm_export_disk()
   FSDevice *fs = new FSDevice(*wrapper->c64->drive8.disk);
   D64File *d64 = new D64File(*fs);
 
-  size_t size = d64->size;
+/*  size_t size = d64->size;
   uint8_t *buffer = new uint8_t[size];
   d64->writeToBuffer(buffer);
   for(int i=0; i < 30; i++)
@@ -672,9 +672,10 @@ extern "C" char* wasm_export_disk()
     printf("%d",buffer[i]);
   }
   printf("\n");
+  */
   sprintf(wasm_pull_user_snapshot_file_json_result, "{\"address\":%lu, \"size\": %lu }",
-  (unsigned long)buffer, 
-  size
+  (unsigned long)d64->data, 
+  d64->size
   );
   printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
   return wasm_pull_user_snapshot_file_json_result;
@@ -685,7 +686,7 @@ extern "C" char* wasm_pull_user_snapshot_file()
   printf("wasm_pull_user_snapshot_file\n");
 
   Snapshot *snapshot = wrapper->c64->latestUserSnapshot(); //wrapper->c64->userSnapshot(nr);
-
+/*
   size_t size = snapshot->size; //writeToBuffer(NULL);
   uint8_t *buffer = new uint8_t[size];
   snapshot->writeToBuffer(buffer);
@@ -694,9 +695,10 @@ extern "C" char* wasm_pull_user_snapshot_file()
     printf("%d",buffer[i]);
   }
   printf("\n");
+  */
   sprintf(wasm_pull_user_snapshot_file_json_result, "{\"address\":%lu, \"size\": %lu, \"width\": %lu, \"height\":%lu }",
-  (unsigned long)buffer, 
-  size,
+  (unsigned long)snapshot->data, 
+  snapshot->size,
   snapshot->getHeader()->screenshot.width,
   snapshot->getHeader()->screenshot.height
   );
@@ -848,7 +850,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       printf("%s\n", ErrorCodeEnum::key(ec));
     }
   }
-  if (file_still_unprocessed && Snapshot::isCompatible(filename) && util::extractSuffix(filename)!="rom") {
+  if (file_still_unprocessed && Snapshot::isCompatible(filename) && util::extractSuffix(filename)!="rom" && util::extractSuffix(filename)!="bin") {
     try
     {
       printf("try to build Snapshot\n");

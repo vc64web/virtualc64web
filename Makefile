@@ -2,7 +2,8 @@ SUBDIRS = Emulator
 
 CXX        = emcc 
 CC         = $(CXX)
-CCFLAGS    = -std=c++17 -O2 -Wall -Wfatal-errors -fexceptions -s USE_SDL=2
+
+CCFLAGS    = -std=c++17 -O3 -Wall -Wfatal-errors -fexceptions -s USE_SDL=2
 CPPFLAGS   = -I $(CURDIR) $(addprefix -I, $(shell find $(CURDIR) -type d))
 
 WASM_EXPORTS= -s EXPORTED_RUNTIME_METHODS=['cwrap'] -s EXPORTED_FUNCTIONS="['_main', '_wasm_toggleFullscreen', '_wasm_loadFile', '_wasm_key', '_wasm_joystick', '_wasm_reset', '_wasm_halt', '_wasm_run', '_wasm_take_user_snapshot', '_wasm_create_renderer', '_wasm_set_warp', '_wasm_pull_user_snapshot_file','_wasm_set_borderless', '_wasm_press_play', '_wasm_sprite_info', '_wasm_set_sid_model', '_wasm_cut_layers', '_wasm_rom_info', '_wasm_set_2nd_sid', '_wasm_set_sid_engine', '_wasm_get_cpu_cycles', '_wasm_set_color_palette', '_wasm_schedule_key', '_wasm_peek', '_wasm_poke', '_wasm_export_disk', '_wasm_configure', '_wasm_write_string_to_ser', '_wasm_print_error']"
@@ -44,10 +45,10 @@ clean:
 
 bin:
 	@echo "Linking"
-	#$(CC)  $(CFLAGS) $(LFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB -s ALLOW_MEMORY_GROWTH=1 *.o Emulator/*.o Emulator/*/*.o Emulator/*/*/*.o
-	$(CC) $(LFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB -s ALLOW_MEMORY_GROWTH=1 *.o Emulator/*.o Emulator/*/*.o Emulator/*/*/*.o
+	#$(CC)  $(CFLAGS) $(LFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB *.o Emulator/*.o Emulator/*/*.o Emulator/*/*/*.o
+	$(CC) $(LFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB *.o Emulator/*.o Emulator/*/*.o Emulator/*/*/*.o
 	#--preload-file roms
-	#-s TOTAL_STACK=512MB
+	#-s TOTAL_STACK=512MB -s ALLOW_MEMORY_GROWTH=1
 	mv vC64.html index.html
 
 

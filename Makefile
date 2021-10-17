@@ -44,7 +44,7 @@ clean:
 
 bin:
 	@echo "Linking"
-	#$(CC)  $(CFLAGS) $(LFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB -s ALLOW_MEMORY_GROWTH=1 *.o Emulator/*.o Emulator/*/*.o Emulator/*/*/*.o
+	#$(CC)  $(CFLAGS) $(LFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB *.o Emulator/*.o Emulator/*/*.o Emulator/*/*/*.o
 	$(CC) $(LFLAGS) -o vC64.html --shell-file shell.html  -s INITIAL_MEMORY=128MB *.o Emulator/*.o Emulator/*/*.o Emulator/*/*/*.o
 	#--preload-file roms
 	#-s TOTAL_STACK=512MB -s ALLOW_MEMORY_GROWTH=1

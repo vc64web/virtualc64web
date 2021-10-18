@@ -608,11 +608,11 @@ extern "C" void wasm_key(int code1, int code2, int pressed)
   }
   else if(pressed==1)
   {
-    wrapper->c64->keyboard.press(*new C64Key(code1,code2));
+    wrapper->c64->keyboard.press(C64Key(code1,code2));
   }
   else
   {
-    wrapper->c64->keyboard.release(*new C64Key(code1,code2));
+    wrapper->c64->keyboard.release(C64Key(code1,code2));
     //wrapper->c64->keyboard.releaseRowCol(code1, code2);
   }
 }
@@ -636,13 +636,13 @@ extern "C" void wasm_schedule_key(int code1, int code2, int pressed, int frame_d
   {
     printf("scheduleKeyPress ( %d, %d, %d ) \n", code1, code2, frame_delay);
 
-    wrapper->c64->keyboard.scheduleKeyPress(*new C64Key(code1,code2), frame_delay);
+    wrapper->c64->keyboard.scheduleKeyPress(C64Key(code1,code2), frame_delay);
   }
   else
   {
     printf("scheduleKeyRelease ( %d, %d, %d ) \n", code1, code2, frame_delay);
 
-    wrapper->c64->keyboard.scheduleKeyRelease(*new C64Key(code1,code2), frame_delay);
+    wrapper->c64->keyboard.scheduleKeyRelease(C64Key(code1,code2), frame_delay);
   }
 }
 

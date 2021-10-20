@@ -681,11 +681,26 @@ extern "C" char* wasm_export_disk()
   return wasm_pull_user_snapshot_file_json_result;
 }
 
+
+Snapshot *snapshot=NULL;
+extern "C" void wasm_delete_user_snapshot()
+{
+//  printf("request to free user_snapshot memory\n");
+
+  if(snapshot!=NULL)
+  {
+    delete snapshot;
+    snapshot=NULL;
+    printf("freed user_snapshot memory\n");
+  }
+}
+
 extern "C" char* wasm_pull_user_snapshot_file()
 {
   printf("wasm_pull_user_snapshot_file\n");
 
-  Snapshot *snapshot = wrapper->c64->latestUserSnapshot(); //wrapper->c64->userSnapshot(nr);
+  wasm_delete_user_snapshot();
+  snapshot = wrapper->c64->latestUserSnapshot(); //wrapper->c64->userSnapshot(nr);
 /*
   size_t size = snapshot->size; //writeToBuffer(NULL);
   uint8_t *buffer = new uint8_t[size];

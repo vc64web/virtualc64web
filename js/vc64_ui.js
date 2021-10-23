@@ -3078,7 +3078,7 @@ function emit_string(keys_to_emit_array, type_first_key_time=200, release_delay_
     for(the_key of keys_to_emit_array)
     {
         console.log(the_key);
-        var c64code = translateKey2(the_key, the_key.toLowerCase());
+        var c64code = translateKey2(the_key, the_key/*.toLowerCase()*/);
         if(c64code !== undefined)
         {
             if(c64code.modifier != null)

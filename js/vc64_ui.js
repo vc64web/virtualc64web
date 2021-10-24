@@ -710,7 +710,7 @@ function configure_file_dialog(reset=false)
                             list+='<li '+
                             (mountable ? 'id="li_fileselect'+mountable_count+'"':'')
                             +' class="list-group-item list-group-item-action'+ 
-                                (mountable ? '':' disabled')+'" data-toggle="list">'+relativePath+'</li>';
+                                (mountable ? '':' disabled')+'">'+relativePath+'</li>';
                             if(mountable)
                             {
                                 mountable_count++;
@@ -721,24 +721,40 @@ function configure_file_dialog(reset=false)
                     $("#div_zip_content").html("select a file<br><br>"+ list);
                     $('#ui_file_list li').click( function (e) {
                         e.preventDefault();
+                        if(typeof uncompress_progress !== 'undefined' && uncompress_progress!=null)
+                        {
+                            return;
+                        }
                         $(this).parent().find('li').removeClass('active');
                         $(this).addClass('active');
-
+                        $("#button_insert_file").attr("disabled", true);
                         var path = $(this).text();
+                        uncompress_progress='0';
                         zip.file(path).async("uint8array", 
                             function updateCallback(metadata) {
-                                console.log("progression: " + metadata.percent.toFixed(2) + " %");
+                                let current_progress=metadata.percent.toFixed(0);
+                                if(uncompress_progress != current_progress)
+                                {
+                                    uncompress_progress = current_progress;
+                                    $("#button_insert_file").html(`extract ${uncompress_progress}%`);
+                                }
                             }).then(function (u8) {
                                 file_slot_file_name=path;
                                 file_slot_file=u8;
-
+                    
                                 if(mountable_count==1)
                                 {//in case that there was only one mountable file in the zip, auto mount it
                                     configure_file_dialog(true);
                                 }        
+                                else
+                                {//file is ready to insert
+                                    $("#button_insert_file").html("mount file"+return_icon);
+                                    $("#button_insert_file").removeAttr("disabled");
+                                }
+                                uncompress_progress=null;
                             });
-                        $("#button_insert_file").removeAttr("disabled");
                     });
+
                     if(mountable_count>1)
                     {
                         last_zip_archive_name = file_slot_file_name;

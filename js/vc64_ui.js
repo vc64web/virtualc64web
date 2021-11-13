@@ -13,6 +13,11 @@ let call_param_SID=null;
 
 let virtual_keyboard_clipping = true; //keyboard scrolls when it clips
 
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audioContext = new AudioContext();
+let audio_connected=false;
+
+
 const load_script= (url) => {
     return new Promise(resolve =>
     {
@@ -1279,7 +1284,116 @@ function InitWrappers() {
     wasm_write_string_to_ser = Module.cwrap('wasm_write_string_to_ser', 'undefined', ['string']);
     wasm_print_error = Module.cwrap('wasm_print_error', 'undefined', ['number']);
 
+    wasm_get_sound_buffer_address = Module.cwrap('wasm_get_sound_buffer_address', 'number');
+    wasm_copy_into_sound_buffer = Module.cwrap('wasm_copy_into_sound_buffer', 'number');
+    wasm_set_sample_rate = Module.cwrap('wasm_set_sample_rate', 'undefined', ['number']);
 
+    connect_audio_processor = async () => {
+        if(audioContext.state === 'suspended') {
+            await audioContext.resume();  
+        }
+        if(audio_connected==true)
+            return; 
+        if(audioContext.state === 'suspended') {
+            return;  
+        }
+        audio_connected=true;
+        wasm_set_sample_rate(audioContext.sampleRate);
+        console.log("try connecting audioprocessor");           
+        await audioContext.audioWorklet.addModule('js/vc64_audioprocessor.js');
+        worklet_node = new AudioWorkletNode(audioContext, 'vc64_audioprocessor', {
+            outputChannelCount: [1],
+            numberOfInputs: 0,
+            numberOfOutputs: 1
+        });
+        
+        let sound_buffer_address = wasm_get_sound_buffer_address();
+        soundbuffer_slots=[];
+        for(slot=0;slot<12;slot++)
+        {
+            soundbuffer_slots.push(
+                new Float32Array(Module.HEAPF32.buffer, sound_buffer_address+(slot*1024)*4, 1024));
+        }
+
+        empty_shuttles=new RingBuffer(12);
+        worklet_node.port.onmessage = (msg) => {
+            //direct c function calls with preceeding Module._ are faster than cwrap
+            let samples=Module._wasm_copy_into_sound_buffer();
+            let shuttle = msg.data;
+            if(samples<1024)
+            {
+                if(shuttle!="empty")
+                {
+                    empty_shuttles.write(shuttle);
+                }
+                return;
+            }
+            let slot=0;
+            while(samples>=1024)
+            {
+                if(shuttle == null || shuttle=="empty")
+                {
+                    if(!empty_shuttles.isEmpty())
+                    {
+                        shuttle = empty_shuttles.read();
+                    }
+                    else
+                    {
+                      return;
+                    }
+                }
+                shuttle.set(soundbuffer_slots[slot++]);
+                worklet_node.port.postMessage(shuttle, [shuttle.buffer]);
+                shuttle=null;
+                samples-=1024;
+            }            
+        };
+        worklet_node.port.onmessageerror = (msg) => {
+            console.log("audio processor error:"+msg);
+        };
+        worklet_node.connect(audioContext.destination);        
+    }
+
+
+
+//---
+    audio_thread_switch = $('#cb_audio_thread_switch');
+    use_audio_thread=load_setting('cb_audio_thread_switch', false);
+    audio_thread_switch.prop('checked', use_audio_thread);
+
+
+    config_audio_thread = function (use_audio_thread)
+    {
+        if(use_audio_thread)
+        {
+            Module._wasm_close_main_thread_audio();     
+            
+            connect_audio_processor();
+            document.addEventListener('click',connect_audio_processor, false);
+        }
+        else
+        {
+            if(typeof worklet_node !== 'undefined')
+            {
+                audio_connected=false;
+                worklet_node.port.postMessage(null);
+                worklet_node.disconnect();
+                document.removeEventListener('click', connect_audio_processor, false);                
+            }
+            Module._wasm_open_main_thread_audio();
+        }
+    }
+
+    audio_thread_switch.change( function() {
+        use_audio_thread=this.checked;
+        config_audio_thread(use_audio_thread);
+    //    save_setting('cb_audio_thread_switch', use_audio_thread);
+    });
+
+    config_audio_thread(use_audio_thread);
+
+
+//----
 
     get_audio_context=function() {
         if (typeof Module === 'undefined'
@@ -1492,7 +1606,6 @@ function InitWrappers() {
     $("#canvas").on({ 'touchstart' : function() {
         menu_button_fade_in();
     }});
-
 
 
 //----

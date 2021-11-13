@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="css/vc64.css">
   <script src="js/jquery-3.5.0.min.js"></script>
   <script src="js/bootstrap.bundle.min.js"></script>
+  <script src="js/ringbuffer.js"></script>
   <script src="js/vc64_browser.js"></script>
   <script src="js/vc64_ui.js"></script>
   <script src="js/vc64_storage.js"></script>
@@ -392,6 +393,10 @@
             <div class="custom-control custom-switch mt-1">
               <input type="checkbox" class="custom-control-input" id="cb_debug_output" />
               <label class="custom-control-label" for="cb_debug_output">show live debug output</label>
+            </div>
+            <div class="custom-control custom-switch mt-1">
+              <input type="checkbox" class="custom-control-input" id="cb_audio_thread_switch" />
+              <label class="custom-control-label" for="cb_audio_thread_switch">use separate audio thread</label>
             </div>
             <div class="custom-control custom-switch mt-1">
               <input type="checkbox" class="custom-control-input" id="dark_switch" />

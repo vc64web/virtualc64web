@@ -702,7 +702,7 @@ extern "C" void wasm_take_user_snapshot()
 }
 
 
-float sound_buffer[12*1024];
+float sound_buffer[12*1024*2];
 extern "C" float* wasm_get_sound_buffer_address()
 {
   return sound_buffer;
@@ -718,6 +718,24 @@ extern "C" unsigned wasm_copy_into_sound_buffer()
   }
   sum_samples += copied_samples; 
   return copied_samples;
+}
+
+extern "C" unsigned wasm_copy_into_sound_buffer_stereo()
+{
+  auto count=wrapper->c64->muxer.stream.count();
+  
+  auto copied_samples=0;
+  for(unsigned ipos=1024;ipos<=count;ipos+=1024)
+  {
+    wrapper->c64->muxer.copyStereo(
+    sound_buffer+copied_samples,
+     sound_buffer+copied_samples+1024, 
+     1024); 
+    copied_samples+=1024*2;
+  }
+  sum_samples += copied_samples; 
+
+  return copied_samples/2;
 }
 
 

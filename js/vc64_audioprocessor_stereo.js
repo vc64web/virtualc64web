@@ -69,7 +69,7 @@ class RingBuffer {
 
 
 
-class vc64AudioProcessor extends AudioWorkletProcessor {
+class vc64_audioprocessor_stereo extends AudioWorkletProcessor {
   constructor() {
     super();
     this.port.onmessage = this.handleMessage.bind(this);
@@ -77,13 +77,13 @@ class vc64AudioProcessor extends AudioWorkletProcessor {
       console.error("error:"+ error);
     };
     this.return_value=true;
-    this.fetch_buffer_stack=new RingBuffer(12);
+    this.fetch_buffer_stack=new RingBuffer(16);
     this.buffer=null;
     this.buf_addr=0;
-    this.recyle_buffer_stack=new RingBuffer(12);
-    for(let i=0; i<12;i++)
+    this.recyle_buffer_stack=new RingBuffer(16);
+    for(let i=0; i<16;i++)
     {
-      this.recyle_buffer_stack.write(new Float32Array(1024));
+      this.recyle_buffer_stack.write(new Float32Array(2048));
     }  
 
     /*    this.samples_processed=0;
@@ -91,7 +91,7 @@ class vc64AudioProcessor extends AudioWorkletProcessor {
     this.no_data=0;
 */
     this.counter_no_buffer=0;
-    console.log("vc64_audioprocessor mono connected");
+    console.log("vc64_audioprocessor_stereo connected");
   }
 
   handleMessage(event) {
@@ -153,7 +153,7 @@ class vc64AudioProcessor extends AudioWorkletProcessor {
       let startpos=this.buf_addr;
       let endpos=startpos+128;
       output[0].set(this.buffer.subarray(startpos,endpos));
-//      output[1].set(this.buffer.subarray(1024+startpos,1024+endpos));
+      output[1].set(this.buffer.subarray(1024+startpos,1024+endpos));
       this.buf_addr=endpos;
       
       if(endpos>=1024) //this.buffer.length/2
@@ -176,4 +176,4 @@ class vc64AudioProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor('vc64_audioprocessor', vc64AudioProcessor);
+registerProcessor('vc64_audioprocessor_stereo', vc64_audioprocessor_stereo);

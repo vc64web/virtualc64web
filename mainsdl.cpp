@@ -374,42 +374,17 @@ extern "C" void wasm_create_renderer(char* name)
   window_surface = SDL_GetWindowSurface(window);
 }
 
+
+
 void initSDL(void *thisC64)
 {
-    C64 *c64 = (C64 *)thisC64;
-
-    if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_AUDIO)==-1)
+    if(SDL_Init(SDL_INIT_VIDEO/*|SDL_INIT_AUDIO*/)==-1)
     {
         printf("Could not initialize SDL:%s\n", SDL_GetError());
     } 
 
-    SDL_AudioSpec want, have;
-    SDL_AudioDeviceID device_id;
-
-    SDL_memset(&want, 0, sizeof(want)); /* or SDL_zero(want) */
-    want.freq = 44100;  //44100; // 22050;
-    want.format = AUDIO_F32;
-    want.channels = 1;
-    //sample buffer 512 in original vc64, vc64web=512 under macOs ok, but iOS needs 2048;
-    want.samples = 2048*2;
-    want.callback = MyAudioCallback;
-    want.userdata = thisC64;   //will be passed to the callback
-    device_id = SDL_OpenAudioDevice(NULL, 0, &want, &have, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
-    if(device_id == 0)
-    {
-        printf("Failed to open audio: %s\n", SDL_GetError());
-    }
-
-    printf("set SID to freq= %d\n", have.freq);
-    c64->muxer.setSampleRate(have.freq);
-    printf("freq in SIDBridge= %f\n", c64->muxer.getSampleRate());
- 
-
-    SDL_PauseAudioDevice(device_id, 0); //unpause the audio device
-    
     //listen to mouse, finger and keys
-    SDL_SetEventFilter(eventFilter, thisC64);
-
+//   SDL_SetEventFilter(eventFilter, thisC64);
 //  wasm_create_renderer((char*)"webgl");
 }
 
@@ -725,6 +700,44 @@ extern "C" void wasm_take_user_snapshot()
 {
   wrapper->c64->requestUserSnapshot();
 }
+
+
+float sound_buffer[12*1024*2];
+extern "C" float* wasm_get_sound_buffer_address()
+{
+  return sound_buffer;
+}
+
+extern "C" unsigned wasm_copy_into_sound_buffer()
+{
+  auto count=wrapper->c64->muxer.stream.count();
+  auto copied_samples=0;
+  for(;copied_samples+1024<=count;copied_samples+=1024)
+  {
+    wrapper->c64->muxer.copyMono((float *)sound_buffer+copied_samples, 1024);
+  }
+  sum_samples += copied_samples; 
+  return copied_samples;
+}
+
+extern "C" unsigned wasm_copy_into_sound_buffer_stereo()
+{
+  auto count=wrapper->c64->muxer.stream.count();
+  
+  auto copied_samples=0;
+  for(unsigned ipos=1024;ipos<=count;ipos+=1024)
+  {
+    wrapper->c64->muxer.copyStereo(
+    sound_buffer+copied_samples,
+     sound_buffer+copied_samples+1024, 
+     1024); 
+    copied_samples+=1024*2;
+  }
+  sum_samples += copied_samples; 
+
+  return copied_samples/2;
+}
+
 
 extern "C" void wasm_set_warp(unsigned on)
 {
@@ -1316,4 +1329,46 @@ extern "C" void wasm_print_error(unsigned exception_ptr)
 {
   string s= std::string(reinterpret_cast<std::exception *>(exception_ptr)->what());
   printf("uncaught exception %u: %s\n",exception_ptr, s.c_str());
+}
+
+
+
+extern "C" void wasm_set_sample_rate(unsigned sample_rate)
+{
+    printf("set muxer to freq= %d\n", sample_rate);
+    wrapper->c64->muxer.setSampleRate(sample_rate);
+    printf("paula.muxer.getSampleRate()==%f\n", wrapper->c64->muxer.getSampleRate());
+}
+
+SDL_AudioDeviceID audio_device_id;
+extern "C" void wasm_close_main_thread_audio()
+{
+  SDL_CloseAudioDevice(audio_device_id);
+}
+extern "C" void wasm_open_main_thread_audio()
+{
+    SDL_Init(SDL_INIT_AUDIO);
+
+    SDL_AudioSpec want, have;
+    
+    SDL_memset(&want, 0, sizeof(want)); /* or SDL_zero(want) */
+    want.freq = 44100;  //44100; // 22050;
+    want.format = AUDIO_F32;
+    want.channels = 1;
+    //sample buffer 512 in original vc64, vc64web=512 under macOs ok, but iOS needs 2048;
+    want.samples = 2048*2;
+    want.callback = MyAudioCallback;
+    want.userdata = wrapper->c64;   //will be passed to the callback
+    audio_device_id = SDL_OpenAudioDevice(NULL, 0, &want, &have, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+    if(audio_device_id == 0)
+    {
+        printf("Failed to open audio: %s\n", SDL_GetError());
+    }
+
+    printf("set SID to freq= %d\n", have.freq);
+    wrapper->c64->muxer.setSampleRate(have.freq);
+    printf("freq in SIDBridge= %f\n", wrapper->c64->muxer.getSampleRate());
+ 
+
+    SDL_PauseAudioDevice(audio_device_id, 0); //unpause the audio device
 }

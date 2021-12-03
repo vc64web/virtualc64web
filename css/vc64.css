@@ -342,6 +342,9 @@ button[id^="detail_run"] {
 .darkkey {
     background-color: rgb(78,87,95);
     border-color: #222222;
+    height: 31px;
+    padding-top: 3px;
+    width: 53px;
 }
 .capslock {
     font-size:xx-small;
@@ -354,4 +357,8 @@ button[id^="detail_run"] {
     font-size: x-large;
     padding-top: 0;
     padding-bottom: 0;
+}
+.smallkey {
+    height: 32px;
+    padding-top: 3px;
 }

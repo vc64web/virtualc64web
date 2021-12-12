@@ -327,6 +327,11 @@ button[id^="detail_run"] {
 [lowercase="true"] .has_lowercase .keycap {
     display:none;
 }
+[lowercase="true"][cbm-key="pressed"] .has_cbm_petscii .keycap_lc {
+    display:none;
+}
+
+
 
 .keycap_slc {
     display:none;
@@ -352,18 +357,41 @@ button[id^="detail_run"] {
     display:none;
 }
 
+.vbk_key {
+    min-width:38px;
+}
 
+.keycap_clr {
+    font-size: xx-small;
+}
+[ctrl-key=""] .keycap_clr {
+    display:none;
+    padding:0;
+}
+[ctrl-key="pressed"] .keycap_clr {
+    display:inherit;
+}
+[ctrl-key="pressed"] .has_clr .keycap, 
+[ctrl-key="pressed"] .has_clr .keycap_shift
+{
+    display:none;
+}
+
+[ctrl-key=""] .key0 {
+    padding-top:15px;
+    padding-bottom:0px
+}
 
 .keycap_p {
     display: none;
 }
-[lowercase="false"][shift-keys="pressed"][c-key=""] .has_shift_petscii .keycap_p {
+[lowercase="false"][shift-keys="pressed"][cbm-key=""] .has_shift_petscii .keycap_p {
     display:inherit;
 }
-[lowercase="false"][shift-keys="pressed"][c-key=""] .has_shift_petscii .keycap_shift {
+[lowercase="false"][shift-keys="pressed"][cbm-key=""] .has_shift_petscii .keycap_shift {
     display:none;
 }
-[lowercase="false"][shift-keys="pressed"][c-key=""] .has_shift_petscii .keycap {
+[lowercase="false"][shift-keys="pressed"][cbm-key=""] .has_shift_petscii .keycap {
     display:none;
 }
 
@@ -371,15 +399,16 @@ button[id^="detail_run"] {
 .keycap_c {
     display: none;
 }
-[c-key="pressed"] .has_cbm_petscii .keycap_c {
+[cbm-key="pressed"] .has_cbm_petscii .keycap_c {
     display:inherit;
 }
-[c-key="pressed"] .has_cbm_petscii .keycap_shift {
+[cbm-key="pressed"] .has_cbm_petscii .keycap_shift {
     display:none;
 }
-[c-key="pressed"] .has_cbm_petscii .keycap {
+[cbm-key="pressed"] .has_cbm_petscii .keycap {
     display:none;
 }
+
 
 
 .keycap_shift {
@@ -432,3 +461,15 @@ button[id^="detail_run"] {
     color:gray;
 }
 
+[ShiftLock-key="pressed"] .ShiftLock, 
+[ShiftLeft-key="pressed"] .ShiftLeft,
+[rightShift-key="pressed"] .rightShift
+{
+    background-color: var(--green) !important;
+}
+
+[cbm-key="pressed"] .cbm,
+[ctrl-key="pressed"] .ctrl
+{
+    background-color: var(--blue) !important
+}

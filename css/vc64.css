@@ -338,6 +338,8 @@ button[id^="detail_run"] {
 
 
 .keycap_slc {
+    font-family:'C64Pro';
+    font-size:small;
     display:none;
 }
 [lowercase="true"][shift-keys="pressed"] .keycap_slc {
@@ -419,6 +421,9 @@ button[id^="detail_run"] {
 }
 
 
+[cbm-key="pressed"][ctrl-key="pressed"] .has_clr .keycap_cbm {
+    display:none;
+}
 [cbm-key="pressed"] .has_cbm_petscii .keycap_cbm {
     display:inherit;
 }

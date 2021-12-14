@@ -320,6 +320,10 @@ button[id^="detail_run"] {
 }
 
 
+@font-face {
+    font-family:"C64Pro";
+    src: url("C64_Pro_Mono-STYLE.ttf") 
+}
 
 [lowercase="false"] .keycap_lc {
     display:none;
@@ -361,9 +365,19 @@ button[id^="detail_run"] {
     min-width:38px;
 }
 
-.keycap_clr {
-    font-size: xx-small;
+.keycap_clr,
+[key-label="ORG"],
+[key-label^="LGHT"],
+[key-label^="DRK"],
+[key-label="BRN"],
+[key-label="PNK"],
+[key-label="GRY"]
+{
+    font-family: unset !important;
+    font-size: xx-small !important;
 }
+
+
 [ctrl-key=""] .keycap_clr {
     display:none;
     padding:0;
@@ -383,6 +397,8 @@ button[id^="detail_run"] {
 }
 
 .keycap_p {
+    font-family:'C64Pro';
+    font-size:small;
     display: none;
 }
 [lowercase="false"][shift-keys="pressed"][cbm-key=""] .has_shift_petscii .keycap_p {
@@ -396,10 +412,14 @@ button[id^="detail_run"] {
 }
 
 
-.keycap_c {
+.keycap_cbm {
     display: none;
+    font-family:'C64Pro';
+    font-size:small;
 }
-[cbm-key="pressed"] .has_cbm_petscii .keycap_c {
+
+
+[cbm-key="pressed"] .has_cbm_petscii .keycap_cbm {
     display:inherit;
 }
 [cbm-key="pressed"] .has_cbm_petscii .keycap_shift {

@@ -421,6 +421,9 @@ button[id^="detail_run"] {
 }
 
 
+
+
+
 [cbm-key="pressed"][ctrl-key="pressed"] .has_clr .keycap_cbm {
     display:none;
 }
@@ -434,14 +437,16 @@ button[id^="detail_run"] {
     display:none;
 }
 
-
-
 .keycap_shift {
     font-size:x-small;
 }
 
 [shift-keys="pressed"] .keycap_shift {
     font-size:medium;
+}
+
+[shift-keys="pressed"] .small .keycap_shift {
+    font-size:small;
 }
 
 .keycap {
@@ -452,6 +457,9 @@ button[id^="detail_run"] {
     font-size:x-small;
 }
 
+.smallfont {
+    font-size:xx-small;
+}
 
 .darkkey {
     background-color: rgb(78,87,95);
@@ -497,4 +505,10 @@ button[id^="detail_run"] {
 [ctrl-key="pressed"] .ctrl
 {
     background-color: var(--blue) !important
+}
+
+
+
+[lowercase="true"][cbm-key="pressed"][shift-keys="pressed"] .has_slc .keycap_cbm {
+    display:none;
 }

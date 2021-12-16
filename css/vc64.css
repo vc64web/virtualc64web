@@ -320,7 +320,124 @@ button[id^="detail_run"] {
 }
 
 
+@font-face {
+    font-family:"C64Pro";
+    src: url("C64_Pro_Mono-STYLE.ttf") 
+}
 
+[lowercase="false"] .keycap_lc {
+    display:none;
+}
+[lowercase="true"] .has_lowercase .keycap {
+    display:none;
+}
+[lowercase="true"][cbm-key="pressed"] .has_cbm_petscii .keycap_lc {
+    display:none;
+}
+
+
+
+.keycap_slc {
+    font-family:'C64Pro';
+    font-size:small;
+    display:none;
+}
+[lowercase="true"][shift-keys="pressed"] .keycap_slc {
+    display:inherit;
+}
+[lowercase="true"][shift-keys="pressed"] .has_slc .keycap {
+    display:none;
+}
+[lowercase="true"][shift-keys="pressed"] .keycap_lc {
+    display:none;
+}
+[lowercase="true"][shift-keys="pressed"] .keycap {
+    display:inherit;
+}
+
+
+[lowercase="false"][shift-keys="pressed"] .has_shift_petscii .keycap_shift {
+    display:none;
+}
+[lowercase="false"][shift-keys="pressed"] .has_shift_petscii .keycap {
+    display:none;
+}
+
+.vbk_key {
+    min-width:38px;
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+.keycap_clr,
+[key-label="ORG"],
+[key-label^="LGHT"],
+[key-label^="DRK"],
+[key-label="BRN"],
+[key-label="PNK"],
+[key-label="GRY"]
+{
+    font-family: unset !important;
+    font-size: xx-small !important;
+}
+
+
+[ctrl-key=""] .keycap_clr {
+    display:none;
+    padding:0;
+}
+[ctrl-key="pressed"] .keycap_clr {
+    display:inherit;
+}
+[ctrl-key="pressed"] .has_clr .keycap, 
+[ctrl-key="pressed"] .has_clr .keycap_shift
+{
+    display:none;
+}
+
+[ctrl-key=""] .key0 {
+    padding-top:15px;
+    padding-bottom:0px
+}
+
+.keycap_p {
+    font-family:'C64Pro';
+    font-size:small;
+    display: none;
+}
+[lowercase="false"][shift-keys="pressed"][cbm-key=""] .has_shift_petscii .keycap_p {
+    display:inherit;
+}
+[lowercase="false"][shift-keys="pressed"][cbm-key=""] .has_shift_petscii .keycap_shift {
+    display:none;
+}
+[lowercase="false"][shift-keys="pressed"][cbm-key=""] .has_shift_petscii .keycap {
+    display:none;
+}
+
+
+.keycap_cbm {
+    display: none;
+    font-family:'C64Pro';
+    font-size:small;
+}
+
+
+
+
+
+[cbm-key="pressed"][ctrl-key="pressed"] .has_clr .keycap_cbm {
+    display:none;
+}
+[cbm-key="pressed"] .has_cbm_petscii .keycap_cbm {
+    display:inherit;
+}
+[cbm-key="pressed"] .has_cbm_petscii .keycap_shift {
+    display:none;
+}
+[cbm-key="pressed"] .has_cbm_petscii .keycap {
+    display:none;
+}
 
 .keycap_shift {
     font-size:x-small;
@@ -330,14 +447,21 @@ button[id^="detail_run"] {
     font-size:medium;
 }
 
-.keycap {
-    font-size:medium;
+[shift-keys="pressed"] .small .keycap_shift {
+    font-size:small;
 }
 
-[shift-keys="pressed"] .keycap {
+.keycap {
+    font-size:inherit;
+}
+
+[shift-keys="pressed"] .composite .keycap {
     font-size:x-small;
 }
 
+.smallfont {
+    font-size:xx-small;
+}
 
 .darkkey {
     background-color: rgb(78,87,95);
@@ -346,19 +470,50 @@ button[id^="detail_run"] {
     padding-top: 3px;
     width: 53px;
 }
-.capslock {
-    font-size:xx-small;
-}
 
-.amigakey { 
-    color: red;
-    font-style: italic;
-    font-family: serif;
-    font-size: x-large;
-    padding-top: 0;
-    padding-bottom: 0;
-}
 .smallkey {
     height: 32px;
     padding-top: 3px;
+}
+
+.case_switch {
+    height: 32px;
+    padding-top: 3px;
+    margin-left:0px;
+    margin-right:0px;
+    background-color: rgb(78,87,95);
+    border-color: #222222;
+    height: 31px;
+    padding-top: 3px;
+    width: 53px;
+}
+
+
+[lowercase="true"] .upper_case {
+    color:gray;
+}
+[lowercase="false"] .lower_case {
+    color:gray;
+}
+
+[ShiftLock-key="pressed"] .ShiftLock, 
+[ShiftLeft-key="pressed"] .ShiftLeft,
+[rightShift-key="pressed"] .rightShift
+{
+    background-color: var(--green) !important;
+}
+
+.ctrl {
+    width:58px;
+}
+[cbm-key="pressed"] .cbm,
+[ctrl-key="pressed"] .ctrl
+{
+    background-color: var(--blue) !important
+}
+
+
+
+[lowercase="true"][cbm-key="pressed"][shift-keys="pressed"] .has_slc .keycap_cbm {
+    display:none;
 }

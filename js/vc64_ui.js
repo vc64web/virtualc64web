@@ -1585,6 +1585,7 @@ function InitWrappers() {
             }
             if(with_reset){
                 wasm_reset();
+                reset_keyboard();
             }
             if(event.data.file_name !== undefined && event.data.file !== undefined)
             {
@@ -1888,6 +1889,7 @@ $('.layer').change( function(event) {
     */
     document.getElementById('button_reset').onclick = function() {
         wasm_reset();
+        reset_keyboard();
 
         if(!is_running())
         {
@@ -2067,6 +2069,7 @@ $('.layer').change( function(event) {
         {
             $('#alert_reset').show();
             wasm_reset();
+            reset_keyboard();
 
             var intervall_id = setInterval(() => {  
                 var cycles_now= wasm_get_cpu_cycles();

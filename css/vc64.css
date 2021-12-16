@@ -503,6 +503,9 @@ button[id^="detail_run"] {
     background-color: var(--green) !important;
 }
 
+.ctrl {
+    width:58px;
+}
 [cbm-key="pressed"] .cbm,
 [ctrl-key="pressed"] .ctrl
 {

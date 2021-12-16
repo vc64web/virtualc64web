@@ -365,6 +365,8 @@ button[id^="detail_run"] {
 
 .vbk_key {
     min-width:38px;
+    padding-left: 4px;
+    padding-right: 4px;
 }
 
 .keycap_clr,

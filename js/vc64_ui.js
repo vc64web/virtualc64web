@@ -16,6 +16,7 @@ let virtual_keyboard_clipping = true; //keyboard scrolls when it clips
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 const audioContext = new AudioContext();
 let audio_connected=false;
+let current_audio_device='main thread (mono)';
 
 
 const load_script= (url) => {
@@ -1457,6 +1458,7 @@ function InitWrappers() {
             connect_audio_processor_stereo();
             document.addEventListener('click',connect_audio_processor_stereo, false);
         }
+        current_audio_device=audio_device;
     }
 
     set_audio_device = function (audio_device) {
@@ -1476,16 +1478,21 @@ function InitWrappers() {
 //----
 
     get_audio_context=function() {
-        if (typeof Module === 'undefined'
-        || typeof Module.SDL2 == 'undefined'
-        || typeof Module.SDL2.audioContext == 'undefined')
+        if(current_audio_device.includes('main thread'))
         {
-            return null;
+            if (typeof Module === 'undefined'
+            || typeof Module.SDL2 == 'undefined'
+            || typeof Module.SDL2.audioContext == 'undefined')
+            {
+                return null;
+            }
+            else
+            {
+                return Module.SDL2.audioContext;
+            }
         }
         else
-        {
-            return Module.SDL2.audioContext;
-        }
+            return audioContext;
     }
     window.addEventListener('message', event => {
         if(event.data == "poll_state")
@@ -1517,7 +1524,7 @@ function InitWrappers() {
                 }
             }
             window.parent.postMessage({ msg: 'render_current_audio_state', 
-                value: audio_context == null ? 'suspended' : audio_context.state },"*");
+                value: context == null ? 'suspended' : context.state },"*");
         }
         else if(event.data == "open_zip()")
         {

@@ -1136,7 +1136,8 @@ extern "C" void wasm_set_sid_model(unsigned SID_Model)
 
 extern "C" void wasm_cut_layers(unsigned cut_layers)
 {
-//  wrapper->c64->configure(OPT_CUT_LAYERS, 0x100 | (SPR0|SPR1|SPR2|SPR3|SPR4|SPR5|SPR6|SPR7)); 
+//  wrapper->c64->configure(OPT_CUT_LAYERS, 0x1100 | (SPR0|SPR1|SPR2|SPR3|SPR4|SPR5|SPR6|SPR7)); 
+  printf("wasm_cut_layers(%u)",cut_layers);
   wrapper->c64->configure(OPT_CUT_LAYERS, cut_layers); 
 }
 

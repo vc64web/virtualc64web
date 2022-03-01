@@ -1842,7 +1842,7 @@ $('.layer').change( function(event) {
         sprite6: 0x40,
         sprite7: 0x80,        
     };
-    const GLOBAL_SPRITE_BIT= 0x100;
+    const GLOBAL_SPRITE_BIT= 0x1100;
 
     var layer_value = 0;
     for(var layer_id in layers)

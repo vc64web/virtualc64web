@@ -99,12 +99,13 @@ function setup_browser_interface()
 
 
 
-var like_icon_filled = `<svg style="color:var(--red)" width="1.6em" height="1.6em" viewBox="0 0 16 16" class="bi bi-heart-fill" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-  <path fill-rule="evenodd" d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z"/>
-</svg>`; 
-var like_icon_empty = `<svg style="color:var(--gray)" width="1.5em" height="1.5em" viewBox="0 0 16 16" class="bi bi-heart" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-  <path fill-rule="evenodd" d="M8 2.748l-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143c.06.055.119.112.176.171a3.12 3.12 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15z"/>
-</svg>`;
+
+var like_icon_filled = `
+<svg style="color:var(--red);width:1.6em;height:1.6em"><use xlink:href="img/sprites.svg#like_filled"/></svg>
+`;
+var like_icon_empty = `
+<svg style="color:var(--gray);width:1.6em;height:1.6em"><use xlink:href="img/sprites.svg#like_empty"/></svg>
+`;
 
 async function load_browser(datasource_name, command="feeds")
 {
@@ -156,7 +157,12 @@ async function load_browser(datasource_name, command="feeds")
     $('#container_snapshots').empty();
 
     var render_persistent_snapshot=function(app_title, item){
-        var x_icon = '<svg width="1.8em" height="auto" viewBox="0 0 16 16" class="bi bi-x" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M11.854 4.146a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708-.708l7-7a.5.5 0 0 1 .708 0z"/><path fill-rule="evenodd" d="M4.146 4.146a.5.5 0 0 0 0 .708l7 7a.5.5 0 0 0 .708-.708l-7-7a.5.5 0 0 0-.708 0z"/></svg>';
+        var x_icon = `
+        <svg style="width:1.8em;height:1.8em"><use xlink:href="img/sprites.svg#x"/></svg>
+        `;
+        var export_icon = `
+        <svg style="width:1.6em;height:1.6em"><use xlink:href="img/sprites.svg#export"/></svg>
+        `;
         var scaled_width= 15;
         var canvas_width = 384;
         var canvas_height= 272;
@@ -167,6 +173,10 @@ async function load_browser(datasource_name, command="feeds")
         if(collector.can_delete(app_title, item.id))
         {
             the_html += '<button id="delete_snap_'+item.id+'" type="button" style="position:absolute;top:0;right:0;padding:0;" class="btn btn-sm icon">'+x_icon+'</button>';
+        }
+        if(collector.can_export(app_title, item.id))
+        {
+            the_html += '<button id="export_snap_'+item.id+'" type="button" style="position:absolute;bottom:0;right:0;padding:0;" class="btn btn-sm icon">'+export_icon+'</button>';
         }
 
         if(collector.can_like(app_title, item))
@@ -217,11 +227,13 @@ async function load_browser(datasource_name, command="feeds")
         {
             var canvas_id= "canvas_snap_"+app_snaps[z].id;
             var delete_id= "delete_snap_"+app_snaps[z].id;
+            var export_id= "export_snap_"+app_snaps[z].id;
             var like_id= "like_snap_"+app_snaps[z].id;
             var canvas = document.getElementById(canvas_id);
             var delete_btn = document.getElementById(delete_id);
             var like_btn = document.getElementById(like_id);
-
+            var export_btn = document.getElementById(export_id);
+            
             if(delete_btn != null)
             {
                 delete_btn.onclick = function() {
@@ -229,6 +241,33 @@ async function load_browser(datasource_name, command="feeds")
                     //alert('delete id='+id);
                     delete_snapshot_per_id(id);
                     $("#card_snap_"+id).remove();
+                    hide_all_tooltips();
+                };
+            }
+            if(export_btn != null)
+            {
+                export_btn.onclick = function() {
+                    let id = this.id.match(/export_snap_(.*)/)[1];
+                    get_snapshot_per_id(id,
+                        function (snapshot) {
+                            let blob_data = new Blob([snapshot.data], {type: 'application/octet-binary'});
+                            const url = window.URL.createObjectURL(blob_data);
+                            const a = document.createElement('a');
+                            a.style.display = 'none';
+                            a.href = url;
+                    
+                            let app_name = snapshot.title;
+                            let extension_pos = app_name.indexOf(".");
+                            if(extension_pos >=0)
+                            {
+                                app_name = app_name.substring(0,extension_pos);
+                            }
+                            a.download = app_name+'_snap'+snapshot.id+'.vc64';
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                        }
+                    );
                     hide_all_tooltips();
                 };
             }
@@ -335,9 +374,15 @@ var collectors = {
                         var app_title=app_titles[t];
                         if(search_term == '' || app_title.toLowerCase().indexOf(search_term.toLowerCase()) >= 0)
                         {
-                            let app_snaps = await get_snapshots_for_app_title(app_title);
-                            get_data_collector('snapshots').total_count+=app_snaps.length;
-                            row_renderer(latest_load_query_context, app_title, app_snaps);
+                            try {
+                                let app_snaps = await get_snapshots_for_app_title(app_title);
+                                get_data_collector('snapshots').total_count+=app_snaps.length;
+                                row_renderer(latest_load_query_context, app_title, app_snaps);
+                            } catch (error) {
+                                console.error(error);
+                                alert(error.message);    
+                                return;
+                            }
                         }
                     }
                     get_data_collector('snapshots').set_busy(false);
@@ -445,6 +490,9 @@ var collectors = {
             return; 
         },
         can_delete: function(app_title, the_id){
+            return app_title == 'auto_save' ? false: true;
+        },
+        can_export: function(app_title, the_id){
             return app_title == 'auto_save' ? false: true;
         },
         can_like: function(app_title, item){
@@ -1046,6 +1094,9 @@ var collectors = {
             return; 
         },
         can_delete: function(app_title, the_id){
+            return false;
+        },
+        can_export: function(app_title, the_id){
             return false;
         },
         can_like: function(app_title, item){

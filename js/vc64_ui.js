@@ -712,7 +712,7 @@ function configure_file_dialog(reset=false)
                     zip.forEach(function (relativePath, zipfile){
                         if(!relativePath.startsWith("__MACOSX"))
                         {
-                            var mountable = relativePath.toLowerCase().match(/[.](zip|prg|t64|d64|g64|tap|crt)$/i);
+                            var mountable = relativePath.toLowerCase().match(/[.](zip|prg|t64|d64|g64|tap|crt|vc64)$/i);
                             list+='<li '+
                             (mountable ? 'id="li_fileselect'+mountable_count+'"':'')
                             +' class="list-group-item list-group-item-action'+ 
@@ -796,7 +796,7 @@ function configure_file_dialog(reset=false)
             $("#auto_press_play").prop('checked', auto_press_play);
             $("#auto_run").prop('checked', auto_run);    
 
-            if(file_slot_file_name.match(/[.](prg|t64|crt)$/i))
+            if(file_slot_file_name.match(/[.](prg|t64|crt|vc64)$/i))
             {
                 insert_file();
             }
@@ -2035,6 +2035,14 @@ $('.layer').change( function(event) {
             else if(do_auto_run)
             {
                 emit_string(['Enter','r','u','n','Enter']);
+            }
+            if(file_slot_file_name.endsWith('.vc64'))
+            {
+                $("#button_run").click();
+                if(!is_running())
+                {
+                    $("#button_run").click();
+                }    
             }
         };
 

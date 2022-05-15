@@ -151,6 +151,14 @@ color: #aaa !important;
     background-color:var(--darkbg);
 }
 
+.vbk_choice_text span {
+    background-color: var(--gray);
+    border-radius: 6px;
+    padding-left: 4px;
+    padding-right: 4px;
+    color: white;
+}
+
 #navbar {
     background-color: var(--lightbg);
 
@@ -470,6 +478,10 @@ button[id^="detail_run"] {
 
 [shift-keys="pressed"] .composite .keycap {
     font-size:x-small;
+}
+
+[key-state="pressed"] {
+    box-shadow: inset 0 0 0.1em white, 0em 0em 3em white;
 }
 
 .smallfont {

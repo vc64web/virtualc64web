@@ -470,7 +470,14 @@ function installKeyboard() {
         }
     }
 
+    let virtual_keyboard = document.getElementById("virtual_keyboard");
+    virtual_keyboard.addEventListener("contextmenu", (event)=>{event.preventDefault();});
+    virtual_keyboard.addEventListener("dragstart", (event)=>{event.preventDefault();});
+    virtual_keyboard.addEventListener("drop", (event)=>{event.preventDefault();});
+    virtual_keyboard.addEventListener("select", (event)=>{event.preventDefault();});
 
+    $('#virtual_keyboard').css("user-select","none");
+    
     keymap.forEach(row => {
         row.forEach(keydef => {
             if(keydef.k === undefined)
@@ -478,7 +485,9 @@ function installKeyboard() {
             if(keydef.c === undefined)
               keydef.c = 'Key'+keydef.k;
 
-            $("#button_"+keydef.c).click(function() 
+            let the_key_element=document.getElementById("button_"+keydef.c);
+            
+            let key_down_handler=function() 
             {
                if(keydef.c == 'hide_keyboard')
                {
@@ -584,16 +593,76 @@ function installKeyboard() {
                     
                     }
                     else
-                    {  
-                        release_modifiers();
-                        //release the key automatically after a short time ...
-                        //setTimeout(() => {
-                        wasm_schedule_key(c64code[0], c64code[1], 0, 1);
-                        //}, 100);
+                    {
+                        the_key_element.setAttribute('key-state', 'pressed');
                     }
                 }
                }
+            }
+
+            let key_up_handler=function() 
+            {
+                if( keydef.c == 'CapsLock' ||
+                    keydef.c == 'ShiftLeft' || keydef.c == 'rightShift' ||
+                    keydef.c == 'ControlLeft' ||
+                    keydef.c == 'commodore'
+                )
+                {}
+                else
+                {
+                    let c64code = translateKey(keydef.c, keydef.k);
+                    wasm_schedule_key(c64code[0], c64code[1], 0, 1);
+                    release_modifiers();
+                    the_key_element.setAttribute('key-state', '');
+                }
+            }
+
+            the_key_element.addEventListener("focus", (event)=>{ event.preventDefault(); event.currentTarget.blur();})
+            the_key_element.addEventListener("mousedown", key_down_handler);
+            the_key_element.addEventListener("mouseup", key_up_handler);
+
+            the_key_element.addEventListener("touchstart", (event)=>{
+                if(current_vbk_touch.startsWith("exact") || current_vbk_touch.startsWith("mix"))
+                {
+                    event.preventDefault(); 
+                    key_down_handler();
+                }
+                if(current_vbk_touch.startsWith("mix"))
+                {
+                    let scroll_area=document.getElementById("vbk_scroll_area");
+                    touch_start_x=event.changedTouches[0].clientX;
+                    touch_start_scrollLeft=scroll_area.scrollLeft;
+                    touch_start_id=event.changedTouches[0].identifier;
+                }
             });
+            the_key_element.addEventListener("touchmove", (event)=>{
+                if(current_vbk_touch.startsWith("mix"))
+                {
+                    let scroll_area=document.getElementById("vbk_scroll_area");
+                    for(touch of event.changedTouches)
+                    {
+                        if(touch.identifier == touch_start_id)
+                        {
+                            let scroll_x = touch_start_scrollLeft+(touch_start_x-touch.clientX);
+                            scroll_area.scroll(scroll_x, 0);
+                        }
+                    }
+                } 
+            });
+            the_key_element.addEventListener("touchend", (event)=>{
+                event.preventDefault(); 
+                if(current_vbk_touch.startsWith("smart"))
+                {
+                    key_down_handler();
+                    setTimeout(key_up_handler,100); 
+                }
+                else
+                {
+                    key_up_handler(); 
+                }
+            });
+
+
         });
     });
 

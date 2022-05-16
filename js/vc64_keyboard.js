@@ -525,7 +525,19 @@ function installKeyboard() {
                }
                else if(keydef.sym !== undefined)
                {
-                   emit_string([keydef.sym],0);
+                    //emit_string([keydef.sym],0);
+
+                    var c64code = translateKey2(keydef.sym, keydef.sym);
+                    if(c64code !== undefined)
+                    {
+                        //press
+                        if(c64code.modifier != null)
+                        {
+                            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 1, 0);
+                        }
+                        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 1, 0);
+                        the_key_element.setAttribute('key-state', 'pressed');
+                    }
                } 
                else
                {
@@ -610,9 +622,25 @@ function installKeyboard() {
                 {}
                 else
                 {
-                    let c64code = translateKey(keydef.c, keydef.k);
-                    wasm_schedule_key(c64code[0], c64code[1], 0, 1);
-                    release_modifiers();
+                    if(keydef.sym !== undefined)
+                    {
+                         var c64code = translateKey2(keydef.sym, keydef.sym);
+                         if(c64code !== undefined)
+                         {
+                             //release
+                             if(c64code.modifier != null)
+                             {
+                                 wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, 0);
+                             }
+                             wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 0);
+                         }
+                    }
+                    else
+                    {
+                        let c64code = translateKey(keydef.c, keydef.k);
+                        wasm_schedule_key(c64code[0], c64code[1], 0, 1);
+                        release_modifiers();    
+                    } 
                     the_key_element.setAttribute('key-state', '');
                 }
             }

@@ -614,10 +614,11 @@ function installKeyboard() {
 
             let key_up_handler=function() 
             {
-                if( keydef.c == 'CapsLock' ||
+                if( keydef.c == 'shiftlock' ||
                     keydef.c == 'ShiftLeft' || keydef.c == 'rightShift' ||
                     keydef.c == 'ControlLeft' ||
-                    keydef.c == 'commodore'
+                    keydef.c == 'commodore' || 
+                    keydef.c == 'uppercase' || keydef.c == 'lowercase' 
                 )
                 {}
                 else

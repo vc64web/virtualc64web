@@ -388,7 +388,7 @@ async function fetchOpenROMS(){
             var romtype = wasm_loadfile(rom_name, byteArray, byteArray.byteLength);
             if(romtype != "")
             {
-                localStorage.setItem(romtype+".bin", ToBase64(byteArray));
+                local_storage_set(romtype+".bin", ToBase64(byteArray));
                 load_roms(false);
             }
         } catch {
@@ -420,7 +420,7 @@ async function fetchOpenROMS(){
  */
 function load_roms(install_to_core){
     var loadStoredItem= function (item_name){
-        var stored_item = localStorage.getItem(item_name); 
+        var stored_item = local_storage_get(item_name); 
         if(stored_item != null)
         {
             var restoredbytearray = Uint8Array.from(FromBase64(stored_item));
@@ -429,7 +429,7 @@ function load_roms(install_to_core){
                 romtype = wasm_loadfile(item_name, restoredbytearray, restoredbytearray.byteLength);
                 if(!romtype.endsWith("rom"))
                 {//in case the core thinks rom is not valid anymore delete it
-                    localStorage.removeItem(item_name);
+                    local_storage_remove(item_name);
                     return null;
                 }
             }
@@ -626,7 +626,7 @@ function configure_file_dialog(reset=false)
             var romtype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
             if(romtype != "")
             {
-                localStorage.setItem(romtype+".bin", ToBase64(file_slot_file));
+                local_storage_set(romtype+".bin", ToBase64(file_slot_file));
                 load_roms(false);
             }
         }
@@ -667,7 +667,7 @@ function configure_file_dialog(reset=false)
                 $("#button_insert_file").html("insert disk"+return_icon);
                 
                 if (/*!JSON.parse(wasm_rom_info()).has_floppy_rom //is 1541.rom loaded ?*/
-                    localStorage.getItem('vc1541_rom.bin')==null)
+                    local_storage_get('vc1541_rom.bin')==null)
                 {
                     $("#no_disk_rom_msg").show();
                     $("#button_insert_file").attr("disabled", true);
@@ -1555,7 +1555,7 @@ function InitWrappers() {
             {
                 if(romtype != "")
                 {
-                    localStorage.setItem(romtype+".bin", ToBase64(byteArray));
+                    local_storage_set(romtype+".bin", ToBase64(byteArray));
                     load_roms(false);
                 }
             }

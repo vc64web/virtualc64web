@@ -19,6 +19,63 @@ let audio_connected=false;
 let current_audio_device='main thread (mono)';
 
 
+
+
+let load_sound = async function(url){
+    let response = await fetch(url);
+    let buffer = await response.arrayBuffer();
+    let audio_buffer= await audioContext.decodeAudioData(buffer);
+    return audio_buffer;
+} 
+let sound_volumne=0.3;// 10%
+let parallel_playing=0;
+let play_sound = function(audio_buffer){
+        if(audio_buffer== null)
+        {                 
+            load_all_sounds();
+            return;
+        }
+        if(parallel_playing>2 && audio_buffer==audio_df_step)
+        {//not more than 3 stepper sounds at the same time
+            return;
+        }
+        const source = audioContext.createBufferSource();
+        source.buffer = audio_buffer;
+
+        let gain_node = audioContext.createGain();
+        gain_node.gain.value = sound_volumne; 
+        gain_node.connect(audioContext.destination);
+
+        source.addEventListener('ended', () => {
+            parallel_playing--;
+        });
+        source.connect(gain_node);
+        parallel_playing++;
+        source.start();
+}   
+
+let audio_df_insert=null;
+let audio_df_eject=null;
+let audio_df_step=null;
+let audio_hd_step=null;
+async function load_all_sounds()
+{
+    if(audio_df_insert==null)
+        audio_df_insert=await load_sound('sounds/insert.mp3');
+/*    if(audio_df_eject==null)
+        audio_df_eject=await load_sound('sounds/eject.mp3');*/
+    if(audio_df_step == null)
+        audio_df_step=await load_sound('sounds/step.mp3');
+}
+load_all_sounds();
+
+
+
+
+
+let floppy_has_disk=false;
+let floppy_step_count=0;
+
 const load_script= (url) => {
     return new Promise(resolve =>
     {
@@ -360,11 +417,26 @@ function message_handler(msg, data)
     {
         emulator_currently_runs=false;
     }
+    else if(msg == "MSG_DISK_INSERT")
+    {
+        play_sound(audio_df_insert);
+        floppy_has_disk=true; 
+    } 
     else if(msg == "MSG_IEC_BUS_IDLE" || 
             msg == "MSG_IEC_BUS_BUSY" || 
             msg.startsWith("MSG_DRIVE_")
         )
     {
+        if(msg == "MSG_DRIVE_STEP")
+        {
+            floppy_step_count++;
+            if(floppy_has_disk||floppy_step_count>1)
+            { 
+                play_sound(audio_df_step);   
+               $("#drop_zone").html(`drv${data&0xff} ${((data>>8)&0xFF).toString().padStart(2, '0')}`);
+            }
+        }    
+        
         try { last_drive_event = wasm_get_cpu_cycles(); } catch {};
         check_ready_to_fire(msg);
     }

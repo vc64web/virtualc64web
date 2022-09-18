@@ -57,6 +57,7 @@ publish:
 	rm -rf $(PUBLISH_FOLDER)/css
 	rm -rf $(PUBLISH_FOLDER)/js
 	rm -rf $(PUBLISH_FOLDER)/img
+	rm -rf $(PUBLISH_FOLDER)/sounds
 	rm -f  $(PUBLISH_FOLDER)/vC64.*
 	rm -f  $(PUBLISH_FOLDER)/*.js
 	rm -f  $(PUBLISH_FOLDER)/*.json
@@ -66,6 +67,7 @@ publish:
 	cp -r js $(PUBLISH_FOLDER)
 	cp -r css $(PUBLISH_FOLDER)
 	cp -r img $(PUBLISH_FOLDER)
+	cp -r sounds $(PUBLISH_FOLDER)
 	cp -r roms $(PUBLISH_FOLDER)
 	cp index.html $(PUBLISH_FOLDER)
 	cp run.html $(PUBLISH_FOLDER)

@@ -391,6 +391,7 @@ var collectors = {
             }
             finally
             {
+                get_data_collector('snapshots').set_busy(false);
             }
         },
         draw_item_into_canvas: function (app_title, teaser_canvas, item){

@@ -265,6 +265,12 @@ void draw_one_frame_into_SDL(void *thisC64)
     executed_frame_count=0;
   }
 
+  EM_ASM({
+ //     if (typeof draw_one_frame === 'undefined')
+ //         return;
+      draw_one_frame(); // to gather joystick information for example 
+  });
+
   while(total_executed_frame_count < targetFrameCount) {
     executed_frame_count++;
     total_executed_frame_count++;
@@ -273,12 +279,6 @@ void draw_one_frame_into_SDL(void *thisC64)
   }
 
   rendered_frame_count++;  
-
-  EM_ASM({
- //     if (typeof draw_one_frame === 'undefined')
- //         return;
-      draw_one_frame(); // to gather joystick information for example 
-  });
  
   Uint8 *texture = (Uint8 *)c64->vic.stableEmuTexture(); //screenBuffer();
 

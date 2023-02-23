@@ -566,6 +566,12 @@ uint64_t mach_absolute_time()
     return nano_now; 
 }
 
+extern "C" void wasm_keyboard_reset()
+{
+  printf("wasm_keyboard_reset\n");
+  wrapper->c64->keyboard.reset(true);
+}
+
 extern "C" void wasm_key(int code1, int code2, int pressed)
 {
   printf("wasm_key ( %d, %d, %d ) \n", code1, code2, pressed);

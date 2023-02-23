@@ -1573,6 +1573,20 @@ function InitWrappers() {
         canvas.addEventListener('touchstart',unlock_WebAudio,false);    
     }
 
+
+    //when app is going to background
+    window.addEventListener('blur', ()=>{
+        Module._wasm_keyboard_reset();
+    });
+
+    //when app is coming to foreground again
+    window.addEventListener('focus', async ()=>{ 
+        Module._wasm_keyboard_reset();
+    });
+    
+
+
+
     audioContext.onstatechange = () => {
         let state = audioContext.state;
         console.error(`audioContext.state=${state}`);

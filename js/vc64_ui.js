@@ -1041,6 +1041,10 @@ function keyup(e) {
         if( active_sym_key_on_keycap!= undefined && active_sym_key_on_keycap!=null)
         {
             wasm_schedule_key(active_sym_key_on_keycap.raw_key[0], active_sym_key_on_keycap.raw_key[1], 0, 1);
+            if(active_sym_key_on_keycap.modifier != null )
+            {
+                wasm_schedule_key(active_sym_key_on_keycap.modifier[0], active_sym_key_on_keycap.modifier[1], 0, 1);
+            }    
         }
         key_pressed_buffer[e.code]=null;
         return;

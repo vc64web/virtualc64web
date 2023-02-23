@@ -928,18 +928,18 @@ function keydown(e) {
         return;
 
     e.preventDefault();
+    if(e.repeat)
+    {
+      //if a key is being pressed for a long enough time, it starts to auto-repeat: 
+      //the keydown triggers again and again, and then when it’s released we finally get keyup
+      //we just have to ignore the autorepeats here
+      return;
+    }
 
     for(action_button of custom_keys)
     {
         if(action_button.key == e.key)
         {
-            if(e.repeat)
-            {
-              //if a key is being pressed for a long enough time, it starts to auto-repeat: 
-              //the keydown triggers again and again, and then when it’s released we finally get keyup
-              //we just have to ignore the autorepeats here
-              return;
-            }
             let running_script=get_running_script(action_button.id);                    
             if(running_script.running == false)
             {
@@ -972,9 +972,21 @@ function keydown(e) {
         {
             wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 1, 0);
         }
+
+        if(use_symbolic_map)
+        {
+            let active_sym_key_on_keycap=key_pressed_buffer[e.code];
+            if( active_sym_key_on_keycap!= undefined && active_sym_key_on_keycap!=null)
+            {//don't accept another symkey
+                return;
+            }
+            key_pressed_buffer[e.code]=c64code;
+        }
         wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 1, 0);
     }
 }
+
+let key_pressed_buffer=[];
 
 function keyup(e) {
     if(is_any_text_input_active())
@@ -1022,6 +1034,18 @@ function keyup(e) {
         }
         return;
     }
+
+    if(use_symbolic_map)
+    {
+        let active_sym_key_on_keycap=key_pressed_buffer[e.code];
+        if( active_sym_key_on_keycap!= undefined && active_sym_key_on_keycap!=null)
+        {
+            wasm_schedule_key(active_sym_key_on_keycap.raw_key[0], active_sym_key_on_keycap.raw_key[1], 0, 1);
+        }
+        key_pressed_buffer[e.code]=null;
+        return;
+    }
+
     var c64code = translateKey2(e.code, e.key, !use_symbolic_map);
     if(c64code !== undefined )
     {

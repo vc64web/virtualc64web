@@ -1400,12 +1400,12 @@ function InitWrappers() {
     wasm_set_sample_rate = Module.cwrap('wasm_set_sample_rate', 'undefined', ['number']);
 
     connect_audio_processor = async () => {
-        if(audioContext.state === 'suspended') {
+        if(audioContext.state !== 'running') {
             await audioContext.resume();  
         }
         if(audio_connected==true)
             return; 
-        if(audioContext.state === 'suspended') {
+        if(audioContext.state !== 'running') {
             return;  
         }
         audio_connected=true;
@@ -1466,12 +1466,12 @@ function InitWrappers() {
     }
 
     connect_audio_processor_stereo = async () => {
-        if(audioContext.state === 'suspended') {
+        if(audioContext.state !== 'running') {
             await audioContext.resume();  
         }
         if(audio_connected==true)
             return; 
-        if(audioContext.state === 'suspended') {
+        if(audioContext.state !== 'running') {
             return;  
         }
         audio_connected=true;
@@ -1576,7 +1576,23 @@ function InitWrappers() {
         canvas.removeEventListener('touchstart',unlock_WebAudio);
         canvas.addEventListener('touchstart',unlock_WebAudio,false);    
     }
+    remove_unlock_user_action = function(){
+        //if it runs we dont need the unlock handlers, has no effect when handler already removed 
+        document.removeEventListener('click',unlock_WebAudio);
+        document.getElementById('canvas').removeEventListener('touchstart',unlock_WebAudio);
+    }
 
+    //when app becomes hidden/visible
+    window.addEventListener("visibilitychange", async () => {
+        if(document.visibilityState == "hidden") {
+            try { audioContext.suspend(); } catch(e){ console.error(e);}
+        }
+        else
+        {
+            try { await unlock_WebAudio(); } catch(e){ console.error(e);}
+            add_unlock_user_action();
+        }
+    });
 
     //when app is going to background
     window.addEventListener('blur', ()=>{
@@ -1589,25 +1605,21 @@ function InitWrappers() {
     });
     
 
-
-
     audioContext.onstatechange = () => {
         let state = audioContext.state;
         console.error(`audioContext.state=${state}`);
-        if(state==='suspended'){
+        if(state!=='running'){
             add_unlock_user_action();
         }
-        else if(state === 'running') {
-            //if it runs we dont need the unlock handlers, has no effect when handler already removed 
-            document.removeEventListener('click',unlock_WebAudio);
-            document.getElementById('canvas').removeEventListener('touchstart',unlock_WebAudio);
+        else {
+            remove_unlock_user_action();
         }
     }
     unlock_WebAudio=async function() {
         try { 
             if(current_audio_device == 'main thread (mono)')
             {
-                if(audioContext.state === 'suspended') {
+                if(audioContext.state !== 'running') {
                     //for floppy drive sounds
                     await audioContext.resume();  
                 }
@@ -1620,7 +1632,12 @@ function InitWrappers() {
             {
                 await connect_audio_processor_stereo();
             }
-        } catch(e){ console.error(e);}
+            if(audioContext.state==="running")
+            {
+                remove_unlock_user_action();
+            }
+        } 
+        catch(e){ console.error(e);}
     }
 
     set_audio_device = function (audio_device) {
@@ -2481,6 +2498,7 @@ $('.layer').change( function(event) {
         {
             unregister_v_joystick();
         }
+        this.blur();
     }
     document.getElementById('port2').onchange = function() {
         port2 = document.getElementById('port2').value;
@@ -2500,6 +2518,7 @@ $('.layer').change( function(event) {
         {
             unregister_v_joystick();
         }
+        this.blur();
     }
 
 

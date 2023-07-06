@@ -1532,6 +1532,8 @@ C64::flash(const AnyCollection &file, isize nr)
             case FILETYPE_FOLDER:
                 
                 size = std::min(size - 2, (u64)(0x10000 - addr));
+                mem.poke(45, (addr + size) & 0xff );
+                mem.poke(46, (addr + size) >> 8 );
                 file.copyItem(nr, mem.ram + addr, size, 2);
                 break;
                 

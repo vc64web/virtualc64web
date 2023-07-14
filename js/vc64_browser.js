@@ -791,31 +791,31 @@ var collectors = {
                 }
 
                 this.row_name='top one file demos';
-                await fetch('https://csdb.dk/webservice/?type=chart&ctype=release&subtype=2&depth=1.5').then( webservice_loader );
+                await fetch('https://csdb.dk/webservice/?type=chart&ctype=release&subtype=2&depth=1.5&count='+current_csdb_count).then( webservice_loader );
             
                 this.row_name='top demos';
-                await fetch('https://csdb.dk/webservice/?type=chart&ctype=release&subtype=1&depth=1.5').then( webservice_loader );
+                await fetch('https://csdb.dk/webservice/?type=chart&ctype=release&subtype=1&depth=1.5&count='+current_csdb_count).then( webservice_loader );
                 
                 this.row_name='latest releases';
-                await fetch('https://csdb.dk/webservice/?type=latestrel&depth=1.5').then( webservice_loader );        
+                await fetch('https://csdb.dk/webservice/?type=latestrel&depth=1.5&count='+current_csdb_count).then( webservice_loader );        
 
                 this.row_name='latest additions';
-                await fetch("https://csdb.dk/webservice/?type=latestadd&addtype=release&depth=1.5").then( webservice_loader );
+                await fetch("https://csdb.dk/webservice/?type=latestadd&addtype=release&depth=1.5&count="+current_csdb_count).then( webservice_loader );
                 
                 this.row_name='top music';
-                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=7&depth=1.5").then( webservice_loader );
+                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=7&depth=1.5&count="+current_csdb_count).then( webservice_loader );
                 
                 this.row_name='top music - part2';
-                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=8&depth=1.5").then( webservice_loader );
+                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=8&depth=1.5&count="+current_csdb_count).then( webservice_loader );
 
                 this.row_name='top graphics';
-                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=9&depth=1.5").then( webservice_loader );
+                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=9&depth=1.5&count="+current_csdb_count).then( webservice_loader );
 
                 this.row_name='top graphics - part2';
-                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=10&depth=1.5").then( webservice_loader );
+                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=10&depth=1.5&count="+current_csdb_count).then( webservice_loader );
 
                 this.row_name='top games';
-                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=11&depth=1.5").then( webservice_loader );
+                await fetch("https://csdb.dk/webservice/?type=chart&ctype=release&subtype=11&depth=1.5&count="+current_csdb_count).then( webservice_loader );
             }
             finally
             {

@@ -1917,6 +1917,25 @@ function InitWrappers() {
         set_vbk_choice(choice);
         $("#modal_settings").focus();
     });
+//---
+
+
+let set_csdb_count = function (choice) {
+    $(`#button_csdb_count`).text('each chart category shows = '+choice);
+    current_csdb_count=choice;
+    get_data_collector("csdb").loaded_feeds=null; //reset feed cache
+    save_setting("csdb_count",choice);   
+}
+current_csdb_count=load_setting("csdb_count", "25");
+set_csdb_count(current_csdb_count);
+
+$(`#choose_csdb_count a`).click(function () 
+{
+    let choice=$(this).text();
+    set_csdb_count(choice);
+    $("#modal_settings").focus();
+});
+
 
 //----
     webgl_switch = $('#webgl_switch');

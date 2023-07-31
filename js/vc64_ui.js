@@ -1592,6 +1592,14 @@ function InitWrappers() {
             try { await unlock_WebAudio(); } catch(e){ console.error(e);}
             add_unlock_user_action();
         }
+        if(document.visibilityState === "visible" && wakeLock !== null)
+        {
+            if(is_running())
+            {
+//                alert("req wakelock again "+document.visibilityState);
+                set_wake_lock(true);
+            }
+        }
     });
 
     //when app is going to background
@@ -2049,7 +2057,119 @@ wide_screen_switch.change( function() {
     save_setting('widescreen', this.checked);
     scaleVMCanvas();
 });
+//------
+  // create a reference for the wake lock
+wakeLock = null;
 
+
+check_wake_lock = async () => {
+    if(is_running())
+    {
+        if(wakeLock != null)
+        {
+//            alert("req");
+            requestWakeLock();
+        }
+    }
+    else
+    {
+        if(wakeLock != null)
+        {
+//            alert("release");
+            wakeLock.release();
+        }
+    }
+}
+
+// create an async function to request a wake lock
+requestWakeLock = async () => {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+
+      // change up our interface to reflect wake lock active
+      $("#wake_lock_status").text("(wake lock active, app will stay awake, no auto off)");
+      wake_lock_switch.prop('checked', true);
+
+      // listen for our release event
+      wakeLock.onrelease = function(ev) {
+        console.log(ev);
+      }
+      wakeLock.addEventListener('release', () => {
+        // if wake lock is released alter the button accordingly
+        if(wakeLock==null)
+            $("#wake_lock_status").text(`(no wake lock, system will probably auto off and sleep after a while)`);
+        else
+            $("#wake_lock_status").text(`(wake lock released while pausing, system will probably auto off and sleep after a while)`);
+        wake_lock_switch.prop('checked', false);
+
+      });
+    } catch (err) {
+      // if wake lock request fails - usually system related, such as battery
+      $("#wake_lock_status").text(`(no wake lock, system will probably auto off and sleep after a while). ${err.name}, ${err.message}`);
+      wake_lock_switch.prop('checked', false);
+      console.error(err);
+//      alert(`error while requesting wakelock: ${err.name}, ${err.message}`);
+    }
+}
+
+set_wake_lock = (use_wake_lock)=>{
+    let is_supported=false;
+    if ('wakeLock' in navigator) {
+        is_supported = true;
+    } else {
+        wake_lock_switch.prop('disabled', true);
+        $("#wake_lock_status").text("(wake lock is not supported on this browser, your system will decide when it turns your device off)");
+    }
+    if(is_supported && use_wake_lock)
+    {
+        requestWakeLock();
+    }
+    else if(wakeLock != null)
+    {
+        let current_wakelock=wakeLock;
+        wakeLock = null;
+        current_wakelock.release();
+    }
+}
+
+wake_lock_switch = $('#wake_lock_switch');
+let use_wake_lock=load_setting('wake_lock', false);
+set_wake_lock(use_wake_lock);
+wake_lock_switch.change( function() {
+    let use_wake_lock  = this.checked;
+    set_wake_lock(use_wake_lock);
+    save_setting('wake_lock', this.checked);
+});
+//---
+fullscreen_switch = $('#button_fullscreen');
+if(document.fullscreenEnabled)
+{
+    fullscreen_switch.show();
+    svg_fs_on=`<path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>`;
+    $('#svg_fullscreen').html(svg_fs_on);
+
+    addEventListener("fullscreenchange", () => {
+        $('#svg_fullscreen').html(
+            document.fullscreenElement?
+            `<path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 1a1.5 1.5 0 0 1 1.5-1.5h4a.5.5 0 0 1 0 1h-4a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4z"/>`:
+            svg_fs_on
+        );
+        $('#svg_fullscreen').attr("data-original-title",
+            document.fullscreenElement? "exit fullscreen":"fullscreen"
+        );
+    });
+
+    fullscreen_switch.click( ()=>{	
+        if(!document.fullscreenElement)
+            document.documentElement.requestFullscreen({navigationUI: "hide"});
+        else
+            document.exitFullscreen();            
+    });
+}
+else
+{
+    fullscreen_switch.hide();
+}
 //------
 
 $('.layer').change( function(event) {
@@ -2155,7 +2275,7 @@ $('.layer').change( function(event) {
             running = true;
 
         }
-        
+        check_wake_lock(); 
         //document.getElementById('canvas').focus();
     });
 

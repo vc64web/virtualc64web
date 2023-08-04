@@ -2228,15 +2228,19 @@ $('.layer').change( function(event) {
             $("#output_row").hide();
         }
     });
-    
-    /*document.getElementById('button_fullscreen').onclick = function() {
-        if (wasm_toggleFullscreen != null) {
-            wasm_toggleFullscreen();
+//---    
+    $('#modal_reset').keydown(event => {
+        if(event.key === "Enter")
+        {
+            $( "#button_reset_confirmed" ).click();                        
         }
-        document.getElementById('canvas').focus();
+        return true;
     }
-    */
+    );
     document.getElementById('button_reset').onclick = function() {
+        $("#modal_reset").modal('show');
+    }
+    document.getElementById('button_reset_confirmed').onclick = function() {
         wasm_reset();
         reset_keyboard();
 
@@ -2244,10 +2248,9 @@ $('.layer').change( function(event) {
         {
             $("#button_run").click();
         }
-        //document.getElementById('canvas').focus();
-        //alert('reset');
+        $("#modal_reset").modal('hide');
     }
-
+//---
     running=true;
     emulator_currently_runs=false;
     $("#button_run").click(function() {

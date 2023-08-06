@@ -938,7 +938,8 @@ function keydown(e) {
 
     for(action_button of custom_keys)
     {
-        if(action_button.key == e.key)
+        if(action_button.key == e.key /* e.key only for legacy custom keys*/   
+           || action_button.key == e.code)
         {
             let running_script=get_running_script(action_button.id);                    
             if(running_script.running == false)
@@ -2841,11 +2842,36 @@ $('.layer').change( function(event) {
             set_complete_label();
             editor.focus();
         });
-            
 
+        short_cut_input = document.getElementById('input_button_shortcut');
+        button_delete_shortcut=$("#button_delete_shortcut");
+        short_cut_input.addEventListener(
+            'keydown',
+            (e)=>{
+                e.preventDefault();
+                e.stopPropagation();
+                short_cut_input.value=e.code;
+                button_delete_shortcut.addClass("active");
+            }
+        );
+        short_cut_input.addEventListener(
+            'keyup',
+            (e)=>{
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        );        
+        button_delete_shortcut.click(()=>{
+            
+            short_cut_input.value='';
+            button_delete_shortcut.removeClass("active");
+        });
 
         $('#modal_custom_key').on('show.bs.modal', function () {
+          bind_custom_key();    
+        });
 
+        bind_custom_key = function () {
             $('#choose_padding a').click(function () 
             {
                  $('#button_padding').text('size = '+ $(this).text() ); 
@@ -2868,10 +2894,55 @@ $('.layer').change( function(event) {
                 editor.focus();
             });
 
+
+            let otherButtons="";
+            if(!create_new_custom_key){
+                otherButtons+=`<a class="dropdown-item" href="#">&lt;new&gt;</a>`;
+            }
+            for(let otherBtn of custom_keys)
+            {
+                otherButtons+=`<a class="dropdown-item" href="#">${otherBtn.title}</a>`;
+            }
+            
+
+            $("#other_buttons").html(`
+         <div class="dropdown">
+            <button id="button_other_action" class="ml-4 py-0 btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              list
+            </button>
+            <div id="choose_action" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+             ${otherButtons}
+            </div>
+          </div>`);
+
+          $('#choose_action a').click(function () 
+          {
+            let selected_title = $(this).text();
+            if(selected_title=="<new>")
+                create_new_custom_key=true;
+            else
+            {
+                create_new_custom_key=false;
+                var btn_def = custom_keys.find(el=> el.title == selected_title);
+                haptic_touch_selected= {id: 'ck'+btn_def.id};
+            }
+            bind_custom_key();
+
+//            editor.getDoc().setValue(btn_def.script);
+            //$('#input_action_script').val(action_script_val);
+            //editor.focus();
+ //           validate_action_script();
+
+          });
             if(create_new_custom_key)
             {
                 $('#button_delete_custom_button').hide();
                 $('#check_app_scope').prop('checked',true);
+                $('#input_button_text').val('');
+                $('#input_button_shortcut').val('');
+
+                $('#input_action_script').val('');
+                if(typeof(editor) !== 'undefined') editor.getDoc().setValue("");
             }
             else
             {
@@ -2880,6 +2951,8 @@ $('.layer').change( function(event) {
                 set_script_language(btn_def.lang);
                 $('#input_button_text').val(btn_def.title);
                 $('#input_button_shortcut').val(btn_def.key);
+                if(btn_def.key != "")
+                    button_delete_shortcut.addClass("active");
                 let padding = btn_def.padding == undefined ? 'default':btn_def.padding ;
                 $('#button_padding').text('size = '+ padding );
                 let opacity = btn_def.opacity == undefined ? 'default':btn_def.opacity ;
@@ -2887,6 +2960,7 @@ $('.layer').change( function(event) {
                 
                 $('#check_app_scope').prop('checked',btn_def.app_scope);
                 $('#input_action_script').val(btn_def.script);
+                if(typeof(editor) !== 'undefined') editor.getDoc().setValue(btn_def.script);
 
                 $('#button_delete_custom_button').show();
 
@@ -3032,7 +3106,7 @@ release_key('ControlLeft');`;
                     validate_action_script();
                 }
             );
-        });
+        };
 
         turn_on_full_editor = ()=>{
             require.config(

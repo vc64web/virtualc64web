@@ -704,8 +704,8 @@ The operators or creators of external web resources are soley responsible for th
     <div class="modal fade" id="modal_custom_key" tabindex="-1" role="dialog" aria-labelledby="custom_key_ModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title" id="custom_key_ModalLabel">define an action button</h5>
+          <div class="modal-header pb-0">
+            <h5 class="modal-title" id="custom_key_ModalLabel">define the action</h5>
             <div style="display:flex">
               <div id="other_buttons"></div>
               <button type="button" class="close" data-dismiss="modal" aria-label="Close">
@@ -713,27 +713,23 @@ The operators or creators of external web resources are soley responsible for th
               </button>
             </div>
           </div>
-          <div class="modal-body">
-            This is the place where you can create app or game specific customized overlay buttons with free positioning ...                
-              <div class="mt-2 w-75">
+          <div class="modal-body pt-0">
+            <i>create app or game specific keyboard mappings or customized overlay buttons with free positioning that trigger your defined action.</i>
+            
+            <div class="mt-4 w-100">
                   label of the action button<br>
+                  <div class="input-group mb-3">
                   <input id="input_button_text" required pattern="^.+$" placeholder="try to use emojis 😊 as icons" type="text" class="form-control" aria-label="action script" aria-describedby="inputGroup-sizing-default">
-                  <div id="input_button_text_error" class="invalid-feedback">you are missing text here</div>
-              </div>
-              <div class="mt-2 w-50">
-                optional keyboard mapping (shortcut)<br>
-                <div class="input-group mb-3">
-                  <input id="input_button_shortcut" placeholder="(optional)" type="text" class="form-control ml-1" style="width:8em;margin-left: 0 !important;" aria-label="action script" aria-describedby="inputGroup-sizing-default">
                   <div class="input-group-append">
-                    <button id="button_delete_shortcut" class="input-group-text" id="inputGroup-sizing-default">×</button>
-                  </div>                  
+                    <button id="button_reset_position" class="input-group-text" id="inputGroup-sizing-default">reset position</button>
+                  </div>
+                  <div id="input_button_text_error" class="invalid-feedback">you are missing text here</div>
                 </div>
-              </div>
-
+            </div>
             <div class="mt-3" style="display:flex;justify-content:flex-start;width:100%">
               <div class="dropdown">
                 <button id="button_padding" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  size = default
+                  button size = default
                 </button>
                 <div id="choose_padding" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
                   <a class="dropdown-item" href="#">default</a>
@@ -751,7 +747,7 @@ The operators or creators of external web resources are soley responsible for th
               </div> 
               <div class="dropdown">
                 <button id="button_opacity" class="ml-4 btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  opacity = default
+                  button opacity = default
                 </button>
                 <div id="choose_opacity" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
                   <a class="dropdown-item" href="#">default</a>
@@ -768,8 +764,15 @@ The operators or creators of external web resources are soley responsible for th
                 </div>
               </div>
             </div>
-
-            <br>
+            <div class="mt-4 w-100">
+              optional keyboard mapping (shortcut)<br>
+              <div class="input-group mb-3">
+                <input id="input_button_shortcut" placeholder="(optional)" type="text" class="form-control ml-1" style="width:8em;margin-left: 0 !important;" aria-label="action script" aria-describedby="inputGroup-sizing-default">
+                <div class="input-group-append">
+                  <button id="button_delete_shortcut" class="input-group-text" id="inputGroup-sizing-default">×</button>
+                </div>                  
+              </div>
+            </div>
             app scope
             <div class="custom-control-lg custom-control custom-checkbox">
               <input id="check_app_scope" class="custom-control-input" type="checkbox" value="">

@@ -96,6 +96,11 @@ function FromBase64(str) {
     return atob(str).split('').map(function (c) { return c.charCodeAt(0); });
 }
 
+function html_encode(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;').replace(/"/g, '&#34;');
+}
+
+
 function get_parameter_link()
 {
     let parameter_link=null;
@@ -2894,14 +2899,13 @@ $('.layer').change( function(event) {
                 editor.focus();
             });
 
-
             let otherButtons="";
             if(!create_new_custom_key){
                 otherButtons+=`<a class="dropdown-item" href="#">&lt;new&gt;</a>`;
             }
             for(let otherBtn of custom_keys)
             {
-                otherButtons+=`<a class="dropdown-item" href="#">${otherBtn.title}</a>`;
+                otherButtons+=`<a class="dropdown-item" href="#">${html_encode(otherBtn.title)}</a>`;
             }
             
 
@@ -2927,12 +2931,7 @@ $('.layer').change( function(event) {
                 haptic_touch_selected= {id: 'ck'+btn_def.id};
             }
             bind_custom_key();
-
-//            editor.getDoc().setValue(btn_def.script);
-            //$('#input_action_script').val(action_script_val);
-            //editor.focus();
- //           validate_action_script();
-
+            validate_custom_key();
           });
             if(create_new_custom_key)
             {
@@ -2943,16 +2942,22 @@ $('.layer').change( function(event) {
 
                 $('#input_action_script').val('');
                 if(typeof(editor) !== 'undefined') editor.getDoc().setValue("");
+                $('#button_reset_position').removeClass("active");
+                button_delete_shortcut.removeClass("active");
             }
             else
             {
                 var btn_def = custom_keys.find(el=> ('ck'+el.id) == haptic_touch_selected.id);
 
+                if(btn_def.currentX==0 && btn_def.currentY==0)
+                    $('#button_reset_position').removeClass("active");
+                else
+                    $('#button_reset_position').addClass("active");
+
                 set_script_language(btn_def.lang);
                 $('#input_button_text').val(btn_def.title);
                 $('#input_button_shortcut').val(btn_def.key);
-                if(btn_def.key != "")
-                    button_delete_shortcut.addClass("active");
+                
                 let padding = btn_def.padding == undefined ? 'default':btn_def.padding ;
                 $('#button_padding').text('size = '+ padding );
                 let opacity = btn_def.opacity == undefined ? 'default':btn_def.opacity ;
@@ -2963,6 +2968,11 @@ $('.layer').change( function(event) {
                 if(typeof(editor) !== 'undefined') editor.getDoc().setValue(btn_def.script);
 
                 $('#button_delete_custom_button').show();
+
+                if(btn_def.key == "")
+                    button_delete_shortcut.removeClass("active");
+                else
+                    button_delete_shortcut.addClass("active");
 
                 //show errors
                 validate_action_script();
@@ -3237,6 +3247,21 @@ release_key('ControlLeft');`;
         $('#input_button_text').keyup( function () {validate_custom_key(); return true;} );
         $('#input_action_script').keyup( function () {validate_action_script(); return true;} );
 
+
+        $('#button_reset_position').click(function(e) 
+        {
+            var btn_def = custom_keys.find(el=> ('ck'+el.id) == haptic_touch_selected.id);
+            if(btn_def != null)
+            {
+                btn_def.currentX=0;
+                btn_def.currentY=0;
+                btn_def.position= "top:50%;left:50%";
+                install_custom_keys();
+                $('#button_reset_position').removeClass("active");
+                save_custom_buttons(global_apptitle, custom_keys);
+            }
+        });
+
         $('#button_save_custom_button').click(async function(e) 
         {
             editor.save();
@@ -3369,7 +3394,7 @@ release_key('ControlLeft');`;
             }
 
 
-            btn_html += 'touch-action:none">'+element.title+'</button>';
+            btn_html += 'touch-action:none">'+html_encode(element.title)+'</button>';
 
             $('#div_canvas').append(btn_html);
             action_scripts["ck"+element.id] = element.script;

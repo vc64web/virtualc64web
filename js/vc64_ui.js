@@ -2879,11 +2879,11 @@ $('.layer').change( function(event) {
         bind_custom_key = function () {
             $('#choose_padding a').click(function () 
             {
-                 $('#button_padding').text('size = '+ $(this).text() ); 
+                 $('#button_padding').text('btn size = '+ $(this).text() ); 
             });
             $('#choose_opacity a').click(function () 
             {
-                 $('#button_opacity').text('opacity = '+ $(this).text() ); 
+                 $('#button_opacity').text('btn opacity = '+ $(this).text() ); 
             });
 
             function set_script_language(script_language) {
@@ -2959,9 +2959,9 @@ $('.layer').change( function(event) {
                 $('#input_button_shortcut').val(btn_def.key);
                 
                 let padding = btn_def.padding == undefined ? 'default':btn_def.padding ;
-                $('#button_padding').text('size = '+ padding );
+                $('#button_padding').text('btn size = '+ padding );
                 let opacity = btn_def.opacity == undefined ? 'default':btn_def.opacity ;
-                $('#button_opacity').text('opacity = '+ opacity);
+                $('#button_opacity').text('btn opacity = '+ opacity);
                 
                 $('#check_app_scope').prop('checked',btn_def.app_scope);
                 $('#input_action_script').val(btn_def.script);

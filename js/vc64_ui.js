@@ -1591,7 +1591,14 @@ function InitWrappers() {
     //when app becomes hidden/visible
     window.addEventListener("visibilitychange", async () => {
         if(document.visibilityState == "hidden") {
-            try { audioContext.suspend(); } catch(e){ console.error(e);}
+            console.log("visibility=hidden");
+            let is_full_screen=document.fullscreenElement!=null;
+            console.log("fullscreen="+is_full_screen);
+            if(!is_full_screen)
+            {//safari bug: goes visible=hidden when entering fullscreen
+             //in that case don't disable the audio 
+                try { audioContext.suspend(); } catch(e){ console.error(e);}
+            }
         }
         else
         {

@@ -2863,7 +2863,7 @@ $('.layer').change( function(event) {
                 e.preventDefault();
                 e.stopPropagation();
                 short_cut_input.value=e.code;
-                button_delete_shortcut.addClass("active");
+                button_delete_shortcut.prop('disabled', false);
             }
         );
         short_cut_input.addEventListener(
@@ -2872,11 +2872,19 @@ $('.layer').change( function(event) {
                 e.preventDefault();
                 e.stopPropagation();
             }
-        );        
+        );
+        short_cut_input.addEventListener(
+            'blur',
+            (e)=>{
+                e.preventDefault();
+                e.stopPropagation();
+                short_cut_input.value=short_cut_input.value.replace('^','');
+            }
+        );
         button_delete_shortcut.click(()=>{
             
             short_cut_input.value='';
-            button_delete_shortcut.removeClass("active");
+            button_delete_shortcut.prop('disabled', true);
         });
 
         $('#modal_custom_key').on('show.bs.modal', function () {
@@ -2926,20 +2934,21 @@ $('.layer').change( function(event) {
             </div>
           </div>`);
 
-          $('#choose_action a').click(function () 
-          {
-            let selected_title = $(this).text();
-            if(selected_title=="<new>")
-                create_new_custom_key=true;
-            else
+            $('#choose_action a').click(function () 
             {
-                create_new_custom_key=false;
-                var btn_def = custom_keys.find(el=> el.title == selected_title);
-                haptic_touch_selected= {id: 'ck'+btn_def.id};
-            }
-            bind_custom_key();
-            validate_custom_key();
-          });
+                let selected_title = $(this).text();
+                if(selected_title=="<new>")
+                    create_new_custom_key=true;
+                else
+                {
+                    create_new_custom_key=false;
+                    var btn_def = custom_keys.find(el=> el.title == selected_title);
+                    haptic_touch_selected= {id: 'ck'+btn_def.id};
+                }
+                bind_custom_key();
+                validate_custom_key();
+            });
+
             if(create_new_custom_key)
             {
                 $('#button_delete_custom_button').hide();
@@ -2949,18 +2958,15 @@ $('.layer').change( function(event) {
 
                 $('#input_action_script').val('');
                 if(typeof(editor) !== 'undefined') editor.getDoc().setValue("");
-                $('#button_reset_position').removeClass("active");
-                button_delete_shortcut.removeClass("active");
+                $('#button_reset_position').prop('disabled', true);
+                button_delete_shortcut.prop('disabled', true);
             }
             else
             {
                 var btn_def = custom_keys.find(el=> ('ck'+el.id) == haptic_touch_selected.id);
 
-                if(btn_def.currentX==0 && btn_def.currentY==0)
-                    $('#button_reset_position').removeClass("active");
-                else
-                    $('#button_reset_position').addClass("active");
-
+                $('#button_reset_position').prop('disabled', btn_def.currentX==0 && btn_def.currentY==0);
+     
                 set_script_language(btn_def.lang);
                 $('#input_button_text').val(btn_def.title);
                 $('#input_button_shortcut').val(btn_def.key);
@@ -2975,11 +2981,8 @@ $('.layer').change( function(event) {
                 if(typeof(editor) !== 'undefined') editor.getDoc().setValue(btn_def.script);
 
                 $('#button_delete_custom_button').show();
-
-                if(btn_def.key == "")
-                    button_delete_shortcut.removeClass("active");
-                else
-                    button_delete_shortcut.addClass("active");
+                
+                button_delete_shortcut.prop('disabled',btn_def.key == "");
 
                 //show errors
                 validate_action_script();
@@ -3264,7 +3267,7 @@ release_key('ControlLeft');`;
                 btn_def.currentY=0;
                 btn_def.position= "top:50%;left:50%";
                 install_custom_keys();
-                $('#button_reset_position').removeClass("active");
+                $('#button_reset_position').prop('disabled',true);
                 save_custom_buttons(global_apptitle, custom_keys);
             }
         });

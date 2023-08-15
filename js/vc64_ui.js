@@ -926,7 +926,18 @@ function is_any_text_input_active()
     }
     return active;
 }
-
+function serialize_key_code(e){
+    let mods = ""; let code = e.code;
+    if(e.altKey && !code.startsWith('Alt'))
+        mods+="Alt+";
+    if(e.metaKey && !code.startsWith('Meta'))
+        mods+="Meta+";
+    if(e.shiftKey && !code.startsWith('Shift'))
+        mods+="Shift+";
+    if(e.ctrlKey && !code.startsWith('Control'))
+        mods+="Ctrl+";
+    return mods+code;
+}
 var shift_pressed_state=false;
 function keydown(e) {
     if(is_any_text_input_active())
@@ -941,10 +952,21 @@ function keydown(e) {
       return;
     }
 
+    if(port1=='keys'||port2=='keys')
+    {
+        var joystick_cmd = joystick_keydown_map[e.code];
+        if(joystick_cmd !== undefined)
+        {
+            emit_joystick_cmd((port1=='keys'?'1':'2')+joystick_cmd);
+            return;
+        }
+    }
+
+    let serialized_code=serialize_key_code(e);
     for(action_button of custom_keys)
     {
         if(action_button.key == e.key /* e.key only for legacy custom keys*/   
-           || action_button.key == e.code)
+           || action_button.key == serialized_code)
         {
             let running_script=get_running_script(action_button.id);                    
             if(running_script.running == false)
@@ -952,16 +974,6 @@ function keydown(e) {
                 running_script.action_button_released = false;
             }
             execute_script(action_button.id, action_button.lang, action_button.script);
-            return;
-        }
-    }
-
-    if(port1=='keys'||port2=='keys')
-    {
-        var joystick_cmd = joystick_keydown_map[e.code];
-        if(joystick_cmd !== undefined)
-        {
-            emit_joystick_cmd((port1=='keys'?'1':'2')+joystick_cmd);
             return;
         }
     }
@@ -1000,9 +1012,11 @@ function keyup(e) {
 
     e.preventDefault();
 
+    let serialized_code=serialize_key_code(e);
     for(action_button of custom_keys)
     {
-        if(action_button.key == e.key)
+        if(action_button.key == e.key /* e.key only for legacy custom keys*/   
+           || action_button.key == serialized_code)
         {
             get_running_script(action_button.id).action_button_released = true;
             return;
@@ -2862,7 +2876,7 @@ $('.layer').change( function(event) {
             (e)=>{
                 e.preventDefault();
                 e.stopPropagation();
-                short_cut_input.value=e.code;
+                short_cut_input.value=serialize_key_code(e);
                 button_delete_shortcut.prop('disabled', false);
             }
         );
@@ -2878,7 +2892,7 @@ $('.layer').change( function(event) {
             (e)=>{
                 e.preventDefault();
                 e.stopPropagation();
-                short_cut_input.value=short_cut_input.value.replace('^','');
+                short_cut_input.value=short_cut_input.value.replace('^','').replace('^','');
             }
         );
         button_delete_shortcut.click(()=>{

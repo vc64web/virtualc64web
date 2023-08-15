@@ -1012,17 +1012,6 @@ function keyup(e) {
 
     e.preventDefault();
 
-    let serialized_code=serialize_key_code(e);
-    for(action_button of custom_keys)
-    {
-        if(action_button.key == e.key /* e.key only for legacy custom keys*/   
-           || action_button.key == serialized_code)
-        {
-            get_running_script(action_button.id).action_button_released = true;
-            return;
-        }
-    }
-
     if(port1=='keys'||port2=='keys')
     {
         var joystick_cmd = joystick_keyup_map[e.code];
@@ -1039,6 +1028,17 @@ function keyup(e) {
             {
                 emit_joystick_cmd(port_id+joystick_cmd);
             }
+            return;
+        }
+    }
+
+    let serialized_code=serialize_key_code(e);
+    for(action_button of custom_keys)
+    {
+        if(action_button.key == e.key /* e.key only for legacy custom keys*/   
+           || action_button.key == serialized_code)
+        {
+            get_running_script(action_button.id).action_button_released = true;
             return;
         }
     }

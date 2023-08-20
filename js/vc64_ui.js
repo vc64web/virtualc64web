@@ -2941,7 +2941,7 @@ $('.layer').change( function(event) {
                 let key_display="";
                 for(key of keys)
                 {
-                    key_display+=`<div class="px-1" style="border-radius: 0.25em;margin-left:0.3em;background-color: var(--gray);">
+                    key_display+=`<div class="px-1" style="border-radius: 0.25em;margin-left:0.3em;background-color: var(--gray);color: white">
                     ${html_encode(key)}
                     </div>`;
                 }

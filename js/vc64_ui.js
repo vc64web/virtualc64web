@@ -437,7 +437,7 @@ function message_handler(msg, data)
             floppy_step_count++;
             if(floppy_has_disk||floppy_step_count>1)
             { 
-                play_sound(audio_df_step);   
+                play_sound(audio_df_step);
                $("#drop_zone").html(`drv${data&0xff} ${((data>>8)&0xFF).toString().padStart(2, '0')}`);
             }
         }    
@@ -1084,6 +1084,7 @@ function keyup(e) {
 timestampjoy1 = null;
 timestampjoy2 = null;
 last_touch_cmd = null;
+last_touch_fire= null;
 /* callback for wasm mainsdl.cpp */
 function draw_one_frame()
 {
@@ -1157,13 +1158,20 @@ function handle_touch(portnr)
             new_touch_cmd_y ="RELEASE_Y";
         }
         var new_fire = (v_fire._pressed?"PRESS_FIRE":"RELEASE_FIRE");
-        var new_touch_cmd = portnr + new_touch_cmd_x + new_touch_cmd_y + new_fire;
+        var new_touch_cmd = portnr + new_touch_cmd_x + new_touch_cmd_y;
         if( last_touch_cmd != new_touch_cmd)
         {
             last_touch_cmd = new_touch_cmd;
             emit_joystick_cmd(portnr+new_touch_cmd_x);
             emit_joystick_cmd(portnr+new_touch_cmd_y);
-            emit_joystick_cmd(portnr+new_fire);
+            //play_sound(audio_df_step);
+            v_joystick.redraw_base();
+        }
+        var new_touch_fire = portnr + new_fire;
+        if( last_touch_fire != new_touch_fire)
+        {
+            last_touch_fire = new_touch_fire;
+            emit_joystick_cmd(new_touch_fire);
         }
     } catch (error) {
         console.error("error while handle_touch: "+ error);        
@@ -1632,11 +1640,17 @@ function InitWrappers() {
     //when app is going to background
     window.addEventListener('blur', ()=>{
         Module._wasm_keyboard_reset();
+        //reset touch on virtual joystick
+        if(v_joystick !==null) v_joystick._touchIdx=null;
+        if(v_fire !==null) v_fire._touchIdx=null;
     });
 
     //when app is coming to foreground again
     window.addEventListener('focus', async ()=>{ 
         Module._wasm_keyboard_reset();
+        //reset touch on virtual joystick
+        if(v_joystick !==null) v_joystick._touchIdx=null;
+        if(v_fire !==null) v_fire._touchIdx=null;
     });
     
 
@@ -1927,6 +1941,15 @@ function InitWrappers() {
         lock_action_button=this.checked;
         install_custom_keys();
         save_setting('lock_action_button', lock_action_button);
+    });
+//----
+
+    fixed_touch_joystick_base_switch = $('#fixed_touch_joystick_base_switch');
+    fixed_touch_joystick_base=load_setting('fixed_touch_joystick_base', false);
+    fixed_touch_joystick_base_switch.prop('checked', fixed_touch_joystick_base);
+    fixed_touch_joystick_base_switch.change( function() {
+        fixed_touch_joystick_base=this.checked;
+        save_setting('fixed_touch_joystick_base', fixed_touch_joystick_base);
     });
 
 //---
@@ -3749,7 +3772,7 @@ function scaleVMCanvas() {
     {
         v_joystick	= new VirtualJoystick({
             container	: document.getElementById('div_canvas'),
-            mouseSupport	: true,
+            mouseSupport	: false,
             strokeStyle	: 'white',
             limitStickTravel: true
         });
@@ -3764,7 +3787,7 @@ function scaleVMCanvas() {
             strokeStyle	: 'red',
             limitStickTravel: true,
             stickRadius	: 0,
-            mouseSupport	: true		
+            mouseSupport	: false		
         });
         v_fire.addEventListener('touchStartValidation', function(event){
             var touch	= event.changedTouches[0];

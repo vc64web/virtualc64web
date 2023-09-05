@@ -11,8 +11,6 @@ var VirtualJoystick	= function(opts)
 	this._baseY		= this._stickY = opts.baseY || 0
 	this._limitStickTravel	= opts.limitStickTravel || false
 	this._stickRadius	= opts.stickRadius !== undefined ? opts.stickRadius : 100
-	this._useCssTransform	= opts.useCssTransform !== undefined ? opts.useCssTransform : false
-
 	//this._container.style.position	= "relative"
 
 	this._container.appendChild(this._baseEl)
@@ -30,10 +28,7 @@ var VirtualJoystick	= function(opts)
 		this._baseEl.style.left		= (this._baseX - this._baseEl.width /2)+"px";
 		this._baseEl.style.top		= (this._baseY - this._baseEl.height/2)+"px";
 	}
-    
-	this._transform	= this._useCssTransform ? this._getTransformProperty() : false;
-	this._has3d	= this._check3D();
-	
+    	
 	var __bind	= function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 	this._$onTouchStart	= __bind(this._onTouchStart	, this);
 	this._$onTouchEnd	= __bind(this._onTouchEnd	, this);
@@ -207,13 +202,17 @@ VirtualJoystick.prototype._onMove	= function(x, y)
 			} 		
 
 			//vc64web patch start let the base move too, when innercircle collides with outercircle 
-			var base_radius = this._baseEl.width /2;
-			if(stickDistance >= base_radius/2){
-				this._baseX	= this._stickX - ((this._stickX - this._baseX)/stickDistance)*base_radius/2; 
-				this._baseY	= this._stickY - ((this._stickY - this._baseY)/stickDistance)*base_radius/2;
-				this._baseEl.style.display	= "";
-				this._move(this._baseEl.style, (this._baseX - base_radius), (this._baseY - base_radius));	
-			} 
+			//if(!fixed_touch_joystick_base)
+			{
+				var base_radius = this._baseEl.width /2;
+				if(stickDistance >= base_radius/2){
+					this._baseX	= this._stickX - ((this._stickX - this._baseX)/stickDistance)*base_radius/2; 
+					this._baseY	= this._stickY - ((this._stickY - this._baseY)/stickDistance)*base_radius/2;
+					this._baseEl.style.display	= "";
+					if(!fixed_touch_joystick_base)
+						this._move(this._baseEl.style, (this._baseX - base_radius), (this._baseY - base_radius));	
+				}
+			}
 			//vc64web patch end
 		}
 		
@@ -330,23 +329,103 @@ VirtualJoystick.prototype._onTouchMove	= function(event)
 VirtualJoystick.prototype._buildJoystickBase	= function()
 {
 	var canvas	= document.createElement( 'canvas' );
-	canvas.width	= 126;
-	canvas.height	= 126;
-	
-	var ctx		= canvas.getContext('2d');
-	ctx.beginPath(); 
-	ctx.strokeStyle = this._strokeStyle; 
-	ctx.lineWidth	= 2; 
-	ctx.arc( canvas.width/2, canvas.width/2, 40, 0, Math.PI*2, true); 
-	ctx.stroke();	
-
-	ctx.beginPath(); 
-	ctx.strokeStyle	= this._strokeStyle; 
-	ctx.lineWidth	= 1; 
-	ctx.arc( canvas.width/2, canvas.width/2, 60, 0, Math.PI*2, true); 
-	ctx.stroke();
-	
+	canvas.width	= 135;
+	canvas.height	= 135;
+	this._drawJoystickBase(canvas);	
 	return canvas;
+}
+
+VirtualJoystick.prototype._drawJoystickBase	= function(canvas)
+{
+	var ctx		= canvas.getContext('2d');	
+	if(this._strokeStyle=='white')
+	{
+		ctx.beginPath();
+		ctx.strokeStyle="rgba(80, 80, 80, 0.5)";
+		ctx.lineWidth	= 26; 
+		ctx.arc(135/2, 135/2, 55, 0, 2*Math.PI);
+		ctx.stroke();
+		
+		ctx.globalCompositeOperation = "destination-out";
+		ctx.lineWidth	= 1; 
+		let path = new Path2D();
+		path.moveTo(5,0);
+		path.lineTo(135,135-5);
+		path.lineTo(135-5,135);
+		path.lineTo(0,5);
+		path.lineTo(5,0);
+		path.moveTo(135-5,0);
+		path.lineTo(0,135-5);
+		path.lineTo(5,135);
+		path.lineTo(135,5);
+		path.lineTo(135-55,0);
+		
+		ctx.fillStyle="rgba(0, 0, 0, 1.0)";
+		ctx.fill(path);	
+		ctx.globalCompositeOperation = 'source-over';
+	}
+	else
+	{
+		ctx.beginPath();
+		ctx.strokeStyle="rgba(255, 0, 0, 0.25)";
+		ctx.lineWidth	= 26; 
+		ctx.arc(135/2, 135/2, 48, 0, 2*Math.PI);
+		ctx.stroke();
+	}
+}
+stick_count=0;
+VirtualJoystick.prototype.redraw_base= function()
+{
+	if(this._strokeStyle=='white')
+	{
+		let ctx=this._baseEl.getContext('2d');	
+		ctx.clearRect(0,0,this._baseEl.width,this._baseEl.height);
+		this._drawJoystickBase(this._baseEl);
+
+		ctx.strokeStyle = this._strokeStyle; 
+		let width=this._baseEl.width;
+		let height=this._baseEl.height;
+		let m=width/2;
+		let w=8;
+		let h=8;
+		let border=10;
+
+		ctx.fillStyle="white"
+		ctx.lineWidth=3;
+
+		ctx.beginPath();
+
+		if(this.up())
+		{
+			ctx.moveTo(m,border);
+			ctx.lineTo(m+w,border+h);
+			ctx.moveTo(m-w,border+h);
+			ctx.lineTo(m,border);
+		}
+		else if(this.down())
+		{
+			ctx.moveTo(m,height-border);
+			ctx.lineTo(m+w,height-border-h);
+			ctx.moveTo(m-w,height-border-h);
+			ctx.lineTo(m,height-border);
+		}
+		if(this.left())
+		{
+			ctx.moveTo(border,m);
+			ctx.lineTo(border+h,m+w);
+			ctx.moveTo(border+h,m-w);
+			ctx.lineTo(border,m);
+		} 
+		else if(this.right())
+		{
+			ctx.moveTo(width-border,m);
+			ctx.lineTo(width-border-h,m+w);
+			ctx.moveTo(width-border-h,m-w);
+			ctx.lineTo(width-border,m);
+		}
+		ctx.stroke();
+
+	}
 }
 
 /**
@@ -358,75 +437,22 @@ VirtualJoystick.prototype._buildJoystickStick	= function()
 	canvas.width	= 86;
 	canvas.height	= 86;
 	var ctx		= canvas.getContext('2d');
-	ctx.beginPath(); 
-	ctx.strokeStyle	= this._strokeStyle; 
-	ctx.lineWidth	= 2; 
-	ctx.arc( canvas.width/2, canvas.width/2, 40, 0, Math.PI*2, true); 
-	ctx.stroke();
+	
+	if(this._strokeStyle=='white')
+	{
+		ctx.beginPath(); 
+		ctx.strokeStyle	= "rgba(180,180,180,0.2)"//this._strokeStyle; 
+		ctx.lineWidth	= 10; 
+		ctx.arc( canvas.width/2, canvas.width/2, 34, 0, Math.PI*2, true); 
+		ctx.stroke();
+	}
+	else
+	{
+	}
 	return canvas;
 }
 
-//////////////////////////////////////////////////////////////////////////////////
-//		move using translate3d method with fallback to translate > 'top' and 'left'		
-//      modified from https://github.com/component/translate and dependents
-//////////////////////////////////////////////////////////////////////////////////
-
 VirtualJoystick.prototype._move = function(style, x, y)
 {
-  if (this._transform) {
-    if (this._has3d) {
-      style[this._transform] = 'translate3d(' + x + 'px,' + y + 'px, 0)';
-    } else {
-      style[this._transform] = 'translate(' + x + 'px,' + y + 'px)';
-    }
-  } else {
-    style.left = x + 'px';
-    style.top = y + 'px';
-  }
-}
-
-VirtualJoystick.prototype._getTransformProperty = function() 
-{
-    var styles = [
-      'webkitTransform',
-      'MozTransform',
-      'msTransform',
-      'OTransform',
-      'transform'
-    ];
-    
-    var el = document.createElement('p');
-    var style;
-    
-    for (var i = 0; i < styles.length; i++) {
-      style = styles[i];
-      if (null != el.style[style]) {
-        return style;
-        break;
-      }
-    }         
-}
-  
-VirtualJoystick.prototype._check3D = function() 
-{        
-    var prop = this._getTransformProperty();
-    // IE8<= doesn't have `getComputedStyle`
-    if (!prop || !window.getComputedStyle) return module.exports = false;
-    
-    var map = {
-      webkitTransform: '-webkit-transform',
-      OTransform: '-o-transform',
-      msTransform: '-ms-transform',
-      MozTransform: '-moz-transform',
-      transform: 'transform'
-    };
-    
-    // from: https://gist.github.com/lorenzopolidori/3794226
-    var el = document.createElement('div');
-    el.style[prop] = 'translate3d(1px,1px,1px)';
-    document.body.insertBefore(el, null);
-    var val = getComputedStyle(el).getPropertyValue(map[prop]);
-    document.body.removeChild(el);
-    var exports = null != val && val.length && 'none' != val;
-    return exports;
+	style["transform"] = 'translate3d(' + x + 'px,' + y + 'px, 0)';
 }

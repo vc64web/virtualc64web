@@ -373,8 +373,8 @@ VirtualJoystick.prototype._drawJoystickBase	= function(canvas)
 		ctx.stroke();
 	}
 }
-stick_count=0;
-VirtualJoystick.prototype.redraw_base= function()
+
+VirtualJoystick.prototype.redraw_base= function(cmd)
 {
 	if(this._strokeStyle=='white')
 	{
@@ -395,28 +395,28 @@ VirtualJoystick.prototype.redraw_base= function()
 
 		ctx.beginPath();
 
-		if(this.up())
+		if(cmd.includes("UP"))
 		{
 			ctx.moveTo(m,border);
 			ctx.lineTo(m+w,border+h);
 			ctx.moveTo(m-w,border+h);
 			ctx.lineTo(m,border);
 		}
-		else if(this.down())
+		else if(cmd.includes("DOWN"))
 		{
 			ctx.moveTo(m,height-border);
 			ctx.lineTo(m+w,height-border-h);
 			ctx.moveTo(m-w,height-border-h);
 			ctx.lineTo(m,height-border);
 		}
-		if(this.left())
+		if(cmd.includes("LEFT"))
 		{
 			ctx.moveTo(border,m);
 			ctx.lineTo(border+h,m+w);
 			ctx.moveTo(border+h,m-w);
 			ctx.lineTo(border,m);
 		} 
-		else if(this.right())
+		else if(cmd.includes("RIGHT"))
 		{
 			ctx.moveTo(width-border,m);
 			ctx.lineTo(width-border-h,m+w);
@@ -424,7 +424,6 @@ VirtualJoystick.prototype.redraw_base= function()
 			ctx.lineTo(width-border,m);
 		}
 		ctx.stroke();
-
 	}
 }
 

@@ -1165,7 +1165,7 @@ function handle_touch(portnr)
             emit_joystick_cmd(portnr+new_touch_cmd_x);
             emit_joystick_cmd(portnr+new_touch_cmd_y);
             //play_sound(audio_df_step);
-            v_joystick.redraw_base();
+            v_joystick.redraw_base(new_touch_cmd);
         }
         var new_touch_fire = portnr + new_fire;
         if( last_touch_fire != new_touch_fire)

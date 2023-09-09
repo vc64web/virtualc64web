@@ -25,6 +25,8 @@ var VirtualJoystick	= function(opts)
 	
 	if(this._stationaryBase === true){
 		this._baseEl.style.display	= "";
+		this._baseX=this._baseEl.width /2;
+		this._baseY=window.innerHeight-this._baseEl.height/2;
 		this._baseEl.style.left		= (this._baseX - this._baseEl.width /2)+"px";
 		this._baseEl.style.top		= (this._baseY - this._baseEl.height/2)+"px";
 	}
@@ -102,38 +104,38 @@ VirtualJoystick.touchScreenAvailable	= function()
 
 VirtualJoystick.prototype.deltaX	= function(){ return this._stickX - this._baseX;	}
 VirtualJoystick.prototype.deltaY	= function(){ return this._stickY - this._baseY;	}
-
+rest_zone=12;
 VirtualJoystick.prototype.up	= function(){
 	if( this._pressed === false )	return false;
-	var deltaX	= this.deltaX();
+	//var deltaX	= this.deltaX();
 	var deltaY	= this.deltaY();
 	if( deltaY >= 0 )				return false;
-	if( Math.abs(deltaX) > 2*Math.abs(deltaY) )	return false;
-	return true;
+	//if( Math.abs(deltaX) > 2*Math.abs(deltaY) )	return false;
+	return Math.abs(deltaY)>rest_zone;
 }
 VirtualJoystick.prototype.down	= function(){
 	if( this._pressed === false )	return false;
-	var deltaX	= this.deltaX();
+	//var deltaX	= this.deltaX();
 	var deltaY	= this.deltaY();
 	if( deltaY <= 0 )				return false;
-	if( Math.abs(deltaX) > 2*Math.abs(deltaY) )	return false;
-	return true;	
+	//if( Math.abs(deltaX) > 2*Math.abs(deltaY) )	return false;
+	return Math.abs(deltaY)>rest_zone;
 }
 VirtualJoystick.prototype.right	= function(){
 	if( this._pressed === false )	return false;
 	var deltaX	= this.deltaX();
-	var deltaY	= this.deltaY();
+	//var deltaY	= this.deltaY();
 	if( deltaX <= 0 )				return false;
-	if( Math.abs(deltaY) > 2*Math.abs(deltaX) )	return false;
-	return true;	
+	//if( Math.abs(deltaY) > 2*Math.abs(deltaX) )	return false;
+	return Math.abs(deltaX)>rest_zone;	
 }
 VirtualJoystick.prototype.left	= function(){
 	if( this._pressed === false )	return false;
 	var deltaX	= this.deltaX();
-	var deltaY	= this.deltaY();
+	//var deltaY	= this.deltaY();
 	if( deltaX >= 0 )				return false;
-	if( Math.abs(deltaY) > 2*Math.abs(deltaX) )	return false;
-	return true;	
+	//if( Math.abs(deltaY) > 2*Math.abs(deltaX) )	return false;
+	return Math.abs(deltaX)>rest_zone;
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -202,9 +204,9 @@ VirtualJoystick.prototype._onMove	= function(x, y)
 			} 		
 
 			//vc64web patch start let the base move too, when innercircle collides with outercircle 
-			//if(!fixed_touch_joystick_base)
+			if(!this._stationaryBase)
 			{
-				var base_radius = this._baseEl.width /2;
+				var base_radius = this._baseEl.width/2;
 				if(stickDistance >= base_radius/2){
 					this._baseX	= this._stickX - ((this._stickX - this._baseX)/stickDistance)*base_radius/2; 
 					this._baseY	= this._stickY - ((this._stickY - this._baseY)/stickDistance)*base_radius/2;
@@ -329,8 +331,8 @@ VirtualJoystick.prototype._onTouchMove	= function(event)
 VirtualJoystick.prototype._buildJoystickBase	= function()
 {
 	var canvas	= document.createElement( 'canvas' );
-	canvas.width	= 135;
-	canvas.height	= 135;
+	canvas.width	= 148;
+	canvas.height	= 148;
 	this._drawJoystickBase(canvas);	
 	return canvas;
 }
@@ -342,23 +344,23 @@ VirtualJoystick.prototype._drawJoystickBase	= function(canvas)
 	{
 		ctx.beginPath();
 		ctx.strokeStyle="rgba(80, 80, 80, 0.5)";
-		ctx.lineWidth	= 26; 
-		ctx.arc(135/2, 135/2, 55, 0, 2*Math.PI);
+		ctx.lineWidth	= 28; 
+		ctx.arc(148/2, 148/2, 60, 0, 2*Math.PI);
 		ctx.stroke();
 		
 		ctx.globalCompositeOperation = "destination-out";
 		ctx.lineWidth	= 1; 
 		let path = new Path2D();
 		path.moveTo(5,0);
-		path.lineTo(135,135-5);
-		path.lineTo(135-5,135);
+		path.lineTo(148,148-5);
+		path.lineTo(148-5,148);
 		path.lineTo(0,5);
 		path.lineTo(5,0);
-		path.moveTo(135-5,0);
-		path.lineTo(0,135-5);
-		path.lineTo(5,135);
-		path.lineTo(135,5);
-		path.lineTo(135-55,0);
+		path.moveTo(148-5,0);
+		path.lineTo(0,148-5);
+		path.lineTo(5,148);
+		path.lineTo(148,5);
+		path.lineTo(148-55,0);
 		
 		ctx.fillStyle="rgba(0, 0, 0, 1.0)";
 		ctx.fill(path);	
@@ -369,7 +371,7 @@ VirtualJoystick.prototype._drawJoystickBase	= function(canvas)
 		ctx.beginPath();
 		ctx.strokeStyle="rgba(255, 0, 0, 0.25)";
 		ctx.lineWidth	= 26; 
-		ctx.arc(135/2, 135/2, 48, 0, 2*Math.PI);
+		ctx.arc(148/2, 148/2, 48, 0, 2*Math.PI);
 		ctx.stroke();
 	}
 }
@@ -433,8 +435,8 @@ VirtualJoystick.prototype.redraw_base= function(cmd)
 VirtualJoystick.prototype._buildJoystickStick	= function()
 {
 	var canvas	= document.createElement( 'canvas' );
-	canvas.width	= 86;
-	canvas.height	= 86;
+	canvas.width	= 92;
+	canvas.height	= 92;
 	var ctx		= canvas.getContext('2d');
 	
 	if(this._strokeStyle=='white')
@@ -442,7 +444,7 @@ VirtualJoystick.prototype._buildJoystickStick	= function()
 		ctx.beginPath(); 
 		ctx.strokeStyle	= "rgba(180,180,180,0.2)"//this._strokeStyle; 
 		ctx.lineWidth	= 10; 
-		ctx.arc( canvas.width/2, canvas.width/2, 34, 0, Math.PI*2, true); 
+		ctx.arc( canvas.width/2, canvas.width/2, 38, 0, Math.PI*2, true); 
 		ctx.stroke();
 	}
 	else

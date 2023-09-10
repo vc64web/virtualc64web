@@ -1641,16 +1641,16 @@ function InitWrappers() {
     window.addEventListener('blur', ()=>{
         Module._wasm_keyboard_reset();
         //reset touch on virtual joystick
-        if(v_joystick !==null) v_joystick._touchIdx=null;
-        if(v_fire !==null) v_fire._touchIdx=null;
+ //       if(v_joystick !==null) v_joystick._touchIdx=null;
+ //       if(v_fire !==null) v_fire._touchIdx=null;
     });
 
     //when app is coming to foreground again
     window.addEventListener('focus', async ()=>{ 
         Module._wasm_keyboard_reset();
         //reset touch on virtual joystick
-        if(v_joystick !==null) v_joystick._touchIdx=null;
-        if(v_fire !==null) v_fire._touchIdx=null;
+//        if(v_joystick !==null) v_joystick._touchIdx=null;
+//        if(v_fire !==null) v_fire._touchIdx=null;
     });
     
 
@@ -1944,17 +1944,6 @@ function InitWrappers() {
     });
 //----
 
-    fixed_touch_joystick_base_switch = $('#fixed_touch_joystick_base_switch');
-    fixed_touch_joystick_base=load_setting('fixed_touch_joystick_base', false);
-    fixed_touch_joystick_base_switch.prop('checked', fixed_touch_joystick_base);
-    fixed_touch_joystick_base_switch.change( function() {
-        fixed_touch_joystick_base=this.checked;
-        save_setting('fixed_touch_joystick_base', fixed_touch_joystick_base);
-    });
-
-//---
-
-
   let set_vbk_choice = function (choice) {
         $(`#button_vbk_touch`).text('keycap touch behaviour='+choice);
         current_vbk_touch=choice;
@@ -1976,7 +1965,78 @@ function InitWrappers() {
         $("#modal_settings").focus();
     });
 //---
+v_joystick=null;
+let set_vjoy_choice = function (choice) {
+    $(`#button_vjoy_touch`).text('positioning='+choice);
+    current_vjoy_touch=choice;
+    
+    let need_re_register=false;
+    if(v_joystick != null)
+    {
+        need_re_register=true;
+        unregister_v_joystick()
+    }
 
+    if(v_joystick != null)
+    {
+        v_joystick._stationaryBase=false;    
+    }
+    if(choice == "base moves")
+    {
+        stationaryBase = false;
+        fixed_touch_joystick_base=false;
+    }
+    else if(choice == "base fixed on first touch")
+    {
+        stationaryBase = false;
+        fixed_touch_joystick_base=true;
+    }
+    else if(choice.startsWith("stationary"))
+    {
+        stationaryBase = true;
+        fixed_touch_joystick_base=true;
+    }
+    if(need_re_register)
+    {
+        register_v_joystick()
+    }
+
+    save_setting("vjoy_touch",choice);   
+
+    for(el of document.querySelectorAll(".vjoy_choice_text"))
+    {
+        el.style.display="none";
+    }
+    let text_label=document.getElementById(choice.replaceAll(" ","_")+"_text");
+    if(text_label !== null)
+    {
+        text_label.style.display="inherit";
+    }
+}
+current_vjoy_touch=load_setting("vjoy_touch", "base moves");
+set_vjoy_choice(current_vjoy_touch);
+
+$(`#choose_vjoy_touch a`).click(function () 
+{
+    let choice=$(this).text();
+    set_vjoy_choice(choice);
+    $("#modal_settings").focus();
+});
+//---
+set_vjoy_dead_zone(load_setting('vjoy_dead_zone', 14));
+function set_vjoy_dead_zone(vjoy_dead_zone) {
+    rest_zone=vjoy_dead_zone;
+    $("#button_vjoy_dead_zone").text(`virtual joysticks dead zone=${vjoy_dead_zone}`);
+}
+$('#choose_vjoy_dead_zone a').click(function () 
+{
+    var vjoy_dead_zone=$(this).text();
+    set_vjoy_dead_zone(vjoy_dead_zone);
+    save_setting('vjoy_dead_zone',vjoy_dead_zone);
+    $("#modal_settings").focus();
+});
+
+//--
 
 let set_csdb_count = function (choice) {
     $(`#button_csdb_count`).text('each chart category shows = '+choice);
@@ -3774,7 +3834,9 @@ function scaleVMCanvas() {
             container	: document.getElementById('div_canvas'),
             mouseSupport	: false,
             strokeStyle	: 'white',
-            limitStickTravel: true
+            stickRadius	: 118,
+            limitStickTravel: true,
+            stationaryBase: stationaryBase
         });
         v_joystick.addEventListener('touchStartValidation', function(event){
             var touch	= event.changedTouches[0];

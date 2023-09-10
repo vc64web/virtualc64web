@@ -3832,15 +3832,20 @@ function scaleVMCanvas() {
     {
         v_joystick	= new VirtualJoystick({
             container	: document.getElementById('div_canvas'),
-            mouseSupport	: false,
+            mouseSupport	: true,
             strokeStyle	: 'white',
             stickRadius	: 118,
             limitStickTravel: true,
             stationaryBase: stationaryBase
         });
         v_joystick.addEventListener('touchStartValidation', function(event){
-            var touch	= event.changedTouches[0];
-            return touch.pageX < window.innerWidth/2;
+            var touches = event.changedTouches;
+            var touch =null;
+            if(touches !== undefined)
+                touch= touches[0];
+            else
+                touch = event;//mouse emulation    
+            return touch.pageX < window.innerWidth/2;    
         });
        
         // one on the right of the screen
@@ -3849,10 +3854,15 @@ function scaleVMCanvas() {
             strokeStyle	: 'red',
             limitStickTravel: true,
             stickRadius	: 0,
-            mouseSupport	: false		
+            mouseSupport	: true		
         });
         v_fire.addEventListener('touchStartValidation', function(event){
-            var touch	= event.changedTouches[0];
+            var touches = event.changedTouches;
+            var touch =null;
+            if(touches !== undefined)
+                touch= touches[0];
+            else
+                touch = event;//mouse emulation    
             return touch.pageX >= window.innerWidth/2;
         });
     }

@@ -26,9 +26,13 @@ var VirtualJoystick	= function(opts)
 	if(this._stationaryBase === true){
 		this._baseEl.style.display	= "";
 		this._baseX=this._baseEl.width /2;
-		this._baseY=window.innerHeight-this._baseEl.height/2;
-		this._baseEl.style.left		= (this._baseX - this._baseEl.width /2)+"px";
-		this._baseEl.style.top		= (this._baseY - this._baseEl.height/2)+"px";
+
+		this._baseEl.style.left		= (this._baseX - this._baseEl.width /2 +10)+"px";		
+		let middle=current_vjoy_touch.includes("middle");
+		this._baseEl.style.top=
+		 `calc(${middle?50:90}vh - ${(middle?this._baseEl.height/2:this._baseEl.height) +10}px)`
+		this._baseY=this._baseEl.offsetTop+this._baseEl.height/2;
+	
 	}
     	
 	var __bind	= function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
@@ -204,7 +208,11 @@ VirtualJoystick.prototype._onMove	= function(x, y)
 			} 		
 
 			//vc64web patch start let the base move too, when innercircle collides with outercircle 
-			if(!this._stationaryBase)
+			if(this._stationaryBase)
+			{
+				this._baseY=this._baseEl.offsetTop+this._baseEl.height/2;
+			}
+			else
 			{
 				var base_radius = this._baseEl.width/2;
 				if(stickDistance >= base_radius/2){
@@ -254,7 +262,7 @@ VirtualJoystick.prototype._onMouseMove	= function(event)
 VirtualJoystick.prototype._onTouchStart	= function(event)
 {
 	// if there is already a touch inprogress do nothing
-	if( this._touchIdx !== null )	return;
+//	if( this._touchIdx !== null )	return;
 
 	if(typeof dragItems !== 'undefined' && dragItems.includes(event.target)) return;
 
@@ -277,10 +285,11 @@ VirtualJoystick.prototype._onTouchStart	= function(event)
 	return this._onDown(x, y)
 }
 
+//touch_check=true;
 VirtualJoystick.prototype._onTouchEnd	= function(event)
 {
 	// if there is no touch in progress, do nothing
-	if( this._touchIdx === null )	return;
+//	if( touch_check && this._touchIdx === null )	return;
 
 	// dispatch touchEnd
 	this.dispatchEvent('touchEnd', event);
@@ -294,9 +303,7 @@ VirtualJoystick.prototype._onTouchEnd	= function(event)
 	// reset touchIdx - mark it as no-touch-in-progress
 	this._touchIdx	= null;
 
-//??????
-// no preventDefault to get click event on ios
-event.preventDefault();
+	event.preventDefault();
 
 	return this._onUp()
 }
@@ -304,7 +311,7 @@ event.preventDefault();
 VirtualJoystick.prototype._onTouchMove	= function(event)
 {
 	// if there is no touch in progress, do nothing
-	if( this._touchIdx === null )	return;
+//	if( touch_check && this._touchIdx === null )	return;
 
 	// try to find our touch event
 	var touchList	= event.changedTouches;

@@ -1641,16 +1641,16 @@ function InitWrappers() {
     window.addEventListener('blur', ()=>{
         Module._wasm_keyboard_reset();
         //reset touch on virtual joystick
-        if(v_joystick !==null) v_joystick._touchIdx=null;
-        if(v_fire !==null) v_fire._touchIdx=null;
+ //       if(v_joystick !==null) v_joystick._touchIdx=null;
+ //       if(v_fire !==null) v_fire._touchIdx=null;
     });
 
     //when app is coming to foreground again
     window.addEventListener('focus', async ()=>{ 
         Module._wasm_keyboard_reset();
         //reset touch on virtual joystick
-        if(v_joystick !==null) v_joystick._touchIdx=null;
-        if(v_fire !==null) v_fire._touchIdx=null;
+//        if(v_joystick !==null) v_joystick._touchIdx=null;
+//        if(v_fire !==null) v_fire._touchIdx=null;
     });
     
 
@@ -1991,7 +1991,7 @@ let set_vjoy_choice = function (choice) {
         stationaryBase = false;
         fixed_touch_joystick_base=true;
     }
-    else if(choice == "stationary")
+    else if(choice.startsWith("stationary"))
     {
         stationaryBase = true;
         fixed_touch_joystick_base=true;
@@ -2007,7 +2007,11 @@ let set_vjoy_choice = function (choice) {
     {
         el.style.display="none";
     }
-    document.getElementById(choice.replaceAll(" ","_")+"_text").style.display="inherit";
+    let text_label=document.getElementById(choice.replaceAll(" ","_")+"_text");
+    if(text_label !== null)
+    {
+        text_label.style.display="inherit";
+    }
 }
 current_vjoy_touch=load_setting("vjoy_touch", "base moves");
 set_vjoy_choice(current_vjoy_touch);
@@ -2019,7 +2023,7 @@ $(`#choose_vjoy_touch a`).click(function ()
     $("#modal_settings").focus();
 });
 //---
-set_vjoy_dead_zone(load_setting('vjoy_dead_zone', 12));
+set_vjoy_dead_zone(load_setting('vjoy_dead_zone', 14));
 function set_vjoy_dead_zone(vjoy_dead_zone) {
     rest_zone=vjoy_dead_zone;
     $("#button_vjoy_dead_zone").text(`virtual joysticks dead zone=${vjoy_dead_zone}`);

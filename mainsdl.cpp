@@ -1334,6 +1334,8 @@ extern "C" void wasm_configure(char* option, unsigned on)
 
 extern "C" void wasm_print_error(unsigned exception_ptr)
 {
+  if(exception_ptr == NULL || exception_ptr== 0)
+    return;
   string s= std::string(reinterpret_cast<std::exception *>(exception_ptr)->what());
   printf("uncaught exception %u: %s\n",exception_ptr, s.c_str());
 }

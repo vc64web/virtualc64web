@@ -53,7 +53,7 @@ body
 }
 
 [data-theme="dark"] {
-background-color: var(--darkbg) !important;
+background-color: #121212 !important;
 color: var(--light) !important;
 }
 
@@ -562,4 +562,11 @@ padding: 0.4em;
 margin-top: 0;
 margin-left: 0.15em;
 margin-right: 0.15em;
+}
+
+
+#div_canvas
+{ /* this correctly clips the absolute positioned virtual joystick on some android devices */
+	position : relative;
+	overflow : hidden;
 }

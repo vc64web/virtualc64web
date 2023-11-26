@@ -1199,37 +1199,36 @@ function handleGamePad(portnr, gamepad)
         Module.print(`${gamepad.buttons.length} btns= ${btns_output}`);
     }
 
-    var horizontal_axis = 0;
-    var vertical_axis = 1;
+    const horizontal_axis = 0;
+    const vertical_axis = 1;
 
-    var bReleaseX=false;
-    var bReleaseY=false;
-    if(0.8<gamepad.axes[horizontal_axis])
-    {
-        emit_joystick_cmd(portnr+"PULL_RIGHT");   
-    }
-    else if(-0.8>gamepad.axes[horizontal_axis])
-    {
-        emit_joystick_cmd(portnr+"PULL_LEFT");
-    }
-    else
-    {
-        bReleaseX=true;
-    }
+    var bReleaseX=true;
+    var bReleaseY=true;
 
-    if(0.8<gamepad.axes[vertical_axis])
+    for(let stick=0; stick<=gamepad.axes.length/2;stick+=2)
     {
-        emit_joystick_cmd(portnr+"PULL_DOWN");   
+        if(bReleaseX && 0.5<gamepad.axes[stick+horizontal_axis])
+        {
+            emit_joystick_cmd(portnr+"PULL_RIGHT");
+            bReleaseX=false;
+        }
+        else if(bReleaseX && -0.5>gamepad.axes[stick+horizontal_axis])
+        {
+            emit_joystick_cmd(portnr+"PULL_LEFT");
+            bReleaseX=false;
+        }
+ 
+        if(bReleaseY && 0.5<gamepad.axes[stick+vertical_axis])
+        {
+            emit_joystick_cmd(portnr+"PULL_DOWN");
+            bReleaseY=false;
+        }
+        else if(bReleaseY && -0.5>gamepad.axes[stick+vertical_axis])
+        {
+            emit_joystick_cmd(portnr+"PULL_UP");
+            bReleaseY=false;
+        }
     }
-    else if(-0.8>gamepad.axes[vertical_axis])
-    {
-        emit_joystick_cmd(portnr+"PULL_UP");
-    }
-    else
-    {
-        bReleaseY=true;
-    }
-
 
     if(gamepad.buttons.length > 15 && bReleaseY && bReleaseX)
     {

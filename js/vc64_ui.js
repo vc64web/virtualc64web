@@ -18,8 +18,10 @@ const audioContext = new AudioContext();
 let audio_connected=false;
 let current_audio_device='separate thread (mono)';
 
-
-
+let v_joystick=null;
+let v_fire=null;
+let fixed_touch_joystick_base=false;
+let stationaryBase = false;
 
 let load_sound = async function(url){
     let response = await fetch(url);
@@ -1964,7 +1966,6 @@ function InitWrappers() {
         $("#modal_settings").focus();
     });
 //---
-v_joystick=null;
 let set_vjoy_choice = function (choice) {
     $(`#button_vjoy_touch`).text('positioning='+choice);
     current_vjoy_touch=choice;
@@ -2729,8 +2730,6 @@ $('.layer').change( function(event) {
 
     setup_browser_interface();
 
-    v_joystick=null;
-    v_fire=null;
 
     document.getElementById('port1').onchange = function() {
         port1 = document.getElementById('port1').value; 
@@ -3829,6 +3828,8 @@ function scaleVMCanvas() {
 
     function register_v_joystick()
     {
+        if(v_joystick!=null)
+            return;
         v_joystick	= new VirtualJoystick({
             container	: document.getElementById('div_canvas'),
             mouseSupport	: true,

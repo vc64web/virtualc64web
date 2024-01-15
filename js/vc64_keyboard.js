@@ -308,122 +308,169 @@ function installKeyboard() {
     //lc = lowercase, slc= shift+lowercase, cbm_lc = commodore+lowercase
     //todo:lc, cbm_lc
     keymap= [ 
-    [{k:'hide', c:'hide_keyboard',cls:'smallkey', style:'padding-top:0px'},{k:'ABC', c:'uppercase',cls:'case_switch upper_case'},{k:'abc', c:'lowercase',cls:'case_switch lower_case'},{style:'width:10px;'}/*,{k:'!',c:'exclama',sym:'!',cls:'smallkey'},{k:'"',c:'quot',sym:'"',cls:'smallkey'},{k:'#',c:'hash',sym:'#',cls:'smallkey'},{k:'$',c:'dollar',sym:'$',cls:'smallkey'}*/,{style:'width:10px'},{k:'F1',c:'F1',cls:'darkkey'}, {k:'F2',c:'F2',cls:'darkkey'},{k:'F3',c:'F3',cls:'darkkey'},{k:'F4',c:'F4',cls:'darkkey'},{k:'F5',c:'F5',cls:'darkkey'},{k:'F6',c:'F6',cls:'darkkey'},{k:'F7',c:'F7',cls:'darkkey'},{k:'F8',c:'F8',cls:'darkkey'}],
-    [{k:'\u{2190}',c:'Delete',style:'font-weight:bold'}, {k:'1',sk:'!', c:'Digit1',cbm:'ORG',ctrl:'BLK'},{k:'2', sk:'\"', c:'Digit2', cbm:'BRN', ctrl:'WHT'},{k:'3',sk:'#',c:'Digit3', cbm:'PNK', ctrl:'RED'},{k:'4',sk:'$',c:'Digit4', cbm:'DRK<br>GRY', ctrl:'CYN'},{k:'5',sk:'%',c:'Digit5',cbm:'GRY', ctrl:'PUR'},{k:'6',sk:'&',c:'Digit6', cbm:'LGHT<br>GRN', ctrl:'GRN'},{k:'7',sk:"'",c:'Digit7', cbm:'LGHT<br>BLU', ctrl:'BLU'},{k:'8',sk:'(',c:'Digit8', cbm:'LGHT<br>GRY', ctrl:'YEL'},{k:'9',sk:')',c:'Digit9', ctrl:'RVS<br>ON'},{k:'0',c:'Digit0', ctrl:'RVS<br>OFF', cls:'key0'},{k:'+', p:'\u{253c}', cbm:'\u{2592}' ,c:'Minus'},{k:'-', p:'\u{2502}', cbm:'\u{e0dc}', c:'Equal'},{k:'\u{00a3}', p:'\u{25e4}', cbm:'\u{e0a8}', c:'pound'},{k:'Home', sk:'CLR', c:'home', cls:'small',style:'font-size:x-small;height:40px;padding-top:4px;'},{k:'DEL', sk:'INST',c:'Backspace',cls:'small',style:'font-size:x-small;height:40px;padding-top:4px;'} ], 
-    [{style:'width:34px'},{k:'CTRL',c:'ControlLeft', cls:'ctrl'}, {k:'Q', p:'\u{2022}',cbm:'\u{251c}' },{k:'W', p:'\u{25cb}',cbm:'\u{2524}'},{k:'E', p:'\u{e0c5}',cbm:'\u{2534}'},{k:'R', p:'\u{e072}',cbm:'\u{252c}'},{k:'T', p:'\u{e0d4}',cbm:'\u{2594}'},{k:'Y', p:'\u{e0d9}',cbm:'\u{e0b7}'},{k:'U', p:'\u{256d}',cbm:'\u{e0b8}'},{k:'I', p:'\u{256e}',cbm:'\u{2584}'},{k:'O', p:'\u{e0cf}',cbm:'\u{2583}'},{k:'P', p:'\u{e0d0}',cbm:'\u{2582}'},{k:'@',c:'BracketLeft',slc:'\u{e1fa}',p:'\u{e0ba}', cbm:'\u{2581}'},{k:'*', c:'BracketRight', p:'\u{2500}', cbm:'\u{25e5}', cbm_lc:'\u{e17f}'},{k:'\u{2191}',p:'\u{03C0}',cbm:'\u{03C0}',lc:'\u{e1de}',c:'upArrow'},{k:'RESTORE', c:'restore',style:'font-size:small'}], 
-    [{k:'Run<br>Stop',c:'runStop', cls:'smallfont'},{k:'Shift<br>Lock', c:'shiftlock', cls:'ShiftLock', style:'font-size:x-small'},{k:'A',p:'\u{2660}', cbm:'\u{250c}'},{k:'S',p:'\u{2665}',cbm:'\u{2510}'},{k:'D',p:'\u{e064}',cbm:'\u{2597}'},{k:'F',p:'\u{e0c6}',cbm:'\u{2596}'},{k:'G',p:'\u{e0c7}',cbm:'\u{258e}'},{k:'H',p:'\u{e0c8}',cbm:'\u{258e}'},{k:'J',p:'\u{2570}',cbm:'\u{258d}'},{k:'K',p:'\u{256f}',cbm:'\u{258c}'},{k:'L',p:'\u{e0cc}',cbm:'\u{e0b6}'},{k:':',sk:'[',c:'Semicolon'},{k:';',sk:']', c:'Quote'},{k:'=', c:'Backslash'},{k:'RETURN',c:'Enter',style:'font-size: small'}], 
-    [{k:'C=', c:'commodore', cls:'cbm'},{k:'\u{21e7}',c:'ShiftLeft', cls:'ShiftLeft', style:'padding-right:30px'},{k:'Z', p:'\u{2666}',cbm:'\u{2514}'},{k:'X',p:'\u{2663}',cbm:'\u{2518}'},{k:'C',p:'\u{2500}',cbm:'\u{259d}'},{k:'V',p:'\u{2573}',cbm:'\u{2598}'},{k:'B',p:'\u{2502}',cbm:'\u{259a}'},{k:'N',p:'\u{2571}',cbm:'\u{e0aa}'},{k:'M',p:'\u{2572}',cbm:'\u{e0a7}'},{k:',',sk:'<',c:'Comma'},{k:'.',sk:'>',c:'Period'},{k:'/',sk:'?', c:'Slash'},{k:'\u{21e7}',c:'rightShift', cls:'rightShift',style:"padding-right:30px"},{style:'width:12px'}, {k:'\u{2191}',c:'UP',sym:'ArrowUp'},{style:'width:31px'} ],
-    [{style:'width:160px'},{k:'', c:'Space', style:'width:401px',cls:'smallkey'},{style:'width:32px'}, {k:'\u{2190}',c:'left',sym:'ArrowLeft',cls:'smallkey'},{k:'\u{2193}', c:'ArrowDown',cls:'smallkey'},{k:'\u{2192}', c:'ArrowRight',cls:'smallkey'},{style:'width:34px'}]
+    [{g:1}, {k:'hide', c:'hide_keyboard',cls:'smallkey', style:'padding-top:0px'},{g:1},{k:'ABC', c:'uppercase',cls:'case_switch upper_case'},{k:'abc', c:'lowercase',cls:'case_switch lower_case'},{g:2}/*,{k:'!',c:'exclama',sym:'!',cls:'smallkey'},{k:'"',c:'quot',sym:'"',cls:'smallkey'},{k:'#',c:'hash',sym:'#',cls:'smallkey'},{k:'$',c:'dollar',sym:'$',cls:'smallkey'}*/,{k:'F1',c:'F1',cls:'darkkey',g:6,s:2}, {k:'F2',c:'F2',cls:'darkkey',g:6,s:2},{k:'F3',c:'F3',cls:'darkkey',g:6,s:2},{k:'F4',c:'F4',cls:'darkkey',g:6,s:2},{g:1},{k:'F5',c:'F5',cls:'darkkey',g:6,s:2},{k:'F6',c:'F6',cls:'darkkey',g:6,s:2},{k:'F7',c:'F7',cls:'darkkey',g:6,s:2},{k:'F8',c:'F8',cls:'darkkey',g:6,s:2}],
+    [{g:1},{k:'\u{2190}',c:'Delete',style:'font-weight:bold'}, {k:'1',sk:'!', c:'Digit1',cbm:'ORG',ctrl:'BLK'},{k:'2', sk:'\"', c:'Digit2', cbm:'BRN', ctrl:'WHT'},{k:'3',sk:'#',c:'Digit3', cbm:'PNK', ctrl:'RED'},{k:'4',sk:'$',c:'Digit4', cbm:'DRK<br>GRY', ctrl:'CYN'},{k:'5',sk:'%',c:'Digit5',cbm:'GRY', ctrl:'PUR'},{k:'6',sk:'&',c:'Digit6', cbm:'LGHT<br>GRN', ctrl:'GRN'},{k:'7',sk:"'",c:'Digit7', cbm:'LGHT<br>BLU', ctrl:'BLU'},{k:'8',sk:'(',c:'Digit8', cbm:'LGHT<br>GRY', ctrl:'YEL'},{k:'9',sk:')',c:'Digit9', ctrl:'RVS<br>ON'},{k:'0',c:'Digit0', ctrl:'RVS<br>OFF', cls:'key0'},{k:'+', p:'\u{253c}', cbm:'\u{2592}' ,c:'Minus'},{k:'-', p:'\u{2502}', cbm:'\u{e0dc}', c:'Equal'},{k:'\u{00a3}', p:'\u{25e4}', cbm:'\u{e0a8}', c:'pound'},{k:'Home', sk:'CLR', c:'home', cls:'small',s:2},{k:'DEL', sk:'INST',c:'Backspace',cls:'small',s:3} ], 
+    [{g:1},{k:'CTRL',c:'ControlLeft', cls:'ctrl',g:6,s:2}, {k:'Q', p:'\u{2022}',cbm:'\u{251c}' },{k:'W', p:'\u{25cb}',cbm:'\u{2524}'},{k:'E', p:'\u{e0c5}',cbm:'\u{2534}'},{k:'R', p:'\u{e072}',cbm:'\u{252c}'},{k:'T', p:'\u{e0d4}',cbm:'\u{2594}'},{k:'Y', p:'\u{e0d9}',cbm:'\u{e0b7}'},{k:'U', p:'\u{256d}',cbm:'\u{e0b8}'},{k:'I', p:'\u{256e}',cbm:'\u{2584}'},{k:'O', p:'\u{e0cf}',cbm:'\u{2583}'},{k:'P', p:'\u{e0d0}',cbm:'\u{2582}'},{k:'@',c:'BracketLeft',slc:'\u{e1fa}',p:'\u{e0ba}', cbm:'\u{2581}'},{k:'*', c:'BracketRight', p:'\u{2500}', cbm:'\u{25e5}', cbm_lc:'\u{e17f}'},{k:'\u{2191}',p:'\u{03C0}',cbm:'\u{03C0}',lc:'\u{e1de}',c:'upArrow'},{k:'RESTORE', c:'restore',style:'font-size:var(--font-smaller)',g:6,s:3}], 
+    [{k:'Run<br>Stop',c:'runStop', cls:'smallfont',s:2},{k:'Shift<br>Lock', c:'shiftlock', cls:'ShiftLock smallfont',s:2},{k:'A',p:'\u{2660}', cbm:'\u{250c}'},{k:'S',p:'\u{2665}',cbm:'\u{2510}'},{k:'D',p:'\u{e064}',cbm:'\u{2597}'},{k:'F',p:'\u{e0c6}',cbm:'\u{2596}'},{k:'G',p:'\u{e0c7}',cbm:'\u{258e}'},{k:'H',p:'\u{e0c8}',cbm:'\u{258e}'},{k:'J',p:'\u{2570}',cbm:'\u{258d}'},{k:'K',p:'\u{256f}',cbm:'\u{258c}'},{k:'L',p:'\u{e0cc}',cbm:'\u{e0b6}'},{k:':',sk:'[',c:'Semicolon'},{k:';',sk:']', c:'Quote'},{k:'=', c:'Backslash'},{k:'RETURN',c:'Enter',style:'font-size: var(--font-smaller)',g:9,s:2}], 
+    [{k:'C=', c:'commodore', cls:'cbm',s:2},{k:'\u{21e7}',c:'ShiftLeft', cls:'ShiftLeft',g:6,s:2},{k:'Z', p:'\u{2666}',cbm:'\u{2514}'},{k:'X',p:'\u{2663}',cbm:'\u{2518}'},{k:'C',p:'\u{2500}',cbm:'\u{259d}'},{k:'V',p:'\u{2573}',cbm:'\u{2598}'},{k:'B',p:'\u{2502}',cbm:'\u{259a}'},{k:'N',p:'\u{2571}',cbm:'\u{e0aa}'},{k:'M',p:'\u{2572}',cbm:'\u{e0a7}'},{k:',',sk:'<',c:'Comma'},{k:'.',sk:'>',c:'Period'},{k:'/',sk:'?', c:'Slash'},{k:'\u{21e7}',c:'rightShift', cls:'rightShift',g:6,s:2},{g:1}, {k:'\u{2191}',c:'UP',sym:'ArrowUp',s:2}],
+    [{g:11},{k:'', c:'Space',cls:'smallkey',s:2, g:36},{g:6}, {k:'\u{2190}',c:'left',sym:'ArrowLeft',cls:'smallkey',s:2},{k:'\u{2193}', c:'ArrowDown',cls:'smallkey',s:2},{k:'\u{2192}', c:'ArrowRight',cls:'smallkey',s:2}]
     ];
     var the_keyBoard='';
-    keymap.forEach(row => {
-        the_keyBoard+='<div class="justify-content-center" style="display:flex">';
-        row.forEach(keydef => {
-            if(keydef.k === undefined)
+    let  renderKey  = (keydef,cellpos) => {
+        let pos_label=''//`<div style="position: absolute;font-size: xx-small;color: yellowgreen;">${cellpos}:${ keydef.g===undefined?4:keydef.g}</div>`;
+
+        if(keydef.k === undefined)
+        {
+            var style = "";
+            if(keydef.s !== undefined)
+                css = keydef.s; 
+            if(keydef.style !== undefined)
+                style += keydef.style; 
+            style+=`grid-column: auto / span ${keydef.g===undefined?4:keydef.g}`;
+            the_keyBoard +=`<div class="${css}" style="${style}">${pos_label}</div>`;
+        }
+        else
+        {
+            let cbm_petscii='';
+            if(keydef.cbm !== undefined)
             {
-                var style = "";
-                if(keydef.s !== undefined)
-                    css = keydef.s; 
-                if(keydef.style !== undefined)
-                    style = keydef.style; 
-                
-                the_keyBoard +='<div class="'+css+'" style="'+style+'"></div>';
+                cbm_petscii =`<div class="keycap_cbm" key-label="${keydef.cbm}">${keydef.cbm}</div>`;
+            }
+
+            let shift_petscii='';
+            if(keydef.p !== undefined)
+            {
+                shift_petscii =`<div class="keycap_p">${keydef.p}</div>`;
+            }
+
+            let ctrl_color='';
+            if(keydef.ctrl !== undefined)
+            {
+                ctrl_color =`<div class="keycap_clr">${keydef.ctrl}</div>`;
+            }
+
+            let shift_lowercase='';
+            if(keydef.slc !== undefined)
+            {
+                shift_lowercase =`<div class="keycap_slc">${keydef.slc}</div>`;
+            }
+            let k_lowercase='';
+            if(keydef.k.length==1 && keydef.k != keydef.k.toLowerCase())
+            {
+                k_lowercase =`<div class="keycap_lc">${keydef.k.toLowerCase()}</div>`;
+            }
+
+
+
+            let cls = '';
+            if(keydef.cls !== undefined)
+            {
+                cls=keydef.cls;
+            }
+            if(keydef.c === undefined)
+                keydef.c = 'Key'+keydef.k;
+            var css = `keycap_base ${cls}`;
+            
+            var style = null; 
+            if(keydef.css !== undefined)
+                css = keydef.css; 
+            if(keydef.style !== undefined)
+                style = keydef.style; 
+
+            let label = keydef.k;
+            if(label == "hide")
+            {
+                label = `<svg xmlns="http://www.w3.org/2000/svg" width="2.0em" height="2.0em" fill="currentColor" class="bi bi-pause-btn" viewBox="0 0 16 16"><path d="M14 5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h12zM2 4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H2z"/><path d="M13 10.25a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5a.25.25 0 0 1-.25-.25v-.5zm0-2a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5a.25.25 0 0 1-.25-.25v-.5zm-5 0A.25.25 0 0 1 8.25 8h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5A.25.25 0 0 1 8 8.75v-.5zm2 0a.25.25 0 0 1 .25-.25h1.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-1.5a.25.25 0 0 1-.25-.25v-.5zm1 2a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5a.25.25 0 0 1-.25-.25v-.5zm-5-2A.25.25 0 0 1 6.25 8h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5A.25.25 0 0 1 6 8.75v-.5zm-2 0A.25.25 0 0 1 4.25 8h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5A.25.25 0 0 1 4 8.75v-.5zm-2 0A.25.25 0 0 1 2.25 8h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5A.25.25 0 0 1 2 8.75v-.5zm11-2a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5a.25.25 0 0 1-.25-.25v-.5zm-2 0a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5a.25.25 0 0 1-.25-.25v-.5zm-2 0A.25.25 0 0 1 9.25 6h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5A.25.25 0 0 1 9 6.75v-.5zm-2 0A.25.25 0 0 1 7.25 6h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5A.25.25 0 0 1 7 6.75v-.5zm-2 0A.25.25 0 0 1 5.25 6h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5A.25.25 0 0 1 5 6.75v-.5zm-3 0A.25.25 0 0 1 2.25 6h1.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-1.5A.25.25 0 0 1 2 6.75v-.5zm0 4a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5a.25.25 0 0 1-.25-.25v-.5zm2 0a.25.25 0 0 1 .25-.25h5.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-5.5a.25.25 0 0 1-.25-.25v-.5z"/></svg>`;
+            }
+            
+            let shift_label=null;
+            if(typeof keydef.sk !== 'undefined')
+            {
+                shift_label=keydef.sk;
+            }
+
+            let gap = 4;
+            if(keydef.g !== undefined)
+            {
+                gap=keydef.g;
+            }     
+            css+=` g-${gap}`;
+
+            the_keyBoard +=`<div id="button_${keydef.c}" class="${css}"`;
+            if(shift_label!= null)
+            {
+                let style_composite_key=";padding-top:0;padding-bottom:0;";
+                if(style==null)
+                    style=style_composite_key;
+                else
+                    style+=style_composite_key;
+            }
+            if(style !=null)
+                the_keyBoard += ' style="'+style+'"';
+            the_keyBoard+='>'+pos_label;
+
+            let keycap=`<div class="keycap">${label}</div>`;
+            let keycap_shift=`<div class="keycap_shift">${shift_label}</div>`;
+            let has_cbm_petscii=cbm_petscii.length>0 ?"has_cbm_petscii":"";
+            let has_shift_petscii=shift_petscii.length>0 ?"has_shift_petscii":"";
+            let has_lowercase=k_lowercase.length>0 ?"has_lowercase":"";
+            let has_slc=shift_lowercase.length>0 ?"has_slc":"";
+            let has_clr=ctrl_color.length>0 ?"has_clr":"";
+
+            if(shift_label==null)
+            {
+                the_keyBoard += `<div class="${has_cbm_petscii} ${has_shift_petscii} ${has_lowercase} ${has_slc} ${has_clr}">${keycap}${k_lowercase}${cbm_petscii}${shift_petscii}${shift_lowercase}${ctrl_color}</div>`;
             }
             else
             {
-                let cbm_petscii='';
-                if(keydef.cbm !== undefined)
-                {
-                    cbm_petscii =`<div class="keycap_cbm" key-label="${keydef.cbm}">${keydef.cbm}</div>`;
-                }
-
-                let shift_petscii='';
-                if(keydef.p !== undefined)
-                {
-                    shift_petscii =`<div class="keycap_p">${keydef.p}</div>`;
-                }
-
-                let ctrl_color='';
-                if(keydef.ctrl !== undefined)
-                {
-                    ctrl_color =`<div class="keycap_clr">${keydef.ctrl}</div>`;
-                }
-
-                let shift_lowercase='';
-                if(keydef.slc !== undefined)
-                {
-                    shift_lowercase =`<div class="keycap_slc">${keydef.slc}</div>`;
-                }
-                let k_lowercase='';
-                if(keydef.k.length==1 && keydef.k != keydef.k.toLowerCase())
-                {
-                    k_lowercase =`<div class="keycap_lc">${keydef.k.toLowerCase()}</div>`;
-                }
-
-
-
-                let cls = '';
-                if(keydef.cls !== undefined)
-                {
-                    cls=keydef.cls;
-                }
-                if(keydef.c === undefined)
-                    keydef.c = 'Key'+keydef.k;
-                var css = `btn btn-secondary ml-1 mt-1 ${cls}`;
-                
-                var style = null; 
-                if(keydef.css !== undefined)
-                    css = keydef.css; 
-                if(keydef.style !== undefined)
-                    style = keydef.style; 
-
-                let label = keydef.k;
-                if(label == "hide")
-                {
-                    label = `<svg xmlns="http://www.w3.org/2000/svg" width="2.0em" height="2.0em" fill="currentColor" class="bi bi-pause-btn" viewBox="0 0 16 16"><path d="M14 5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h12zM2 4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H2z"/><path d="M13 10.25a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5a.25.25 0 0 1-.25-.25v-.5zm0-2a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5a.25.25 0 0 1-.25-.25v-.5zm-5 0A.25.25 0 0 1 8.25 8h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5A.25.25 0 0 1 8 8.75v-.5zm2 0a.25.25 0 0 1 .25-.25h1.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-1.5a.25.25 0 0 1-.25-.25v-.5zm1 2a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5a.25.25 0 0 1-.25-.25v-.5zm-5-2A.25.25 0 0 1 6.25 8h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5A.25.25 0 0 1 6 8.75v-.5zm-2 0A.25.25 0 0 1 4.25 8h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5A.25.25 0 0 1 4 8.75v-.5zm-2 0A.25.25 0 0 1 2.25 8h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5A.25.25 0 0 1 2 8.75v-.5zm11-2a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5a.25.25 0 0 1-.25-.25v-.5zm-2 0a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5a.25.25 0 0 1-.25-.25v-.5zm-2 0A.25.25 0 0 1 9.25 6h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5A.25.25 0 0 1 9 6.75v-.5zm-2 0A.25.25 0 0 1 7.25 6h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5A.25.25 0 0 1 7 6.75v-.5zm-2 0A.25.25 0 0 1 5.25 6h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5A.25.25 0 0 1 5 6.75v-.5zm-3 0A.25.25 0 0 1 2.25 6h1.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-1.5A.25.25 0 0 1 2 6.75v-.5zm0 4a.25.25 0 0 1 .25-.25h.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-.5a.25.25 0 0 1-.25-.25v-.5zm2 0a.25.25 0 0 1 .25-.25h5.5a.25.25 0 0 1 .25.25v.5a.25.25 0 0 1-.25.25h-5.5a.25.25 0 0 1-.25-.25v-.5z"/></svg>`;
-                }
-                
-                let shift_label=null;
-                if(typeof keydef.sk !== 'undefined')
-                {
-                    shift_label=keydef.sk;
-                }
-
-                the_keyBoard +=`<button type="button" id="button_${keydef.c}" class="vbk_key ${css}"`;
-                if(shift_label!= null)
-                {
-                    let style_composite_key=";padding-top:0;padding-bottom:0;";
-                    if(style==null)
-                        style=style_composite_key;
-                    else
-                        style+=style_composite_key;
-                }
-                if(style !=null)
-                    the_keyBoard += ' style="'+style+'"';
-                the_keyBoard+='>';
-
-                let keycap=`<div class="keycap">${label}</div>`;
-                let keycap_shift=`<div class="keycap_shift">${shift_label}</div>`;
-                let has_cbm_petscii=cbm_petscii.length>0 ?"has_cbm_petscii":"";
-                let has_shift_petscii=shift_petscii.length>0 ?"has_shift_petscii":"";
-                let has_lowercase=k_lowercase.length>0 ?"has_lowercase":"";
-                let has_slc=shift_lowercase.length>0 ?"has_slc":"";
-                let has_clr=ctrl_color.length>0 ?"has_clr":"";
-
-                if(shift_label==null)
-                {
-                    the_keyBoard += `<div class="${has_cbm_petscii} ${has_shift_petscii} ${has_lowercase} ${has_slc} ${has_clr}">${keycap}${k_lowercase}${cbm_petscii}${shift_petscii}${shift_lowercase}${ctrl_color}</div>`;
-                }
-                else
-                {
-                    the_keyBoard+= `<div class="composite ${has_cbm_petscii} ${has_lowercase} ${has_slc} ${has_clr}" style="flex-direction:column">${keycap_shift}${keycap}${k_lowercase}${cbm_petscii}${ctrl_color}</div>`;
-                }
-
-                the_keyBoard+='</button>';
+                the_keyBoard+= `<div class="composite ${has_cbm_petscii} ${has_lowercase} ${has_slc} ${has_clr}" style="flex-direction:column">${keycap_shift}${keycap}${k_lowercase}${cbm_petscii}${ctrl_color}</div>`;
             }
-        });
-        the_keyBoard+='</div>';
-    });
+
+            the_keyBoard+='</div>';
+        }
+    }
+    let columns=0; 
+    let cellpos=0;
+    //calculate number of grid columns
+    for(let row of keymap)
+    {
+        cellpos=0;
+        for(let keydef of row)
+        {
+            cellpos+=(keydef.g === undefined) ? 4:keydef.g;
+        }
+        if(cellpos>columns)
+        {
+            columns = cellpos;
+        }
+    }
+    document.querySelector(':root').style.setProperty('--keyboard_bottom_margin', `0px`);
+    document.querySelector(':root').style.setProperty('--keycap_zoom', `1.0`);
+    document.querySelector(':root').style.setProperty('--keycap_columns', columns);
+
+    var the_keyBoard=`
+<div id="keyboard_grid"
+draggable="false">
+    `;
+    for(let row of keymap)
+    {
+            cellpos=0;
+            for(let keydef of row)
+            {
+                let gap = 4;
+                if(keydef.g !== undefined)
+                {
+                    gap=keydef.g;
+                }     
+                renderKey(keydef,cellpos);
+                cellpos+=gap;
+         }
+         if(cellpos<columns)
+         {
+            renderKey({g:columns-cellpos},cellpos);
+         }
+    }
+    the_keyBoard+='</div>';
     $('#divKeyboardRows').html(the_keyBoard);
 
     release_modifiers= function()
@@ -489,6 +536,20 @@ function installKeyboard() {
             
             let key_down_handler=function() 
             {
+                if(keyboard_sound_volumne>0)
+                {
+                    if(keydef.s === undefined)
+                        play_sound(audio_key_standard,keyboard_sound_volumne);
+                    else if(keydef.s == 2)
+                        play_sound(audio_key_space,keyboard_sound_volumne);
+                    else if(keydef.s == 3)
+                        play_sound(audio_key_backspace,keyboard_sound_volumne);
+                }
+                if(key_haptic_feedback)
+                {
+                    navigator.vibrate(15);
+                }
+    
                if(keydef.c == 'hide_keyboard')
                {
                     $('#virtual_keyboard').collapse('hide');

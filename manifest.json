@@ -3,7 +3,7 @@
   "short_name": "vc64web",
   "start_url": "/",
   "scope": ".",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "black",
   "theme_color": "black",
   "icons": [

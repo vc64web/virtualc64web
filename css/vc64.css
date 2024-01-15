@@ -4,6 +4,53 @@
   --lighterbg: #f0f0f0;
   --lightgray: #d8d8d8;
 }
+:root {
+    --keycap_size: calc(calc(calc(100vw / var(--keycap_columns)) *4) * var(--keycap_zoom));
+    --font-smallest: calc(var(--font-smaller) * 0.85);
+    --font-smaller: calc(var(--keycap_size) / 4);
+    --font-small: calc(var(--keycap_size) / 3.2);
+    --font-medium: calc(var(--keycap_size) / 2.5);
+}
+
+
+#keyboard_grid {
+    display:grid;
+    grid-template-columns: repeat(var(--keycap_columns), calc(calc(var(--keycap_size) /4) * 1.0));
+    grid-template-rows: repeat(6, calc(var(--keycap_size)));
+    grid-column-gap: 0px;
+    grid-row-gap: 0px;
+    user-select:none;
+    padding-bottom: var(--keyboard_bottom_margin);
+}
+.keycap_base {
+    background-color: var(--gray);
+    color:white;
+    border-radius: calc(var(--keycap_size) * 0.1);
+    align-items: center;
+    text-align: center;
+    font-size:var(--font-medium);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin: calc(var(--keycap_size) * 0.038);
+}
+
+@media (max-width: 511px) {
+    :root {
+        --keycap_size: calc(calc(calc(max(100vw,100vh) / var(--keycap_columns)) * 4) * var(--keycap_zoom));
+    }       
+}
+/* keyboard grid gap */
+.g-1 { grid-column: auto / span 1 }
+.g-2 { grid-column: auto / span 2 }
+.g-3 { grid-column: auto / span 3 }
+.g-4 { grid-column: auto / span 4 }
+.g-5 { grid-column: auto / span 5 }
+.g-6 { grid-column: auto / span 6 }
+.g-8 { grid-column: auto / span 8 }
+.g-9 { grid-column: auto / span 9 }
+.g-11 { grid-column: auto / span 11 }
+.g-36 { grid-column: auto / span 36 }
 
 #canvas {
     position:fixed;
@@ -152,6 +199,12 @@ color: #aaa !important;
     z-index:999;
     width:100%;
     background-color: var(--lightbg);
+}
+
+@media (orientation:landscape) {
+    #virtual_keyboard {
+        opacity: var(--keyboard_opacity);
+    }
 }
 
 [data-theme="dark"] #virtual_keyboard {
@@ -367,7 +420,7 @@ button[id^="detail_run"] {
 
 .keycap_slc {
     font-family:'C64Pro';
-    font-size:small;
+    font-size:var(--font-small);
     display:none;
 }
 [lowercase="true"][shift-keys="pressed"] .keycap_slc {
@@ -406,7 +459,7 @@ button[id^="detail_run"] {
 [key-label="GRY"]
 {
     font-family: unset !important;
-    font-size: xx-small !important;
+    font-size: var(--font-smallest) !important;
 }
 
 
@@ -430,7 +483,7 @@ button[id^="detail_run"] {
 
 .keycap_p {
     font-family:'C64Pro';
-    font-size:small;
+    font-size:var(--font-small);
     display: none;
 }
 [lowercase="false"][shift-keys="pressed"][cbm-key=""] .has_shift_petscii .keycap_p {
@@ -447,7 +500,7 @@ button[id^="detail_run"] {
 .keycap_cbm {
     display: none;
     font-family:'C64Pro';
-    font-size:small;
+    font-size:var(--font-small);
 }
 
 
@@ -468,23 +521,29 @@ button[id^="detail_run"] {
 }
 
 .keycap_shift {
-    font-size:x-small;
+    font-size:var(--font-smaller);
 }
 
 [shift-keys="pressed"] .keycap_shift {
-    font-size:medium;
+    font-size:var(--font-small);
 }
 
-[shift-keys="pressed"] .small .keycap_shift {
-    font-size:small;
+.small {
+    font-size:var(--font-small);
 }
+
+[shift-keys="pressed"] .small {
+    font-size:var(--font-smaller);
+}
+
+
+
 
 .keycap {
-    font-size:inherit;
 }
 
 [shift-keys="pressed"] .composite .keycap {
-    font-size:x-small;
+    font-size: var(--font-smaller);
 }
 
 [key-state="pressed"] {
@@ -492,34 +551,23 @@ button[id^="detail_run"] {
 }
 
 .smallfont {
-    font-size:xx-small;
+    font-size:var(--font-smaller);
 }
 
 .darkkey {
     background-color: rgb(78,87,95);
     border-color: #222222;
-    height: 31px;
-    padding-top: 3px;
-    width: 53px;
 }
 
 .smallkey {
-    height: 32px;
-    padding-top: 3px;
 }
 
 .case_switch {
-    height: 32px;
     padding-top: 3px;
-    margin-left:0px;
-    margin-right:0px;
     background-color: rgb(78,87,95);
     border-color: #222222;
-    height: 31px;
     padding-top: 3px;
-    width: 53px;
 }
-
 
 [lowercase="true"] .upper_case {
     color:gray;
@@ -535,9 +583,10 @@ button[id^="detail_run"] {
     background-color: var(--green) !important;
 }
 
-.ctrl {
-    width:58px;
+.ctrl{
+    font-size: var(--font-small);
 }
+
 [cbm-key="pressed"] .cbm,
 [ctrl-key="pressed"] .ctrl
 {

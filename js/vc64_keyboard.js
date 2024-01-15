@@ -709,6 +709,8 @@ draggable="false">
 
             the_key_element.addEventListener("focus", (event)=>{ event.preventDefault(); event.currentTarget.blur();})
             the_key_element.addEventListener("pointerdown", (event)=>{
+                the_key_element.setPointerCapture(event.pointerId);
+
                 if(current_vbk_touch.startsWith("smart"))
                     return;
                 the_key_element.setPointerCapture(event.pointerId);

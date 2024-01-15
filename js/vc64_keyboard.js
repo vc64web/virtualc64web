@@ -708,14 +708,32 @@ draggable="false">
             }
 
             the_key_element.addEventListener("focus", (event)=>{ event.preventDefault(); event.currentTarget.blur();})
-            the_key_element.addEventListener("mousedown", key_down_handler);
-            the_key_element.addEventListener("mouseup", key_up_handler);
-
+            the_key_element.addEventListener("pointerdown", (event)=>{
+                if(current_vbk_touch.startsWith("smart"))
+                    return;
+                the_key_element.setPointerCapture(event.pointerId);
+                key_down_handler(event);
+            });
+/*            the_key_element.addEventListener("pointerup", (event)=>{
+            });*/
+            the_key_element.addEventListener("lostpointercapture", (event)=>{
+                if(current_vbk_touch.startsWith("smart"))
+                {
+                    //the following could also be done instead in pointerup, 
+                    //effect would then be that the key would not be recognized when finger dragging away from key.
+                    key_down_handler(event);
+                    setTimeout(key_up_handler,100);
+                }
+                else
+                {
+                    key_up_handler(event);
+                }
+            });
+    
             the_key_element.addEventListener("touchstart", (event)=>{
                 if(current_vbk_touch.startsWith("exact") || current_vbk_touch.startsWith("mix"))
                 {
                     event.preventDefault(); 
-                    key_down_handler();
                 }
                 if(current_vbk_touch.startsWith("mix"))
                 {
@@ -741,15 +759,6 @@ draggable="false">
             });
             the_key_element.addEventListener("touchend", (event)=>{
                 event.preventDefault(); 
-                if(current_vbk_touch.startsWith("smart"))
-                {
-                    key_down_handler();
-                    setTimeout(key_up_handler,100); 
-                }
-                else
-                {
-                    key_up_handler(); 
-                }
             });
 
 

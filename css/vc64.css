@@ -477,8 +477,7 @@ button[id^="detail_run"] {
 }
 
 [ctrl-key=""] .key0 {
-    padding-top:15px;
-    padding-bottom:0px
+    padding-top:calc(var(--keycap_size) * 0.39);
 }
 
 .keycap_p {

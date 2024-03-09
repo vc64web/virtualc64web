@@ -1016,6 +1016,16 @@ extern "C" void wasm_press_play()
   printf("wasm_press_play\n");
   wrapper->c64->datasette.pressPlay();
 }
+extern "C" void wasm_press_stop()
+{
+  printf("wasm_press_stop\n");
+  wrapper->c64->datasette.pressStop();
+}
+extern "C" void wasm_rewind()
+{
+  printf("wasm_rewind\n");
+  wrapper->c64->datasette.rewind();
+}
 
 
 extern "C" void wasm_joystick(char* port_plus_event)

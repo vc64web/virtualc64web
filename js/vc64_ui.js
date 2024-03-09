@@ -1413,6 +1413,8 @@ function InitWrappers() {
     wasm_set_warp = Module.cwrap('wasm_set_warp', 'undefined', ['number']);
     wasm_set_borderless = Module.cwrap('wasm_set_borderless', 'undefined', ['number']);
     wasm_press_play = Module.cwrap('wasm_press_play', 'undefined');
+    wasm_press_stop = Module.cwrap('wasm_press_stop', 'undefined');
+    wasm_rewind = Module.cwrap('wasm_rewind', 'undefined');
     wasm_sprite_info = Module.cwrap('wasm_sprite_info', 'string');
     wasm_set_sid_model = Module.cwrap('wasm_set_sid_model', 'undefined', ['number']);
 
@@ -3268,7 +3270,7 @@ $('.layer').change( function(event) {
             $('#add_timer_action a').click(on_add_action);
             
             //system action
-            var list_actions=['toggle_run', 'take_snapshot', 'restore_last_snapshot', 'swap_joystick', 'keyboard', 'fullscreen','menubar', 'pause', 'run', 'clipboard_paste'];
+            var list_actions=['toggle_run', 'take_snapshot', 'restore_last_snapshot', 'swap_joystick', 'keyboard', 'fullscreen','menubar', 'pause', 'run', 'clipboard_paste', 'datasette_play','datasette_stop','datasette_rewind',];
             html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';

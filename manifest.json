@@ -4,8 +4,8 @@
   "start_url": "/",
   "scope": ".",
   "display": "fullscreen",
-  "background_color": "black",
-  "theme_color": "black",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "icons": [
     {
       "src": "img/icon-72x72.png",
@@ -41,6 +41,12 @@
       "src": "img/icon-384x384.png",
       "type": "image/png",
       "sizes": "384x384"
+    },
+    {
+      "src": "img/icon-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
     }
-  ]
+  ],
+  "description": "Commodore C64 Emulator"
 }

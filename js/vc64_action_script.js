@@ -253,6 +253,34 @@ async function execute_single_action(cmd, execute=true, execution_id=-1)
             $("#button_show_menu").click();
         }
     }
+    else if(cmd == 'keyboard')
+    {
+        if(execute)
+        {
+            $('#button_keyboard').click();
+        }
+    }
+    else if(cmd == 'datasette_play')
+    {
+        if(execute)
+        {
+            wasm_press_play();
+        }
+    }
+    else if(cmd == 'datasette_stop')
+    {
+        if(execute)
+        {
+            wasm_press_stop();
+        }
+    }
+    else if(cmd == 'datasette_rewind')
+    {
+        if(execute)
+        {
+            wasm_rewind();
+        }
+    }
     else if(cmd == 'clipboard_paste')
     {
         if(execute)

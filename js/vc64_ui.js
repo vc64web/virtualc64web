@@ -14,7 +14,7 @@ let call_param_SID=null;
 let virtual_keyboard_clipping = true; //keyboard scrolls when it clips
 
 const AudioContext = window.AudioContext || window.webkitAudioContext;
-const audioContext = new AudioContext();
+let audioContext = new AudioContext();
 let audio_connected=false;
 let current_audio_device='separate thread (mono)';
 
@@ -1442,9 +1442,26 @@ function InitWrappers() {
     wasm_copy_into_sound_buffer = Module.cwrap('wasm_copy_into_sound_buffer', 'number');
     wasm_set_sample_rate = Module.cwrap('wasm_set_sample_rate', 'undefined', ['number']);
 
+    resume_audio=async ()=>{
+        try {
+            await audioContext.resume();  
+        }
+        catch(e) {
+            console.error(e); console.error("try to setup audio from scratch...");
+            try {
+                await audioContext.close();
+            }
+            finally
+            {
+                audio_connected=false; 
+                audioContext=new AudioContext();
+            }
+        }
+    }
+
     connect_audio_processor = async () => {
         if(audioContext.state !== 'running') {
-            await audioContext.resume();  
+            await resume_audio();  
         }
         if(audio_connected==true)
             return; 
@@ -1510,7 +1527,7 @@ function InitWrappers() {
 
     connect_audio_processor_stereo = async () => {
         if(audioContext.state !== 'running') {
-            await audioContext.resume();  
+            await resume_audio();  
         }
         if(audio_connected==true)
             return; 

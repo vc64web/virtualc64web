@@ -3842,7 +3842,7 @@ release_key('ControlLeft');`;
  
         if(!just_dragged)
         {
-            const magnetic_force=5.4;
+            const magnetic_force=5.3;
             just_dragged = Math.abs(xOffset[e.target.id]-currentX)>magnetic_force || Math.abs(yOffset[e.target.id]-currentY)>magnetic_force;
         }
         if(just_dragged)

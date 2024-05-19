@@ -3388,6 +3388,7 @@ release_key('ControlLeft');`;
                             return false;
                         }
                         if (!cm.state.completionActive && 
+                            event.key !== undefined &&
                             event.key.length == 1  &&
                             event.metaKey == false && event.ctrlKey == false &&
                             event.key != ';' && event.key != ' ' && event.key != '(' 
@@ -3669,6 +3670,7 @@ release_key('ControlLeft');`;
             }
             else
             {
+                add_pencil_support(custom_key_el);
                 custom_key_el.addEventListener("click",(e)=>
                 {
                     e.stopImmediatePropagation();
@@ -3766,6 +3768,8 @@ release_key('ControlLeft');`;
             initialX = e.clientX - xOffset[e.target.id];
             initialY = e.clientY - yOffset[e.target.id];
         }
+
+        just_dragged=false;
       }
     }
 
@@ -3776,10 +3780,7 @@ release_key('ControlLeft');`;
         if(active)
         {
             var dragTime = Date.now()-timeStart;
-            if(Math.abs(currentX - startX) < 3 &&
-                Math.abs(currentY - startY) < 3 &&
-                dragTime > 300
-                )
+            if(!just_dragged && dragTime > 300)
             {
                 haptic_active=true;
                 haptic_touch_selected= e.target;
@@ -3808,7 +3809,6 @@ release_key('ControlLeft');`;
             ckdef.currentY = 0;
         }
 
-        just_dragged = ckdef.currentX != currentX || ckdef.currentY != currentY;
         if(just_dragged)
         {
             ckdef.currentX = currentX;
@@ -3839,11 +3839,19 @@ release_key('ControlLeft');`;
           currentX = e.clientX - initialX;
           currentY = e.clientY - initialY;
         }
+ 
+        if(!just_dragged)
+        {
+            const magnetic_force=5.4;
+            just_dragged = Math.abs(xOffset[e.target.id]-currentX)>magnetic_force || Math.abs(yOffset[e.target.id]-currentY)>magnetic_force;
+        }
+        if(just_dragged)
+        { 
+            xOffset[e.target.id] = currentX;
+            yOffset[e.target.id] = currentY;
 
-        xOffset[e.target.id] = currentX;
-        yOffset[e.target.id] = currentY;
-
-        setTranslate(currentX, currentY, dragItem);
+            setTranslate(currentX, currentY, dragItem);
+        }
       }
     }
 
@@ -4042,30 +4050,30 @@ add_pencil_support = (element) => {
 
     element.addEventListener('pointerdown', (event) => {
         if (event.pointerType === 'pen') {
-        isPointerDown = true;
-        pointerId = event.pointerId;
+            isPointerDown = true;
+            pointerId = event.pointerId;
         }
     });
 
     element.addEventListener('pointerup', (event) => {
         if (isPointerDown && event.pointerId === pointerId) {
-        isPointerDown = false;
-        pointerId = null;
+            isPointerDown = false;
+            pointerId = null;
 
-        const clickEvent = new MouseEvent('click', {
-            bubbles: true,
-            cancelable: true,
-        });
+            const clickEvent = new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+            });
 
-        element.focus();
-        element.dispatchEvent(clickEvent);      
+            element.focus();
+            element.dispatchEvent(clickEvent);      
         }
     });
 
     element.addEventListener('pointercancel', (event) => {
         if (event.pointerType === 'pen') {
-        isPointerDown = false;
-        pointerId = null;
+            isPointerDown = false;
+            pointerId = null;
         }
     });
 }

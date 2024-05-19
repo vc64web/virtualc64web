@@ -1399,6 +1399,7 @@ function restore_manual_state(port)
 
 
 function InitWrappers() {
+    try{add_pencil_support_for_elements_which_need_it();} catch(e) {console.error(e)}
     wasm_loadfile = Module.cwrap('wasm_loadFile', 'string', ['string', 'array', 'number']);
     wasm_key = Module.cwrap('wasm_key', 'undefined', ['number', 'number', 'number']);
     wasm_toggleFullscreen = Module.cwrap('wasm_toggleFullscreen', 'undefined');
@@ -3637,11 +3638,13 @@ release_key('ControlLeft');`;
             $('#div_canvas').append(btn_html);
             action_scripts["ck"+element.id] = element.script;
 
+            let custom_key_el = document.getElementById(`ck${element.id}`);
             if(lock_action_button == true)
             {//when action buttons locked
              //process the mouse/touch events immediatly, there is no need to guess the gesture
                 let action_function = function(e) 
-                {   
+                {
+                    e.stopImmediatePropagation();
                     e.preventDefault();
                     var action_script = action_scripts['ck'+element.id];
 
@@ -3655,16 +3658,21 @@ release_key('ControlLeft');`;
                 };
                 let mark_as_released = function(e) 
                 {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
                     get_running_script(element.id).action_button_released = true;
                 };
 
-                $('#ck'+element.id).mousedown(action_function).on({'touchstart' : action_function});
-                $('#ck'+element.id).mouseup(mark_as_released).on({'touchend' : mark_as_released});
+                custom_key_el.addEventListener("pointerdown", action_function,false);
+                custom_key_el.addEventListener("pointerup", mark_as_released,false);
+                custom_key_el.addEventListener("touchstart",(e)=>e.stopImmediatePropagation());
             }
             else
             {
-                $('#ck'+element.id).click(function() 
-                {       
+                custom_key_el.addEventListener("click",(e)=>
+                {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();      
                     //at the end of a drag ignore the click
                     if(just_dragged)
                         return;
@@ -3721,13 +3729,9 @@ release_key('ControlLeft');`;
             yOffset["ck"+element.id] = element.currentY;
         });
 
-        container.addEventListener("touchstart", dragStart, false);
-        container.addEventListener("touchend", dragEnd, false);
-        container.addEventListener("touchmove", drag, false);
-
-        container.addEventListener("mousedown", dragStart, false);
-        container.addEventListener("mouseup", dragEnd, false);
-        container.addEventListener("mousemove", drag, false);
+        container.addEventListener("pointerdown", dragStart, false);
+        container.addEventListener("pointerup", dragEnd, false);
+        container.addEventListener("pointermove", drag, false);
     }
 
 
@@ -4032,3 +4036,53 @@ function hide_all_tooltips()
     $('[data-toggle="tooltip"]').tooltip('hide');
 }
     
+add_pencil_support = (element) => {
+    let isPointerDown = false;
+    let pointerId = null;
+
+    element.addEventListener('pointerdown', (event) => {
+        if (event.pointerType === 'pen') {
+        isPointerDown = true;
+        pointerId = event.pointerId;
+        }
+    });
+
+    element.addEventListener('pointerup', (event) => {
+        if (isPointerDown && event.pointerId === pointerId) {
+        isPointerDown = false;
+        pointerId = null;
+
+        const clickEvent = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+        });
+
+        element.focus();
+        element.dispatchEvent(clickEvent);      
+        }
+    });
+
+    element.addEventListener('pointercancel', (event) => {
+        if (event.pointerType === 'pen') {
+        isPointerDown = false;
+        pointerId = null;
+        }
+    });
+}
+function add_pencil_support_to_childs(element) {
+    element.childNodes.forEach(child => {
+        if (child.nodeType === Node.ELEMENT_NODE)
+          add_pencil_support(child);
+    });  
+}
+function add_pencil_support_for_elements_which_need_it()
+{
+    let elements_which_need_pencil_support=
+        ["button_show_menu","button_run", "button_reset", "button_take_snapshot",
+        "button_snapshots", "button_keyboard", "button_custom_key", "drop_zone",
+        "button_fullscreen", "button_settings", "port1", "port2" ]
+    for(let element_id of elements_which_need_pencil_support)
+    {
+        add_pencil_support(document.getElementById(element_id));
+    }
+}

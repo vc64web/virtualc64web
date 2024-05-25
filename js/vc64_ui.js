@@ -3271,7 +3271,7 @@ $('.layer').change( function(event) {
             $('#predefined_actions').collapse('hide');
 
             //Special Keys action
-            var list_actions=['Space','Comma','F1','F3','F5','F8','runStop','restore','commodore', 'Delete','Enter','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','ShiftLeft', 'ControlLeft'];
+            var list_actions=['Space','Comma','F1','F3','F5','F8','runStop','restore','commodore', 'Delete','Enter','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','ShiftLeft','rightShift','ControlLeft'];
             var html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';

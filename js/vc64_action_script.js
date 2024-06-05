@@ -363,6 +363,14 @@ async function execute_single_action(cmd, execute=true, execution_id=-1)
             await action_button_released(execution_id);
         }
     }
+    else if(cmd == 'toggle_action_buttons')
+    {
+        if(execute)
+        {
+            let this_buttons_label = $('#ck'+execution_id).text();
+            $(".custom_key").not(`":contains('${this_buttons_label}')"`).toggle();
+        }
+    } 
     else
     {
         valid=false;

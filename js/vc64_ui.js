@@ -3308,7 +3308,7 @@ $('.layer').change( function(event) {
             $('#add_timer_action a').click(on_add_action);
             
             //system action
-            var list_actions=['toggle_run', 'take_snapshot', 'restore_last_snapshot', 'swap_joystick', 'keyboard', 'fullscreen','menubar', 'pause', 'run', 'clipboard_paste', 'datasette_play','datasette_stop','datasette_rewind',];
+            var list_actions=['toggle_run', 'take_snapshot', 'restore_last_snapshot', 'swap_joystick', 'keyboard', 'fullscreen','menubar', 'pause', 'run', 'clipboard_paste', 'datasette_play','datasette_stop','datasette_rewind','toggle_action_buttons'];
             html_action_list='';
             list_actions.forEach(element => {
                 html_action_list +='<a class="dropdown-item" href="#">'+element+'</a>';

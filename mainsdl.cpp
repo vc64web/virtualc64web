@@ -197,6 +197,7 @@ int eventFilter(void* thisC64, SDL_Event* event) {
 }
 
  
+bool requested_targetFrameCount_reset=false; 
 int sum_samples=0;
 double last_time = 0.0 ;
 unsigned int executed_frame_count=0;
@@ -204,6 +205,7 @@ int64_t total_executed_frame_count=0;
 double start_time=emscripten_get_now();
 unsigned int rendered_frame_count=0;
 unsigned int frames=0, seconds=0;
+double frame_rate=50.125; //PAL
 // The emscripten "main loop" replacement function.
 void draw_one_frame_into_SDL(void *thisC64) 
 {
@@ -219,7 +221,7 @@ void draw_one_frame_into_SDL(void *thisC64)
   double now = emscripten_get_now();  
  
   double elapsedTimeInSeconds = (now - start_time)/1000.0;
-  int64_t targetFrameCount = (int64_t)(elapsedTimeInSeconds * 50.125);
+  int64_t targetFrameCount = (int64_t)(elapsedTimeInSeconds * frame_rate);
  
   int max_gap = 8;
 
@@ -239,6 +241,15 @@ void draw_one_frame_into_SDL(void *thisC64)
     total_executed_frame_count=0;
     targetFrameCount=1;  
   }
+
+  if(requested_targetFrameCount_reset)
+  {
+    start_time=now;
+    total_executed_frame_count=0;
+    targetFrameCount=1;
+    requested_targetFrameCount_reset=false;
+  }
+
 
   //lost the sync
   if(targetFrameCount-total_executed_frame_count > max_gap)
@@ -459,6 +470,16 @@ void theListener(const void * c64, long type, long data){
     ((C64 *)c64)->drive8.dump();
   }
 
+  if(type == MSG_PAL) {
+    printf("switched to PAL");
+    frame_rate = 50.125;// besser 50 ?
+    requested_targetFrameCount_reset=true;
+  }
+  else if(type == MSG_NTSC) {
+    printf("switched to NTSC");
+    frame_rate = 60.0;
+    requested_targetFrameCount_reset=true;
+  }
 }
 
 
@@ -764,6 +785,23 @@ extern "C" void wasm_set_warp(unsigned on)
   }
 }
 
+extern "C" void wasm_set_PAL(unsigned on)
+{
+  wrapper->c64->configure(OPT_VIC_REVISION, on == 0 ? VICII_NTSC_8562 : VICII_PAL_6569_R1);
+  printf("set to =%s\n", wrapper->c64->vic.pal() ? "PAL":"NTSC");
+  auto ntsc_height=223;
+  auto ntsc_width = 370;
+  auto ntsc_xoffset = 12 + 6/*NTSC*/ + eat_border_width + 92; 
+  clipped_height = on==0 ? ntsc_height:TEX_HEIGHT -42  -2*eat_border_height;
+  clipped_width = on==0 ?  ntsc_width:TEX_WIDTH -112 -24 -2*eat_border_width; 
+//  printf("xOff=%u + ntsc_off=%i\n", xOff,ntsc_xoffset);
+  xOff =  ntsc_xoffset;
+//  printf("new xOff=%u\n", xOff);
+  
+  SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);
+  SDL_RenderSetLogicalSize(renderer, clipped_width, clipped_height); 
+  SDL_SetWindowSize(window, clipped_width, clipped_height);
+}
 
 extern "C" void wasm_set_borderless(float on)
 {

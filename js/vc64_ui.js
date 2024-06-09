@@ -3908,10 +3908,10 @@ function setTheme() {
   }
 }
   
-
+PAL_VIC=true;
 function scaleVMCanvas() {
-        var src_width=428 -2*33;
-        var src_height=284 -2*22;
+        var src_width=428 -2*33;// PAL=362
+        var src_height=284 -2*22 /*NTSC +40*/+(PAL_VIC?0:40);// PAL=240
         var src_ratio = src_width/src_height; //1.6  kehrwert=0.625
         var inv_src_ratio = src_height/src_width;
         var wratio = window.innerWidth / window.innerHeight;

@@ -785,43 +785,63 @@ extern "C" void wasm_set_warp(unsigned on)
   }
 }
 
-extern "C" void wasm_set_PAL(unsigned on)
+bool borderless=false;
+void calculate_viewport()
 {
-  wrapper->c64->configure(OPT_VIC_REVISION, on == 0 ? VICII_NTSC_8562 : VICII_PAL_6569_R1);
-  printf("set to =%s\n", wrapper->c64->vic.pal() ? "PAL":"NTSC");
-  auto ntsc_height=223;
-  auto ntsc_width = 370;
-  auto ntsc_xoffset = 12 + 6/*NTSC*/ + eat_border_width + 92; 
-  clipped_height = on==0 ? ntsc_height:TEX_HEIGHT -42  -2*eat_border_height;
-  clipped_width = on==0 ?  ntsc_width:TEX_WIDTH -112 -24 -2*eat_border_width; 
-//  printf("xOff=%u + ntsc_off=%i\n", xOff,ntsc_xoffset);
-  xOff =  ntsc_xoffset;
-//  printf("new xOff=%u\n", xOff);
-  
+  auto pal = wrapper->c64->vic.pal();
+
+  if(pal)
+  {
+    eat_border_width = 31 * borderless;
+    xOff = 12 + eat_border_width + 92;
+    clipped_width  = TEX_WIDTH -112 -24 -2*eat_border_width; //392
+  //428-12-24-2*33 =326
+
+    eat_border_height = 34 * borderless;
+    yOff = 16 + eat_border_height;
+    clipped_height = TEX_HEIGHT -42  -2*eat_border_height; //248
+  //284-11-24-2*22=205
+  }
+  else //NTSC
+  {
+    eat_border_width = borderless? 31:0;
+    eat_border_height = borderless ? 9 :0;
+    auto ntsc_height=220;
+    auto ntsc_width = 370;
+    auto ntsc_xoffset = 12 + 6/*NTSC*/ + eat_border_width + 92; 
+    clipped_height = ntsc_height -2*eat_border_height;
+
+    if(borderless)
+    {
+      eat_border_width = 31; //redundant
+      xOff = 12 + eat_border_width + 92;
+      clipped_width  = TEX_WIDTH -112 -24 -2*eat_border_width; //392
+    }
+    else
+    {
+      clipped_width = ntsc_width;
+  //  printf("xOff=%u + ntsc_off=%i\n", xOff,ntsc_xoffset);
+      xOff =  ntsc_xoffset;
+    }
+    yOff = 16 + eat_border_height;
+  }  
   SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);
   SDL_RenderSetLogicalSize(renderer, clipped_width, clipped_height); 
   SDL_SetWindowSize(window, clipped_width, clipped_height);
 }
 
-extern "C" void wasm_set_borderless(float on)
+
+extern "C" void wasm_set_PAL(unsigned on)
 {
-  //NTSC_PIXEL=428
-  //PAL_RASTERLINES=284 
+  wrapper->c64->configure(OPT_VIC_REVISION, on == 0 ? VICII_NTSC_8562 : VICII_PAL_6569_R1);
+  printf("set to =%s\n", wrapper->c64->vic.pal() ? "PAL":"NTSC");
+  calculate_viewport();
+}
 
-  eat_border_width = 31 * on;
-  xOff = 12 + eat_border_width + 92;
-  clipped_width  = TEX_WIDTH -112 -24 -2*eat_border_width; //392
-//428-12-24-2*33 =326
-
-  eat_border_height = 34 * on ;
-  yOff = 16 + eat_border_height;
-  clipped_height = TEX_HEIGHT -42  -2*eat_border_height; //248
-//284-11-24-2*22=205
- 
-  SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);
-  SDL_RenderSetLogicalSize(renderer, clipped_width, clipped_height); 
-  SDL_SetWindowSize(window, clipped_width, clipped_height);
-
+extern "C" void wasm_set_borderless(unsigned on)
+{
+  borderless= on==1;
+  calculate_viewport();
 }
 
 

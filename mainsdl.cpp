@@ -1374,6 +1374,15 @@ extern "C" char* wasm_translate(char c)
 }
 */
 
+extern "C" unsigned wasm_get_config(char* option)
+{
+ // if(strcmp(option,"OPT_VIC_REVISION") == 0)
+  //{
+    return wrapper->c64->getConfigItem(OPT_VIC_REVISION);
+  //}
+  //return 0;
+}
+
 extern "C" void wasm_configure(char* option, unsigned on)
 {
   bool on_value = (on == 1);

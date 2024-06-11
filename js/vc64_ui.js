@@ -464,6 +464,12 @@ function message_handler(msg, data)
         //rs232_message.push(data);
         rs232_message += String.fromCharCode(data);
     }
+    else if(msg =="MSG_PAL" || msg =="MSG_NTSC")
+    {
+        let vic = _wasm_get_config("OPT_VIC_REVISION");
+        let vic_rev=["PAL 50Hz 6569","PAL 50Hz 6569 R3","PAL 50Hz 8565","NTSC 60Hz 6567 R56A","NTSC 60Hz 6567","NTSC 60Hz 8562"];
+        if(0 <= vic && vic<vic_rev.length) $("#button_vic_rev").text("vicII rev "+ vic_rev[vic]);
+    }
 }
 rs232_message = "";
 //rs232_message=[];

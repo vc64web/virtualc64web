@@ -2777,6 +2777,23 @@ $('.layer').change( function(event) {
     }
     delete_cache();
 */    
+set_vic_rev = function (vic_rev) {
+    $("#button_vic_rev").text("vicII rev "+vic_rev);
+    wasm_configure(vic_rev);
+    let pal=vic_rev.includes("PAL");
+    //_wasm_set_PAL(pal);
+    PAL_VIC=pal;
+    scaleVMCanvas();
+}
+set_vic_rev(load_setting('vic_rev', 'PAL 50Hz 6569 R3'));
+
+$('#choose_vic_rev a').click(function () 
+{
+    var vic_rev=$(this).text();
+    set_vic_rev(vic_rev);
+    save_setting('vic_rev',vic_rev)
+    $("#modal_settings").focus();
+});
 
     set_sid_model = function (sid_model) {
         $("#button_sid_model").text("sid model "+sid_model);
@@ -3908,10 +3925,10 @@ function setTheme() {
   }
 }
   
-
+PAL_VIC=true;
 function scaleVMCanvas() {
-        var src_width=428 -2*33;
-        var src_height=284 -2*22;
+        var src_width=428 -2*33;// PAL=362
+        var src_height=284 -2*22 /*NTSC +40*/+(PAL_VIC?0:40);// PAL=240
         var src_ratio = src_width/src_height; //1.6  kehrwert=0.625
         var inv_src_ratio = src_height/src_width;
         var wratio = window.innerWidth / window.innerHeight;

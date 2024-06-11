@@ -414,8 +414,8 @@ var collectors = {
                 }
                 else //v4.0
                 {
-                    width=384;
-                    height=284;
+                    width=src_data[8] + src_data[9] * 256; //384;
+                    height=src_data[12] + src_data[13] * 256; //284;
                 }
                 var ctx = teaser_canvas.getContext("2d");
                 teaser_canvas.width = width;
@@ -450,6 +450,7 @@ var collectors = {
                 {
                     wasm_halt();
                 }
+                _wasm_set_PAL(snapshot_data[12] + snapshot_data[13] * 256 ==284);
                 wasm_loadfile(
                             global_apptitle /*snapshot.title*/+".vc64",
                             snapshot_data, 
@@ -470,6 +471,7 @@ var collectors = {
                             alert(`This snapshot has been taken with the older virtual C64 version ${version} and can not be loaded with the current version ${vc64web_version}, sorry.`);
                             return;
                         }
+                        _wasm_set_PAL(snapshot.data[12] + snapshot.data[13] * 256 ==284);
                         wasm_loadfile(
                             snapshot.title+".vc64",
                             snapshot.data, 

@@ -474,11 +474,13 @@ void theListener(const void * c64, long type, long data){
     printf("switched to PAL");
     frame_rate = 50.125;// besser 50 ?
     requested_targetFrameCount_reset=true;
+    EM_ASM({PAL_VIC=true});
   }
   else if(type == MSG_NTSC) {
     printf("switched to NTSC");
     frame_rate = 60.0;
     requested_targetFrameCount_reset=true;
+    EM_ASM({PAL_VIC=false});
   }
 }
 
@@ -816,6 +818,10 @@ void calculate_viewport()
       eat_border_width = 31; //redundant
       xOff = 12 + eat_border_width + 92;
       clipped_width  = TEX_WIDTH -112 -24 -2*eat_border_width; //392
+      if(  wrapper->c64->getConfigItem(OPT_VIC_REVISION) ==VICII_NTSC_6567_R56A)
+      {
+        eat_border_height++;
+      }
     }
     else
     {
@@ -1393,6 +1399,36 @@ extern "C" void wasm_configure(char* option, unsigned on)
   {
     printf("calling c64->configure_rs232_ser_speed %d\n", on);
     wrapper->c64->configure_rs232_ser_speed(on);
+  }
+  else if(strcmp(option,"PAL 50Hz 6569") == 0)
+  {
+    wrapper->c64->configure(OPT_VIC_REVISION, VICII_PAL_6569_R1);
+    calculate_viewport();
+  }
+  else if(strcmp(option,"PAL 50Hz 6569 R3") == 0)
+  {
+    wrapper->c64->configure(OPT_VIC_REVISION, VICII_PAL_6569_R3);
+    calculate_viewport();
+  }
+  else if(strcmp(option,"PAL 50Hz 8565") == 0)
+  {
+    wrapper->c64->configure(OPT_VIC_REVISION, VICII_PAL_8565);
+    calculate_viewport();
+  }
+  else if(strcmp(option,"NTSC 60Hz 6567 R56A") == 0)
+  {
+    wrapper->c64->configure(OPT_VIC_REVISION, VICII_NTSC_6567_R56A);
+    calculate_viewport();
+  }
+  else if(strcmp(option,"NTSC 60Hz 6567") == 0)
+  {
+    wrapper->c64->configure(OPT_VIC_REVISION, VICII_NTSC_6567);
+    calculate_viewport();
+  }
+  else if(strcmp(option,"NTSC 60Hz 8562") == 0)
+  {
+    wrapper->c64->configure(OPT_VIC_REVISION, VICII_NTSC_8562);
+    calculate_viewport();
   }
   else
   {

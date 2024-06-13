@@ -205,7 +205,7 @@ int64_t total_executed_frame_count=0;
 double start_time=emscripten_get_now();
 unsigned int rendered_frame_count=0;
 unsigned int frames=0, seconds=0;
-double frame_rate=50.125; //PAL
+double frame_rate=50; //PAL
 // The emscripten "main loop" replacement function.
 void draw_one_frame_into_SDL(void *thisC64) 
 {
@@ -471,13 +471,13 @@ void theListener(const void * c64, long type, long data){
   }
 
   if(type == MSG_PAL) {
-    printf("switched to PAL");
-    frame_rate = 50.125;// besser 50 ?
+    printf("switched to PAL\n");
+    frame_rate = 50.0;
     requested_targetFrameCount_reset=true;
     EM_ASM({PAL_VIC=true});
   }
   else if(type == MSG_NTSC) {
-    printf("switched to NTSC");
+    printf("switched to NTSC\n");
     frame_rate = 60.0;
     requested_targetFrameCount_reset=true;
     EM_ASM({PAL_VIC=false});
@@ -1374,6 +1374,15 @@ extern "C" char* wasm_translate(char c)
 }
 */
 
+extern "C" unsigned wasm_get_config(char* option)
+{
+ // if(strcmp(option,"OPT_VIC_REVISION") == 0)
+  //{
+    return wrapper->c64->getConfigItem(OPT_VIC_REVISION);
+  //}
+  //return 0;
+}
+
 extern "C" void wasm_configure(char* option, unsigned on)
 {
   bool on_value = (on == 1);
@@ -1402,34 +1411,47 @@ extern "C" void wasm_configure(char* option, unsigned on)
   }
   else if(strcmp(option,"PAL 50Hz 6569") == 0)
   {
+    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
     wrapper->c64->configure(OPT_VIC_REVISION, VICII_PAL_6569_R1);
     calculate_viewport();
   }
   else if(strcmp(option,"PAL 50Hz 6569 R3") == 0)
   {
+    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
     wrapper->c64->configure(OPT_VIC_REVISION, VICII_PAL_6569_R3);
     calculate_viewport();
   }
   else if(strcmp(option,"PAL 50Hz 8565") == 0)
   {
+    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
     wrapper->c64->configure(OPT_VIC_REVISION, VICII_PAL_8565);
     calculate_viewport();
   }
   else if(strcmp(option,"NTSC 60Hz 6567 R56A") == 0)
   {
+    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_60HZ);
     wrapper->c64->configure(OPT_VIC_REVISION, VICII_NTSC_6567_R56A);
     calculate_viewport();
   }
   else if(strcmp(option,"NTSC 60Hz 6567") == 0)
   {
+    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_60HZ);
     wrapper->c64->configure(OPT_VIC_REVISION, VICII_NTSC_6567);
     calculate_viewport();
   }
   else if(strcmp(option,"NTSC 60Hz 8562") == 0)
   {
+    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_60HZ);
     wrapper->c64->configure(OPT_VIC_REVISION, VICII_NTSC_8562);
     calculate_viewport();
   }
+/*  else if(strcmp(option,"freset") == 0)
+  {
+    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
+    frame_rate = 50.125;//
+    EM_ASM({PAL_VIC=true});
+    requested_targetFrameCount_reset=true;
+  }*/
   else
   {
     printf("error !!!!! unknown option= %s\n", option);

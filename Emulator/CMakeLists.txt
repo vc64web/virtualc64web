@@ -20,8 +20,8 @@ endif()
 add_library(vc64Core VirtualC64.cpp config.cpp)
 
 # Add the console app (VirtualC64 Headless)
-add_executable(vc64Console Headless.cpp config.cpp)
-target_link_libraries(vc64Console vc64Core)
+#add_executable(vc64Console Headless.cpp config.cpp)
+#target_link_libraries(vc64Console vc64Core)
 
 # Specify compile options
 target_compile_definitions(vc64Core PUBLIC _USE_MATH_DEFINES)
@@ -35,10 +35,17 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_compile_options(vc64Core PUBLIC -Wno-attributes)
   target_compile_options(vc64Core PUBLIC -fconcepts)
 else()
-  target_compile_options(vc64Core PUBLIC -Wall -Werror)
-  target_compile_options(vc64Core PUBLIC -Wno-unused-parameter)
-  target_compile_options(vc64Core PUBLIC -Wno-gnu-anonymous-struct)
-  target_compile_options(vc64Core PUBLIC -Wno-nested-anon-types)
+  target_compile_options(vc64Core PRIVATE -Wall -Werror)
+  target_compile_options(vc64Core PRIVATE -Wno-unused-parameter -Wno-unused-but-set-variable)
+  target_compile_options(vc64Core PRIVATE -O1 -mnontrapping-fptoint -fwasm-exceptions)
+  target_compile_options(vc64Core PRIVATE -Wfatal-errors)
+
+  if("${thread_type}" STREQUAL "worker")
+	  target_compile_options(vc64Core PRIVATE -sWASM_WORKERS)
+  endif()
+  
+  target_compile_options(vc64Core PRIVATE -g) 
+  set_target_properties(vc64Core PROPERTIES LINK_FLAGS "-O3 -mnontrapping-fptoint -fwasm-exceptions -g" )
 endif()
 
 # Add include paths

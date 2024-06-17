@@ -251,7 +251,7 @@ public:
     // I/O space (CPU accessible)
     //
     
-private:
+public:
     
     /* Piped I/O register state. When an I/O register is written to, the
      * corresponding value in variable current is changed and a flag is set in

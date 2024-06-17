@@ -164,7 +164,7 @@ private:
     // Methods from Thread
     //
 
-private:
+public:
 
     void update() override;
     bool shouldWarp();

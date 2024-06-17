@@ -99,12 +99,14 @@ protected:
 public:
 
     // Returns true if this functions is called from within the emulator thread
-    bool isEmulatorThread() const { return std::this_thread::get_id() == thread.get_id(); }
+    bool isEmulatorThread() const { 
+        return true; //std::this_thread::get_id() == thread.get_id(); 
+        }
 
     // Performs a state change
     void switchState(ExecState newState);
 
-private:
+//private:
 
     // Updates the emulator state (implemented by the subclass)
     virtual void update() = 0;

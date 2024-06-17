@@ -6,12 +6,15 @@
 
 #include <stdio.h>
 #include "config.h"
-#include "C64.h"
-#include "C64Types.h"
+#include "VirtualC64.h"
+#include "VirtualC64Types.h"
+#include "Emulator.h"
 
 #include <emscripten.h>
 #include <SDL2/SDL.h>
 #include <emscripten/html5.h>
+
+using namespace vc64;
 
 /* SDL2 start*/
 SDL_Window * window = NULL;
@@ -95,14 +98,14 @@ void PrintEvent(const SDL_Event * event)
     }
 }
 
-int emu_width  = TEX_WIDTH; //NTSC_PIXELS; //428
-int emu_height = TEX_HEIGHT; //PAL_RASTERLINES; //284
+int emu_width  = Texture::width; //Texture.width; //NTSC_PIXELS; //428
+int emu_height = Texture::height; //PAL_RASTERLINES; //284
 int eat_border_width = 0;
 int eat_border_height = 0;
 int xOff = 12 + eat_border_width;
 int yOff = 12 + eat_border_height;
-int clipped_width  = TEX_WIDTH -12 -24 -2*eat_border_width; //392
-int clipped_height = TEX_HEIGHT -12 -24 -2*eat_border_height; //248
+int clipped_width  = Texture::width -12 -24 -2*eat_border_width; //392
+int clipped_height = Texture::height -12 -24 -2*eat_border_height; //248
 
 int bFullscreen = false;
 
@@ -226,15 +229,16 @@ void draw_one_frame_into_SDL(void *thisC64)
   int max_gap = 8;
 
 
-  C64 *c64 = (C64 *)thisC64;
+  VirtualC64 *c64 = (VirtualC64 *)thisC64;
 
-  if(c64->inWarpMode() == true)
+  if(c64->isWarping() == true)
   {
     printf("warping at least 25 frames at once ...\n");
     int i=25;
-    while(c64->inWarpMode() == true && i>0)
+    while(c64->isWarping() == true && i>0)
     {
-      c64->executeOneFrame();
+      //c64->emu->computeFrame();
+      c64->emu->computeFrame();
       i--;
     }
     start_time=now;
@@ -286,12 +290,12 @@ void draw_one_frame_into_SDL(void *thisC64)
     executed_frame_count++;
     total_executed_frame_count++;
 
-    c64->executeOneFrame();
+    c64->emu->computeFrame();
   }
 
   rendered_frame_count++;  
  
-  Uint8 *texture = (Uint8 *)c64->vic.stableEmuTexture(); //screenBuffer();
+  Uint8 *texture = (Uint8 *)c64->videoPort.getTexture(); //screenBuffer();
 
 //  int surface_width = window_surface->w;
 //  int surface_height = window_surface->h;
@@ -315,10 +319,10 @@ void MyAudioCallback(void*  thisC64,
                        Uint8* stream,
                        int    len)
 {
-    C64 *c64 = (C64 *)thisC64;
+    VirtualC64 *c64 = (VirtualC64 *)thisC64;
     
     int n = len /  sizeof(float);
-    c64->muxer.copyMono((float *)stream, n);
+    c64->audioPort.copyMono((float *)stream, n);
 /*    printf("copyMono[%d]: ", n);
     for(int i=0; i<n; i++)
     {
@@ -424,20 +428,21 @@ void send_message_to_js(const char * msg, long data)
 
 bool paused_the_emscripten_main_loop=false;
 bool warp_mode=false;
-void theListener(const void * c64, long type, long data){
-  
-  if(warp_mode && type == MSG_IEC_BUS_BUSY && !((C64 *)c64)->inWarpMode())
+//void theListener(const void * c64, long type, long data){
+void theListener(const void * c64, Message msg){
+
+  if(warp_mode && msg.type == MSG_SER_BUSY && !((VirtualC64 *)c64)->isWarping())
   {
-    ((C64 *)c64)->warpOn(); //setWarp(true);
+    ((VirtualC64 *)c64)->warpOn(); //setWarp(true);
   }
-  else if(type == MSG_IEC_BUS_IDLE && ((C64 *)c64)->inWarpMode())
+  else if(msg.type == MSG_SER_IDLE && ((VirtualC64 *)c64)->isWarping())
   {
-    ((C64 *)c64)->warpOff(); //setWarp(false);
+    ((VirtualC64 *)c64)->warpOff(); //setWarp(false);
   }
 
-  const char *message_as_string =  (const char *)MsgTypeEnum::key((MsgType)type);
-  printf("vC64 message=%s, data=%ld\n", message_as_string, data);
-  send_message_to_js(message_as_string, data);
+  const char *message_as_string =  (const char *)MsgTypeEnum::key((MsgType)msg.type);
+  printf("vC64 message=%s, data=%ld\n", message_as_string, msg.value);
+  send_message_to_js(message_as_string, msg.value);
 
 
 /*  if(type == MSG_RUN)
@@ -465,18 +470,18 @@ void theListener(const void * c64, long type, long data){
   }
 */
 
-  if(type == MSG_DISK_INSERT)
+  if(msg.type == MSG_DISK_INSERT)
   {
-    ((C64 *)c64)->drive8.dump();
+    ((VirtualC64 *)c64)->drive8.drive->dump(Category::Debug);
   }
 
-  if(type == MSG_PAL) {
+  if(msg.type == MSG_PAL) {
     printf("switched to PAL\n");
     frame_rate = 50.0;
     requested_targetFrameCount_reset=true;
     EM_ASM({PAL_VIC=true});
   }
-  else if(type == MSG_NTSC) {
+  else if(msg.type == MSG_NTSC) {
     printf("switched to NTSC\n");
     frame_rate = 60.0;
     requested_targetFrameCount_reset=true;
@@ -488,17 +493,27 @@ void theListener(const void * c64, long type, long data){
 
 class C64Wrapper {
   public:
-    C64 *c64;
+    VirtualC64 *c64;
 
   C64Wrapper()
   {
     printf("constructing C64 ...\n");
 
-    this->c64 = new C64();
+    this->c64 = new VirtualC64();
 
     printf("adding a listener to C64 message queue...\n");
 
-    c64->msgQueue.setListener(this->c64, &theListener);
+    printf("launch2\n");
+
+    //c64->msgQueue.setListener(this->c64, &theListener);
+    try
+    {
+      c64->launch(this->c64, &theListener);
+    } catch(std::exception &exception) {
+      printf("%s\n", exception.what());
+    }
+    
+    printf("after launch\n");    
   }
   ~C64Wrapper()
   {
@@ -513,8 +528,13 @@ class C64Wrapper {
     c64->loadRom(ROM_CHAR, "roms/characters.901225-01.bin");
     c64->loadRom(ROM_VC1541, "roms/1541-II.251968-03.bin");
 */
+ printf("v5 run start\n");
 
-    try { c64->isReady(); } catch(...) { c64->msgQueue.put(MSG_ROM_MISSING); }
+    try { c64->isReady(); } catch(...) { 
+        EM_ASM({
+          setTimeout(function() {message_handler( 'MSG_ROM_MISSING' );}, 0);
+        });
+    }
     /*
     EM_ASM({
       setTimeout(function() {message_handler( $0 );}, 0);
@@ -525,22 +545,24 @@ class C64Wrapper {
 
     //c64->setTakeAutoSnapshots(false);
     //c64->setWarpLoad(true);
-    c64->configure(OPT_GRAY_DOT_BUG, false);
-    c64->configure(OPT_VIC_REVISION, VICII_PAL_6569_R1);
+    c64->set(OPT_VICII_GRAY_DOT_BUG, false);
+    c64->set(OPT_VICII_REVISION, VICII_PAL_6569_R1);
 
-    c64->configure(OPT_SID_ENGINE, SIDENGINE_RESID);
+    c64->set(OPT_SID_ENGINE, SIDENGINE_RESID);
 //    c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);
 
 
     // master Volumne
-    c64->configure(OPT_AUDVOLL, 100); 
-    c64->configure(OPT_AUDVOLR, 100);
+    c64->set(OPT_AUD_VOL_L, 100); 
+    c64->set(OPT_AUD_VOL_R, 100);
 
     //SID0 Volumne
-    c64->configure(OPT_AUDVOL, 0, 100); 
-    c64->configure(OPT_AUDPAN, 0, 0);
-
-    c64->configure(OPT_DRV_AUTO_CONFIG,DRIVE8,1);
+    #ifdef TODO
+    c64->set(OPT_AUD_VOL0, 0, 100); 
+   c64->set(OPT_AUD_PAN0, 0, 0);
+    #endif
+    
+    c64->set(OPT_DRV_AUTO_CONFIG,DRIVE8,1);
     //SID1 Volumne
 /*    c64->configure(OPT_AUDVOL, 1, 100);
     c64->configure(OPT_AUDPAN, 1, 50);
@@ -592,7 +614,7 @@ uint64_t mach_absolute_time()
 extern "C" void wasm_keyboard_reset()
 {
   printf("wasm_keyboard_reset\n");
-  wrapper->c64->keyboard.reset(true);
+  wrapper->c64->keyboard.keyboard->reset(true);
 }
 
 extern "C" void wasm_key(int code1, int code2, int pressed)
@@ -603,20 +625,20 @@ extern "C" void wasm_key(int code1, int code2, int pressed)
   {
     if(pressed == 1)
     {
-      wrapper->c64->keyboard.pressRestore();
+      wrapper->c64->keyboard.keyboard->press(C64Key::restore);
     }
     else
     {
-      wrapper->c64->keyboard.releaseRestore();
+      wrapper->c64->keyboard.keyboard->release(C64Key::restore);
     }
   }
   else if(pressed==1)
   {
-    wrapper->c64->keyboard.press(C64Key(code1,code2));
+    wrapper->c64->keyboard.keyboard->press(C64Key(code1,code2));
   }
   else
   {
-    wrapper->c64->keyboard.release(C64Key(code1,code2));
+    wrapper->c64->keyboard.keyboard->release(C64Key(code1,code2));
     //wrapper->c64->keyboard.releaseRowCol(code1, code2);
   }
 }
@@ -628,25 +650,30 @@ extern "C" void wasm_schedule_key(int code1, int code2, int pressed, int frame_d
     if(pressed == 1)
     {
       printf("scheduleKeyPress ( 31, %d ) \n", frame_delay);
-      wrapper->c64->keyboard.scheduleKeyPress(31, frame_delay);   //pressRestore();
+     // wrapper->c64->keyboard.keyboard->scheduleKeyPress(31, frame_delay);   //pressRestore();
+      wrapper->c64->put(CMD_KEY_PRESS, KeyCmd(31,frame_delay));
     }
     else
     {
       printf("scheduleKeyRelease ( 31, %d ) \n", frame_delay);
-      wrapper->c64->keyboard.scheduleKeyRelease(31, frame_delay);   //releaseRestore();
+     // wrapper->c64->keyboard.scheduleKeyRelease(31, frame_delay);   //releaseRestore();
+      wrapper->c64->put(CMD_KEY_RELEASE, KeyCmd(31,frame_delay));
     }
   }
   else if(pressed==1)
   {
     printf("scheduleKeyPress ( %d, %d, %d ) \n", code1, code2, frame_delay);
+//    wrapper->c64->keyboard.scheduleKeyPress(C64Key(code1,code2), frame_delay);
+      auto xxx =C64Key(code1, code2);
+      wrapper->c64->put(Cmd(CMD_KEY_PRESS, KeyCmd(xxx.nr,frame_delay)));
 
-    wrapper->c64->keyboard.scheduleKeyPress(C64Key(code1,code2), frame_delay);
   }
   else
   {
     printf("scheduleKeyRelease ( %d, %d, %d ) \n", code1, code2, frame_delay);
-
-    wrapper->c64->keyboard.scheduleKeyRelease(C64Key(code1,code2), frame_delay);
+    //wrapper->c64->keyboard.scheduleKeyRelease(C64Key(code1,code2), frame_delay);
+    auto xxx =C64Key(code1, code2);
+    wrapper->c64->put(Cmd(CMD_KEY_RELEASE, KeyCmd(xxx.nr,frame_delay)));
   }
 }
 
@@ -655,7 +682,7 @@ char wasm_pull_user_snapshot_file_json_result[255];
 
 extern "C" char* wasm_export_disk()
 {
-  if(!wrapper->c64->drive8.hasDisk())
+  if(!wrapper->c64->drive8.drive->hasDisk())
   {
     printf("no disk in drive8\n");
     sprintf(wasm_pull_user_snapshot_file_json_result, "{\"size\": 0 }");
@@ -665,7 +692,7 @@ extern "C" char* wasm_export_disk()
 //  FSDevice *fs = FSDevice::makeWithDisk(wrapper->c64->drive8.disk);    
 //  D64File *d64 = D64File::makeWithFileSystem(*fs);
 
-  FSDevice *fs = new FSDevice(*wrapper->c64->drive8.disk);
+  FileSystem *fs = new FileSystem(*wrapper->c64->drive8.drive->disk);
   D64File *d64 = new D64File(*fs);
 
 /*  size_t size = d64->size;
@@ -686,7 +713,7 @@ extern "C" char* wasm_export_disk()
 }
 
 
-Snapshot *snapshot=NULL;
+MediaFile *snapshot=NULL;
 extern "C" void wasm_delete_user_snapshot()
 {
 //  printf("request to free user_snapshot memory\n");
@@ -704,7 +731,9 @@ extern "C" char* wasm_pull_user_snapshot_file()
   printf("wasm_pull_user_snapshot_file\n");
 
   wasm_delete_user_snapshot();
-  snapshot = wrapper->c64->latestUserSnapshot(); //wrapper->c64->userSnapshot(nr);
+  //snapshot = wrapper->c64->latestUserSnapshot(); //wrapper->c64->userSnapshot(nr);
+  snapshot = wrapper->c64->c64.takeSnapshot();
+
 /*
   size_t size = snapshot->size; //writeToBuffer(NULL);
   uint8_t *buffer = new uint8_t[size];
@@ -716,10 +745,12 @@ extern "C" char* wasm_pull_user_snapshot_file()
   printf("\n");
   */
   sprintf(wasm_pull_user_snapshot_file_json_result, "{\"address\":%lu, \"size\": %lu, \"width\": %lu, \"height\":%lu }",
-  (unsigned long)snapshot->data, 
-  snapshot->size,
-  snapshot->getHeader()->screenshot.width,
-  snapshot->getHeader()->screenshot.height
+  (unsigned long)snapshot->getData(), 
+  snapshot->getSize(),
+//  snapshot->getHeader()->screenshot.width,
+//  snapshot->getHeader()->screenshot.height
+  snapshot->previewImageSize().first,
+  snapshot->previewImageSize().second
   );
   printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
   return wasm_pull_user_snapshot_file_json_result;
@@ -727,7 +758,7 @@ extern "C" char* wasm_pull_user_snapshot_file()
 
 extern "C" void wasm_take_user_snapshot()
 {
-  wrapper->c64->requestUserSnapshot();
+ // wrapper->c64->requestUserSnapshot();
 }
 
 
@@ -739,11 +770,12 @@ extern "C" float* wasm_get_sound_buffer_address()
 
 extern "C" unsigned wasm_copy_into_sound_buffer()
 {
-  auto count=wrapper->c64->muxer.stream.count();
+ // auto count=wrapper->c64->audioPort.stream.count();
+  auto count=wrapper->c64->audioPort.audioPort->count();
   auto copied_samples=0;
   for(;copied_samples+1024<=count;copied_samples+=1024)
   {
-    wrapper->c64->muxer.copyMono((float *)sound_buffer+copied_samples, 1024);
+    wrapper->c64->audioPort.copyMono((float *)sound_buffer+copied_samples, 1024);
   }
   sum_samples += copied_samples; 
   return copied_samples;
@@ -751,12 +783,12 @@ extern "C" unsigned wasm_copy_into_sound_buffer()
 
 extern "C" unsigned wasm_copy_into_sound_buffer_stereo()
 {
-  auto count=wrapper->c64->muxer.stream.count();
+  auto count=wrapper->c64->audioPort.audioPort->count();
   
   auto copied_samples=0;
   for(unsigned ipos=1024;ipos<=count;ipos+=1024)
   {
-    wrapper->c64->muxer.copyStereo(
+    wrapper->c64->audioPort.copyStereo(
     sound_buffer+copied_samples,
      sound_buffer+copied_samples+1024, 
      1024); 
@@ -772,11 +804,12 @@ extern "C" void wasm_set_warp(unsigned on)
 {
   warp_mode = (on == 1);
 
-  if(wrapper->c64->iec.isTransferring() && 
+  wrapper->c64->set(OPT_EMU_WARP_MODE, warp_mode? WARP_AUTO : WARP_NEVER);
+/*  if(wrapper->c64->serialPort.serialPort->isTransferring() && 
       (
-        (wrapper->c64->inWarpMode() && warp_mode == false)
+        (wrapper->c64->isWarping() && warp_mode == false)
         ||
-        (wrapper->c64->inWarpMode() == false && warp_mode)
+        (wrapper->c64->isWarping() == false && warp_mode)
       )
   )
   {
@@ -785,23 +818,24 @@ extern "C" void wasm_set_warp(unsigned on)
     else
       wrapper->c64->warpOff();
   }
+  */
 }
 
 bool borderless=false;
 void calculate_viewport()
 {
-  auto pal = wrapper->c64->vic.pal();
+  auto pal = frame_rate < 60;//wrapper->c64->vicii.vicii->pal();
 
   if(pal)
   {
     eat_border_width = 31 * borderless;
     xOff = 12 + eat_border_width + 92;
-    clipped_width  = TEX_WIDTH -112 -24 -2*eat_border_width; //392
+    clipped_width  = Texture::width -112 -24 -2*eat_border_width; //392
   //428-12-24-2*33 =326
 
     eat_border_height = 34 * borderless;
     yOff = 16 + eat_border_height;
-    clipped_height = TEX_HEIGHT -42  -2*eat_border_height; //248
+    clipped_height = Texture::height -42  -2*eat_border_height; //248
   //284-11-24-2*22=205
   }
   else //NTSC
@@ -817,8 +851,8 @@ void calculate_viewport()
     {
       eat_border_width = 31; //redundant
       xOff = 12 + eat_border_width + 92;
-      clipped_width  = TEX_WIDTH -112 -24 -2*eat_border_width; //392
-      if(  wrapper->c64->getConfigItem(OPT_VIC_REVISION) ==VICII_NTSC_6567_R56A)
+      clipped_width  = Texture::width -112 -24 -2*eat_border_width; //392
+      if(  wrapper->c64->get(OPT_VICII_REVISION) ==VICII_NTSC_6567_R56A)
       {
         eat_border_height++;
       }
@@ -839,8 +873,8 @@ void calculate_viewport()
 
 extern "C" void wasm_set_PAL(unsigned on)
 {
-  wrapper->c64->configure(OPT_VIC_REVISION, on == 0 ? VICII_NTSC_8562 : VICII_PAL_6569_R1);
-  printf("set to =%s\n", wrapper->c64->vic.pal() ? "PAL":"NTSC");
+  wrapper->c64->set(OPT_VICII_REVISION, on == 0 ? VICII_NTSC_8562 : VICII_PAL_6569_R1);
+  printf("set to =%s\n", frame_rate<60 ? "PAL":"NTSC");
   calculate_viewport();
 }
 
@@ -855,7 +889,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 {
   printf("load file=%s len=%ld, header bytes= %x, %x, %x\n", name, len, blob[0],blob[1],blob[2]);
   filename=name;
-  auto file_suffix= util::extractSuffix(name); 
+//  auto file_suffix= util::extractSuffix(name); 
   if(wrapper == NULL)
   {
     return "";
@@ -864,16 +898,21 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
   if (D64File::isCompatible(filename)) {    
     try{
       printf("try to build D64File\n");
-      D64File d64 = D64File(blob, len);
+/*      D64File d64 = D64File(blob, len);
       auto disk = std::make_unique<Disk>(d64);
       printf("isD64\n");  
-      wrapper->c64->drive8.insertDisk(std::move(disk));
+      wrapper->c64->drive8.insertDisk(std::move(disk));*/
+      auto file = MediaFile::make(blob, len, FILETYPE_D64);
+      wrapper->c64->drive8.insertMedia(*file, false /* wp*/);
       file_still_unprocessed=false;
-    } catch(VC64Error &exception) {
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+    } catch(Error &exception) {
+      //ErrorCode ec=exception.data;
+      printf("%s\n", exception.description.c_str());
+      //printf("%s\n", ErrorCodeEnum::key(ec));
     }
   }
+
+/*
   if (file_still_unprocessed && G64File::isCompatible(filename)) {
     try{
       printf("try to build G64File\n");
@@ -962,6 +1001,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       printf("%s\n", ErrorCodeEnum::key(ec));
     }
   }
+*/
   if(file_still_unprocessed)
   {
     bool wasRunnable = true;
@@ -973,22 +1013,20 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       printf("try to build RomFile\n");
       rom = new RomFile(blob, len);
     }
-    catch(VC64Error &exception) {
+    catch(Error &exception) {
       printf("Failed to read ROM image file %s\n", name);
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+      printf("%s\n", exception.description.c_str());
       return "";
     }
     
     wrapper->c64->suspend();
     try { 
-      wrapper->c64->flash(*rom); 
+      wrapper->c64->c64.flash(*rom); 
       printf("Loaded ROM image %s.\n", name);
     }  
-    catch(VC64Error &exception) { 
+    catch(Error &exception) { 
       printf("Failed to flash ROM image %s.\n", name);
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+      printf("%s\n", exception.description.c_str());
     }
     wrapper->c64->resume();
 
@@ -1012,8 +1050,8 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     else if(rom->isRomBuffer(ROM_TYPE_VC1541, blob,len))
     {
       rom_type = "vc1541_rom";
-      wrapper->c64->configure(OPT_DRV_CONNECT,DRIVE8,1);
-      wrapper->c64->drive8.dump(dump::Config);
+      wrapper->c64->set(OPT_DRV_CONNECT,DRIVE8,1);
+      wrapper->c64->drive8.drive->dump(Category::Debug);
     }
     else if(rom->isRomBuffer(ROM_TYPE_CHAR, blob,len))
     {
@@ -1034,8 +1072,8 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 
 extern "C" void wasm_reset()
 {
-  wrapper->c64->expansionport.detachCartridge();
-  wrapper->c64->reset(true);
+  wrapper->c64->expansionPort.detachCartridge();
+  wrapper->c64->c64.hardReset();
 }
 
 
@@ -1078,17 +1116,17 @@ extern "C" void wasm_run()
 extern "C" void wasm_press_play()
 {
   printf("wasm_press_play\n");
-  wrapper->c64->datasette.pressPlay();
+  wrapper->c64->datasette.datasette->pressPlay();
 }
 extern "C" void wasm_press_stop()
 {
   printf("wasm_press_stop\n");
-  wrapper->c64->datasette.pressStop();
+  wrapper->c64->datasette.datasette->pressStop();
 }
 extern "C" void wasm_rewind()
 {
   printf("wasm_rewind\n");
-  wrapper->c64->datasette.rewind();
+  wrapper->c64->datasette.datasette->rewind();
 }
 
 
@@ -1160,11 +1198,13 @@ RELEASE_FIRE
 
   if(joyport == '1')
   {
-    wrapper->c64->port1.joystick.trigger(code);
+   // wrapper->c64->controlPort1.joystick.trigger(code);
+    wrapper->c64->put(Cmd(CMD_JOY_EVENT, GamePadCmd(1,code)));
   }
   else if(joyport == '2')
   {
-    wrapper->c64->port2.joystick.trigger(code);
+//    wrapper->c64->port2.joystick.trigger(code);
+    wrapper->c64->put(Cmd(CMD_JOY_EVENT, GamePadCmd(2,code)));
   }
 
 }
@@ -1173,22 +1213,22 @@ char buffer[50];
 extern "C" char* wasm_sprite_info()
 {
    sprintf(buffer, "%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u", 
-     wrapper->c64->vic.reg.current.sprX[0],
-     wrapper->c64->vic.reg.current.sprY[0],
-     wrapper->c64->vic.reg.current.sprX[1],
-     wrapper->c64->vic.reg.current.sprY[1],
-     wrapper->c64->vic.reg.current.sprX[2],
-     wrapper->c64->vic.reg.current.sprY[2],
-     wrapper->c64->vic.reg.current.sprX[3],
-     wrapper->c64->vic.reg.current.sprY[3],
-     wrapper->c64->vic.reg.current.sprX[4],
-     wrapper->c64->vic.reg.current.sprY[4],
-     wrapper->c64->vic.reg.current.sprX[5],
-     wrapper->c64->vic.reg.current.sprY[5],
-     wrapper->c64->vic.reg.current.sprX[6],
-     wrapper->c64->vic.reg.current.sprY[6],
-     wrapper->c64->vic.reg.current.sprX[7],
-     wrapper->c64->vic.reg.current.sprY[7]
+     wrapper->c64->vicii.vicii->reg.current.sprX[0],
+     wrapper->c64->vicii.vicii->reg.current.sprY[0],
+     wrapper->c64->vicii.vicii->reg.current.sprX[1],
+     wrapper->c64->vicii.vicii->reg.current.sprY[1],
+     wrapper->c64->vicii.vicii->reg.current.sprX[2],
+     wrapper->c64->vicii.vicii->reg.current.sprY[2],
+     wrapper->c64->vicii.vicii->reg.current.sprX[3],
+     wrapper->c64->vicii.vicii->reg.current.sprY[3],
+     wrapper->c64->vicii.vicii->reg.current.sprX[4],
+     wrapper->c64->vicii.vicii->reg.current.sprY[4],
+     wrapper->c64->vicii.vicii->reg.current.sprX[5],
+     wrapper->c64->vicii.vicii->reg.current.sprY[5],
+     wrapper->c64->vicii.vicii->reg.current.sprX[6],
+     wrapper->c64->vicii.vicii->reg.current.sprY[6],
+     wrapper->c64->vicii.vicii->reg.current.sprX[7],
+     wrapper->c64->vicii.vicii->reg.current.sprY[7]
      );  
    return buffer;
 }
@@ -1202,11 +1242,11 @@ extern "C" void wasm_set_sid_model(unsigned SID_Model)
   }
   if(SID_Model == 6581)
   {
-    wrapper->c64->configure(OPT_SID_REVISION, MOS_6581);
+    wrapper->c64->set(OPT_SID_REVISION, MOS_6581);
   }
   else if(SID_Model == 8580)
   {
-    wrapper->c64->configure(OPT_SID_REVISION, MOS_8580);  
+    wrapper->c64->set(OPT_SID_REVISION, MOS_8580);  
   }
   if(wasRunning)
   {
@@ -1218,7 +1258,7 @@ extern "C" void wasm_cut_layers(unsigned cut_layers)
 {
 //  wrapper->c64->configure(OPT_CUT_LAYERS, 0x1100 | (SPR0|SPR1|SPR2|SPR3|SPR4|SPR5|SPR6|SPR7)); 
 //  printf("wasm_cut_layers(%u)",cut_layers);
-  wrapper->c64->configure(OPT_CUT_LAYERS, cut_layers); 
+  wrapper->c64->set(OPT_VICII_CUT_LAYERS, cut_layers); 
 }
 
 
@@ -1226,24 +1266,37 @@ extern "C" void wasm_cut_layers(unsigned cut_layers)
 char json_result[1024];
 extern "C" const char* wasm_rom_info()
 {
-  sprintf(json_result, "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\", \"has_floppy_rom\":%s, \"drive_rom\":\"%s\"}",
+  auto kernal_traits = wrapper->c64->c64.getRomTraits(ROM_TYPE_KERNAL);
+  auto basic_traits = wrapper->c64->c64.getRomTraits(ROM_TYPE_BASIC);
+  auto char_traits = wrapper->c64->c64.getRomTraits(ROM_TYPE_CHAR);
+  auto drive_traits = wrapper->c64->c64.getRomTraits(ROM_TYPE_VC1541);
 
-  wrapper->c64->hasMega65Rom(ROM_TYPE_KERNAL) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_KERNAL) ? wrapper->c64->romTitle(ROM_TYPE_KERNAL).c_str(): "none", 
+
+ sprintf(json_result, "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\", \"has_floppy_rom\":%s, \"drive_rom\":\"%s\"}",
+  kernal_traits.title,
+  basic_traits.title,
+  char_traits.title,
+  /*drive_traits ? "true":"false"*/"false",
+  drive_traits.title
+  );
+
+
+
+/*
+  sprintf(json_result, "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\", \"has_floppy_rom\":%s, \"drive_rom\":\"%s\"}",
+  wrapper->c64->c64.hasMega65Rom(ROM_TYPE_KERNAL) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_KERNAL) ? wrapper->c64->romTitle(ROM_TYPE_KERNAL).c_str(): "none", 
   wrapper->c64->hasMega65Rom(ROM_TYPE_BASIC) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_BASIC) ? wrapper->c64->romTitle(ROM_TYPE_BASIC).c_str() : "none", 
   wrapper->c64->hasMega65Rom(ROM_TYPE_CHAR) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_CHAR) ? wrapper->c64->romTitle(ROM_TYPE_CHAR).c_str(): "none",
   wrapper->c64->hasRom(ROM_TYPE_VC1541) ? "true":"false",
   wrapper->c64->romTitle(ROM_TYPE_VC1541).c_str()
-  /*&& 
-  wrapper->c64->drive8.getConfigItem(OPT_DRIVE_CONNECT)*/
   );
-
+*/
 //  printf("json: %s\n",  json_result);
 
-
-  printf("%s, %s, %s, %s\n",  wrapper->c64->romTitle(ROM_TYPE_KERNAL).c_str(),
-  wrapper->c64->romTitle(ROM_TYPE_BASIC).c_str(),
-  wrapper->c64->romTitle(ROM_TYPE_CHAR).c_str(),
-  wrapper->c64->romTitle(ROM_TYPE_VC1541).c_str()
+  printf("%s, %s, %s, %s\n",  kernal_traits.title,
+  basic_traits.title,
+  char_traits.title,
+  drive_traits.title
 );
   return json_result;
 }
@@ -1253,15 +1306,15 @@ extern "C" void wasm_set_2nd_sid(long address)
 {
   if(address == 0)
   {
-    wrapper->c64->configure(OPT_AUDVOL, 1, 0);
-    wrapper->c64->configure(OPT_SID_ENABLE, 1, false);
+    wrapper->c64->set(OPT_AUD_VOL1, 1, 0);
+    wrapper->c64->set(OPT_SID_ENABLE, 1, false);
   }
   else
   {
-    wrapper->c64->configure(OPT_AUDVOL, 1, 100);
-    wrapper->c64->configure(OPT_AUDPAN, 1, 50);
-    wrapper->c64->configure(OPT_SID_ENABLE, 1, true);
-    wrapper->c64->configure(OPT_SID_ADDRESS, 1, address);
+    wrapper->c64->set(OPT_AUD_VOL1, 1, 100);
+    wrapper->c64->set(OPT_AUD_PAN1, 1, 50);
+    wrapper->c64->set(OPT_SID_ENABLE, 1, true);
+    wrapper->c64->set(OPT_SID_ADDRESS, 1, address);
   }
 }
 
@@ -1277,28 +1330,23 @@ extern "C" void wasm_set_sid_engine(char* engine)
   }
 
 
-  if( strcmp(engine,"FastSID") == 0)
-  {
-    printf("c64->configure(OPT_SID_ENGINE, ENGINE_FASTSID);\n");
-    wrapper->c64->configure(OPT_SID_ENGINE, SIDENGINE_FASTSID);
-  }
-  else if( strcmp(engine,"ReSID fast") == 0)
+  if( strcmp(engine,"ReSID fast") == 0)
   { 
-    printf("c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_FAST);\n");
-    wrapper->c64->configure(OPT_SID_ENGINE, SIDENGINE_RESID);
-    wrapper->c64->configure(OPT_SID_SAMPLING, reSID::SAMPLE_FAST);
+    printf("c64->set(OPT_SID_SAMPLING, SID_SAMPLE_FAST);\n");
+    wrapper->c64->set(OPT_SID_ENGINE, SIDENGINE_RESID);
+    wrapper->c64->set(OPT_SID_SAMPLING, reSID::SAMPLE_FAST);
   }
   else if( strcmp(engine,"ReSID interpolate") == 0)
   {
-    printf("c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);\n");
-    wrapper->c64->configure(OPT_SID_ENGINE, SIDENGINE_RESID);
-    wrapper->c64->configure(OPT_SID_SAMPLING, reSID::SAMPLE_INTERPOLATE);
+    printf("c64->set(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);\n");
+    wrapper->c64->set(OPT_SID_ENGINE, SIDENGINE_RESID);
+    wrapper->c64->set(OPT_SID_SAMPLING, reSID::SAMPLE_INTERPOLATE);
   }
   else if( strcmp(engine,"ReSID resample") == 0)
   {
-    printf("c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_RESAMPLE);\n");
-    wrapper->c64->configure(OPT_SID_ENGINE, SIDENGINE_RESID);
-    wrapper->c64->configure(OPT_SID_SAMPLING, reSID::SAMPLE_RESAMPLE);
+    printf("c64->set(OPT_SID_SAMPLING, SID_SAMPLE_RESAMPLE);\n");
+    wrapper->c64->set(OPT_SID_ENGINE, SIDENGINE_RESID);
+    wrapper->c64->set(OPT_SID_SAMPLING, reSID::SAMPLE_RESAMPLE);
   }
 
 
@@ -1315,51 +1363,53 @@ extern "C" void wasm_set_color_palette(char* palette)
 
   if( strcmp(palette,"color") == 0)
   {
-    wrapper->c64->configure(OPT_PALETTE, PALETTE_COLOR);
+    wrapper->c64->set(OPT_MON_PALETTE, PALETTE_COLOR);
   }
   else if( strcmp(palette,"black white") == 0)
   { 
-    wrapper->c64->configure(OPT_PALETTE, PALETTE_BLACK_WHITE); 
+    wrapper->c64->set(OPT_MON_PALETTE, PALETTE_BLACK_WHITE); 
   }
   else if( strcmp(palette,"paper white") == 0)
   { 
-    wrapper->c64->configure(OPT_PALETTE, PALETTE_PAPER_WHITE); 
+    wrapper->c64->set(OPT_MON_PALETTE, PALETTE_PAPER_WHITE); 
   }
   else if( strcmp(palette,"green") == 0)
   { 
-    wrapper->c64->configure(OPT_PALETTE, PALETTE_GREEN); 
+    wrapper->c64->set(OPT_MON_PALETTE, PALETTE_GREEN); 
   }
   else if( strcmp(palette,"amber") == 0)
   { 
-    wrapper->c64->configure(OPT_PALETTE, PALETTE_AMBER); 
+    wrapper->c64->set(OPT_MON_PALETTE, PALETTE_AMBER); 
   }
   else if( strcmp(palette,"sepia") == 0)
   { 
-    wrapper->c64->configure(OPT_PALETTE, PALETTE_SEPIA); 
+    wrapper->c64->set(OPT_MON_PALETTE, PALETTE_SEPIA); 
   }
 }
 
 
 extern "C" u64 wasm_get_cpu_cycles()
 {
-  return wrapper->c64->cpu.cycle;
+  return wrapper->c64->cpu.getInfo().cycle;
 }
 
 extern "C" u8 wasm_peek(u16 addr)
 {
-  return wrapper->c64->mem.spypeek(addr);
+  return wrapper->c64->mem.mem->spypeek(addr);
 }
 
 
 extern "C" void wasm_write_string_to_ser(char* chars_to_send)
 {
+  #ifdef TODO
   wrapper->c64->write_string_to_ser(chars_to_send);
+  #endif
 }
 
 //const char chars_to_send[] = "HELLOMYWORLD!";
 extern "C" void wasm_poke(u16 addr, u8 value)
 {
-    wrapper->c64->mem.poke(addr, value);
+    wrapper->c64->mem.mem->poke(addr, value);
 }
 
 /*
@@ -1378,9 +1428,21 @@ extern "C" unsigned wasm_get_config(char* option)
 {
  // if(strcmp(option,"OPT_VIC_REVISION") == 0)
   //{
-    return wrapper->c64->getConfigItem(OPT_VIC_REVISION);
+#ifdef TODO
+try{
+  printf("before\n");
+
+    return wrapper->c64->get(OPT_VICII_REVISION);
+} catch(...)
+{
+  printf("catched\n");
+
+//  printf("config: %s\n",exception.what());
+}
+  printf("after catching\n");
+#endif
   //}
-  //return 0;
+  return 0;
 }
 
 extern "C" void wasm_configure(char* option, unsigned on)
@@ -1392,57 +1454,59 @@ extern "C" void wasm_configure(char* option, unsigned on)
   if(strcmp(option,"OPT_DRV_POWER_SAVE") == 0)
   {
     printf("calling c64->configure %s = %d\n", option, on);
-    wrapper->c64->configure(OPT_DRV_POWER_SAVE, 8, on_value);
+    wrapper->c64->set(OPT_DRV_POWER_SAVE, 8, on_value);
   }
   else if(strcmp(option,"OPT_SID_POWER_SAVE") == 0)
   {
     printf("calling c64->configure %s = %d\n", option, on);
-    wrapper->c64->configure(OPT_SID_POWER_SAVE, on_value);
+    wrapper->c64->set(OPT_SID_POWER_SAVE, on_value);
   }
   else if(strcmp(option,"OPT_VIC_POWER_SAVE") == 0)
   {
     printf("calling c64->configure %s = %d\n", option, on);
-    wrapper->c64->configure(OPT_VIC_POWER_SAVE, on_value);
+    wrapper->c64->set(OPT_VICII_POWER_SAVE, on_value);
   }
   else if(strcmp(option,"OPT_SER_SPEED") == 0)
   {
     printf("calling c64->configure_rs232_ser_speed %d\n", on);
+   #ifdef TODO
     wrapper->c64->configure_rs232_ser_speed(on);
+    #endif
   }
   else if(strcmp(option,"PAL 50Hz 6569") == 0)
   {
-    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
-    wrapper->c64->configure(OPT_VIC_REVISION, VICII_PAL_6569_R1);
+    wrapper->c64->set(OPT_POWER_GRID,   GRID_STABLE_50HZ);
+    wrapper->c64->set(OPT_VICII_REVISION, VICII_PAL_6569_R1);
     calculate_viewport();
   }
   else if(strcmp(option,"PAL 50Hz 6569 R3") == 0)
   {
-    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
-    wrapper->c64->configure(OPT_VIC_REVISION, VICII_PAL_6569_R3);
+    wrapper->c64->set(OPT_POWER_GRID,   GRID_STABLE_50HZ);
+    wrapper->c64->set(OPT_VICII_REVISION, VICII_PAL_6569_R3);
     calculate_viewport();
   }
   else if(strcmp(option,"PAL 50Hz 8565") == 0)
   {
-    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
-    wrapper->c64->configure(OPT_VIC_REVISION, VICII_PAL_8565);
+    wrapper->c64->set(OPT_POWER_GRID,   GRID_STABLE_50HZ);
+    wrapper->c64->set(OPT_VICII_REVISION, VICII_PAL_8565);
     calculate_viewport();
   }
   else if(strcmp(option,"NTSC 60Hz 6567 R56A") == 0)
   {
-    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_60HZ);
-    wrapper->c64->configure(OPT_VIC_REVISION, VICII_NTSC_6567_R56A);
+    wrapper->c64->set(OPT_POWER_GRID,   GRID_STABLE_60HZ);
+    wrapper->c64->set(OPT_VICII_REVISION, VICII_NTSC_6567_R56A);
     calculate_viewport();
   }
   else if(strcmp(option,"NTSC 60Hz 6567") == 0)
   {
-    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_60HZ);
-    wrapper->c64->configure(OPT_VIC_REVISION, VICII_NTSC_6567);
+    wrapper->c64->set(OPT_POWER_GRID,   GRID_STABLE_60HZ);
+    wrapper->c64->set(OPT_VICII_REVISION, VICII_NTSC_6567);
     calculate_viewport();
   }
   else if(strcmp(option,"NTSC 60Hz 8562") == 0)
   {
-    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_60HZ);
-    wrapper->c64->configure(OPT_VIC_REVISION, VICII_NTSC_8562);
+    wrapper->c64->set(OPT_POWER_GRID,   GRID_STABLE_60HZ);
+    wrapper->c64->set(OPT_VICII_REVISION, VICII_NTSC_8562);
     calculate_viewport();
   }
 /*  else if(strcmp(option,"freset") == 0)
@@ -1471,8 +1535,9 @@ extern "C" void wasm_print_error(unsigned exception_ptr)
 extern "C" void wasm_set_sample_rate(unsigned sample_rate)
 {
     printf("set muxer to freq= %d\n", sample_rate);
-    wrapper->c64->muxer.setSampleRate(sample_rate);
-    printf("paula.muxer.getSampleRate()==%f\n", wrapper->c64->muxer.getSampleRate());
+//    wrapper->c64->muxer.setSampleRate(sample_rate);
+    wrapper->c64->set(OPT_HOST_SAMPLE_RATE,sample_rate);
+    printf("paula.muxer.getSampleRate()==%f\n",  wrapper->c64->get(OPT_HOST_SAMPLE_RATE));
 }
 
 SDL_AudioDeviceID audio_device_id;
@@ -1501,8 +1566,9 @@ extern "C" void wasm_open_main_thread_audio()
     }
 
     printf("set SID to freq= %d\n", have.freq);
-    wrapper->c64->muxer.setSampleRate(have.freq);
-    printf("freq in SIDBridge= %f\n", wrapper->c64->muxer.getSampleRate());
+    wrapper->c64->set(OPT_HOST_SAMPLE_RATE,have.freq);
+   // wrapper->c64->muxer.setSampleRate(have.freq);
+    printf("freq in SIDBridge= %f\n",  wrapper->c64->get(OPT_HOST_SAMPLE_RATE));
  
 
     SDL_PauseAudioDevice(audio_device_id, 0); //unpause the audio device

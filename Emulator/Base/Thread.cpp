@@ -30,22 +30,24 @@ Thread::~Thread()
 void
 Thread::launch()
 {
-    assert(!isLaunched());
+//    assert(!isLaunched());
 
     // Start the thread and enter the main function
-    thread = std::thread(&Thread::runLoop, this);
+//    thread = std::thread(&Thread::runLoop, this);
 
-    assert(isLaunched());
+//    assert(isLaunched());
 }
 
 void 
 Thread::assertLaunched()
 {
+    #ifdef NOT_FOR_WEB
     if (!isLaunched()) {
 
         throw std::runtime_error(string("The emulator thread hasn't been lauchend yet. "
                                         "Missing call to launch()."));
     }
+    #endif
 }
 
 void
@@ -271,7 +273,7 @@ Thread::run()
     if (!isRunning()) {
 
         // Throw an exception if the emulator is not ready to run
-        isReady();
+       // isReady();
 
         changeStateTo(STATE_RUNNING);
     }
@@ -384,7 +386,6 @@ Thread::changeStateTo(ExecState requestedState)
         assert(stateChangeRequest.test() == false);
         stateChangeRequest.test_and_set();
         assert(stateChangeRequest.test() == true);
-
         if (!isEmulatorThread()) {
 
             // Wait until the change has been performed

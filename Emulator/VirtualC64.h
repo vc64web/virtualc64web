@@ -1086,7 +1086,7 @@ struct C64API : public API {
  * VICII API provides additional functions that interact directly with the
  * VICII graphics chip.
  */
-class VirtualC64 : API {
+class VirtualC64 : public API {
 
     //
     // Static methods

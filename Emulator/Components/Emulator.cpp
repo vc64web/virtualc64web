@@ -58,27 +58,28 @@ Emulator::launch(const void *listener, Callback *func)
 void
 Emulator::initialize()
 {
+    // Make sure this function is only called once
+    if (isInitialized()) throw Error(ERROR_LAUNCH, "The emulator is already initialized.");
+
     // Initialize all components
     main.initialize();
     ahead.initialize();
 
     // Setup the default configuration
-    resetConfig();
-    host.resetConfig();
-    main.resetConfig();
-    ahead.resetConfig();
+    revertToFactorySettings();
 
-    // Perform a hard reset
-    main.hardReset();
-    ahead.hardReset();
+    // Force the run-ahead instance to be rebuild
+    // main.markAsDirty();
 
+    // Switch state
+    state = newState = STATE_OFF;
     assert(isInitialized());
 }
 
 bool 
 Emulator::isInitialized() const
 {
-    return main.vic.vicfunc[1] != nullptr;
+    return state != STATE_UNINIT;
 }
 
 void
@@ -104,17 +105,20 @@ Emulator::stepOver()
 void
 Emulator::revertToFactorySettings()
 {
-    // Power off the emulator
-    powerOff();
+    // Setup the default configuration
+    host.resetConfig();
+    main.resetConfig();
+    ahead.resetConfig();
 
-    // Put all components into their initial state
-    initialize();
+    // Perform a hard reset
+    main.hardReset();
+    ahead.hardReset();
 }
 
 u32 *
 Emulator::getTexture() const
 {
-    return config.runAhead && isRunning() ?
+    return main.config.runAhead && isRunning() ?
     ahead.videoPort.getTexture() :
     main.videoPort.getTexture();
 }
@@ -122,7 +126,7 @@ Emulator::getTexture() const
 u32 *
 Emulator::getDmaTexture() const
 {
-    return config.runAhead && isRunning() ?
+    return main.config.runAhead && isRunning() ?
     ahead.videoPort.getDmaTexture() :
     main.videoPort.getDmaTexture();
 }
@@ -243,6 +247,7 @@ Emulator::set(C64Model model)
 
     {   SUSPENDED
 
+        powerOff();
         revertToFactorySettings();
 
         switch(model) {
@@ -347,7 +352,6 @@ Emulator::routeOption(Option opt)
 {
     std::vector<Configurable *> result;
 
-    if (isValidOption(opt)) result.push_back(this);
     if (host.isValidOption(opt)) result.push_back(&host);
     main.routeOption(opt, result);
 
@@ -506,6 +510,8 @@ Emulator::update()
 bool
 Emulator::shouldWarp()
 {
+    auto &config = main.getConfig();
+
     if (main.cpu.clock < C64::sec(config.warpBoot)) {
 
         return true;
@@ -527,6 +533,8 @@ Emulator::shouldWarp()
 isize
 Emulator::missingFrames() const
 {
+    auto &config = main.getConfig();
+
     // In VSYNC mode, compute exactly one frame per wakeup call
     if (config.vsync) return 1;
 
@@ -543,6 +551,8 @@ Emulator::missingFrames() const
 double
 Emulator::refreshRate() const
 {
+    auto &config = main.getConfig();
+
     if (config.vsync) {
 
         return double(host.getOption(OPT_HOST_REFRESH_RATE));
@@ -556,6 +566,8 @@ Emulator::refreshRate() const
 void
 Emulator::computeFrame()
 {
+    auto &config = main.getConfig();
+
     if (config.runAhead) {
 
         try {
@@ -585,6 +597,8 @@ Emulator::computeFrame()
 void
 Emulator::recreateRunAheadInstance()
 {
+    auto &config = main.getConfig();
+
     debug(RUA_DEBUG, "%lld: Recomputing the run-ahead instance\n", main.frame);
 
     clones++;

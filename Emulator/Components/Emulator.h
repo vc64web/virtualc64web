@@ -24,23 +24,13 @@ namespace vc64 {
 class VirtualC64;
 
 class Emulator : public Thread, public Synchronizable,
-public Inspectable<EmulatorInfo, EmulatorStats>, public Configurable {
+public Inspectable<EmulatorInfo, EmulatorStats> {
 
     friend class API;
     friend class VirtualC64;
 
-    ConfigOptions options = {
-
-        OPT_EMU_WARP_BOOT,
-        OPT_EMU_WARP_MODE,
-        OPT_EMU_VSYNC,
-        OPT_EMU_SPEED_ADJUST,
-        OPT_EMU_SNAPSHOTS,
-        OPT_EMU_SNAPSHOT_DELAY,
-        OPT_EMU_RUN_AHEAD
-    };
-    
-    EmulatorConfig config = { };
+    // ConfigOptions options = { };
+    // EmulatorConfig config = { };
 
     // The virtual C64
     C64 main = C64(*this, 0);
@@ -81,9 +71,6 @@ public:
     // Checks the initialization state
     bool isInitialized() const;
 
-    // Marks the run-ahead instance as dirty
-    [[deprecated]] void markAsDirty() { main.markAsDirty(); }
-
 
     //
     // Methods from CoreComponent
@@ -106,18 +93,6 @@ public:
 
     void cacheInfo(EmulatorInfo &result) const override;
     void cacheStats(EmulatorStats &result) const override;
-
-
-    //
-    // Methods from Configurable
-    //
-
-public:
-
-    const ConfigOptions &getOptions() const override { return options; }
-    i64 getOption(Option opt) const override;
-    void checkOption(Option opt, i64 value) override;
-    void setOption(Option opt, i64 value) override;
 
 
     //
@@ -145,9 +120,6 @@ public:
     void set(C64Model model);
 
 private:
-
-    const EmulatorConfig &getConfig() const { return config; }
-    void resetConfig();
 
     // Returns the target component for an option
     std::vector<Configurable *> routeOption(Option opt);

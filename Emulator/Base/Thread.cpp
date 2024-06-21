@@ -237,6 +237,9 @@ Thread::switchState(ExecState newState)
                     default:
                         invalid();
                 }
+
+            default:
+                fatalError;
         }
     }
 
@@ -386,6 +389,7 @@ Thread::changeStateTo(ExecState requestedState)
         assert(stateChangeRequest.test() == false);
         stateChangeRequest.test_and_set();
         assert(stateChangeRequest.test() == true);
+
         if (!isEmulatorThread()) {
 
             // Wait until the change has been performed

@@ -15,15 +15,13 @@
 #include "CoreObject.h"
 #include "OptionTypes.h"
 #include "Concurrency.h"
-#include "IOUtils.h"
+#include "Synchronizable.h"
 
 namespace vc64 {
 
 namespace fs = ::std::filesystem;
 
-class Defaults final : public CoreObject {
-
-    mutable util::ReentrantMutex mutex;
+class Defaults final : public CoreObject, public Synchronizable {
 
     /// The key-value storage
     std::map <string, string> values;
@@ -40,29 +38,34 @@ public:
 
     Defaults();
     Defaults(Defaults const&) = delete;
-    const char *objectName() const override { return "Defaults"; }
     void operator=(Defaults const&) = delete;
+
+
+    //
+    // Methods from CoreObject
+    //
 
 private:
 
+    const char *objectName() const override { return "Defaults"; }
     void _dump(Category category, std::ostream& os) const override;
 
 
     //
-    // Loading and saving the key-value storage
+    // Loading and saving
     //
 
 public:
 
-    // Loads a storage file
-    void load(const fs::path &path);
-    void load(std::ifstream &stream);
-    void load(std::stringstream &stream);
+    // Loads a properties file from disk
+    void load(const fs::path &path) throws;
+    void load(std::ifstream &stream) throws;
+    void load(std::stringstream &stream) throws;
 
-    // Saves a storage file
-    void save(const fs::path &path);
-    void save(std::ofstream &stream);
-    void save(std::stringstream &stream);
+    // Saves a properties file to disk
+    void save(const fs::path &path) throws;
+    void save(std::ofstream &stream) throws;
+    void save(std::stringstream &stream) throws;
 
 
     //
@@ -72,16 +75,14 @@ public:
 public:
 
     // Queries a key-value pair
-    string getString(const string &key) const;
-    i64 getInt(const string &key) const;
-    // i64 get(Option option) const;
+    string getRaw(const string &key) const;
+    i64 get(const string &key) const;
     i64 get(Option option, isize nr = 0) const;
 
     // Queries a fallback key-value pair
-    string getFallbackString(const string &key) const;
-    i64 getFallbackInt(const string &key) const;
-    i64 getFallback(Option option) const;
-    i64 getFallback(Option option, isize nr) const;
+    string getFallbackRaw(const string &key) const;
+    i64 getFallback(const string &key) const;
+    i64 getFallback(Option option, isize nr = 0) const;
 
 
     //
@@ -89,16 +90,18 @@ public:
     //
 
     // Writes a key-value pair into the user storage
-    void setString(const string &key, const string &value);
-    void set(Option opt, i64 value, isize nr = 0);
-    void set(Option opt, i64 value, std::vector<isize> nrs);
+    void set(const string &key, const string &value);
+    void set(Option option, const string &value);
+    void set(Option option, const string &value, std::vector<isize> objids);
+    void set(Option option, i64 value);
+    void set(Option option, i64 value, std::vector<isize> objids);
 
     // Writes a key-value pair into the fallback storage
     void setFallback(const string &key, const string &value);
-    void setFallback(Option opt, const string &value, isize nr = 0);
-    void setFallback(Option opt, i64 value, isize nr = 0);
-    void setFallback(Option opt, const string &value, std::vector <isize> nrs);
-    void setFallback(Option opt, i64 value, std::vector <isize> nrs);
+    void setFallback(Option option, const string &value);
+    void setFallback(Option option, const string &value, std::vector<isize> objids);
+    void setFallback(Option option, i64 value);
+    void setFallback(Option option, i64 value, std::vector<isize> objids);
 
 
     //
@@ -111,7 +114,7 @@ public:
     // Deletes selected key-value pairs
     void remove(const string &key) throws;
     void remove(Option option, isize nr = 0) throws;
-    void remove(Option option, std::vector <isize> nrs) throws;
+    void remove(Option option, std::vector <isize> objids) throws;
 };
 
 }

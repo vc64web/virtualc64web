@@ -130,12 +130,6 @@ VirtualC64::~VirtualC64()
     emu = nullptr;
 }
 
-const EmulatorConfig &
-VirtualC64::getConfig() const 
-{
-    return emu->getConfig();
-}
-
 const EmulatorInfo &
 VirtualC64::getInfo() const 
 {
@@ -797,9 +791,28 @@ DmaDebuggerAPI::getConfig() const
 // Keyboard
 //
 
-bool KeyboardAPI::isPressed(C64Key key) const
+bool 
+KeyboardAPI::isPressed(C64Key key) const
 {
     return keyboard->isPressed(key);
+}
+
+void
+KeyboardAPI::press(C64Key key, double delay)
+{
+    emu->put(Cmd(CMD_KEY_PRESS, KeyCmd { .keycode = (u8)key.nr, .delay = delay }));
+}
+
+void
+KeyboardAPI::release(C64Key key, double delay)
+{
+    emu->put(Cmd(CMD_KEY_RELEASE, KeyCmd { .keycode = (u8)key.nr, .delay = delay }));
+}
+
+void 
+KeyboardAPI::releaseAll()
+{
+    emu->put(Cmd(CMD_KEY_RELEASE_ALL));
 }
 
 void KeyboardAPI::autoType(const string &text)
@@ -1184,13 +1197,13 @@ DefaultsAPI::save(std::stringstream &stream)
 string
 DefaultsAPI::getString(const string &key) const
 {
-    return defaults->getString(key);
+    return defaults->getRaw(key);
 }
 
 i64
 DefaultsAPI::getInt(const string &key) const
 {
-    return defaults->getInt(key);
+    return defaults->get(key);
 }
 
 i64
@@ -1206,21 +1219,15 @@ DefaultsAPI::get(Option option, isize nr) const
 }
 
 string
-DefaultsAPI::getFallbackString(const string &key) const
+DefaultsAPI::getFallbackRaw(const string &key) const
 {
-    return defaults->getFallbackString(key);
+    return defaults->getFallbackRaw(key);
 }
 
 i64
-DefaultsAPI::getFallbackInt(const string &key) const
+DefaultsAPI::getFallback(const string &key) const
 {
-    return defaults->getFallbackInt(key);
-}
-
-i64
-DefaultsAPI::getFallback(Option option) const
-{
-    return defaults->getFallback(option);
+    return defaults->getFallback(key);
 }
 
 i64
@@ -1230,27 +1237,21 @@ DefaultsAPI::getFallback(Option option, isize nr) const
 }
 
 void
-DefaultsAPI::setString(const string &key, const string &value)
+DefaultsAPI::set(const string &key, const string &value)
 {
-    defaults->setString(key, value);
+    defaults->set(key, value);
 }
 
 void
-DefaultsAPI::set(Option opt, i64 value)
+DefaultsAPI::set(Option opt, const string &value, std::vector<isize> objids)
 {
-    defaults->set(opt, value);
+    defaults->set(opt, value, objids);
 }
 
 void
-DefaultsAPI::set(Option opt, i64 value, isize nr)
+DefaultsAPI::set(Option opt, i64 value, std::vector<isize> objids)
 {
-    defaults->set(opt, value, nr);
-}
-
-void
-DefaultsAPI::set(Option opt, i64 value, std::vector <isize> nrs)
-{
-    defaults->set(opt, value, nrs);
+    defaults->set(opt, value, objids);
 }
 
 void
@@ -1259,40 +1260,16 @@ DefaultsAPI::setFallback(const string &key, const string &value)
     defaults->setFallback(key, value);
 }
 
-void
-DefaultsAPI::setFallback(Option option, const string &value)
+void 
+DefaultsAPI::setFallback(Option opt, const string &value, std::vector<isize> objids)
 {
-    defaults->setFallback(option, value);
+    defaults->setFallback(opt, value, objids);
 }
 
 void
-DefaultsAPI::setFallback(Option opt, i64 value)
+DefaultsAPI::setFallback(Option opt, i64 value, std::vector<isize> objids)
 {
-    defaults->setFallback(opt, value);
-}
-
-void
-DefaultsAPI::setFallback(Option opt, const string &value, isize nr)
-{
-    defaults->setFallback(opt, value, nr);
-}
-
-void
-DefaultsAPI::setFallback(Option opt, i64 value, isize nr)
-{
-    defaults->setFallback(opt, value, nr);
-}
-
-void
-DefaultsAPI::setFallback(Option opt, const string &value, std::vector <isize> nrs)
-{
-    defaults->setFallback(opt, value, nrs);
-}
-
-void
-DefaultsAPI::setFallback(Option opt, i64 value, std::vector <isize> nrs)
-{
-    defaults->setFallback(opt, value, nrs);
+    defaults->setFallback(opt, value, objids);
 }
 
 void

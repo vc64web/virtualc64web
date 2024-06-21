@@ -548,7 +548,7 @@ function load_roms(install_to_core){
         }
         else
         {
-            $("#rom_basic").attr("src", JSON.parse(wasm_rom_info()).basic.startsWith("mega") ?
+            $("#rom_basic").attr("src", JSON.parse(wasm_rom_info()).basic.startsWith("M.E.G.A") ?
             "img/rom_mega65.png":"img/rom.png");
         
             $("#button_delete_basic").show();
@@ -564,7 +564,7 @@ function load_roms(install_to_core){
         {
             let kernal_title =JSON.parse(wasm_rom_info()).kernal; 
             $("#rom_kernal").attr("src", 
-            kernal_title.startsWith("mega") ? "img/rom_mega65.png":
+            kernal_title.startsWith("M.E.G.A") ? "img/rom_mega65.png":
             kernal_title.startsWith("Patched") ? "img/rom_patched.png":
             "img/rom.png");
             $("#button_delete_kernal").show();
@@ -579,8 +579,8 @@ function load_roms(install_to_core){
         else
         {
             $("#rom_charset").attr("src", 
-            //wasm_rom_classifier(the_rom, the_rom.byteLength).startsWith("mega") ?
-            JSON.parse(wasm_rom_info()).charset.startsWith("mega") ?
+            //wasm_rom_classifier(the_rom, the_rom.byteLength).startsWith("M.E.G.A") ?
+            JSON.parse(wasm_rom_info()).charset.startsWith("M.E.G.A") ?
             "img/rom_mega65.png":"img/rom.png");
             $("#button_delete_char_rom").show();
         }
@@ -1070,7 +1070,7 @@ function keyup(e) {
          //release the shift in c64 too, because the following keyup will not include the shiftkey
             shift_pressed_state=false;
             var c64code = translateKey2(e.code, e.key, use_positional_mapping=true);
-            wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 1);
+            wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 0);
         }
         return;
     }
@@ -1080,10 +1080,10 @@ function keyup(e) {
         let active_sym_key_on_keycap=key_pressed_buffer[e.code];
         if( active_sym_key_on_keycap!= undefined && active_sym_key_on_keycap!=null)
         {
-            wasm_schedule_key(active_sym_key_on_keycap.raw_key[0], active_sym_key_on_keycap.raw_key[1], 0, 1);
+            wasm_schedule_key(active_sym_key_on_keycap.raw_key[0], active_sym_key_on_keycap.raw_key[1], 0, 0);
             if(active_sym_key_on_keycap.modifier != null )
             {
-                wasm_schedule_key(active_sym_key_on_keycap.modifier[0], active_sym_key_on_keycap.modifier[1], 0, 1);
+                wasm_schedule_key(active_sym_key_on_keycap.modifier[0], active_sym_key_on_keycap.modifier[1], 0, 0);
             }    
         }
         key_pressed_buffer[e.code]=null;
@@ -1093,10 +1093,10 @@ function keyup(e) {
     var c64code = translateKey2(e.code, e.key, !use_symbolic_map);
     if(c64code !== undefined )
     {
-        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 1);
+        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 0);
         if(c64code.modifier != null )
         {
-            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, 1);
+            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, 0);
         }
     }
 }
@@ -1448,6 +1448,7 @@ function InitWrappers() {
     wasm_get_sound_buffer_address = Module.cwrap('wasm_get_sound_buffer_address', 'number');
     wasm_copy_into_sound_buffer = Module.cwrap('wasm_copy_into_sound_buffer', 'number');
     wasm_set_sample_rate = Module.cwrap('wasm_set_sample_rate', 'undefined', ['number']);
+    wasm_auto_type = Module.cwrap('wasm_auto_type', 'undefined', ['string']);
 
     resume_audio=async ()=>{
         try {
@@ -2527,7 +2528,8 @@ $('.layer').change( function(event) {
     $( "#modal_file_slot" ).keydown(event => {
             if(event.key === "Enter" && $("#button_insert_file").attr("disabled")!=true)
             {
-                $( "#button_insert_file" ).click();                        
+                insert_file();
+               // $( "#button_insert_file" ).click();                        
             }
             return false;
         }
@@ -2581,7 +2583,8 @@ $('.layer').change( function(event) {
                 if(file_slot_file_name.endsWith('.tap'))
                 {
                     //shift + runStop
-                    emit_string(['Enter','shiftrunstop']);
+                    wasm_auto_type("\nload\n");
+                    //action("'Enter=>30ms=>shiftrunstop'");
                     //emit_string(['Enter','ShiftRunStop']);
                     
                     if(do_auto_press_play)
@@ -2599,7 +2602,8 @@ $('.layer').change( function(event) {
                 }
                 else
                 {                    
-                    emit_string(['Enter','l','o','a','d','"','*','"',',','8',',', '1', 'Enter']);
+                    wasm_auto_type('\nload"*",8,1:\n');
+//                    emit_string(['Enter','l','o','a','d','"','*','"',',','8',',', '1', 'Enter']);
                     if(do_auto_run)
                     {
                         await disk_loading_finished();
@@ -2607,7 +2611,8 @@ $('.layer').change( function(event) {
                             fire_on_message("MSG_IEC_BUS_IDLE", function() {
                                 fire_on_message("MSG_IEC_BUS_BUSY",function() {
                                     fire_on_message("MSG_IEC_BUS_IDLE", function() {*/
-                                        emit_string(['r','u','n','Enter'],0);
+                                    wasm_auto_type("\nrun:\n");    
+                                    //emit_string(['r','u','n','Enter'],0);
                                     /*})
                                 })               
                             })
@@ -2617,7 +2622,8 @@ $('.layer').change( function(event) {
             }
             else if(do_auto_run)
             {
-                emit_string(['Enter','r','u','n','Enter']);
+                wasm_auto_type("\nrun:\n");
+//                emit_string(['Enter','r','u','n','Enter'],1000,200);
             }
             if(file_slot_file_name.endsWith('.vc64'))
             {
@@ -2634,7 +2640,7 @@ $('.layer').change( function(event) {
             $("#button_run").click();
         }
         let kernal_rom=JSON.parse(wasm_rom_info()).kernal;
-        var faster_open_roms_installed = kernal_rom.startsWith("mega") || kernal_rom.startsWith("Patched");
+        var faster_open_roms_installed = kernal_rom.startsWith("M.E.G.A") || kernal_rom.startsWith("Patched");
         
         //the roms differ from cold-start to ready prompt, orig-roms 3300ms and open-roms 250ms   
         var time_since_start=wasm_get_cpu_cycles();
@@ -2682,7 +2688,11 @@ $('.layer').change( function(event) {
             }, 50);
         }
     }
-    $("#button_insert_file").click(insert_file);
+    
+    document.querySelector("#button_insert_file").addEventListener("click",
+        (event)=>{event.stopPropagation(); insert_file();}
+    )
+    //$("#button_insert_file").click(insert_file);
     
     $('#modal_take_snapshot').on('hidden.bs.modal', function () {
         if(is_running())
@@ -4084,6 +4094,33 @@ function emit_string(keys_to_emit_array, type_first_key_time=200, release_delay_
         }
     }
 }
+function emit_key(the_key, type_first_key_time=200, release_delay_in_ms=50)
+{  
+    // Set the initial delay for the first key (in frames)
+    var delay = type_first_key_time / 50;
+    var release_delay = delay + release_delay_in_ms / 50;
+    if(release_delay<1)
+    {
+        release_delay = 1;
+    }
+    console.log(the_key);
+    var c64code = translateKey2(the_key, the_key/*.toLowerCase()*/);
+    if(c64code !== undefined)
+    {
+        if(c64code.modifier != null)
+        {
+            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 1, delay);
+        }
+        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 1, delay);
+
+        if(c64code.modifier != null)
+        {
+            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, release_delay);
+        }
+        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, release_delay);
+    }
+}
+
 
 function hide_all_tooltips()
 {

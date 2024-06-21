@@ -189,10 +189,10 @@ async function execute_single_action(cmd, execute=true, execution_id=-1)
     {
         if(execute)
         {
-            var chars = cmd.substring(1,cmd.length-1).split("");
+            var chars = cmd.substring(1,cmd.length-1);//.split("");
             var time_to_emit_next_char = 100;
-            emit_string(chars,0,time_to_emit_next_char);
-
+//            emit_string(chars,0,time_to_emit_next_char);
+            wasm_auto_type(chars);
             //blocking execution of action script and wait for all keys emitted
             await sleep(time_to_emit_next_char*chars.length);                  
         }
@@ -328,10 +328,10 @@ async function execute_single_action(cmd, execute=true, execution_id=-1)
         }
     }
     else if(translateKey2(cmd,cmd) !== undefined)
-    {
+    {//one single char
         if(execute)
         {            
-            emit_string([cmd],0,100); 
+            emit_key(cmd,0,100); 
         }
     }
     else if(

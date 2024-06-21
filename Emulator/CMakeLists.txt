@@ -44,8 +44,8 @@ else()
 	  target_compile_options(vc64Core PRIVATE -sWASM_WORKERS)
   endif()
   
-  target_compile_options(vc64Core PRIVATE -g) 
-  set_target_properties(vc64Core PROPERTIES LINK_FLAGS "-O3 -mnontrapping-fptoint -fwasm-exceptions -g" )
+  #target_compile_options(vc64Core PRIVATE -g) 
+  set_target_properties(vc64Core PROPERTIES LINK_FLAGS "-O3 -mnontrapping-fptoint -fwasm-exceptions" )
 endif()
 
 # Add include paths

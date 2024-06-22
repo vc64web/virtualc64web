@@ -19,6 +19,10 @@
 #include <mach/mach_time.h>
 #endif
 
+#ifdef __EMSCRIPTEN__    
+#include <emscripten.h>
+#endif
+
 
 namespace vc64::util {
 
@@ -76,9 +80,13 @@ Time::sleepUntil()
 Time
 Time::now()
 {
+#ifndef __EMSCRIPTEN__
     struct timespec ts;
     (void)clock_gettime(CLOCK_MONOTONIC, &ts);
     return (i64)ts.tv_sec * 1000000000 + ts.tv_nsec;
+#else
+ return (uint64_t)(emscripten_get_now()*1000000.0);
+#endif
 }
 
 std::tm
@@ -93,6 +101,7 @@ Time::local(const std::time_t &time)
 void
 Time::sleep()
 {
+#ifndef __EMSCRIPTEN__
     struct timespec req, rem;
     
     if (ticks > 0) {
@@ -100,12 +109,15 @@ Time::sleep()
         req.tv_nsec = ticks;
         nanosleep(&req, &rem);
     }
+#endif
 }
 
 void
 Time::sleepUntil()
 {
+#ifndef __EMSCRIPTEN__
     (*this - now()).sleep();
+#endif
 }
 
 #else

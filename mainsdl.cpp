@@ -2,8 +2,18 @@
  * @file        mainsdl.cpp
  * @author      mithrendal and Dirk W. Hoffmann, www.dirkwhoffmann.de
  * @copyright   Dirk W. Hoffmann. All rights reserved.
+ *
+ *
+ * v5.0 
+ issues:
+ -reset crashes/not working after games loaded
+ -snapshot not working
+ - Use VICIIAPI::getSpriteInfo instead
+ -FileSystem *fs = new FileSystem(*wrapper->emu->drive8.drive->disk);
+Eigentlich müsste die MediaFileAPI genug funktionalität haben (FileSystem lieber nicht benutzen)
+ -snapshot = wrapper->emu->c64.takeSnapshot();
+Use VirtualC64API::takeSnapshot() instead (i.e.: wrapper->emu->takeSnapshot())
  */
-
 #include <stdio.h>
 #include "config.h"
 #include "VirtualC64.h"
@@ -504,7 +514,6 @@ class C64Wrapper {
 
     printf("adding a listener to C64 message queue...\n");
 
-    printf("launch2\n");
 
     //c64->msgQueue.setListener(this->c64, &theListener);
     try
@@ -513,8 +522,6 @@ class C64Wrapper {
     } catch(std::exception &exception) {
       printf("%s\n", exception.what());
     }
-    
-    printf("after launch\n");    
   }
   ~C64Wrapper()
   {
@@ -542,7 +549,6 @@ class C64Wrapper {
     }, msg_code[MSG_ROM_MISSING].c_str() );
 */
 
-    printf("v4 wrapper calls run on c64->run() method\n");
 
     //emu->setTakeAutoSnapshots(false);
     //emu->setWarpLoad(true);
@@ -615,7 +621,8 @@ uint64_t mach_absolute_time()
 extern "C" void wasm_keyboard_reset()
 {
   printf("wasm_keyboard_reset\n");
-  wrapper->emu->keyboard.keyboard->reset(true);
+//  wrapper->emu->keyboard.keyboard->reset(true);
+  wrapper->emu->keyboard.releaseAll();
 }
 
 
@@ -726,28 +733,93 @@ extern "C" char* wasm_export_disk()
   return wasm_pull_user_snapshot_file_json_result;
 }
 
-
-MediaFile *snapshot=NULL;
-extern "C" void wasm_delete_user_snapshot()
+MediaFile *snap_file=NULL;
+extern "C" char* wasm_pull_user_snapshot_file_()
 {
-//  printf("request to free user_snapshot memory\n");
+  printf("wasm_pull_user_snapshot_file\n");
 
-  if(snapshot!=NULL)
-  {
-    delete snapshot;
-    snapshot=NULL;
-    printf("freed user_snapshot memory\n");
-  }
+  snap_file = wrapper->emu->c64.takeSnapshot();
+  wrapper->emu->c64.loadSnapshot(*snap_file);
+
+  printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
+  return wasm_pull_user_snapshot_file_json_result;
+}
+
+extern "C" char* wasm_pull_user_snapshot_file_geht_auch()
+{
+  printf("wasm_pull_user_snapshot_file\n");
+
+  auto *snapshot = wrapper->emu->c64.takeSnapshot();
+  wrapper->emu->c64.loadSnapshot(*snapshot);
+  
+  printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
+  return wasm_pull_user_snapshot_file_json_result;
 }
 
 extern "C" char* wasm_pull_user_snapshot_file()
 {
+
+  printf("sizeof = %d\n", (int)sizeof(long long));
+  printf("wasm_pull_user_snapshot_file\n");
+  printf("----dump checksum\n"); 
+  wrapper->emu->c64.c64->dump(Category::Checksums);
+
+  printf("----take snapshot\n");
+  auto *snapshot = wrapper->emu->c64.takeSnapshot();
+  printf("----make snapshot\n");
+  auto *file = MediaFile::make(snapshot->getData(), snapshot->getSize(), FILETYPE_SNAPSHOT);
+  printf("----load snapshot\n");
+  wrapper->emu->c64.loadSnapshot(*snapshot);
+  
+  printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
+  return wasm_pull_user_snapshot_file_json_result;
+}
+
+
+
+extern "C" char* wasm_pull_user_snapshot_file_old()
+{
   printf("wasm_pull_user_snapshot_file\n");
 
-  wasm_delete_user_snapshot();
   //snapshot = wrapper->emu->latestUserSnapshot(); //wrapper->emu->userSnapshot(nr);
-  snapshot = wrapper->emu->c64.takeSnapshot();
 
+  auto *snapshot = wrapper->emu->c64.takeSnapshot();
+  printf("orig %ld\n",snapshot->getSize());
+/*  for (int i = 0; i < 120; ++i) {
+        printf("%02X,", snapshot->getData()[i]);
+  }
+  printf("\n");
+*/
+  auto *file = MediaFile::make(snapshot->getData(), snapshot->getSize(), FILETYPE_SNAPSHOT);
+ // auto *file = new Snapshot(snapshot->getData(), snapshot->getSize());
+ 
+  printf("type %d %d\n",snapshot->type(), file->type());
+  printf("fnv %llx %llx\n",snapshot->fnv(), file->fnv());
+ 
+ 
+  printf("media %ld\n",snapshot->getSize());
+  for (int i = 0; i < snapshot->getSize(); ++i) {
+      if(snapshot->getData()[i] != file->getData()[i] || i>snapshot->getSize()-10)
+      {
+        printf("%u: %02X,", i, snapshot->getData()[i]);
+//        printf("%u: %02X,", i, snapshot->getData()[i]);
+      }
+  }
+  printf("\n");
+
+  wrapper->emu->c64.loadSnapshot(*snapshot);
+
+
+/*  snapshot = wrapper->emu->c64.takeSnapshot();
+  printf(" %ld\n",snapshot->getSize());
+  printf("try to build Snapshot\n");
+  auto file = MediaFile::make(snapshot->getData(), snapshot->getSize(), 
+    FILETYPE_SNAPSHOT);
+  printf("isSnapshot\n");
+  wrapper->emu->c64.loadSnapshot(*file);
+
+  printf("loaded\n");
+*/
 /*
   size_t size = snapshot->size; //writeToBuffer(NULL);
   uint8_t *buffer = new uint8_t[size];
@@ -898,6 +970,14 @@ extern "C" void wasm_set_borderless(unsigned on)
   calculate_viewport();
 }
 
+string
+extractSuffix(const string &s)
+{
+    auto idx = s.rfind('.');
+    auto pos = idx != string::npos ? idx + 1 : 0;
+    auto len = string::npos;
+    return s.substr(pos, len);
+}
 
 extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 {
@@ -909,7 +989,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     return "";
   }
   bool file_still_unprocessed=true;   
-  if (D64File::isCompatible(filename) || PRGFile::isCompatible(filename) ) {    
+  if (D64File::isCompatible(filename)) {    
     try{
       printf("try to build D64File\n");
 /*      D64File d64 = D64File(blob, len);
@@ -925,20 +1005,17 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       //printf("%s\n", ErrorCodeEnum::key(ec));
     }
   }
-/*  if (file_still_unprocessed && G64File::isCompatible(filename)) {
+  if (file_still_unprocessed && G64File::isCompatible(filename)) {
     try{
       printf("try to build G64File\n");
-      G64File g64 = G64File(blob, len);
-      auto disk = std::make_unique<Disk>(g64);
+      auto file = MediaFile::make(blob, len, FILETYPE_G64);
       printf("isG64 ...\n");  
-      wrapper->emu->drive8.insertDisk(std::move(disk));
+      wrapper->emu->drive8.insertMedia(*file, false /* wp*/);
       file_still_unprocessed=false;
-    } catch(VC64Error &exception) {
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+    } catch(Error &exception) {
+      printf("%s\n", exception.what());
     }
   }
-*/
   if (file_still_unprocessed && PRGFile::isCompatible(filename)) {
     try
     {
@@ -956,21 +1033,22 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       printf("%s\n", exception.what());
     }
   }
-  /*
   if (file_still_unprocessed && CRTFile::isCompatible(filename)) {
     try
     {
       printf("try to build CRTFile\n");
-      CRTFile *file = new CRTFile(blob, len);
+//      CRTFile *file = new CRTFile(blob, len);
+      auto file = MediaFile::make(blob, len, FILETYPE_CRT);
 
       printf("isCRT\n");
-      wrapper->emu->expansionport.attachCartridge( Cartridge::makeWithCRTFile(*(wrapper->emu),*file));
-      wrapper->emu->reset(true);
+
+//      wrapper->emu->expansionport.attachCartridge( Cartridge::makeWithCRTFile(*(wrapper->emu),*file));
+//      wrapper->emu->reset(true);
+      wrapper->emu->expansionPort.attachCartridge(*file, true);
       file_still_unprocessed=false;
     } 
-    catch(VC64Error &exception) {
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+    catch(Error &exception) {
+      printf("error loading snapshot: %s\n", exception.what());
     }
   }
   if (file_still_unprocessed && TAPFile::isCompatible(filename)) {
@@ -980,45 +1058,46 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       TAPFile *file = new TAPFile(blob, len);
       printf("isTAP\n");
       wrapper->emu->datasette.insertTape(*file);
-      wrapper->emu->datasette.rewind();
+      //wrapper->emu->datasette.rewind();
+      wrapper->emu->put(CMD_DATASETTE_REWIND);
   //  wrapper->emu->datasette.pressPlay();
   //  wrapper->emu->datasette.pressStop();
       file_still_unprocessed=false;
     }
-    catch(VC64Error &exception) {
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+    catch(Error &exception) {
+      printf("error loading snapshot: %s\n", exception.what());
     }
   }
   if (file_still_unprocessed && T64File::isCompatible(filename)) {
     try
     {
       printf("try to build T64File\n");
-      T64File *file = new T64File(blob, len);
+//      T64File *file = new T64File(blob, len);
+      auto file = MediaFile::make(blob, len, FILETYPE_T64);
       printf("isT64\n");
-      wrapper->emu->flash(*file ,0);
+      wrapper->emu->c64.flash(*file,0);
       file_still_unprocessed=false;
     }
-    catch(VC64Error &exception) {
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+    catch(Error &exception) {
+      printf("error loading snapshot: %s\n", exception.what());
     }
   }
-  if (file_still_unprocessed && Snapshot::isCompatible(filename) && util::extractSuffix(filename)!="rom" && util::extractSuffix(filename)!="bin") {
+  if (file_still_unprocessed && Snapshot::isCompatible(filename) && extractSuffix(filename)!="rom" && extractSuffix(filename)!="bin") {
     try
     {
       printf("try to build Snapshot\n");
-      Snapshot *file = new Snapshot(blob, len);      
+      auto file = MediaFile::make(blob, len, FILETYPE_SNAPSHOT);
       printf("isSnapshot\n");
-      wrapper->emu->loadSnapshot(*file);
+      wrapper->emu->c64.loadSnapshot(*file);
+      printf("Snapshot loaded\n");
+      
       file_still_unprocessed=false;
     }
-    catch(VC64Error &exception) {
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+    catch(Error &exception) {
+      printf("error loading snapshot: %s\n", exception.what());
     }
   }
-*/
+
   if(file_still_unprocessed)
   {
     bool wasRunnable = true;
@@ -1138,17 +1217,20 @@ extern "C" void wasm_run()
 extern "C" void wasm_press_play()
 {
   printf("wasm_press_play\n");
-  wrapper->emu->datasette.datasette->pressPlay();
+  wrapper->emu->put(CMD_DATASETTE_PLAY);
+//  wrapper->emu->datasette.datasette->pressPlay();
 }
 extern "C" void wasm_press_stop()
 {
   printf("wasm_press_stop\n");
-  wrapper->emu->datasette.datasette->pressStop();
+  wrapper->emu->put(CMD_DATASETTE_STOP);
+//  wrapper->emu->datasette.datasette->pressStop();
 }
 extern "C" void wasm_rewind()
 {
   printf("wasm_rewind\n");
-  wrapper->emu->datasette.datasette->rewind();
+  wrapper->emu->put(CMD_DATASETTE_REWIND);
+//  wrapper->emu->datasette.datasette->rewind();
 }
 
 
@@ -1432,6 +1514,7 @@ extern "C" void wasm_write_string_to_ser(char* chars_to_send)
 extern "C" void wasm_poke(u16 addr, u8 value)
 {
     wrapper->emu->mem.mem->poke(addr, value);
+    wrapper->emu->c64.c64->markAsDirty(); 
 }
 
 /*

@@ -704,10 +704,10 @@ function press_key(key)
     let c64code=translateKey2(key, key);
     if(c64code !== undefined )
     {
-        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 1, 1);
+        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 1, 0);
         if(c64code.modifier != null)
         {
-            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 1, 1);
+            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 1, 0);
         }
     }
 }
@@ -716,10 +716,10 @@ function release_key(key)
     let c64code=translateKey2(key, key);
     if(c64code !== undefined )
     {
-        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 1);
+        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 0);
         if(c64code.modifier != null)
         {
-            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, 1);
+            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, 0);
         }
     }
 }

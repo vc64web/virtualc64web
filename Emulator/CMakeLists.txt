@@ -37,14 +37,14 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 else()
   target_compile_options(vc64Core PRIVATE -Wall -Werror)
   target_compile_options(vc64Core PRIVATE -Wno-unused-parameter -Wno-unused-but-set-variable)
-  target_compile_options(vc64Core PRIVATE -O1 -mnontrapping-fptoint -fwasm-exceptions)
+  target_compile_options(vc64Core PRIVATE -O3 -mnontrapping-fptoint -fwasm-exceptions)
   target_compile_options(vc64Core PRIVATE -Wfatal-errors)
 
   if("${thread_type}" STREQUAL "worker")
 	  target_compile_options(vc64Core PRIVATE -sWASM_WORKERS)
   endif()
   
-  #target_compile_options(vc64Core PRIVATE -g) 
+#  target_compile_options(vc64Core PRIVATE -g) 
   set_target_properties(vc64Core PROPERTIES LINK_FLAGS "-O3 -mnontrapping-fptoint -fwasm-exceptions" )
 endif()
 

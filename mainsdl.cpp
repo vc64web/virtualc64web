@@ -6,7 +6,6 @@
  *
  * v5.0 
  issues:
- -snapshot not working
  - Use VICIIAPI::getSpriteInfo instead
  -FileSystem *fs = new FileSystem(*wrapper->emu->drive8.drive->disk);
 Eigentlich müsste die MediaFileAPI genug funktionalität haben (FileSystem lieber nicht benutzen)
@@ -732,108 +731,14 @@ extern "C" char* wasm_export_disk()
   return wasm_pull_user_snapshot_file_json_result;
 }
 
-MediaFile *snap_file=NULL;
-extern "C" char* wasm_pull_user_snapshot_file_()
-{
-  printf("wasm_pull_user_snapshot_file\n");
-
-  snap_file = wrapper->emu->c64.takeSnapshot();
-  wrapper->emu->c64.loadSnapshot(*snap_file);
-
-  printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
-  return wasm_pull_user_snapshot_file_json_result;
-}
-
-extern "C" char* wasm_pull_user_snapshot_file_geht_auch()
-{
-  printf("wasm_pull_user_snapshot_file\n");
-
-  auto *snapshot = wrapper->emu->c64.takeSnapshot();
-  wrapper->emu->c64.loadSnapshot(*snapshot);
-  
-  printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
-  return wasm_pull_user_snapshot_file_json_result;
-}
-
+//MediaFile snapshot der muss glöscht werden
 extern "C" char* wasm_pull_user_snapshot_file()
 {
-
-  printf("sizeof = %d\n", (int)sizeof(long long));
   printf("wasm_pull_user_snapshot_file\n");
-  printf("----dump checksum\n"); 
-  wrapper->emu->c64.c64->dump(Category::Checksums);
-
-  printf("----take snapshot\n");
   auto *snapshot = wrapper->emu->c64.takeSnapshot();
-  printf("----make snapshot\n");
-  auto *file = MediaFile::make(snapshot->getData(), snapshot->getSize(), FILETYPE_SNAPSHOT);
-  printf("----load snapshot\n");
-  wrapper->emu->c64.loadSnapshot(*snapshot);
-  
-  printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
-  return wasm_pull_user_snapshot_file_json_result;
-}
-
-
-
-extern "C" char* wasm_pull_user_snapshot_file_old()
-{
-  printf("wasm_pull_user_snapshot_file\n");
-
-  //snapshot = wrapper->emu->latestUserSnapshot(); //wrapper->emu->userSnapshot(nr);
-
-  auto *snapshot = wrapper->emu->c64.takeSnapshot();
-  printf("orig %ld\n",snapshot->getSize());
-/*  for (int i = 0; i < 120; ++i) {
-        printf("%02X,", snapshot->getData()[i]);
-  }
-  printf("\n");
-*/
-  auto *file = MediaFile::make(snapshot->getData(), snapshot->getSize(), FILETYPE_SNAPSHOT);
- // auto *file = new Snapshot(snapshot->getData(), snapshot->getSize());
- 
-  printf("type %d %d\n",snapshot->type(), file->type());
-  printf("fnv %llx %llx\n",snapshot->fnv(), file->fnv());
- 
- 
-  printf("media %ld\n",snapshot->getSize());
-  for (int i = 0; i < snapshot->getSize(); ++i) {
-      if(snapshot->getData()[i] != file->getData()[i] || i>snapshot->getSize()-10)
-      {
-        printf("%u: %02X,", i, snapshot->getData()[i]);
-//        printf("%u: %02X,", i, snapshot->getData()[i]);
-      }
-  }
-  printf("\n");
-
-  wrapper->emu->c64.loadSnapshot(*snapshot);
-
-
-/*  snapshot = wrapper->emu->c64.takeSnapshot();
-  printf(" %ld\n",snapshot->getSize());
-  printf("try to build Snapshot\n");
-  auto file = MediaFile::make(snapshot->getData(), snapshot->getSize(), 
-    FILETYPE_SNAPSHOT);
-  printf("isSnapshot\n");
-  wrapper->emu->c64.loadSnapshot(*file);
-
-  printf("loaded\n");
-*/
-/*
-  size_t size = snapshot->size; //writeToBuffer(NULL);
-  uint8_t *buffer = new uint8_t[size];
-  snapshot->writeToBuffer(buffer);
-  for(int i=0; i < 30; i++)
-  {
-    printf("%d",buffer[i]);
-  }
-  printf("\n");
-  */
   sprintf(wasm_pull_user_snapshot_file_json_result, "{\"address\":%lu, \"size\": %lu, \"width\": %lu, \"height\":%lu }",
   (unsigned long)snapshot->getData(), 
   snapshot->getSize(),
-//  snapshot->getHeader()->screenshot.width,
-//  snapshot->getHeader()->screenshot.height
   snapshot->previewImageSize().first,
   snapshot->previewImageSize().second
   );
@@ -1555,7 +1460,13 @@ extern "C" void wasm_configure(char* option, unsigned on)
 
   printf("wasm_configure %s = %d\n", option, on);
 
-  if(strcmp(option,"OPT_DRV_POWER_SAVE") == 0)
+
+  if(strcmp(option,"OPT_EMU_RUN_AHEAD") == 0)
+  {
+    printf("calling c64->configure %s = %d\n", option, on);
+    wrapper->emu->set(OPT_EMU_RUN_AHEAD, on);
+  }
+  else if(strcmp(option,"OPT_DRV_POWER_SAVE") == 0)
   {
     printf("calling c64->configure %s = %d\n", option, on);
     wrapper->emu->set(OPT_DRV_POWER_SAVE, 8, on_value);

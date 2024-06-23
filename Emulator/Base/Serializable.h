@@ -209,7 +209,7 @@ public:
     template <class E, class = std::enable_if_t<std::is_enum<E>{}>>
     SerCounter& operator<<(E &v)
     {
-        count += sizeof(long);
+        count += sizeof(u64);
         return *this;
     }
 
@@ -528,13 +528,6 @@ public:
 
     bool isHard() { return hard; }
     bool isSoft() { return !isHard(); }
-
-    /*
-protected:
-
-    SerResetter() { }
-    virtual ~SerResetter() = default;
-    */
 
     RESET(bool)
     RESET(char)

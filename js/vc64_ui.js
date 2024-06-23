@@ -1413,8 +1413,7 @@ function InitWrappers() {
     wasm_reset = Module.cwrap('wasm_reset', 'undefined');
     wasm_halt = Module.cwrap('wasm_halt', 'undefined');
     wasm_run = Module.cwrap('wasm_run', 'undefined');
-    wasm_take_user_snapshot = Module.cwrap('wasm_take_user_snapshot', 'undefined');
-    wasm_pull_user_snapshot_file = Module.cwrap('wasm_pull_user_snapshot_file', 'string');
+    wasm_take_user_snapshot = Module.cwrap('wasm_take_user_snapshot', 'string');
 
     wasm_create_renderer = Module.cwrap('wasm_create_renderer', 'undefined', ['string']);
     wasm_set_warp = Module.cwrap('wasm_set_warp', 'undefined', ['number']);
@@ -2754,11 +2753,8 @@ $('.layer').change( function(event) {
     $('#button_save_snapshot').click(function() 
     {       
         let app_name = $("#input_app_title").val();
-        wasm_take_user_snapshot();
-        var snapshot_json= wasm_pull_user_snapshot_file();
+        var snapshot_json= wasm_take_user_snapshot();
         var snap_obj = JSON.parse(snapshot_json);
-//        var ptr=wasm_pull_user_snapshot_file();
-//        var size = wasm_pull_user_snapshot_file_size();
         var snapshot_buffer = new Uint8Array(Module.HEAPU8.buffer, snap_obj.address, snap_obj.size);
    
         //snapshot_buffer is only a typed array view therefore slice, which creates a new array with byteposition 0 ...

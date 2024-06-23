@@ -731,11 +731,24 @@ extern "C" char* wasm_export_disk()
   return wasm_pull_user_snapshot_file_json_result;
 }
 
-//MediaFile snapshot der muss glöscht werden
-extern "C" char* wasm_pull_user_snapshot_file()
+
+MediaFile *snapshot=NULL;
+extern "C" void wasm_delete_user_snapshot()
 {
-  printf("wasm_pull_user_snapshot_file\n");
-  auto *snapshot = wrapper->emu->c64.takeSnapshot();
+//  printf("request to free user_snapshot memory\n");
+
+  if(snapshot!=NULL)
+  {
+    delete snapshot;
+    snapshot=NULL;
+    printf("freed user_snapshot memory\n");
+  }
+}
+extern "C" char* wasm_take_user_snapshot()
+{
+  printf("wasm_take_user_snapshot\n");
+  wasm_delete_user_snapshot();
+  snapshot = wrapper->emu->c64.takeSnapshot();
   sprintf(wasm_pull_user_snapshot_file_json_result, "{\"address\":%lu, \"size\": %lu, \"width\": %lu, \"height\":%lu }",
   (unsigned long)snapshot->getData(), 
   snapshot->getSize(),
@@ -744,11 +757,6 @@ extern "C" char* wasm_pull_user_snapshot_file()
   );
   printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
   return wasm_pull_user_snapshot_file_json_result;
-}
-
-extern "C" void wasm_take_user_snapshot()
-{
- // wrapper->emu->requestUserSnapshot();
 }
 
 

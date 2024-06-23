@@ -6,7 +6,6 @@
  *
  * v5.0 
  issues:
- -reset crashes/not working after games loaded
  -snapshot not working
  - Use VICIIAPI::getSpriteInfo instead
  -FileSystem *fs = new FileSystem(*wrapper->emu->drive8.drive->disk);

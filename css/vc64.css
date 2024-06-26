@@ -240,7 +240,18 @@ color: #aaa !important;
 [data-theme="dark"] #navbar {
     background-color:var(--darkbg);
 }
-    
+
+#div_toast {
+    z-index:2000;
+}   
+#toast_body, #toast_header  {
+    background-color:var(--lightbg);
+}
+[data-theme="dark"] #toast_body, [data-theme="dark"] #toast_header  {
+    background-color:var(--dark);
+    color:white;
+}
+
     
 
 .icon {

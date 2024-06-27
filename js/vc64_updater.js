@@ -241,7 +241,7 @@ try{
         }
     });
 
-    wasm_get_core_version=()=>"v4";
+    wasm_get_core_version=()=>"v4.5.0";
 
     //in the meantime until message from service worker has not yet arrived show this
     let init_version_display= async ()=>{

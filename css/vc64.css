@@ -252,7 +252,16 @@ color: #aaa !important;
     color:white;
 }
 
-    
+#version_selector {
+    border-radius:6px;
+    border-width:2px;
+}
+
+[data-theme="dark"] #version_selector {
+    border-color:var(--light);
+    background-color:var(--darkbg);
+    color:var(--light);    
+}
 
 .icon {
     fill: var(--dark);

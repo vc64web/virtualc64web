@@ -115,6 +115,7 @@ try{
         `;
 
         //2. diese vergleichen mit der des Service workers
+        $("#div_toast").hide();
         sw_version=evt.data;
         if(sw_version.cache_name != current_version)
         {

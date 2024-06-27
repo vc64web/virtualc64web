@@ -240,8 +240,28 @@ color: #aaa !important;
 [data-theme="dark"] #navbar {
     background-color:var(--darkbg);
 }
-    
-    
+
+#div_toast {
+    z-index:2000;
+}   
+#toast_body, #toast_header  {
+    background-color:var(--lightbg);
+}
+[data-theme="dark"] #toast_body, [data-theme="dark"] #toast_header  {
+    background-color:var(--dark);
+    color:white;
+}
+
+#version_selector {
+    border-radius:6px;
+    border-width:2px;
+}
+
+[data-theme="dark"] #version_selector {
+    border-color:var(--light);
+    background-color:var(--darkbg);
+    color:var(--light);    
+}
 
 .icon {
     fill: var(--dark);

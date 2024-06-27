@@ -25,9 +25,10 @@
   <script src="js/vc64_storage.js"></script>
   <script src="js/vc64_keyboard.js"></script>
   <script src="js/vc64_action_script.js"></script>
+  <script src="js/vc64_updater.js"></script>
   <script src="js/virtualjoystick.js"></script>
   <script src="js/jszip.min.js"></script>
-    <style>
+ <style>
       .emscripten { padding-right: 0; margin-left: auto; margin-right: auto; display: block; }
       textarea.emscripten { font-family: monospace; width: 80%; }
       div.emscripten { text-align: center; }
@@ -745,11 +746,9 @@ number of entries in each chart category row of the built in <span class="mx-1" 
               looking for my 16/32-Bit brother?
               <br><a href="https://vamigaweb.github.io/doc/about.html" style="font-size:medium">take me to vAmigaWeb<svg class="ml-1" style="width:1em;height:1em"><use xlink:href="img/sprites.svg#link"/></svg></a>
             </p>
-
             <br>
-            <button type="button" id="button_update" class="btn btn-primary"
-            data-toggle="tooltip" data-placement="top" title="normally vC64web should update automatically. iOS does often not..."
-            >update installation manually</button>
+            <div class="mt-3" id="version_display">v?</div>
+
             <br><br><br>
             <small>
             DISCLAIMER:
@@ -1066,6 +1065,29 @@ The operators or creators of external web resources are soley responsible for th
     </div>
     <!--file slot modal-->
 
+
+<!-- toaster -->
+<!-- Position it -->
+<div id="div_toast" style="position: absolute; bottom: 0; right: 0">
+  <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+    <div id="toast_header" class="toast-header">
+      <img src="img/icon-384x384.png" class="rounded mr-2" style="width:38px;height:38px" alt="vAmigaWeb">
+      <span style="font-size: larger" class="mr-auto">newer version available</span>
+      <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+      </button>
+    </div>
+    <div id="toast_body" class="toast-body">
+      <div id="update_dialog"></div>
+      <div class="mt-3">
+        <button type="button" onclick="execute_update()" class="btn btn-success mt-1">upgrade</button>
+        <button type="button" class="btn btn-secondary mt-1 ml-1" data-dismiss="toast">stay on current version</button>
+      </div>
+    </div>
+  </div>
+  </div>
+  <!-- toaster end-->
+  
 
     <script type='text/javascript'>
       let light_mode = false;

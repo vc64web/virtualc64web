@@ -1,7 +1,7 @@
 const url_root_path= self.location.pathname.replace("/sw.js","");
-const core_version  = '4.0.0'; //has to be the same as the version in Emulator/config.h
-const ui_version = '2024_06_06'+url_root_path.replace("/","_");
-const needs_shared_array_buffer=false; //true when vAmiga runs in separat worker thread
+const core_version  = '4.5.0'; //has to be the same as the version in Emulator/config.h
+const ui_version = '2024_06_08'+url_root_path.replace("/","_");
+const needs_shared_array_buffer=false; //true when it runs in separat worker thread
 const cache_name = `${core_version}@${ui_version}`;
 const settings_cache = 'settings';
 
@@ -51,7 +51,7 @@ self.addEventListener('activate', evt => {
     current_version=await get_settings_cache_value("active_version");
     if(current_version == null)
     {      
-      console.log("current version of vAmigaWeb does not yet support update dialog, enforce install...");
+      console.log("current version of vc64web does not yet support update dialog, enforce install...");
       let keys = await caches.keys();
       for(c of keys)
       {
@@ -83,18 +83,19 @@ self.addEventListener('fetch', function(event){
   event.respondWith(async function () {
       //is this url one that should not be cached at all ? 
       if(
-        event.request.url.toLowerCase().startsWith('https://vamigaweb.github.io/doc')
+        event.request.url.startsWith('https://csdb.dk/webservice/') && 
+        !event.request.url.endsWith('cache_me=true')
         ||
-        !(event.request.url.toLowerCase().startsWith('https://vamigaweb.github.io')
-          || event.request.url.toLowerCase().startsWith('http://localhost:8080/')
-         )
+        event.request.url.startsWith('https://mega65.github.io/')
         ||
-        event.request.url.toLowerCase().endsWith('vamigaweb_player.js')
+        event.request.url.startsWith('https://vc64web.github.io/doc')
+        ||
+        event.request.url.endsWith('vc64web_player.js')
 	||
         event.request.url.endsWith('run.html')
 	||
         event.request.url.endsWith('cache_me=false')
-      )
+      )     
       {
         console.log('sw: do not cache fetched resource: '+event.request.url);
         return fetch(event.request);

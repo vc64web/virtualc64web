@@ -1541,7 +1541,7 @@ C64::getDebugVariable(DebugFlag flag)
 {
 #ifdef RELEASEBUILD
 
-    throw VC64Error(ERROR_OPT_UNSUPPORTED, "Debug variables are only accessible in debug builds.");
+    throw Error(ERROR_OPT_UNSUPPORTED, "Debug variables are only accessible in debug builds.");
 
 #else
 
@@ -1629,7 +1629,7 @@ C64::setDebugVariable(DebugFlag flag, bool val)
 {
 #ifdef RELEASEBUILD
 
-    throw VC64Error(ERROR_OPT_UNSUPPORTED, "Debug variables are only accessible in debug builds.");
+    throw Error(ERROR_OPT_UNSUPPORTED, "Debug variables are only accessible in debug builds.");
 
 #else
 

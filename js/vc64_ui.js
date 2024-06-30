@@ -2868,16 +2868,6 @@ $('#choose_vic_rev a').click(function ()
         $("#modal_settings").focus();
     });
 
-
-    document.getElementById('button_update').onclick = async function() 
-    {
-        let keys = await caches.keys();
-        console.log('deleting cache files:'+keys);
-        await Promise.all(keys.map(key => caches.delete(key)));
-
-        window.location.reload(true);
-    }
-
     setup_browser_interface();
 
 

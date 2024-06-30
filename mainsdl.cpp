@@ -1597,3 +1597,13 @@ extern "C" void wasm_open_main_thread_audio()
 
     SDL_PauseAudioDevice(audio_device_id, 0); //unpause the audio device
 }
+
+
+extern "C" const char* wasm_get_core_version()
+{
+  sprintf(json_result, "%s",
+    wrapper->emu->version().c_str() 
+  );
+
+  return json_result;
+}

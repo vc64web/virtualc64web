@@ -66,6 +66,9 @@ enum_long(OPT)
     OPT_DMA_DEBUG_COLOR4,       ///< Color for channel 4
     OPT_DMA_DEBUG_COLOR5,       ///< Color for channel 5
 
+    // User port
+    OPT_USR_DEVICE,             ///< Device connected to the user port
+
     // Video port
     OPT_VID_WHITE_NOISE,        ///< Generate white-noise when switched off
     ///<
@@ -166,6 +169,10 @@ enum_long(OPT)
     // Paddles
     OPT_PADDLE_ORIENTATION,     ///< Paddle value mapping scheme
 
+    // RS232 adapter
+    OPT_RS232_DEVICE,           ///< Device connected to the RS232 adapter
+    OPT_RS232_BAUD,             ///< Transmission rate
+
     // Screen recorder
     OPT_REC_FRAME_RATE,         ///< Frame rate of the recorded video
     OPT_REC_BIT_RATE,           ///< Bit rate of the recorded video
@@ -225,6 +232,8 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
             case OPT_DMA_DEBUG_COLOR3:      return "DMA_DEBUG.COLOR3";
             case OPT_DMA_DEBUG_COLOR4:      return "DMA_DEBUG.COLOR4";
             case OPT_DMA_DEBUG_COLOR5:      return "DMA_DEBUG.COLOR5";
+
+            case OPT_USR_DEVICE:            return "USR.DEVICE";
 
             case OPT_VID_WHITE_NOISE:       return "VID.WHITE_NOISE";
 
@@ -310,7 +319,10 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
             case OPT_AUTOFIRE_BULLETS:      return "AUTOFIRE.BULLETS";
             case OPT_AUTOFIRE_DELAY:        return "AUTOFIRE.DELAY";
 
-            case OPT_PADDLE_ORIENTATION:    return "PADDLE_ORIENTATION";
+            case OPT_PADDLE_ORIENTATION:    return "PADDLE.ORIENTATION";
+
+            case OPT_RS232_DEVICE:          return "RS232.DEVICE";
+            case OPT_RS232_BAUD:            return "RS232.BAUD";
 
             case OPT_REC_FRAME_RATE:        return "REC.FRAME_RATE";
             case OPT_REC_BIT_RATE:          return "REC.BIT_RATE";
@@ -365,8 +377,10 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
             case OPT_DMA_DEBUG_COLOR4:      return "Color of channel 4";
             case OPT_DMA_DEBUG_COLOR5:      return "Color of channel 5";
 
+            case OPT_USR_DEVICE:            return "User port device";
+
             case OPT_VID_WHITE_NOISE:       return "White noise";
-                
+
             case OPT_MON_PALETTE:           return "Color palette";
             case OPT_MON_BRIGHTNESS:        return "Monitor brightness";
             case OPT_MON_CONTRAST:          return "Monitor contrast";
@@ -449,6 +463,9 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
             case OPT_AUTOFIRE_DELAY:        return "Autofire delay in frames";
 
             case OPT_PADDLE_ORIENTATION:    return "Paddle value mapping scheme";
+
+            case OPT_RS232_DEVICE:          return "Connected RS232 device";
+            case OPT_RS232_BAUD:            return "Transmission rate (baud)";
 
             case OPT_REC_FRAME_RATE:        return "Frame rate of the recorded video";
             case OPT_REC_BIT_RATE:          return "Bit rate of the recorded video";

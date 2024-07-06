@@ -138,7 +138,7 @@ class CIA : public SubComponent, public Inspectable<CIAInfo, CIAStats> {
 public:
     
     TOD tod = TOD(c64, *this);
-    
+
     
     //
     // Internals

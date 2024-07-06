@@ -20,13 +20,13 @@
 #define VER_MAJOR 5
 #define VER_MINOR 0
 #define VER_SUBMINOR 0
-#define VER_BETA 6
+#define VER_BETA 7
 
 // Snapshot version number
 #define SNP_MAJOR 5
 #define SNP_MINOR 0
 #define SNP_SUBMINOR 0
-#define SNP_BETA 6
+#define SNP_BETA 7
 
 // Uncomment these settings in a release build
 #define RELEASEBUILD
@@ -154,7 +154,7 @@ extern debugflag TAP_DEBUG;
 extern debugflag KBD_DEBUG;
 extern debugflag PRT_DEBUG;
 extern debugflag EXP_DEBUG;
-extern debugflag LIP_DEBUG;
+extern debugflag USR_DEBUG;
 
 // Other components
 extern debugflag REC_DEBUG;

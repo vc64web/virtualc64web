@@ -16,6 +16,7 @@
 #include "IOUtils.h"
 #include "RomDatabase.h"
 #include <algorithm>
+#include <queue>
 
 namespace vc64 {
 
@@ -93,6 +94,26 @@ C64::eventName(EventSlot slot, EventID id)
 
                 case EVENT_NONE:    return "none";
                 case TER_TRIGGER:   return "TER_TRIGGER";
+                default:            return "*** INVALID ***";
+            }
+            break;
+
+        case SLOT_TXD:
+
+            switch (id) {
+
+                case EVENT_NONE:    return "none";
+                case TXD_BIT:       return "TXD_BIT";
+                default:            return "*** INVALID ***";
+            }
+            break;
+
+        case SLOT_RXD:
+
+            switch (id) {
+
+                case EVENT_NONE:    return "none";
+                case RXD_BIT:       return "RXD_BIT";
                 default:            return "*** INVALID ***";
             }
             break;
@@ -190,44 +211,6 @@ C64::eventName(EventSlot slot, EventID id)
         default:
             fatalError;
     }
-}
-
-C64::C64(class Emulator& ref, isize id) : CoreComponent(ref, id)
-{
-    trace(RUN_DEBUG, "Creating virtual C64\n");
-
-    subComponents = std::vector<CoreComponent *> {
-
-        &mem,
-        &cpu,
-        &cia1, &cia2,
-        &vic,
-        &sidBridge,
-        &audioPort,
-        &videoPort,
-        &supply,
-        &port1,
-        &port2,
-        &expansionport,
-        &iec,
-        &keyboard,
-        &drive8,
-        &drive9,
-        &parCable,
-        &datasette,
-        &monitor,
-        &retroShell,
-        &regressionTester,
-        &recorder
-    };
-
-    // Assign a unique ID to the CPU
-    cpu.setID(0);
-}
-
-C64::~C64()
-{
-    trace(RUN_DEBUG, "Destructing virtual C64\n");
 }
 
 void
@@ -908,7 +891,12 @@ C64::processEvents(Cycle cycle)
             //
             // Check tertiary slots
             //
-
+            if (isDue<SLOT_TXD>(cycle)) {
+                userPort.rs232.processTxdEvent();
+            }
+            if (isDue<SLOT_RXD>(cycle)) {
+                userPort.rs232.processRxdEvent();
+            }
             if (isDue<SLOT_AFI1>(cycle)) {
                 port1.joystick.processEvent();
             }
@@ -1096,7 +1084,12 @@ C64::getRomTraits(u64 fnv)
     // Crawl through the Rom database
     for (auto &traits : roms) if (traits.fnv == fnv) return traits;
 
-    return RomTraits { };
+    return RomTraits {
+        .title = "Unknown ROM",
+        .subtitle = "",
+        .revision = "",
+        .vendor = ROM_VENDOR_OTHER
+    };
 }
 
 RomTraits
@@ -1135,13 +1128,6 @@ C64::getRomTraits(RomType type) const
             default:
                 fatalError;
         }
-
-    } else if (!result.fnv) {
-
-        result.title = "Unknown ROM";
-        result.subtitle = "";
-        result.revision = "";
-        result.vendor = ROM_VENDOR_OTHER;
     }
 
     return result;
@@ -1600,7 +1586,7 @@ C64::getDebugVariable(DebugFlag flag)
         case FLAG_KBD_DEBUG:        return KBD_DEBUG;
         case FLAG_PRT_DEBUG:        return PRT_DEBUG;
         case FLAG_EXP_DEBUG:        return EXP_DEBUG;
-        case FLAG_LIP_DEBUG:        return LIP_DEBUG;
+        case FLAG_USR_DEBUG:        return USR_DEBUG;
 
         case FLAG_REC_DEBUG:        return REC_DEBUG;
         case FLAG_REU_DEBUG:        return REU_DEBUG;
@@ -1688,7 +1674,7 @@ C64::setDebugVariable(DebugFlag flag, bool val)
         case FLAG_KBD_DEBUG:        KBD_DEBUG       = val; break;
         case FLAG_PRT_DEBUG:        PRT_DEBUG       = val; break;
         case FLAG_EXP_DEBUG:        EXP_DEBUG       = val; break;
-        case FLAG_LIP_DEBUG:        LIP_DEBUG       = val; break;
+        case FLAG_USR_DEBUG:        USR_DEBUG       = val; break;
 
         case FLAG_REC_DEBUG:        REC_DEBUG       = val; break;
         case FLAG_REU_DEBUG:        REU_DEBUG       = val; break;

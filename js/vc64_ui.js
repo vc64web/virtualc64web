@@ -359,10 +359,15 @@ async function disk_loading_finished()
     }
     else
     {
-        await wait_on_message("MSG_IEC_BUS_BUSY");
-        await wait_on_message("MSG_IEC_BUS_IDLE");
-        await wait_on_message("MSG_IEC_BUS_BUSY");
-        await wait_on_message("MSG_IEC_BUS_IDLE");
+        console.log("-------1--------")
+        await wait_on_message("MSG_SER_BUSY");
+        console.log("-------2--------")
+        await wait_on_message("MSG_SER_IDLE");
+        console.log("-------3--------")
+        await wait_on_message("MSG_SER_BUSY");
+        console.log("-------4--------")
+        await wait_on_message("MSG_SER_IDLE");
+        console.log("-------5--------")
     }
     console.log("detected disk_loading_finished: "+wasm_get_cpu_cycles()+" "+last_drive_event);
 }   
@@ -441,8 +446,8 @@ function message_handler(msg, data)
         play_sound(audio_df_insert);
         floppy_has_disk=true; 
     } 
-    else if(msg == "MSG_IEC_BUS_IDLE" || 
-            msg == "MSG_IEC_BUS_BUSY" || 
+    else if(msg == "MSG_SER_IDLE" || 
+            msg == "MSG_SER_BUSY" || 
             msg.startsWith("MSG_DRIVE_")
         )
     {
@@ -466,9 +471,14 @@ function message_handler(msg, data)
     }
     else if(msg =="MSG_PAL" || msg =="MSG_NTSC")
     {
-        let vic = _wasm_get_config("OPT_VIC_REVISION");
-        let vic_rev=["PAL 50Hz 6569","PAL 50Hz 6569 R3","PAL 50Hz 8565","NTSC 60Hz 6567 R56A","NTSC 60Hz 6567","NTSC 60Hz 8562"];
-        if(0 <= vic && vic<vic_rev.length) $("#button_vic_rev").text("vicII rev "+ vic_rev[vic]);
+        //wasm_get_config= Module.cwrap('wasm_get_config', 'number', ['string']);
+        if( typeof wasm_get_config !== 'undefined') 
+        {
+            let vic = wasm_get_config("OPT_VIC_REVISION");
+            let vic_rev=["PAL 50Hz 6569","PAL 50Hz 6569 R3","PAL 50Hz 8565","NTSC 60Hz 6567 R56A","NTSC 60Hz 6567","NTSC 60Hz 8562"];
+            if(0 <= vic && vic<vic_rev.length) $("#button_vic_rev").text("vicII rev "+ vic_rev[vic]);
+        }
+
     }
 }
 rs232_message = "";
@@ -1441,6 +1451,7 @@ function InitWrappers() {
     wasm_poke = Module.cwrap('wasm_poke', 'undefined', ['number', 'number']);
     wasm_export_disk = Module.cwrap('wasm_export_disk', 'string');
     wasm_configure = Module.cwrap('wasm_configure', 'undefined', ['string', 'number']);
+    wasm_get_config = Module.cwrap('wasm_get_config', 'number', ['string']);
     wasm_write_string_to_ser = Module.cwrap('wasm_write_string_to_ser', 'undefined', ['string']);
     wasm_print_error = Module.cwrap('wasm_print_error', 'undefined', ['number']);
 
@@ -2602,27 +2613,16 @@ $('.layer').change( function(event) {
                 else
                 {                    
                     wasm_auto_type('\nload"*",8,1:\n');
-//                    emit_string(['Enter','l','o','a','d','"','*','"',',','8',',', '1', 'Enter']);
                     if(do_auto_run)
                     {
                         await disk_loading_finished();
-                        /*fire_on_message("MSG_IEC_BUS_BUSY",function() {
-                            fire_on_message("MSG_IEC_BUS_IDLE", function() {
-                                fire_on_message("MSG_IEC_BUS_BUSY",function() {
-                                    fire_on_message("MSG_IEC_BUS_IDLE", function() {*/
-                                    wasm_auto_type("\nrun:\n");    
-                                    //emit_string(['r','u','n','Enter'],0);
-                                    /*})
-                                })               
-                            })
-                        });*/
+                        wasm_auto_type("\nrun:\n");    
                     }
                 }
             }
             else if(do_auto_run)
             {
                 wasm_auto_type("\nrun:\n");
-//                emit_string(['Enter','r','u','n','Enter'],1000,200);
             }
             if(file_slot_file_name.endsWith('.vc64'))
             {

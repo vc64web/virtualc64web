@@ -774,7 +774,6 @@ CIA2::portBinternal() const
 u8
 CIA2::portBexternal() const
 {
-    // User port is not implemented. All pins are high if nothing is connected.
     return 0xFF;
 }
 
@@ -797,6 +796,9 @@ CIA2::pokePRA(u8 value)
     
     // PA0 (VA14) and PA1 (VA15) determine the memory bank seen by VICII
     vic.switchBank(0xDD00);
+    
+    // PA2 is connected to the user port
+    userPort.setPA2(GET_BIT(value, 2));
 }
 
 void

@@ -35,13 +35,14 @@ Defaults::Defaults()
 
     setFallback(OPT_POWER_GRID,                 GRID_STABLE_50HZ);
 
+    setFallback(OPT_GLUE_LOGIC,                 GLUE_LOGIC_DISCRETE);
+
     setFallback(OPT_CIA_REVISION,               MOS_6526);
     setFallback(OPT_CIA_TIMER_B_BUG,            true);
 
     setFallback(OPT_VICII_REVISION,             VICII_PAL_8565);
     setFallback(OPT_VICII_POWER_SAVE,           true);
     setFallback(OPT_VICII_GRAY_DOT_BUG,         true);
-    setFallback(OPT_GLUE_LOGIC,                 GLUE_LOGIC_DISCRETE);
     setFallback(OPT_VICII_HIDE_SPRITES,         false);
     setFallback(OPT_VICII_SB_COLLISIONS,        true);
     setFallback(OPT_VICII_SS_COLLISIONS,        true);
@@ -63,6 +64,8 @@ Defaults::Defaults()
     setFallback(OPT_DMA_DEBUG_COLOR3,           GpuColor(0x00, 0xFF, 0xFF).abgr);
     setFallback(OPT_DMA_DEBUG_COLOR4,           GpuColor(0x00, 0xFF, 0x00).abgr);
     setFallback(OPT_DMA_DEBUG_COLOR5,           GpuColor(0x00, 0x80, 0xFF).abgr);
+
+    setFallback(OPT_USR_DEVICE,                 USR_RS232);
 
     setFallback(OPT_VID_WHITE_NOISE,            true);
 
@@ -107,35 +110,34 @@ Defaults::Defaults()
     setFallback(OPT_SID_ADDRESS,                0xD420,                 {1});
     setFallback(OPT_SID_ADDRESS,                0xD440,                 {2});
     setFallback(OPT_SID_ADDRESS,                0xD460,                 {3});
-    setFallback(OPT_SID_REVISION,               MOS_8580);
-    setFallback(OPT_SID_FILTER,                 false);
-    setFallback(OPT_SID_ENGINE,                 SIDENGINE_RESID);
-    setFallback(OPT_SID_SAMPLING,               SAMPLING_INTERPOLATE);
-    setFallback(OPT_SID_POWER_SAVE,             false);
+    setFallback(OPT_SID_REVISION,               MOS_8580,               {0, 1, 2, 3});
+    setFallback(OPT_SID_FILTER,                 false,                  {0, 1, 2, 3});
+    setFallback(OPT_SID_ENGINE,                 SIDENGINE_RESID,        {0, 1, 2, 3});
+    setFallback(OPT_SID_SAMPLING,               SAMPLING_INTERPOLATE,   {0, 1, 2, 3});
+    setFallback(OPT_SID_POWER_SAVE,             false,                  {0, 1, 2, 3});
 
     setFallback(OPT_MEM_INIT_PATTERN,           RAM_PATTERN_VICE);
     setFallback(OPT_MEM_HEATMAP,                false);
     setFallback(OPT_MEM_SAVE_ROMS,              true);
 
-    setFallback(OPT_DRV_AUTO_CONFIG,            true);
-    setFallback(OPT_DRV_TYPE,                   DRIVE_VC1541II);
-    setFallback(OPT_DRV_RAM,                    DRVRAM_NONE);
-    setFallback(OPT_DRV_SAVE_ROMS,              true);
-    setFallback(OPT_DRV_PARCABLE,               PAR_CABLE_NONE);
+    setFallback(OPT_DRV_AUTO_CONFIG,            true,               {DRIVE8, DRIVE9});
+    setFallback(OPT_DRV_TYPE,                   DRIVE_VC1541II,     {DRIVE8, DRIVE9});
+    setFallback(OPT_DRV_RAM,                    DRVRAM_NONE,        {DRIVE8, DRIVE9});
+    setFallback(OPT_DRV_SAVE_ROMS,              true,               {DRIVE8, DRIVE9});
+    setFallback(OPT_DRV_PARCABLE,               PAR_CABLE_NONE,     {DRIVE8, DRIVE9});
     setFallback(OPT_DRV_CONNECT,                true,               {DRIVE8});
     setFallback(OPT_DRV_CONNECT,                false,              {DRIVE9});
     setFallback(OPT_DRV_POWER_SWITCH,           true,               {DRIVE8});
     setFallback(OPT_DRV_POWER_SWITCH,           true,               {DRIVE9});
-    setFallback(OPT_DRV_POWER_SAVE,             true);
-    setFallback(OPT_DRV_EJECT_DELAY,            30);
-    setFallback(OPT_DRV_SWAP_DELAY,             30);
-    setFallback(OPT_DRV_INSERT_DELAY,           30);
-    setFallback(OPT_DRV_PAN,                    0,                  {DRIVE8});
-    setFallback(OPT_DRV_PAN,                    0,                  {DRIVE9});
-    setFallback(OPT_DRV_POWER_VOL,              50);
-    setFallback(OPT_DRV_STEP_VOL,               50);
-    setFallback(OPT_DRV_INSERT_VOL,             50);
-    setFallback(OPT_DRV_EJECT_VOL,              50);
+    setFallback(OPT_DRV_POWER_SAVE,             true,               {DRIVE8, DRIVE9});
+    setFallback(OPT_DRV_EJECT_DELAY,            30,                 {DRIVE8, DRIVE9});
+    setFallback(OPT_DRV_SWAP_DELAY,             30,                 {DRIVE8, DRIVE9});
+    setFallback(OPT_DRV_INSERT_DELAY,           30,                 {DRIVE8, DRIVE9});
+    setFallback(OPT_DRV_PAN,                    0,                  {DRIVE8, DRIVE9});
+    setFallback(OPT_DRV_POWER_VOL,              50,                 {DRIVE8, DRIVE9});
+    setFallback(OPT_DRV_STEP_VOL,               50,                 {DRIVE8, DRIVE9});
+    setFallback(OPT_DRV_INSERT_VOL,             50,                 {DRIVE8, DRIVE9});
+    setFallback(OPT_DRV_EJECT_VOL,              50,                 {DRIVE8, DRIVE9});
 
     setFallback(OPT_DAT_MODEL,                  DATASETTE_C1530);
     setFallback(OPT_DAT_CONNECT,                true);
@@ -149,7 +151,12 @@ Defaults::Defaults()
     setFallback(OPT_AUTOFIRE_BULLETS,           3);
     setFallback(OPT_AUTOFIRE_DELAY,             5);
 
+    setFallback(OPT_RS232_DEVICE,               COMDEV_NONE);
+    setFallback(OPT_RS232_BAUD,                 600);
+
     setFallback(OPT_PADDLE_ORIENTATION,         PADDLE_HORIZONTAL);
+
+    setFallback(OPT_RS232_BAUD,                 600);
 
     setFallback(OPT_REC_FRAME_RATE,             50);
     setFallback(OPT_REC_BIT_RATE,               512);

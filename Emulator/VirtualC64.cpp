@@ -90,18 +90,26 @@ VirtualC64::VirtualC64() {
 
     controlPort1.emu = emu;
     controlPort1.controlPort = &emu->main.port1;
+    controlPort1.mouse.emu = emu;
     controlPort1.mouse.mouse = &emu->main.port1.mouse;
+    controlPort1.joystick.emu = emu;
     controlPort1.joystick.joystick = &emu->main.port1.joystick;
+    controlPort1.paddle.emu = emu;
     controlPort1.paddle.paddle = &emu->main.port1.paddle;
 
     controlPort2.emu = emu;
     controlPort2.controlPort = &emu->main.port2;
+    controlPort2.mouse.emu = emu;
     controlPort2.mouse.mouse = &emu->main.port2.mouse;
+    controlPort2.joystick.emu = emu;
     controlPort2.joystick.joystick = &emu->main.port2.joystick;
+    controlPort2.paddle.emu = emu;
     controlPort2.paddle.paddle = &emu->main.port2.paddle;
 
-    recorder.emu = emu;
-    recorder.recorder = &emu->main.recorder;
+    userPort.emu = emu;
+    userPort.userPort = &emu->main.userPort;
+    userPort.rs232.emu = emu;
+    userPort.rs232.rs232 = &emu->main.userPort.rs232;
 
     expansionPort.emu = emu;
     expansionPort.expansionPort = &emu->main.expansionport;
@@ -116,6 +124,9 @@ VirtualC64::VirtualC64() {
     drive9.emu = emu;
     drive9.drive = &emu->main.drive9;
     drive9.disk.drive = &emu->main.drive9;
+
+    recorder.emu = emu;
+    recorder.recorder = &emu->main.recorder;
 
     retroShell.emu = emu;
     retroShell.retroShell = &emu->main.retroShell;
@@ -293,6 +304,12 @@ VirtualC64::launch(const void *listener, Callback *func)
 {
     assert(isUserThread());
     emu->launch(listener, func);
+}
+
+bool
+VirtualC64::isLaunched() const
+{
+    return emu->isLaunched();
 }
 
 i64
@@ -894,6 +911,47 @@ DatasetteAPI::ejectTape()
 
 
 //
+// RS232
+//
+
+void
+RS232API::operator<<(char c)
+{
+    *rs232 << c;
+}
+
+void 
+RS232API::operator<<(const string &s)
+{
+    *rs232 << s;
+}
+
+std::u16string
+RS232API::readIncoming()
+{
+    return rs232->readIncoming();
+}
+
+std::u16string 
+RS232API::readOutgoing()
+{
+    return rs232->readOutgoing();
+}
+
+int
+RS232API::readIncomingPrintableByte()
+{
+    return rs232->readIncomingPrintableByte();
+}
+
+int
+RS232API::readOutgoingPrintableByte()
+{
+    return rs232->readOutgoingPrintableByte();
+}
+
+
+//
 // Mouse
 //
 
@@ -959,6 +1017,10 @@ RecorderAPI::exportAs(const std::filesystem::path &path)
     return recorder->exportAs(path);
 }
 
+
+//
+// RetroShell
+//
 
 const char *
 RetroShellAPI::text()
@@ -1195,21 +1257,15 @@ DefaultsAPI::save(std::stringstream &stream)
 }
 
 string
-DefaultsAPI::getString(const string &key) const
+DefaultsAPI::getRaw(const string &key) const
 {
     return defaults->getRaw(key);
 }
 
 i64
-DefaultsAPI::getInt(const string &key) const
+DefaultsAPI::get(const string &key) const
 {
     return defaults->get(key);
-}
-
-i64
-DefaultsAPI::get(Option option) const
-{
-    return defaults->get(option);
 }
 
 i64
@@ -1243,9 +1299,21 @@ DefaultsAPI::set(const string &key, const string &value)
 }
 
 void
+DefaultsAPI::set(Option opt, const string &value)
+{
+    defaults->set(opt, value);
+}
+
+void
 DefaultsAPI::set(Option opt, const string &value, std::vector<isize> objids)
 {
     defaults->set(opt, value, objids);
+}
+
+void
+DefaultsAPI::set(Option opt, i64 value)
+{
+    defaults->set(opt, value);
 }
 
 void
@@ -1260,10 +1328,22 @@ DefaultsAPI::setFallback(const string &key, const string &value)
     defaults->setFallback(key, value);
 }
 
-void 
+void
+DefaultsAPI::setFallback(Option opt, const string &value)
+{
+    defaults->setFallback(opt, value);
+}
+
+void
 DefaultsAPI::setFallback(Option opt, const string &value, std::vector<isize> objids)
 {
     defaults->setFallback(opt, value, objids);
+}
+
+void
+DefaultsAPI::setFallback(Option opt, i64 value)
+{
+    defaults->setFallback(opt, value);
 }
 
 void
@@ -1291,9 +1371,9 @@ DefaultsAPI::remove(Option option)
 }
 
 void
-DefaultsAPI::remove(Option option, std::vector <isize> nrs)
+DefaultsAPI::remove(Option option, std::vector <isize> objids)
 {
-    defaults->remove(option, nrs);
+    defaults->remove(option, objids);
 }
 
 }

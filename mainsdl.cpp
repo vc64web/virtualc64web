@@ -437,16 +437,23 @@ void send_message_to_js(const char * msg, long data)
 
 bool paused_the_emscripten_main_loop=false;
 bool warp_mode=false;
-//void theListener(const void * c64, long type, long data){
+void calculate_viewport();
 void theListener(const void * c64, Message msg){
+  auto emu = ((VirtualC64 *)c64);
 
-  if(warp_mode && msg.type == MSG_SER_BUSY && !((VirtualC64 *)c64)->isWarping())
+  if(warp_mode && msg.type == MSG_SER_BUSY && !emu->isWarping())
   {
-    ((VirtualC64 *)c64)->warpOn(); //setWarp(true);
+    emu->warpOn();
   }
-  else if(msg.type == MSG_SER_IDLE && ((VirtualC64 *)c64)->isWarping())
+  else if(msg.type == MSG_SER_IDLE && emu->isWarping())
   {
-    ((VirtualC64 *)c64)->warpOff(); //setWarp(false);
+    emu->warpOff();
+  }
+
+  if(msg.type == MSG_RS232_OUT) {
+    int c = emu->userPort.rs232.readOutgoingPrintableByte();    
+    send_message_to_js("RS232", c);
+    return;
   }
 
   const char *message_as_string =  (const char *)MsgTypeEnum::key((MsgType)msg.type);
@@ -481,7 +488,7 @@ void theListener(const void * c64, Message msg){
 
   if(msg.type == MSG_DISK_INSERT)
   {
-    ((VirtualC64 *)c64)->drive8.drive->dump(Category::Debug);
+    emu->drive8.drive->dump(Category::Debug);
   }
 
   if(msg.type == MSG_PAL) {
@@ -489,12 +496,14 @@ void theListener(const void * c64, Message msg){
     frame_rate = 50.0;
     requested_targetFrameCount_reset=true;
     EM_ASM({PAL_VIC=true});
+    calculate_viewport();
   }
   else if(msg.type == MSG_NTSC) {
     printf("switched to NTSC\n");
     frame_rate = 60.0;
     requested_targetFrameCount_reset=true;
     EM_ASM({PAL_VIC=false});
+    calculate_viewport();
   }
 }
 
@@ -512,14 +521,17 @@ class C64Wrapper {
 
     printf("adding a listener to C64 message queue...\n");
 
+    emu->set(OPT_VICII_REVISION, VICII_PAL_6569_R1);
+    printf("pre VICII Rev %u\n", emu->get(OPT_VICII_REVISION));
 
-    //c64->msgQueue.setListener(this->c64, &theListener);
     try
     {
       emu->launch(this->emu, &theListener);
     } catch(std::exception &exception) {
       printf("%s\n", exception.what());
     }
+    printf("launch completed\n");
+    printf("VICII Rev %u\n", emu->get(OPT_VICII_REVISION));
   }
   ~C64Wrapper()
   {
@@ -551,7 +563,7 @@ class C64Wrapper {
     //emu->setTakeAutoSnapshots(false);
     //emu->setWarpLoad(true);
     emu->set(OPT_VICII_GRAY_DOT_BUG, false);
-    emu->set(OPT_VICII_REVISION, VICII_PAL_6569_R1);
+//    emu->set(OPT_VICII_REVISION, VICII_PAL_6569_R1);
 
     emu->set(OPT_SID_ENGINE, SIDENGINE_RESID);
 //    c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);
@@ -676,20 +688,16 @@ extern "C" void wasm_schedule_key(int code1, int code2, int pressed, int frame_d
   {
     printf("scheduleKeyPress ( %d, %d, %f ) \n", code1, code2, frame_delay / frame_rate);
 //    wrapper->emu->keyboard.scheduleKeyPress(C64Key(code1,code2), frame_delay);
-//#ifdef TODO
       auto xxx =C64Key(code1, code2);
       wrapper->emu->put(CMD_KEY_PRESS, KeyCmd(xxx.nr,frame_delay/ frame_rate ));
-//#endif
 //      wrapper->emu->keyboard.keyboard->press(C64Key(code1,code2));
   }
   else
   {
     printf("scheduleKeyRelease ( %d, %d, %f ) \n", code1, code2, frame_delay / frame_rate);
     //wrapper->emu->keyboard.scheduleKeyRelease(C64Key(code1,code2), frame_delay);
-//    #ifdef TODO
     auto xxx =C64Key(code1, code2);
     wrapper->emu->put(CMD_KEY_RELEASE, KeyCmd(xxx.nr,frame_delay / frame_rate));
-//    #endif
 //    wrapper->emu->keyboard.keyboard->release(C64Key(code1,code2));
   }
   wrapper->emu->emu->update();
@@ -822,8 +830,7 @@ extern "C" void wasm_set_warp(unsigned on)
 bool borderless=false;
 void calculate_viewport()
 {
-  auto pal = frame_rate < 60;//wrapper->emu->vicii.vicii->pal();
-
+  auto pal = wrapper->emu->vicii.vicii->pal();// frame_rate < 60;//*/wrapper->emu->vicii.vicii->pal();
   if(pal)
   {
     eat_border_width = 31 * borderless;
@@ -1417,9 +1424,10 @@ extern "C" u8 wasm_peek(u16 addr)
 
 extern "C" void wasm_write_string_to_ser(char* chars_to_send)
 {
-  #ifdef TODO
-  wrapper->emu->write_string_to_ser(chars_to_send);
-  #endif
+  printf("wasm_write_string_to_ser %s\n",chars_to_send);
+  //wrapper->emu->c64.c64->write_string_to_ser(chars_to_send);
+//  wrapper->emu->set(OPT_USR_DEVICE, USR_RS232);
+  wrapper->emu->userPort.rs232 << chars_to_send;
 }
 
 //const char chars_to_send[] = "HELLOMYWORLD!";
@@ -1443,23 +1451,13 @@ extern "C" char* wasm_translate(char c)
 
 extern "C" unsigned wasm_get_config(char* option)
 {
- // if(strcmp(option,"OPT_VIC_REVISION") == 0)
-  //{
-#ifdef TODO
-try{
-  printf("before\n");
-
-    return wrapper->emu->get(OPT_VICII_REVISION);
-} catch(...)
-{
-  printf("catched\n");
-
-//  printf("config: %s\n",exception.what());
-}
-  printf("after catching\n");
-#endif
-  //}
-  return 0;
+  if(strcmp(option,"OPT_VIC_REVISION") == 0)
+  {
+    printf("before emu->get(OPT_VICII_REVISION)\n");
+    auto val= wrapper->emu->get(OPT_VICII_REVISION);
+    printf("after emu->get(OPT_VICII_REVISION)=%u\n",val);
+    return val;
+  }
 }
 
 extern "C" void wasm_configure(char* option, unsigned on)
@@ -1492,53 +1490,38 @@ extern "C" void wasm_configure(char* option, unsigned on)
   else if(strcmp(option,"OPT_SER_SPEED") == 0)
   {
     printf("calling c64->configure_rs232_ser_speed %d\n", on);
-   #ifdef TODO
-    wrapper->emu->configure_rs232_ser_speed(on);
-    #endif
+    wrapper->emu->set(OPT_RS232_BAUD, on);
   }
   else if(strcmp(option,"PAL 50Hz 6569") == 0)
   {
     wrapper->emu->set(OPT_POWER_GRID,   GRID_STABLE_50HZ);
     wrapper->emu->set(OPT_VICII_REVISION, VICII_PAL_6569_R1);
-    calculate_viewport();
   }
   else if(strcmp(option,"PAL 50Hz 6569 R3") == 0)
   {
     wrapper->emu->set(OPT_POWER_GRID,   GRID_STABLE_50HZ);
     wrapper->emu->set(OPT_VICII_REVISION, VICII_PAL_6569_R3);
-    calculate_viewport();
   }
   else if(strcmp(option,"PAL 50Hz 8565") == 0)
   {
     wrapper->emu->set(OPT_POWER_GRID,   GRID_STABLE_50HZ);
     wrapper->emu->set(OPT_VICII_REVISION, VICII_PAL_8565);
-    calculate_viewport();
   }
   else if(strcmp(option,"NTSC 60Hz 6567 R56A") == 0)
   {
     wrapper->emu->set(OPT_POWER_GRID,   GRID_STABLE_60HZ);
     wrapper->emu->set(OPT_VICII_REVISION, VICII_NTSC_6567_R56A);
-    calculate_viewport();
   }
   else if(strcmp(option,"NTSC 60Hz 6567") == 0)
   {
     wrapper->emu->set(OPT_POWER_GRID,   GRID_STABLE_60HZ);
     wrapper->emu->set(OPT_VICII_REVISION, VICII_NTSC_6567);
-    calculate_viewport();
   }
   else if(strcmp(option,"NTSC 60Hz 8562") == 0)
   {
     wrapper->emu->set(OPT_POWER_GRID,   GRID_STABLE_60HZ);
     wrapper->emu->set(OPT_VICII_REVISION, VICII_NTSC_8562);
-    calculate_viewport();
   }
-/*  else if(strcmp(option,"freset") == 0)
-  {
-    wrapper->emu->configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
-    frame_rate = 50.125;//
-    EM_ASM({PAL_VIC=true});
-    requested_targetFrameCount_reset=true;
-  }*/
   else
   {
     printf("error !!!!! unknown option= %s\n", option);

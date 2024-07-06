@@ -43,16 +43,14 @@ AudioPort::handleBufferUnderflow()
     // Check for condition (1)
     if (elapsedTime.asSeconds() > 10.0) {
 
+        /*
         // Increase the sample rate based on what we've measured
         sampleRateCorrection += count() / elapsedTime.asSeconds();
-        /*
-        isize offPerSecond = (isize)(count() / elapsedTime.asSeconds());
-        sidBridge.setSampleRate(sidBridge.sid[0].getSampleRate() + offPerSecond);
-        */
 
         stats.bufferUnderflows++;
         warn("Last underflow: %f seconds ago\n", elapsedTime.asSeconds());
         warn("New sample rate correction: %f\n", sampleRateCorrection);
+        */
     }
 }
 
@@ -73,19 +71,17 @@ AudioPort::handleBufferOverflow()
     auto elapsedTime = util::Time::now() - lastAlignment;
     lastAlignment = util::Time::now();
 
-    // Check for condition (1)
+    // Adjust the sample rate, if condition (1) holds
     if (elapsedTime.asSeconds() > 10.0) {
 
+        /*
         // Decrease the sample rate based on what we've measured
         sampleRateCorrection -= count() / elapsedTime.asSeconds();
-        /*
-        isize offPerSecond = (isize)(count() / elapsedTime.asSeconds());
-        sidBridge.setSampleRate(sidBridge.sid[0].getSampleRate() - offPerSecond);
-        */
 
         stats.bufferOverflows++;
         warn("Last overflow: %f seconds ago\n", elapsedTime.asSeconds());
         warn("New sample rate correction: %f\n", sampleRateCorrection);
+        */
     }
 }
 
@@ -126,6 +122,8 @@ AudioPort::generateSamples()
 void
 AudioPort::fadeOut()
 {
+    SYNCHRONIZED
+
     debug(AUDVOL_DEBUG, "Fading out (%ld samples)...\n", count());
 
     volL.set(0.0);
@@ -140,8 +138,8 @@ AudioPort::fadeOut()
         scale -= delta;
         assert(scale >= -0.1 && scale < 1.0);
 
-        elements[i].left *= scale;
-        elements[i].right *= scale;
+        elements[i].l *= scale;
+        elements[i].r *= scale;
     }
 
     // Wipe out the rest of the buffer
@@ -294,7 +292,7 @@ AudioPort::copyMono(float *buffer, isize n)
             for (isize i = 0; i < cnt; i++) {
 
                 SamplePair pair = read();
-                *buffer++ = (pair.left + pair.right) * float(cnt - i) / float(cnt);
+                *buffer++ = (pair.l + pair.r) * float(cnt - i) / float(cnt);
             }
             assert(isEmpty());
 
@@ -311,7 +309,7 @@ AudioPort::copyMono(float *buffer, isize n)
         for (isize i = 0; i < n; i++) {
 
             SamplePair pair = read();
-            *buffer++ = pair.left + pair.right;
+            *buffer++ = pair.l + pair.r;
         }
 
         return n;
@@ -337,8 +335,8 @@ AudioPort::copyStereo(float *left, float *right, isize n)
             for (isize i = 0; i < cnt; i++) {
 
                 SamplePair pair = read();
-                *left++ = pair.left * float(cnt - i) / float(cnt);
-                *right++ = pair.right * float(cnt - i) / float(cnt);
+                *left++ = pair.l * float(cnt - i) / float(cnt);
+                *right++ = pair.r * float(cnt - i) / float(cnt);
             }
             assert(isEmpty());
 
@@ -355,8 +353,8 @@ AudioPort::copyStereo(float *left, float *right, isize n)
         for (isize i = 0; i < n; i++) {
 
             SamplePair pair = read();
-            *left++ = pair.left;
-            *right++ = pair.right;
+            *left++ = pair.l;
+            *right++ = pair.r;
         }
 
         return n;
@@ -383,13 +381,13 @@ AudioPort::copyInterleaved(float *buffer, isize n)
             for (isize i = 0; i < cnt; i++) {
 
                 SamplePair pair = read();
-                *buffer++ = pair.left * float(cnt - i) / float(cnt);
-                *buffer++ = pair.right * float(cnt - i) / float(cnt);
+                *buffer++ = pair.l * float(cnt - i) / float(cnt);
+                *buffer++ = pair.r * float(cnt - i) / float(cnt);
             }
             assert(isEmpty());
 
             // Fill the rest with zeroes
-            for (isize i = cnt; i < n; i++) { *buffer++ = 0; }
+            for (isize i = cnt; i < n; i++) *buffer++ = *buffer++ = 0;
 
             // Realign the ring buffer
             handleBufferUnderflow();
@@ -401,8 +399,8 @@ AudioPort::copyInterleaved(float *buffer, isize n)
         for (isize i = 0; i < n; i++) {
 
             SamplePair pair = read();
-            *buffer++ = pair.left;
-            *buffer++ = pair.right;
+            *buffer++ = pair.l;
+            *buffer++ = pair.r;
         }
         
         return n;

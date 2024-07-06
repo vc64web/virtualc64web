@@ -445,7 +445,48 @@ struct DatasetteAPI : API {
      *  This function has no effect if no tape is inserted.
      */
     void ejectTape();
+};
 
+
+/** RS232 Public API
+ */
+struct RS232API : API {
+
+    class RS232 *rs232 = nullptr;
+
+    /** @brief  Returns the component's current state.
+     */
+    // const RS232Info &getInfo() const;
+    // const RS232Info &getCachedInfo() const;
+
+    /** @brief  Feeds textual data into the RS232 adapter
+     *  This function emulates the transmission of incoming data from an
+     *  external device.
+     */
+    void operator<<(char c);
+    void operator<<(const string &s);
+
+    /** @brief  Read a printable byte from the incoming logbuffer.
+     *  Calling this function empties the logbuffer. When the logbuffer is
+     *  empty and a new data packet is received, a MSG_RS232_IN message is
+     *  sent to the GUI.
+     */
+    std::u16string readIncoming();
+
+    /** @brief  Read the logbuffer that records outgoing data.
+     *  Calling this function empties the logbuffer. When the logbuffer is
+     *  empty and a new data packet is sent, a MSG_RS232_OUT message is
+     *  sent to the GUI.
+     */
+    std::u16string readOutgoing();
+
+    /** @brief  Read a printable byte from the incoming logbuffer.
+     */
+    int readIncomingPrintableByte();
+
+    /** @brief  Read a printable byte from the outgoing logbuffer.
+     */
+    int readOutgoingPrintableByte();
 };
 
 
@@ -466,6 +507,18 @@ struct ControlPortAPI : API {
     /** @brief  Custom API of the paddle connected to this port
      */
     PaddleAPI paddle;
+};
+
+
+/** User Port API
+ */
+struct UserPortAPI : API {
+
+    class UserPort *userPort = nullptr;
+
+    /** @brief  Custom API of the RS232 adapter
+     */
+    RS232API rs232;
 };
 
 
@@ -798,29 +851,22 @@ public:
      *  @result The value as a string.
      *  @throw  VC64Error (#ERROR\_INVALID\_KEY)
      */
-    string getString(const string &key) const;
+    string getRaw(const string &key) const;
 
     /** @brief  Queries a key-value pair.
      *  @param  key     The key.
      *  @result The value as an integer. 0 if the value cannot not be parsed.
      *  @throw  VC64Error (#ERROR\_INVALID\_KEY)
      */
-    i64 getInt(const string &key) const;
-
-    /** @brief  Queries a key-value pair.
-     *  @param  option  A config option whose name is used as the key.
-     *  @result The value as an integer.
-     *  @throw  VC64Error (#ERROR\_INVALID\_KEY)
-     */
-    i64 get(Option option) const;
+    i64 get(const string &key) const;
 
     /** @brief  Queries a key-value pair.
      *  @param  option  A config option whose name is used as the prefix of the key.
-     *  @param  nr      The key is parameterized by adding the value as suffix.
+     *  @param  nr      Optional number that is appened to the key as suffix.
      *  @result The value as an integer.
      *  @throw  VC64Error (#ERROR\_INVALID\_KEY)
      */
-    i64 get(Option option, isize nr) const;
+    i64 get(Option option, isize nr = 0) const;
 
     /** @brief  Queries a fallback key-value pair.
      *  @param  key     The key.
@@ -835,13 +881,6 @@ public:
      *  @throw  VC64Error (#ERROR\_INVALID\_KEY)
      */
     i64 getFallback(const string &key) const;
-
-    /** @brief  Queries a fallback key-value pair.
-     *  @param  option  A config option whose name is used as the key.
-     *  @result The value as an integer.
-     *  @throw  VC64Error (#ERROR\_INVALID\_KEY)
-     */
-    i64 getFallback(Option option) const;
 
     /** @brief  Queries a fallback key-value pair.
      *  @param  option  A config option whose name is used as the key.
@@ -863,13 +902,27 @@ public:
      */
     void set(const string &key, const string &value);
 
+    /** @brief  Writes a key-value pair into the user storage.
+     *  @param  opt     The option's name forms the prefix of the keys.
+     *  @param  value   The value, given as a string.
+     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     */
+    void set(Option opt, const string &value);
+
     /** @brief  Writes multiple key-value pairs into the user storage.
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value for all pairs, given as a string.
      *  @param  objids  The keys are parameterized by adding the vector values as suffixes.
      *  @throw  VC64Error (#ERROR_INVALID_KEY)
      */
-    void set(Option opt, const string &value, std::vector<isize> objids = { 0 });
+    void set(Option opt, const string &value, std::vector<isize> objids);
+
+    /** @brief  Writes a key-value pair into the user storage.
+     *  @param  opt     The option's name forms the prefix of the keys.
+     *  @param  value   The value, given as an integer.
+     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     */
+    void set(Option opt, i64 value);
 
     /** @brief  Writes multiple key-value pairs into the user storage.
      *  @param  opt     The option's name forms the prefix of the keys.
@@ -877,7 +930,7 @@ public:
      *  @param  objids  The keys are parameterized by adding the vector values as suffixes.
      *  @throw  VC64Error (#ERROR_INVALID_KEY)
      */
-    void set(Option opt, i64 value, std::vector<isize> objids = { 0 });
+    void set(Option opt, i64 value, std::vector<isize> objids);
 
     /** @brief  Writes a key-value pair into the fallback storage.
      *  @param  key     The key, given as a string.
@@ -885,19 +938,33 @@ public:
      */
     void setFallback(const string &key, const string &value);
 
+    /** @brief  Writes a key-value pair into the fallback storage.
+     *  @param  opt     The option's name forms the prefix of the keys.
+     *  @param  value   The value, given as an integer.
+     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     */
+    void setFallback(Option opt, const string &value);
+
     /** @brief  Writes multiple key-value pairs into the fallback storage.
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The shared value for all pairs, given as a string.
      *  @param  objids  The keys are parameterized by adding the vector values as suffixes.
      */
-    void setFallback(Option opt, const string &value, std::vector<isize> objids = { 0 });
+    void setFallback(Option opt, const string &value, std::vector<isize> objids);
+
+    /** @brief  Writes a key-value pair into the fallback storage.
+     *  @param  opt     The option's name forms the prefix of the keys.
+     *  @param  value   The value, given as an integer.
+     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     */
+    void setFallback(Option opt, i64 value);
 
     /** @brief  Writes multiple key-value pairs into the fallback storage.
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The shared value for all pairs, given as an integer.
      *  @param  objids  The keys are parameterized by adding the vector values as suffixes.
      */
-    void setFallback(Option opt, i64 value, std::vector<isize> objids = { 0 });
+    void setFallback(Option opt, i64 value, std::vector<isize> objids);
 
 
     /// @}
@@ -922,10 +989,10 @@ public:
 
     /** @brief  Deletes multiple key-value pairs.
      *  @param  option  The option's name forms the prefix of the keys.
-     *  @param  nrs     The keys are parameterized by adding the vector values as suffixes.
+     *  @param  objids  The keys are parameterized by adding the vector values as suffixes.
      *  @throw  VC64Error (#ERROR_INVALID_KEY)
      */
-    void remove(Option option, std::vector <isize> nrs) throws;
+    void remove(Option option, std::vector <isize> objids) throws;
 
     /// @}
 };
@@ -1311,6 +1378,10 @@ public:
      */
     void launch(const void *listener, Callback *func);
 
+    /** @brief  Returns true if the emulator has been launched.
+     */
+    bool isLaunched() const;
+
     /** @brief  Queries a configuration option.
      *
      *  This is the main function to query a configuration option.
@@ -1408,6 +1479,7 @@ public:
     KeyboardAPI keyboard;
     DatasetteAPI datasette;
     ControlPortAPI controlPort1, controlPort2;
+    UserPortAPI userPort;
     RecorderAPI recorder;
     ExpansionPortAPI expansionPort;
     SerialPortAPI serialPort;

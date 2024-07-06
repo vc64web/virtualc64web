@@ -10,27 +10,37 @@
 // SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
-#pragma once
-
-#include "Types.h"
+#include "config.h"
+#include "UserPort.h"
 
 namespace vc64 {
 
-//
-// Structures
-//
-
-typedef struct
+u8 
+UserPort::getPB() const
 {
-    bool whiteNoise;
+    switch (config.device) {
+
+        case USR_RS232: 
+            return rs232.getPB();
+
+        default:
+            return 0xFF;
+    }
 }
 
-VideoPortConfig;
-
-typedef struct
+void
+UserPort::setPA2(bool value)
 {
+    switch (config.device) {
 
+        case USR_RS232:
+
+            rs232.setPA2(value);
+            break;
+
+        default:
+            break;
+    }
 }
-VideoPortInfo;
 
 }

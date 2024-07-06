@@ -251,7 +251,6 @@ public:
     // I/O space (CPU accessible)
     //
     
-public:
     
     /* Piped I/O register state. When an I/O register is written to, the
      * corresponding value in variable current is changed and a flag is set in
@@ -262,6 +261,8 @@ public:
         VICIIRegisters current;
         VICIIRegisters delayed;
     } reg;
+
+private:
     
     // Raster interrupt line ($D011:8 + $D012)
     u16 rasterIrqLine;

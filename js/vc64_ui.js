@@ -2790,7 +2790,35 @@ $('.layer').change( function(event) {
     });
     }
     delete_cache();
-*/    
+*/ 
+//--
+set_run_ahead = function (run_ahead) {
+    $("#button_run_ahead").text("run ahead = "+run_ahead);
+    wasm_configure("OPT_EMU_RUN_AHEAD", run_ahead);
+}
+set_run_ahead(0);
+$('#choose_run_ahead a').click(function () 
+{
+    var run_ahead=$(this).text();
+    set_run_ahead(run_ahead);
+    $("#modal_settings").focus();
+});
+//--- REU
+set_expansion_reu = function (expansion_reu) {
+    $("#button_expansion_reu").text("RAM expansion (REU) = "+expansion_reu);
+    wasm_configure("REU",expansion_reu);
+}
+set_expansion_reu(load_setting('expansion_reu', '0'));
+
+$('#choose_expansion_reu a').click(function () 
+{
+    var expansion_reu=$(this).text();
+    set_expansion_reu(expansion_reu);
+    save_setting('expansion_reu',expansion_reu)
+    $("#modal_settings").focus();
+});
+
+//---
 set_vic_rev = function (vic_rev) {
     $("#button_vic_rev").text("vicII rev "+vic_rev);
     wasm_configure(vic_rev);

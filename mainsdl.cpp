@@ -519,11 +519,7 @@ class C64Wrapper {
 
     this->emu = new VirtualC64();
 
-    printf("adding a listener to C64 message queue...\n");
-
-    emu->set(OPT_VICII_REVISION, VICII_PAL_6569_R1);
-    printf("pre VICII Rev %u\n", emu->get(OPT_VICII_REVISION));
-
+    printf("connecting listener to C64 message queue...\n");
     try
     {
       emu->launch(this->emu, &theListener);
@@ -531,7 +527,6 @@ class C64Wrapper {
       printf("%s\n", exception.what());
     }
     printf("launch completed\n");
-    printf("VICII Rev %u\n", emu->get(OPT_VICII_REVISION));
   }
   ~C64Wrapper()
   {
@@ -1466,9 +1461,18 @@ extern "C" void wasm_configure(char* option, unsigned on)
 
   printf("wasm_configure %s = %d\n", option, on);
 
-
-  if(strcmp(option,"OPT_EMU_RUN_AHEAD") == 0)
+  if(strcmp(option,"REU") == 0)
   {
+    // The RAM capacity must be a power of two between 128 and 16384
+    printf("calling c64->configure %s = %d\n", option, on);
+    wrapper->emu->expansionPort.detachCartridge();
+    if(on > 0)
+    {
+      wrapper->emu->expansionPort.attachReu(on);
+    }
+  }
+  else if(strcmp(option,"OPT_EMU_RUN_AHEAD") == 0)
+  {//    emu->expansionPort.attachReu(256);
     printf("calling c64->configure %s = %d\n", option, on);
     wrapper->emu->set(OPT_EMU_RUN_AHEAD, on);
   }

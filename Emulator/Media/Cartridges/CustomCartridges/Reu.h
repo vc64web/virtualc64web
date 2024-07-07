@@ -97,6 +97,7 @@ public:
 
         Cartridge::operator=(other);
 
+        CLONE(traits)
         CLONE(sr)
         CLONE(cr)
         CLONE(c64Base)

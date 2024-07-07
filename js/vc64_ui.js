@@ -374,6 +374,12 @@ async function disk_loading_finished()
 
 
 function message_handler(msg, data)
+{   
+    queueMicrotask(()=>{
+        message_handler_queue_worker( msg, data )
+    });
+}
+function message_handler_queue_worker(msg, data)
 {
     //UTF8ToString(cores_msg);
     if(msg == "MSG_READY_TO_RUN")
@@ -471,14 +477,10 @@ function message_handler(msg, data)
     }
     else if(msg =="MSG_PAL" || msg =="MSG_NTSC")
     {
-        //wasm_get_config= Module.cwrap('wasm_get_config', 'number', ['string']);
-        if( typeof wasm_get_config !== 'undefined') 
-        {
-            let vic = wasm_get_config("OPT_VIC_REVISION");
-            let vic_rev=["PAL 50Hz 6569","PAL 50Hz 6569 R3","PAL 50Hz 8565","NTSC 60Hz 6567 R56A","NTSC 60Hz 6567","NTSC 60Hz 8562"];
-            if(0 <= vic && vic<vic_rev.length) $("#button_vic_rev").text("vicII rev "+ vic_rev[vic]);
-        }
-
+//        wasm_get_config= Module.cwrap('wasm_get_config', 'number', ['string']);
+        let vic = wasm_get_config("OPT_VIC_REVISION");
+        let vic_rev=["PAL 50Hz 6569","PAL 50Hz 6569 R3","PAL 50Hz 8565","NTSC 60Hz 6567 R56A","NTSC 60Hz 6567","NTSC 60Hz 8562"];
+        if(0 <= vic && vic<vic_rev.length) $("#button_vic_rev").text("vicII rev "+ vic_rev[vic]);
     }
 }
 rs232_message = "";

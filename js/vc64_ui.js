@@ -359,15 +359,10 @@ async function disk_loading_finished()
     }
     else
     {
-        console.log("-------1--------")
         await wait_on_message("MSG_SER_BUSY");
-        console.log("-------2--------")
         await wait_on_message("MSG_SER_IDLE");
-        console.log("-------3--------")
         await wait_on_message("MSG_SER_BUSY");
-        console.log("-------4--------")
         await wait_on_message("MSG_SER_IDLE");
-        console.log("-------5--------")
     }
     console.log("detected disk_loading_finished: "+wasm_get_cpu_cycles()+" "+last_drive_event);
 }   

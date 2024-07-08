@@ -438,42 +438,47 @@
               <input type="checkbox" class="custom-control-input" id="lock_action_button_switch" />
               <label class="custom-control-label" for="lock_action_button_switch" data-toggle="tooltip" data-placement="top" title="only when locked no gestures detection is done and therefore events like touchstart/end mousedown/up are processed correctly.">lock action buttons (prevent dragging and long press)</label>
             </div>
-            <div class="container row justify-content-start mt-2">
-
-              <div class="dropdown mr-1 mt-4">
-                <button id="button_run_ahead" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  run ahead=0
-                </button>
-                <div id="choose_run_ahead" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
-                  <a class="dropdown-item" href="#">0</a>
-                  <a class="dropdown-item" href="#">1</a>
-                  <a class="dropdown-item" href="#">2</a>
-                  <a class="dropdown-item" href="#">3</a>
-                  <a class="dropdown-item" href="#">4</a>
-                  <a class="dropdown-item" href="#">5</a>
-                  <a class="dropdown-item" href="#">6</a>
-                </div>
-              </div>
-              
-              <div class="dropdown mr-1 mt-4">
-                <button id="button_expansion_reu" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  RAM Expansion Unit (REU) = 0
-                </button>
-                <div id="choose_expansion_reu" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
-                  <a class="dropdown-item" href="#">0</a>
-                  <a class="dropdown-item" href="#">128</a>
-                  <a class="dropdown-item" href="#">256</a>
-                  <a class="dropdown-item" href="#">512</a>
-                  <a class="dropdown-item" href="#">1024</a>
-                  <a class="dropdown-item" href="#">2048</a>
-                  <a class="dropdown-item" href="#">4096</a>
-                </div>
-              </div>
-
-
-
+            <div class="container row justify-content-start mt-4">
 
               <div class="dropdown mr-1 mt-1">
+                <button id="button_run_ahead" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  run ahead frames = 0
+                </button>
+                <div id="choose_run_ahead" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+                  <a class="dropdown-item" href="#">0 frame</a>
+                  <a class="dropdown-item" href="#">1 frame</a>
+                  <a class="dropdown-item" href="#">2 frames</a>
+                  <a class="dropdown-item" href="#">3 frames</a>
+                  <a class="dropdown-item" href="#">4 frames</a>
+                  <a class="dropdown-item" href="#">5 frames</a>
+                  <a class="dropdown-item" href="#">6 frames</a>
+                </div>
+              </div>
+              <div id="run_ahead_text" class="ml-3 mt-1 setting_text">
+                <span>run ahead</span> reduces input lag by pre computing frames. The lag improvement is 20ms * number of frames ahead. Basically emulation itself introduces a slight lag of less than 20ms. Therefore, setting <span style="text-wrap: nowrap;">run ahead = 1 frame</span> already ensures the original responsive feeling. <span style="text-wrap: nowrap;">run ahead = 0 frame</span> saves battery life at the cost of a slight lag.
+              </div>              
+              <br>
+
+              <div class="dropdown mr-1 mt-3">
+                <button id="button_expansion_ram" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  RAM Expansion = 0
+                </button>
+                <div id="choose_expansion_ram" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+                  <a class="dropdown-item" href="#">none</a>
+                  <a class="dropdown-item" href="#">REU 128 KB</a>
+                  <a class="dropdown-item" href="#">REU 256 KB</a>
+                  <a class="dropdown-item" href="#">REU 512 KB</a>
+                  <a class="dropdown-item" href="#">REU  16 MB</a>
+                  <a class="dropdown-item" href="#">GeoRAM 512 KB</a>
+                  <a class="dropdown-item" href="#">GeoRAM   1 MB</a>
+                  <a class="dropdown-item" href="#">GeoRAM   2 MB</a>
+                  <a class="dropdown-item" href="#">GeoRAM   4 MB</a>
+                </div>
+              </div>
+            </div>
+            <div class="container row justify-content-start mt-3">
+
+              <div class="dropdown mr-1 mb-1">
                 <button id="button_vic_rev" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                   vic-II model 
                 </button>

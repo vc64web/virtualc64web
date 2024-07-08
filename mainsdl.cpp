@@ -1087,7 +1087,11 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 
 extern "C" void wasm_reset()
 {
-  wrapper->emu->expansionPort.detachCartridge();
+  auto traits = wrapper->emu->expansionPort.getCartridgeTraits();
+  if(traits.type != CRT_GEO_RAM && traits.type != CRT_REU)
+  {
+    wrapper->emu->expansionPort.detachCartridge();
+  }
   wrapper->emu->c64.hardReset();
 }
 
@@ -1461,14 +1465,23 @@ extern "C" void wasm_configure(char* option, unsigned on)
 
   printf("wasm_configure %s = %d\n", option, on);
 
-  if(strcmp(option,"REU") == 0)
+  if(strcmp(option,"REU") == 0 || strcmp(option,"GeoRAM") == 0)
   {
     // The RAM capacity must be a power of two between 128 and 16384
     printf("calling c64->configure %s = %d\n", option, on);
     wrapper->emu->expansionPort.detachCartridge();
     if(on > 0)
     {
-      wrapper->emu->expansionPort.attachReu(on);
+      if(strcmp(option,"REU") == 0)
+      {
+        printf("expansionPort.attachReu(%u)\n",on);
+        wrapper->emu->expansionPort.attachReu(on);
+      }
+      else
+      {
+        printf("expansionPort.attachGeoRam(%u)\n",on);
+        wrapper->emu->expansionPort.attachGeoRam(on);
+      }
     }
   }
   else if(strcmp(option,"OPT_EMU_RUN_AHEAD") == 0)

@@ -2794,9 +2794,10 @@ $('.layer').change( function(event) {
 //--
 set_run_ahead = function (run_ahead) {
     $("#button_run_ahead").text("run ahead = "+run_ahead);
-    wasm_configure("OPT_EMU_RUN_AHEAD", run_ahead);
+    wasm_configure("OPT_EMU_RUN_AHEAD", 
+        run_ahead.toString().replace("frames","").replace("frame",""));
 }
-set_run_ahead(0);
+set_run_ahead("0 frame");
 $('#choose_run_ahead a').click(function () 
 {
     var run_ahead=$(this).text();
@@ -2804,17 +2805,26 @@ $('#choose_run_ahead a').click(function ()
     $("#modal_settings").focus();
 });
 //--- REU
-set_expansion_reu = function (expansion_reu) {
-    $("#button_expansion_reu").text("RAM expansion (REU) = "+expansion_reu);
-    wasm_configure("REU",expansion_reu);
-}
-set_expansion_reu(load_setting('expansion_reu', '0'));
+set_expansion_ram = function (expansion) {
+    $("#button_expansion_ram").text("RAM expansion = "+expansion);
+    let isREU = expansion.includes("REU");
 
-$('#choose_expansion_reu a').click(function () 
+    let value = expansion.replace("REU","").replace("GeoRAM","").replace("KB","").trim();
+    if(value.includes("MB"))
+    {
+        value = value.replace("MB","").trim();
+        value = value*1024;
+    }
+    wasm_configure(isREU ? "REU": "GeoRAM",value);
+    
+}
+set_expansion_ram(load_setting('expansion_ram', 'none'));
+
+$('#choose_expansion_ram a').click(function () 
 {
-    var expansion_reu=$(this).text();
-    set_expansion_reu(expansion_reu);
-    save_setting('expansion_reu',expansion_reu)
+    var expansion_ram=$(this).text();
+    set_expansion_ram(expansion_ram);
+    save_setting('expansion_ram',expansion_ram)
     $("#modal_settings").focus();
 });
 

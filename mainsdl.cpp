@@ -1482,9 +1482,9 @@ extern "C" void wasm_configure(char* option, unsigned on)
         printf("expansionPort.attachGeoRam(%u)\n",on);
         wrapper->emu->expansionPort.attachGeoRam(on);
       }
-      auto traits = wrapper->emu->expansionPort.getCartridgeTraits();
-      printf("attached %s with %u bytes\n",traits.title, traits.memory);
     }
+    auto traits = wrapper->emu->expansionPort.getCartridgeTraits();
+    printf("attached %s with %u bytes\n",traits.title, traits.memory);
   }
   else if(strcmp(option,"OPT_EMU_RUN_AHEAD") == 0)
   {//    emu->expansionPort.attachReu(256);

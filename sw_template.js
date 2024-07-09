@@ -157,6 +157,10 @@ self.addEventListener('fetch', function(event){
           }()
         );   
 
+        if(networkResponse.status < 200)
+        {
+          return networkResponse;
+        }
 
         const newHeaders = new Headers(networkResponse.headers);
         if(needs_shared_array_buffer)

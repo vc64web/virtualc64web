@@ -96,7 +96,7 @@ Snapshot::finalizeRead()
 
     if (isTooOld()) throw Error(ERROR_SNAP_TOO_OLD);
     if (isTooNew()) throw Error(ERROR_SNAP_TOO_NEW);
-    if (isBeta() && !betaRelease) throw Error(ERROR_SNAP_IS_BETA);
+//    if (isBeta() && !betaRelease) throw Error(ERROR_SNAP_IS_BETA);
 }
 
 std::pair <isize,isize> 

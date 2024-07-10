@@ -186,6 +186,8 @@ function get_parameter_link()
                 b.transient = true;
                 b.app_scope = true;
                 b.id = 1000+call_param_buttons.length;
+                if(b.key === undefined) b.key='';
+                if(b.title === undefined) b.title='';
                 call_param_buttons.push( b );
             }
         }
@@ -368,13 +370,13 @@ async function disk_loading_finished()
 }   
 
 
-function message_handler(msg, data)
+function message_handler(msg, data1, data2)
 {   
     queueMicrotask(()=>{
-        message_handler_queue_worker( msg, data )
+        message_handler_queue_worker( msg, data1, data2 )
     });
 }
-function message_handler_queue_worker(msg, data)
+function message_handler_queue_worker(msg, data1, data2)
 {
     //UTF8ToString(cores_msg);
     if(msg == "MSG_READY_TO_RUN")
@@ -458,7 +460,7 @@ function message_handler_queue_worker(msg, data)
             if(floppy_has_disk||floppy_step_count>1)
             { 
                 play_sound(audio_df_step);
-               $("#drop_zone").html(`drv${data&0xff} ${((data>>8)&0xFF).toString().padStart(2, '0')}`);
+               $("#drop_zone").html(`drv${8+data1} ${data2.toString().padStart(2, '0')}`);
             }
         }    
         
@@ -468,7 +470,7 @@ function message_handler_queue_worker(msg, data)
     else if(msg == "MSG_RS232")
     {
         //rs232_message.push(data);
-        rs232_message += String.fromCharCode(data);
+        rs232_message += String.fromCharCode(data1);
     }
     else if(msg =="MSG_PAL" || msg =="MSG_NTSC")
     {
@@ -3219,7 +3221,7 @@ $('#choose_vic_rev a').click(function ()
                 }
                 otherButtons+=`<a class="dropdown-item" href="#" id="choose_${otherBtn.id}">
                 <div style="display:flex;justify-content:space-between">
-                    <div>${html_encode(otherBtn.title)}</div>
+                    <div>${html_encode(otherBtn.title === '' ? (''+otherBtn.id) : otherBtn.title)}</div>
                     <div style="display:flex;margin-left:0.3em;" 
                         ${otherBtn.key==''?'hidden':''}>
                         ${key_display}

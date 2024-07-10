@@ -434,6 +434,16 @@ void send_message_to_js(const char * msg, long data)
     }, msg, data );    
 
 }
+void send_message_to_js(const char * msg, long data1, long data2)
+{
+    EM_ASM(
+    {
+        if (typeof message_handler === 'undefined')
+            return;
+        message_handler( "MSG_"+UTF8ToString($0), $1, $2 );
+    }, msg, data1, data2 );    
+
+}
 
 bool paused_the_emscripten_main_loop=false;
 bool warp_mode=false;
@@ -455,6 +465,15 @@ void theListener(const void * c64, Message msg){
     send_message_to_js("RS232", c);
     return;
   }
+  else if(msg.type == MSG_DRIVE_STEP)
+  {
+      //data1=msg.drive.nr;
+      //data2=msg.drive.value;
+    send_message_to_js("DRIVE_STEP", msg.drive.nr, msg.drive.value);
+    return;
+  }
+
+
 
   const char *message_as_string =  (const char *)MsgTypeEnum::key((MsgType)msg.type);
   printf("vC64 message=%s, data=%ld\n", message_as_string, msg.value);
@@ -1487,14 +1506,14 @@ extern "C" void wasm_configure(char* option, unsigned on)
     printf("attached %s with %u bytes\n",traits.title, traits.memory);
   }
   else if(strcmp(option,"OPT_EMU_RUN_AHEAD") == 0)
-  {//    emu->expansionPort.attachReu(256);
+  {
     printf("calling c64->configure %s = %d\n", option, on);
     wrapper->emu->set(OPT_EMU_RUN_AHEAD, on);
   }
   else if(strcmp(option,"OPT_DRV_POWER_SAVE") == 0)
   {
     printf("calling c64->configure %s = %d\n", option, on);
-    wrapper->emu->set(OPT_DRV_POWER_SAVE, 8, on_value);
+    wrapper->emu->set(OPT_DRV_POWER_SAVE, DRIVE8, on_value);
   }
   else if(strcmp(option,"OPT_SID_POWER_SAVE") == 0)
   {

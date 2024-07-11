@@ -855,7 +855,7 @@ function configure_file_dialog(reset=false)
                     
                                 if(mountable_count==1)
                                 {//in case that there was only one mountable file in the zip, auto mount it
-                                    configure_file_dialog(true);
+                                    configure_file_dialog(reset_before_load);
                                 }        
                                 else
                                 {//file is ready to insert

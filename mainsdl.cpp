@@ -1311,20 +1311,22 @@ extern "C" const char* wasm_rom_info()
   auto basic_traits = wrapper->emu->c64.getRomTraits(ROM_TYPE_BASIC);
   auto char_traits = wrapper->emu->c64.getRomTraits(ROM_TYPE_CHAR);
   auto drive_traits = wrapper->emu->c64.getRomTraits(ROM_TYPE_VC1541);
+  auto crt_traits = wrapper->emu->expansionPort.getCartridgeTraits();
 
-
- sprintf(json_result, "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\", \"has_floppy_rom\":%s, \"drive_rom\":\"%s\"}",
+ sprintf(json_result, 
+ "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\", \"drive_rom\":\"%s\", \"crt\":\"%s%u\"}",
   kernal_traits.title,
   basic_traits.title,
   char_traits.title,
-  /*drive_traits ? "true":"false"*/"false",
-  drive_traits.title
+  drive_traits.title,
+  crt_traits.title,
+  crt_traits.memory
   );
 
 
 
 /*
-  sprintf(json_result, "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\", \"has_floppy_rom\":%s, \"drive_rom\":\"%s\"}",
+  sprintf(json_result, "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\", \"y_rom\":%s, \"drive_rom\":\"%s\"}",
   wrapper->emu->c64.hasMega65Rom(ROM_TYPE_KERNAL) ? "mega" : wrapper->emu->hasRom(ROM_TYPE_KERNAL) ? wrapper->emu->romTitle(ROM_TYPE_KERNAL).c_str(): "none", 
   wrapper->emu->hasMega65Rom(ROM_TYPE_BASIC) ? "mega" : wrapper->emu->hasRom(ROM_TYPE_BASIC) ? wrapper->emu->romTitle(ROM_TYPE_BASIC).c_str() : "none", 
   wrapper->emu->hasMega65Rom(ROM_TYPE_CHAR) ? "mega" : wrapper->emu->hasRom(ROM_TYPE_CHAR) ? wrapper->emu->romTitle(ROM_TYPE_CHAR).c_str(): "none",

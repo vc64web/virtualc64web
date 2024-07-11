@@ -772,8 +772,7 @@ function configure_file_dialog(reset=false)
                 $("#div_auto_run").show(); auto_run = true;
                 $("#button_insert_file").html("insert disk"+return_icon);
                 
-                if (/*!JSON.parse(wasm_rom_info()).has_floppy_rom //is 1541.rom loaded ?*/
-                    local_storage_get('vc1541_rom.bin')==null)
+                if (local_storage_get('vc1541_rom.bin')==null)
                 {
                     $("#no_disk_rom_msg").show();
                     $("#button_insert_file").attr("disabled", true);
@@ -2779,31 +2778,23 @@ $('.layer').change( function(event) {
         //document.getElementById('canvas').focus();
     });
 
-/*
-    var delete_cache = () =>{
-    caches.keys().then(keys => {
-        console.log('opening cache:'+keys);
-        return Promise.all(keys
-            .map(key => {
-                caches.open(key).then(function(cache) { 
-                    cache.keys().then(function(cached_requests) { 
-                      for(req_in_cache of cached_requests)
-                      {
-                        //console.log(req_in_cache.url);
-                        if(req_in_cache.url.match('/webservice/')!= null)
-                        {
-                           console.log('delete -> '+req_in_cache.url); 
-                           cache.delete(req_in_cache);
-                        } 
-                      }
-                    });
-                });
-            })
-        );
+    $('#modal_settings').on('show.bs.modal', function() 
+    {    
+        let traits = JSON.parse(wasm_rom_info());
+        if(traits.crt.startsWith("REU"))
+        {
+            let mem=traits.crt.replace("REU","")/1024;
+            mem = mem<1024 ? `${mem} KB`:`${mem/1024} MB` ;
+            $("#button_expansion_ram").text("RAM expansion = REU "+mem);
+        }
+        if(traits.crt.startsWith("GeoRam"))
+        {
+          let mem=traits.crt.replace("GeoRam","")/1024;
+          mem = mem<1024 ? `${mem} KB`:`${mem/1024} MB` ;
+          $("#button_expansion_ram").text("RAM expansion = GeoRAM "+mem);
+        }
+        
     });
-    }
-    delete_cache();
-*/ 
 //--
 set_run_ahead = function (run_ahead) {
     $("#button_run_ahead").text("run ahead = "+run_ahead);
@@ -3219,9 +3210,11 @@ $('#choose_vic_rev a').click(function ()
                     ${html_encode(key)}
                     </div>`;
                 }
+                let title_display= otherBtn.title === '' && key_display ==='' ?
+                 `${otherBtn.id}` : otherBtn.title;
                 otherButtons+=`<a class="dropdown-item" href="#" id="choose_${otherBtn.id}">
                 <div style="display:flex;justify-content:space-between">
-                    <div>${html_encode(otherBtn.title === '' ? (''+otherBtn.id) : otherBtn.title)}</div>
+                    <div>${html_encode(title_display)}</div>
                     <div style="display:flex;margin-left:0.3em;" 
                         ${otherBtn.key==''?'hidden':''}>
                         ${key_display}

@@ -720,8 +720,19 @@ extern "C" void wasm_schedule_key(int code1, int code2, int pressed, int frame_d
 
 char wasm_pull_user_snapshot_file_json_result[255];
 
+D64File *export_disk=NULL;
+extern "C" void wasm_delete_disk()
+{
+  if(export_disk!=NULL)
+  {
+    delete export_disk;
+    export_disk=NULL;
+    printf("disk memory deleted\n");
+  }
+}
 extern "C" char* wasm_export_disk()
 {
+  wasm_delete_disk();
 //  if(!wrapper->emu->drive8.drive->hasDisk())
   if(!wrapper->emu->drive8.getInfo().hasDisk)  
   {
@@ -734,8 +745,9 @@ extern "C" char* wasm_export_disk()
 //  D64File *d64 = D64File::makeWithFileSystem(*fs);
 
   FileSystem *fs = new FileSystem(*wrapper->emu->drive8.drive->disk);
-  D64File *d64 = new D64File(*fs);
-
+  export_disk = new D64File(*fs);
+  delete fs;
+  
 /*  size_t size = d64->size;
   uint8_t *buffer = new uint8_t[size];
   d64->writeToBuffer(buffer);
@@ -746,8 +758,8 @@ extern "C" char* wasm_export_disk()
   printf("\n");
   */
   sprintf(wasm_pull_user_snapshot_file_json_result, "{\"address\":%lu, \"size\": %lu }",
-  (unsigned long)d64->data, 
-  d64->size
+  (unsigned long)export_disk->data, 
+  export_disk->size
   );
   printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
   return wasm_pull_user_snapshot_file_json_result;

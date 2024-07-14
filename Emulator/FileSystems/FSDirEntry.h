@@ -2,16 +2,23 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
-#include "Aliases.h"
 #include "FSTypes.h"
 #include "PETName.h"
+#include <filesystem>
+
+namespace vc64 {
+
+namespace fs = ::std::filesystem;
 
 struct FSDirEntry
 {
@@ -33,11 +40,14 @@ struct FSDirEntry
     void init(const string &name, TSLink ref, isize numBlocks);
 
     // Checks whether this entry if empty
-    bool isEmpty() const; 
+    bool isEmpty() const;
     
     // Returns the name of this file
-    PETName<16> getName() { return PETName<16>(fileName); }
-        
+    PETName<16> getName() const { return PETName<16>(fileName); }
+
+    // Return the name of this file with certain symbols escaped
+    fs::path getFileSystemRepresentation() const;
+
     // Returns the file type of this file
     FSFileType getFileType() const;
     
@@ -50,3 +60,5 @@ struct FSDirEntry
     // Returns the link to the first data block
     TSLink firstBlock() const { return TSLink{firstDataTrack,firstDataSector}; }
 };
+
+}

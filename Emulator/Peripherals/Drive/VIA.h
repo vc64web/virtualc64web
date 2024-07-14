@@ -2,14 +2,19 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "SubComponent.h"
+
+namespace vc64 {
 
 /*
  * This implementation is mainly based on the document
@@ -53,6 +58,12 @@
 
 class VIA6522 : public SubComponent {
     
+    Descriptions descriptions = {{
+
+        .name           = "VIA",
+        .description    = "VIA 6522"
+    }};
+
     friend class Drive;
     friend class ParCable;
     
@@ -60,8 +71,8 @@ protected:
     
     // Owner of this VIA
     Drive &drive;
-    
-    
+
+
     //
     // Peripheral interface
     //
@@ -202,10 +213,10 @@ protected:
     u8 tiredness;
     
     // Wakeup cycle
-    u64 wakeUpCycle;
+    i64 wakeUpCycle;
     
     // Number of skipped executions
-    u64 idleCounter;
+    i64 idleCounter;
     
     
     //
@@ -215,41 +226,53 @@ protected:
 public:
     
     VIA6522(C64 &ref, Drive &drvref);
-
     virtual bool isVia1() const = 0;
 
-    
+    VIA6522& operator= (const VIA6522& other) {
+
+        CLONE(pa)
+        CLONE(ca1)
+        CLONE(ca2)
+        CLONE(pb)
+        CLONE(cb1)
+        CLONE(cb2)
+        CLONE(ddra)
+        CLONE(ddrb)
+        CLONE(ora)
+        CLONE(orb)
+        CLONE(ira)
+        CLONE(irb)
+        CLONE(t1)
+        CLONE(t1_latch_lo)
+        CLONE(t1_latch_hi)
+        CLONE(t2)
+        CLONE(t2_latch_lo)
+        CLONE(pcr)
+        CLONE(acr)
+        CLONE(ier)
+        CLONE(ifr)
+        CLONE(sr)
+        CLONE(delay)
+        CLONE(feed)
+        CLONE(tiredness)
+        CLONE(wakeUpCycle)
+        CLONE(idleCounter)
+
+        return *this;
+    }
+
+
     //
-    // Methods from C64Object
+    // Methods from Serializable
     //
 
 public:
-    
-    void prefix() const override;
-    
-private:
-    
-    void _dump(dump::Category category, std::ostream& os) const override;
 
-    
-    //
-    // Methods from C64Component
-    //
-
-private:
-    
-    void _reset(bool hard) override;
-        
     template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-    }
-    
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
+    void serialize(T& worker)
     {
         worker
-        
+
         << pa
         << ca1
         << ca2
@@ -277,12 +300,25 @@ private:
         << tiredness
         << wakeUpCycle
         << idleCounter;
-    }
-    
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    
+
+    } SERIALIZERS(serialize);
+
+
+    //
+    // Methods from CoreComponent
+    //
+
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+    void prefix() const override;
+
+private:
+
+    void _dump(Category category, std::ostream& os) const override;
+    void _reset(bool hard) override;
+
+
     //
     //
     //
@@ -511,15 +547,14 @@ public:
 
 
 /* First virtual VIA6522 controller. VIA1 serves as hardware interface between
- * the VC1541 CPU and the IEC bus.
+ * the VC1541 CPU and the serial port (IEC bus).
  */
-class VIA1 : public VIA6522 {
-    
+class VIA1 final : public VIA6522 {
+
 public:
     
     VIA1(C64 &ref, Drive &drvref) : VIA6522(ref, drvref) { }
     ~VIA1() { }
-    const char *getDescription() const override { return "VIA1"; }
     bool isVia1() const override { return true; }
     
     u8 peekORA(bool handshake) override;
@@ -535,13 +570,12 @@ public:
 /* Second virtual VIA6522 controller. VIA2 serves as hardware interface between
  * the VC1541 CPU and the drive logic.
  */
-class VIA2 : public VIA6522 {
-    
+class VIA2 final : public VIA6522 {
+
 public:
     
     VIA2(C64 &ref, Drive &drvref) : VIA6522(ref, drvref) { }
     ~VIA2() { }
-    const char *getDescription() const override { return "VIA2"; }
     bool isVia1() const override { return false; }
 
     u8 portAexternal() const override;
@@ -550,3 +584,5 @@ public:
     void pullDownIrqLine() override;
     void releaseIrqLine() override;
 };
+
+}

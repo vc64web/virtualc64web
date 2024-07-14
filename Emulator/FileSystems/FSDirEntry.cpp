@@ -2,15 +2,19 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "FSDirEntry.h"
 #include "C64.h"
-#include "MemUtils.h"
+
+namespace vc64 {
 
 void
 FSDirEntry::init(PETName<16> name, TSLink ref, isize numBlocks)
@@ -73,9 +77,28 @@ FSDirEntry::isHidden() const
     return typeString() == "";
 }
 
+fs::path
+FSDirEntry::getFileSystemRepresentation() const
+{
+    auto name = getName().str();
+    string illegal = "#%&{}\\<>*?/$!'\":@+`|=";
+    string result;
+
+    for (const auto c: name) {
+
+        if (illegal.find(c) != std::string::npos) {
+            result += "%" + util::hexstr<2>(c);
+        } else {
+            result += c;
+        }
+    }
+    return fs::path(result);
+}
+
 FSFileType
 FSDirEntry::getFileType() const
 {
     return (FSFileType)(fileType & 0b111);
 }
 
+}

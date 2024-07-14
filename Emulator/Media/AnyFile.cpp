@@ -2,9 +2,12 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -22,10 +25,11 @@
 #include "T64File.h"
 #include "TAPFile.h"
 
+namespace vc64 {
+
 AnyFile::AnyFile(isize capacity)
 {
-    data = new u8[capacity]();
-    size = capacity;
+    init(capacity);
 }
 
 AnyFile::~AnyFile()
@@ -41,17 +45,17 @@ AnyFile::init(isize capacity)
 }
 
 void
-AnyFile::init(const string &path)
+AnyFile::init(const fs::path &path)
 {
     std::ifstream stream(path);
-    if (!stream.is_open()) throw VC64Error(ERROR_FILE_NOT_FOUND, path);
+    if (!stream.is_open()) throw Error(ERROR_FILE_NOT_FOUND, path);
     init(path, stream);
 }
 
 void
-AnyFile::init(const string &path, std::istream &stream)
+AnyFile::init(const fs::path &path, std::istream &stream)
 {
-    if (!isCompatiblePath(path)) throw VC64Error(ERROR_FILE_TYPE_MISMATCH);
+    if (!isCompatiblePath(path)) throw Error(ERROR_FILE_TYPE_MISMATCH);
     init(stream);
     this->path = path;
 }
@@ -59,7 +63,7 @@ AnyFile::init(const string &path, std::istream &stream)
 void
 AnyFile::init(std::istream &stream)
 {
-    if (!isCompatibleStream(stream)) throw VC64Error(ERROR_FILE_TYPE_MISMATCH);
+    if (!isCompatibleStream(stream)) throw Error(ERROR_FILE_TYPE_MISMATCH);
     readFromStream(stream);
 }
 
@@ -71,77 +75,40 @@ AnyFile::init(const u8 *buf, isize len)
     stream.write((const char *)buf, len);
     init(stream);
 }
-    
+
 void
 AnyFile::init(FILE *file)
 {
     assert(file);
-    std::stringstream stream;
+    std::stringstream stream(std::ios::binary);
     int c; while ((c = fgetc(file)) != EOF) { stream.put((char)c); }
     init(stream);
+}
+
+string
+AnyFile::name() const
+{
+    return getName().str();
 }
 
 PETName<16>
 AnyFile::getName() const
 {
-    auto idx = path.rfind('/');
-    isize start = idx != string::npos ? idx + 1 : 0;
-    
-    idx = path.rfind('.');
-    isize len = idx != string::npos ? idx - start : string::npos;
-    
-    return PETName<16>(path.substr(start, len));
-}
+    auto s = path.string();
 
-FileType
-AnyFile::type(const string &path)
-{
-    std::ifstream stream(path);
-    if (!stream.is_open()) return FILETYPE_UNKNOWN;
-    
-    if (Snapshot::isCompatible(path) &&
-        Snapshot::isCompatible(stream))return FILETYPE_SNAPSHOT;
+    auto idx = s.rfind('/');
+    auto start = idx != string::npos ? idx + 1 : 0;
 
-    if (Script::isCompatible(path) &&
-        Script::isCompatible(stream))return FILETYPE_SCRIPT;
+    idx = s.rfind('.');
+    auto len = idx != string::npos ? idx - start : string::npos;
 
-    if (CRTFile::isCompatible(path) &&
-        CRTFile::isCompatible(stream))return FILETYPE_CRT;
-
-    if (T64File::isCompatible(path) &&
-        T64File::isCompatible(stream)) return FILETYPE_T64;
-
-    if (P00File::isCompatible(path) &&
-        P00File::isCompatible(stream)) return FILETYPE_P00;
-
-    if (PRGFile::isCompatible(path) &&
-        PRGFile::isCompatible(stream)) return FILETYPE_PRG;
-
-    if (D64File::isCompatible(path) &&
-        D64File::isCompatible(stream)) return FILETYPE_D64;
-
-    if (G64File::isCompatible(path) &&
-        G64File::isCompatible(stream)) return FILETYPE_G64;
-
-    if (TAPFile::isCompatible(path) &&
-        TAPFile::isCompatible(stream)) return FILETYPE_TAP;
-
-    if (RomFile::isCompatible(path)) {
-        if (RomFile::isRomStream(ROM_TYPE_BASIC, stream)) return FILETYPE_BASIC_ROM;
-        if (RomFile::isRomStream(ROM_TYPE_CHAR, stream)) return FILETYPE_CHAR_ROM;
-        if (RomFile::isRomStream(ROM_TYPE_KERNAL, stream)) return FILETYPE_KERNAL_ROM;
-        if (RomFile::isRomStream(ROM_TYPE_VC1541, stream)) return FILETYPE_VC1541_ROM;
-    }
-    
-    if (Folder::isCompatible(path)) return FILETYPE_FOLDER;
-
-    return FILETYPE_UNKNOWN;
+    return PETName<16>(s.substr(start, len));
 }
 
 u64
 AnyFile::fnv() const
 {
-    return data ? util::fnv_1a_64(data, size) : 0;
+    return data ? util::fnv64(data, size) : 0;
 }
 
 void
@@ -149,7 +116,7 @@ AnyFile::strip(isize count)
 {
     assert(data != nullptr);
     assert(count < size);
-        
+
     isize newSize = size - count;
     u8 *newData = new u8[newSize];
     
@@ -164,7 +131,7 @@ void
 AnyFile::flash(u8 *buffer, isize offset) const
 {
     assert(buffer);
-    memcpy(buffer + offset, data, size);
+    std::memcpy(buffer + offset, data, size);
 }
 
 void
@@ -177,28 +144,26 @@ AnyFile::readFromStream(std::istream &stream)
     stream.seekg(0, std::ios::beg);
 
     // Allocate memory
-    assert(data == nullptr);
-    data = new u8[fsize]();
-    size = fsize;
+    data = new u8[isize(fsize)]();
+    size = isize(fsize);
 
     // Read data
     stream.read((char *)data, size);
-    
-    // Fix known inconsistencies
-    repair();
+    finalizeRead();
 }
 
 void
-AnyFile::readFromFile(const string  &path)
+AnyFile::readFromFile(const fs::path &path)
 {
     std::ifstream stream(path);
 
     if (!stream.is_open()) {
-        throw VC64Error(ERROR_FILE_CANT_READ);
+        throw Error(ERROR_FILE_CANT_READ);
     }
     
+    this->path = path;
+
     readFromStream(stream);
-    this->path = string(path);
 }
 
 void
@@ -206,8 +171,14 @@ AnyFile::readFromBuffer(const u8 *buf, isize len)
 {
     assert(buf);
 
-    std::istringstream stream(string((const char *)buf, len));
-    readFromStream(stream);
+    // Allocate memory
+    size = len;
+    assert(data == nullptr);
+    data = new u8[size];
+
+    // Copy data
+    std::memcpy(data, buf, size);
+    finalizeRead();
 }
 
 void
@@ -217,12 +188,12 @@ AnyFile::writeToStream(std::ostream &stream)
 }
 
 void
-AnyFile::writeToFile(const string &path)
+AnyFile::writeToFile(const fs::path &path)
 {
     std::ofstream stream(path);
 
     if (!stream.is_open()) {
-        throw VC64Error(ERROR_FILE_CANT_WRITE);
+        throw Error(ERROR_FILE_CANT_WRITE);
     }
     
     writeToStream(stream);
@@ -232,5 +203,7 @@ void
 AnyFile::writeToBuffer(u8 *buf)
 {
     assert(buf);
-    memcpy(buf, data, size);
+    std::memcpy(buf, data, size);
+}
+
 }

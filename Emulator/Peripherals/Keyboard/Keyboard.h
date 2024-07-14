@@ -2,37 +2,33 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
+#include "KeyboardTypes.h"
 #include "SubComponent.h"
+#include "CmdQueue.h"
 #include "C64Key.h"
+#include "Buffer.h"
 
-#include <queue>
+namespace vc64 {
 
-struct KeyAction {
-        
-    // Action type
-    enum class Action { press, release, releaseAll };
-    Action type;
+class Keyboard final : public SubComponent {
 
-    // The key the action is performed on
-    C64Key key;
-    
-    // Delay until the next action is performed, measures in frames
-    i64 delay;
+    Descriptions descriptions = {{
 
-    // Constructors
-    KeyAction(Action a, C64Key k, u64 d) : type(a), key(k), delay(d) { };
-};
+        .name           = "Keyboard",
+        .description    = "Keyboard"
+    }};
 
-class Keyboard : public SubComponent {
-        
-	// The keyboard matrix (indexed by row or by column)
+    // The keyboard matrix (indexed by row or by column)
     u8 kbMatrixRow[8] = { };
     u8 kbMatrixCol[8] = { };
 
@@ -42,165 +38,113 @@ class Keyboard : public SubComponent {
     
     // Indicates if the shift lock is currently pressed
     bool shiftLock = false;
-        
-    // Key action list (for auto typing)
-    std::queue<KeyAction> actions;
-    
-    // Delay counter until the next key action is processed
-    i64 delay = INT64_MAX;
-    
-    
+
+    // Delayed keyboard commands (auto-typing)
+    util::SortedRingBuffer<Cmd, 1024> pending;
+
+
     //
-    // Initializing
+    // Methods
     //
     
 public:
     
     Keyboard(C64 &ref) : SubComponent(ref) { }
-    
-    
-    //
-    // Methods from C64Object
-    //
-    
-private:
-    
-    const char *getDescription() const override { return "Keyboard"; }
-    void _dump(dump::Category category, std::ostream& os) const override;
 
-    
-    //
-    // Methods from C64Component
-    //
-    
-private:
-    
-	void _reset(bool hard) override;
+    Keyboard& operator= (const Keyboard& other) {
 
-    template <class T>
-    void applyToPersistentItems(T& worker)
-    {
+        CLONE_ARRAY(kbMatrixRow)
+        CLONE_ARRAY(kbMatrixCol)
+        CLONE_ARRAY(kbMatrixRowCnt)
+        CLONE_ARRAY(kbMatrixColCnt)
+        CLONE(shiftLock)
+        CLONE(pending)
+        
+        return *this;
     }
-    
+
+
+    //
+    // Methods from Serializable
+    //
+
+public:
+
     template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
+    void serialize(T& worker)
     {
         worker
-        
+
         << kbMatrixRow
         << kbMatrixCol
         << kbMatrixRowCnt
         << kbMatrixColCnt
         << shiftLock;
-    }
-    
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    
+
+    } SERIALIZERS(serialize);
+
 
     //
-    // Accessing
+    // Methods from CoreComponent
     //
-    
+
 public:
-    
-    // Checks whether a certain key is being pressed
-    bool isPressed(C64Key key) const;
-    bool commodoreIsPressed() const { return isPressed(C64Key::commodore); }
-    bool ctrlIsPressed() const { return isPressed(C64Key::control); }
-    bool runstopIsPressed() const { return isPressed(C64Key::runStop); }
-    bool leftShiftIsPressed() const { return isPressed(C64Key::leftShift); }
-    bool rightShiftIsPressed() const { return isPressed(C64Key::rightShift); }
-    bool shiftLockIsPressed() const { return shiftLock; }
-    bool restoreIsPressed() const;
-    
-	// Presses a key
-    void press(C64Key key);
-    void pressCommodore() { press(C64Key::commodore); }
-    void pressCtrl() { press(C64Key::control); }
-	void pressRunstop() { press(C64Key::runStop); }
-    void pressLeftShift() { press(C64Key::leftShift); }
-    void pressRightShift() { press(C64Key::rightShift); }
-    void pressShiftLock() { shiftLock = true; }
-    void pressRestore();
 
-	// Releases a pressed key
-    void release(C64Key key);
-	void releaseCommodore() { release(C64Key::commodore); }
-    void releaseCtrl() { release(C64Key::control); }
-	void releaseRunstop() { release(C64Key::runStop); }
-    void releaseLeftShift() { release(C64Key::leftShift); }
-    void releaseRightShift() { release(C64Key::rightShift); }
-    void releaseShiftLock() { shiftLock = false; }
-    void releaseRestore();
-    
-    // Clears the keyboard matrix
-    void releaseAll();
-    
-    // Presses a released key and vice versa
-    void toggle(C64Key key);
-    void toggleCommodore() { toggle(C64Key::commodore); }
-    void toggleCtrl() { toggle(C64Key::control); }
-    void toggleRunstop() { toggle(C64Key::runStop); }
-    void toggleLeftShift() { toggle(C64Key::leftShift); }
-    void toggleRightShift() { toggle(C64Key::rightShift); }
-    void toggleShiftLock() { shiftLock = !shiftLock; }
-    
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
 private:
-    
-    void _press(C64Key key);
-    void _pressRestore();
-    
-    void _release(C64Key key);
-    void _releaseRestore();
 
-    void _releaseAll();
-    
-    
+    void _dump(Category category, std::ostream& os) const override;
+    void _reset(bool hard) override;
+
+
     //
     // Accessing the keyboard matrix
     //
     
 public:
-    
-	// Reads a column or row from the keyboard matrix
-    u8 getColumnValues(u8 rowMask);
-    u8 getRowValues(u8 columnMask);
-	u8 getRowValues(u8 columnMask, u8 thresholdMask);
-    
-    
+
+    // Reads a column or row from the keyboard matrix
+    u8 getColumnValues(u8 rowMask) const;
+    u8 getRowValues(u8 columnMask) const;
+    u8 getRowValues(u8 columnMask, u8 thresholdMask) const;
+
+    // Checks whether a certain key is pressed
+    bool isPressed(C64Key key) const;
+
+    // Presses or releases a key
+    void press(C64Key key);
+    void release(C64Key key);
+    void toggle(C64Key key) { isPressed(key) ? release(key) : press(key); }
+
+    // Clears the keyboard matrix
+    void releaseAll();
+
+
     //
     // Auto typing
     //
     
 public:
     
+    // Auto-types a string
     void autoType(const string &text);
-    
-    void scheduleKeyPress(C64Key key, i64 delay);
-    void scheduleKeyPress(char c, i64 delay);
 
-    void scheduleKeyRelease(C64Key key, i64 delay);
-    void scheduleKeyRelease(char c, i64 delay);
-    
-    void scheduleKeyReleaseAll(i64 delay);
-
-private:
-    
-    // Deletes all pending actions and clears the keyboard matrix
+    // Discards all pending key events and clears the keyboard matrix
     void abortAutoTyping();
-    
-    // Workhorses for scheduleKeyPress and scheduleKeyRelease
-    void _scheduleKeyAction(KeyAction::Action type, C64Key key, i64 delay);
 
-    
+
     //
-    // Performing periodic events
+    // Processing commands and events
     //
-    
+
 public:
-    
-    void vsyncHandler();
+
+    // Processes a command from the command queue
+    void processCommand(const Cmd &cmd);
+
+    // Processes the next auto-type event
+    void processKeyEvent(EventID id);
 };
-	
+
+}

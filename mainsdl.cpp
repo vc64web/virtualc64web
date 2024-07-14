@@ -2,16 +2,27 @@
  * @file        mainsdl.cpp
  * @author      mithrendal and Dirk W. Hoffmann, www.dirkwhoffmann.de
  * @copyright   Dirk W. Hoffmann. All rights reserved.
+ *
+ *
+ * v5.0 
+ issues:
+ - Use VICIIAPI::getSpriteInfo instead
+ -FileSystem *fs = new FileSystem(*wrapper->emu->drive8.drive->disk);
+Eigentlich müsste die MediaFileAPI genug funktionalität haben (FileSystem lieber nicht benutzen)
+ -snapshot = wrapper->emu->c64.takeSnapshot();
+Use VirtualC64API::takeSnapshot() instead (i.e.: wrapper->emu->takeSnapshot())
  */
-
 #include <stdio.h>
 #include "config.h"
-#include "C64.h"
-#include "C64Types.h"
+#include "VirtualC64.h"
+#include "VirtualC64Types.h"
+#include "Emulator.h"
 
 #include <emscripten.h>
 #include <SDL2/SDL.h>
 #include <emscripten/html5.h>
+
+using namespace vc64;
 
 /* SDL2 start*/
 SDL_Window * window = NULL;
@@ -95,14 +106,14 @@ void PrintEvent(const SDL_Event * event)
     }
 }
 
-int emu_width  = TEX_WIDTH; //NTSC_PIXELS; //428
-int emu_height = TEX_HEIGHT; //PAL_RASTERLINES; //284
+int emu_width  = Texture::width; //Texture.width; //NTSC_PIXELS; //428
+int emu_height = Texture::height; //PAL_RASTERLINES; //284
 int eat_border_width = 0;
 int eat_border_height = 0;
 int xOff = 12 + eat_border_width;
 int yOff = 12 + eat_border_height;
-int clipped_width  = TEX_WIDTH -12 -24 -2*eat_border_width; //392
-int clipped_height = TEX_HEIGHT -12 -24 -2*eat_border_height; //248
+int clipped_width  = Texture::width -12 -24 -2*eat_border_width; //392
+int clipped_height = Texture::height -12 -24 -2*eat_border_height; //248
 
 int bFullscreen = false;
 
@@ -147,7 +158,7 @@ extern "C" void wasm_toggleFullscreen()
     }
 }
 
-int eventFilter(void* thisC64, SDL_Event* event) {
+int eventFilter(void* the_emu, SDL_Event* event) {
     //C64 *c64 = (C64 *)thisC64;
     switch(event->type){
       case SDL_WINDOWEVENT:
@@ -207,7 +218,7 @@ unsigned int rendered_frame_count=0;
 unsigned int frames=0, seconds=0;
 double frame_rate=50; //PAL
 // The emscripten "main loop" replacement function.
-void draw_one_frame_into_SDL(void *thisC64) 
+void draw_one_frame_into_SDL(void *the_emu) 
 {
   //this method is triggered by
   //emscripten_set_main_loop_arg(em_arg_callback_func func, void *arg, int fps, int simulate_infinite_loop) 
@@ -226,15 +237,17 @@ void draw_one_frame_into_SDL(void *thisC64)
   int max_gap = 8;
 
 
-  C64 *c64 = (C64 *)thisC64;
+  VirtualC64 *emu = (VirtualC64 *)the_emu;
+  emu->emu->update();
 
-  if(c64->inWarpMode() == true)
+  if(emu->isWarping() == true)
   {
     printf("warping at least 25 frames at once ...\n");
     int i=25;
-    while(c64->inWarpMode() == true && i>0)
+    while(emu->isWarping() == true && i>0)
     {
-      c64->executeOneFrame();
+      //c64->emu->computeFrame();
+      emu->emu->computeFrame();
       i--;
     }
     start_time=now;
@@ -286,12 +299,12 @@ void draw_one_frame_into_SDL(void *thisC64)
     executed_frame_count++;
     total_executed_frame_count++;
 
-    c64->executeOneFrame();
+    emu->emu->computeFrame();
   }
 
   rendered_frame_count++;  
  
-  Uint8 *texture = (Uint8 *)c64->vic.stableEmuTexture(); //screenBuffer();
+  Uint8 *texture = (Uint8 *)emu->videoPort.getTexture(); //screenBuffer();
 
 //  int surface_width = window_surface->w;
 //  int surface_height = window_surface->h;
@@ -311,14 +324,14 @@ void draw_one_frame_into_SDL(void *thisC64)
 
 
 
-void MyAudioCallback(void*  thisC64,
+void MyAudioCallback(void*  the_emu,
                        Uint8* stream,
                        int    len)
 {
-    C64 *c64 = (C64 *)thisC64;
+    VirtualC64 *emu = (VirtualC64 *)the_emu;
     
     int n = len /  sizeof(float);
-    c64->muxer.copyMono((float *)stream, n);
+    emu->audioPort.copyMono((float *)stream, n);
 /*    printf("copyMono[%d]: ", n);
     for(int i=0; i<n; i++)
     {
@@ -387,7 +400,7 @@ extern "C" void wasm_create_renderer(char* name)
 
 
 
-void initSDL(void *thisC64)
+void initSDL(void *the_emu)
 {
     if(SDL_Init(SDL_INIT_VIDEO/*|SDL_INIT_AUDIO*/)==-1)
     {
@@ -421,23 +434,50 @@ void send_message_to_js(const char * msg, long data)
     }, msg, data );    
 
 }
+void send_message_to_js(const char * msg, long data1, long data2)
+{
+    EM_ASM(
+    {
+        if (typeof message_handler === 'undefined')
+            return;
+        message_handler( "MSG_"+UTF8ToString($0), $1, $2 );
+    }, msg, data1, data2 );    
+
+}
 
 bool paused_the_emscripten_main_loop=false;
 bool warp_mode=false;
-void theListener(const void * c64, long type, long data){
-  
-  if(warp_mode && type == MSG_IEC_BUS_BUSY && !((C64 *)c64)->inWarpMode())
+void calculate_viewport();
+void theListener(const void * c64, Message msg){
+  auto emu = ((VirtualC64 *)c64);
+
+  if(warp_mode && msg.type == MSG_SER_BUSY && !emu->isWarping())
   {
-    ((C64 *)c64)->warpOn(); //setWarp(true);
+    emu->warpOn();
   }
-  else if(type == MSG_IEC_BUS_IDLE && ((C64 *)c64)->inWarpMode())
+  else if(msg.type == MSG_SER_IDLE && emu->isWarping())
   {
-    ((C64 *)c64)->warpOff(); //setWarp(false);
+    emu->warpOff();
   }
 
-  const char *message_as_string =  (const char *)MsgTypeEnum::key((MsgType)type);
-  printf("vC64 message=%s, data=%ld\n", message_as_string, data);
-  send_message_to_js(message_as_string, data);
+  if(msg.type == MSG_RS232_OUT) {
+    int c = emu->userPort.rs232.readOutgoingPrintableByte();    
+    send_message_to_js("RS232", c);
+    return;
+  }
+  else if(msg.type == MSG_DRIVE_STEP)
+  {
+      //data1=msg.drive.nr;
+      //data2=msg.drive.value;
+    send_message_to_js("DRIVE_STEP", msg.drive.nr, msg.drive.value);
+    return;
+  }
+
+
+
+  const char *message_as_string =  (const char *)MsgTypeEnum::key((MsgType)msg.type);
+  printf("vC64 message=%s, data=%ld\n", message_as_string, msg.value);
+  send_message_to_js(message_as_string, msg.value);
 
 
 /*  if(type == MSG_RUN)
@@ -465,22 +505,24 @@ void theListener(const void * c64, long type, long data){
   }
 */
 
-  if(type == MSG_DISK_INSERT)
+  if(msg.type == MSG_DISK_INSERT)
   {
-    ((C64 *)c64)->drive8.dump();
+    emu->drive8.drive->dump(Category::Debug);
   }
 
-  if(type == MSG_PAL) {
+  if(msg.type == MSG_PAL) {
     printf("switched to PAL\n");
     frame_rate = 50.0;
     requested_targetFrameCount_reset=true;
     EM_ASM({PAL_VIC=true});
+    calculate_viewport();
   }
-  else if(type == MSG_NTSC) {
+  else if(msg.type == MSG_NTSC) {
     printf("switched to NTSC\n");
     frame_rate = 60.0;
     requested_targetFrameCount_reset=true;
     EM_ASM({PAL_VIC=false});
+    calculate_viewport();
   }
 }
 
@@ -488,17 +530,22 @@ void theListener(const void * c64, long type, long data){
 
 class C64Wrapper {
   public:
-    C64 *c64;
+    VirtualC64 *emu;
 
   C64Wrapper()
   {
     printf("constructing C64 ...\n");
 
-    this->c64 = new C64();
+    this->emu = new VirtualC64();
 
-    printf("adding a listener to C64 message queue...\n");
-
-    c64->msgQueue.setListener(this->c64, &theListener);
+    printf("connecting listener to C64 message queue...\n");
+    try
+    {
+      emu->launch(this->emu, &theListener);
+    } catch(std::exception &exception) {
+      printf("%s\n", exception.what());
+    }
+    printf("launch completed\n");
   }
   ~C64Wrapper()
   {
@@ -513,34 +560,40 @@ class C64Wrapper {
     c64->loadRom(ROM_CHAR, "roms/characters.901225-01.bin");
     c64->loadRom(ROM_VC1541, "roms/1541-II.251968-03.bin");
 */
+ printf("v5 run start\n");
 
-    try { c64->isReady(); } catch(...) { c64->msgQueue.put(MSG_ROM_MISSING); }
+    try { emu->isReady(); } catch(...) { 
+        EM_ASM({
+          setTimeout(function() {message_handler( 'MSG_ROM_MISSING' );}, 0);
+        });
+    }
     /*
     EM_ASM({
       setTimeout(function() {message_handler( $0 );}, 0);
     }, msg_code[MSG_ROM_MISSING].c_str() );
 */
 
-    printf("v4 wrapper calls run on c64->run() method\n");
 
-    //c64->setTakeAutoSnapshots(false);
-    //c64->setWarpLoad(true);
-    c64->configure(OPT_GRAY_DOT_BUG, false);
-    c64->configure(OPT_VIC_REVISION, VICII_PAL_6569_R1);
+    //emu->setTakeAutoSnapshots(false);
+    //emu->setWarpLoad(true);
+    emu->set(OPT_VICII_GRAY_DOT_BUG, false);
+//    emu->set(OPT_VICII_REVISION, VICII_PAL_6569_R1);
 
-    c64->configure(OPT_SID_ENGINE, SIDENGINE_RESID);
+    emu->set(OPT_SID_ENGINE, SIDENGINE_RESID);
 //    c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);
 
 
     // master Volumne
-    c64->configure(OPT_AUDVOLL, 100); 
-    c64->configure(OPT_AUDVOLR, 100);
+    emu->set(OPT_AUD_VOL_L, 100); 
+    emu->set(OPT_AUD_VOL_R, 100);
 
     //SID0 Volumne
-    c64->configure(OPT_AUDVOL, 0, 100); 
-    c64->configure(OPT_AUDPAN, 0, 0);
-
-    c64->configure(OPT_DRV_AUTO_CONFIG,DRIVE8,1);
+    #ifdef TODO
+    emu->set(OPT_AUD_VOL0, 0, 100); 
+   emu->set(OPT_AUD_PAN0, 0, 0);
+    #endif
+    
+    emu->set(OPT_DRV_AUTO_CONFIG,DRIVE8,1);
     //SID1 Volumne
 /*    c64->configure(OPT_AUDVOL, 1, 100);
     c64->configure(OPT_AUDPAN, 1, 50);
@@ -555,10 +608,10 @@ class C64Wrapper {
  //printf("is running = %u\n",c64->isRunning()); 
  //   c64->dump();
  //   c64->drive1.dump();
- //   c64->setDebugLevel(2);
-    //c64->sid.setDebugLevel(4);
+ //   emu->setDebugLevel(2);
+    //emuid.setDebugLevel(4);
  //   c64->drive1.setDebugLevel(3);
- //   c64->sid.dump();
+ //   emuid.dump();
 
 
 /*
@@ -576,7 +629,7 @@ class C64Wrapper {
 C64Wrapper *wrapper = NULL;
 extern "C" int main(int argc, char** argv) {
   wrapper= new C64Wrapper();
-  initSDL(wrapper->c64);
+  initSDL(wrapper->emu);
   wrapper->run();
   return 0;
 }
@@ -592,7 +645,14 @@ uint64_t mach_absolute_time()
 extern "C" void wasm_keyboard_reset()
 {
   printf("wasm_keyboard_reset\n");
-  wrapper->c64->keyboard.reset(true);
+//  wrapper->emu->keyboard.keyboard->reset(true);
+  wrapper->emu->keyboard.releaseAll();
+}
+
+
+extern "C" void wasm_auto_type(char* text)
+{
+  wrapper->emu->keyboard.autoType(text);
 }
 
 extern "C" void wasm_key(int code1, int code2, int pressed)
@@ -603,21 +663,21 @@ extern "C" void wasm_key(int code1, int code2, int pressed)
   {
     if(pressed == 1)
     {
-      wrapper->c64->keyboard.pressRestore();
+      wrapper->emu->keyboard.keyboard->press(C64Key::restore);
     }
     else
     {
-      wrapper->c64->keyboard.releaseRestore();
+      wrapper->emu->keyboard.keyboard->release(C64Key::restore);
     }
   }
   else if(pressed==1)
   {
-    wrapper->c64->keyboard.press(C64Key(code1,code2));
+    wrapper->emu->keyboard.keyboard->press(C64Key(code1,code2));
   }
   else
   {
-    wrapper->c64->keyboard.release(C64Key(code1,code2));
-    //wrapper->c64->keyboard.releaseRowCol(code1, code2);
+    wrapper->emu->keyboard.keyboard->release(C64Key(code1,code2));
+    //wrapper->emu->keyboard.releaseRowCol(code1, code2);
   }
 }
 
@@ -628,26 +688,33 @@ extern "C" void wasm_schedule_key(int code1, int code2, int pressed, int frame_d
     if(pressed == 1)
     {
       printf("scheduleKeyPress ( 31, %d ) \n", frame_delay);
-      wrapper->c64->keyboard.scheduleKeyPress(31, frame_delay);   //pressRestore();
+     // wrapper->emu->keyboard.keyboard->scheduleKeyPress(31, frame_delay);   //pressRestore();
+      wrapper->emu->put(CMD_KEY_PRESS, KeyCmd(31,frame_delay / frame_rate));
     }
     else
     {
       printf("scheduleKeyRelease ( 31, %d ) \n", frame_delay);
-      wrapper->c64->keyboard.scheduleKeyRelease(31, frame_delay);   //releaseRestore();
+     // wrapper->emu->keyboard.scheduleKeyRelease(31, frame_delay);   //releaseRestore();
+      wrapper->emu->put(CMD_KEY_RELEASE, KeyCmd(31,frame_delay / frame_rate));
     }
   }
   else if(pressed==1)
   {
-    printf("scheduleKeyPress ( %d, %d, %d ) \n", code1, code2, frame_delay);
-
-    wrapper->c64->keyboard.scheduleKeyPress(C64Key(code1,code2), frame_delay);
+    printf("scheduleKeyPress ( %d, %d, %f ) \n", code1, code2, frame_delay / frame_rate);
+//    wrapper->emu->keyboard.scheduleKeyPress(C64Key(code1,code2), frame_delay);
+      auto xxx =C64Key(code1, code2);
+      wrapper->emu->put(CMD_KEY_PRESS, KeyCmd(xxx.nr,frame_delay/ frame_rate ));
+//      wrapper->emu->keyboard.keyboard->press(C64Key(code1,code2));
   }
   else
   {
-    printf("scheduleKeyRelease ( %d, %d, %d ) \n", code1, code2, frame_delay);
-
-    wrapper->c64->keyboard.scheduleKeyRelease(C64Key(code1,code2), frame_delay);
+    printf("scheduleKeyRelease ( %d, %d, %f ) \n", code1, code2, frame_delay / frame_rate);
+    //wrapper->emu->keyboard.scheduleKeyRelease(C64Key(code1,code2), frame_delay);
+    auto xxx =C64Key(code1, code2);
+    wrapper->emu->put(CMD_KEY_RELEASE, KeyCmd(xxx.nr,frame_delay / frame_rate));
+//    wrapper->emu->keyboard.keyboard->release(C64Key(code1,code2));
   }
+  wrapper->emu->emu->update();
 }
 
 
@@ -655,17 +722,18 @@ char wasm_pull_user_snapshot_file_json_result[255];
 
 extern "C" char* wasm_export_disk()
 {
-  if(!wrapper->c64->drive8.hasDisk())
+//  if(!wrapper->emu->drive8.drive->hasDisk())
+  if(!wrapper->emu->drive8.getInfo().hasDisk)  
   {
     printf("no disk in drive8\n");
     sprintf(wasm_pull_user_snapshot_file_json_result, "{\"size\": 0 }");
     return wasm_pull_user_snapshot_file_json_result;
   }
 
-//  FSDevice *fs = FSDevice::makeWithDisk(wrapper->c64->drive8.disk);    
+//  FSDevice *fs = FSDevice::makeWithDisk(wrapper->emu->drive8.disk);    
 //  D64File *d64 = D64File::makeWithFileSystem(*fs);
 
-  FSDevice *fs = new FSDevice(*wrapper->c64->drive8.disk);
+  FileSystem *fs = new FileSystem(*wrapper->emu->drive8.drive->disk);
   D64File *d64 = new D64File(*fs);
 
 /*  size_t size = d64->size;
@@ -686,7 +754,7 @@ extern "C" char* wasm_export_disk()
 }
 
 
-Snapshot *snapshot=NULL;
+MediaFile *snapshot=NULL;
 extern "C" void wasm_delete_user_snapshot()
 {
 //  printf("request to free user_snapshot memory\n");
@@ -698,36 +766,19 @@ extern "C" void wasm_delete_user_snapshot()
     printf("freed user_snapshot memory\n");
   }
 }
-
-extern "C" char* wasm_pull_user_snapshot_file()
+extern "C" char* wasm_take_user_snapshot()
 {
-  printf("wasm_pull_user_snapshot_file\n");
-
+  printf("wasm_take_user_snapshot\n");
   wasm_delete_user_snapshot();
-  snapshot = wrapper->c64->latestUserSnapshot(); //wrapper->c64->userSnapshot(nr);
-/*
-  size_t size = snapshot->size; //writeToBuffer(NULL);
-  uint8_t *buffer = new uint8_t[size];
-  snapshot->writeToBuffer(buffer);
-  for(int i=0; i < 30; i++)
-  {
-    printf("%d",buffer[i]);
-  }
-  printf("\n");
-  */
+  snapshot = wrapper->emu->c64.takeSnapshot();
   sprintf(wasm_pull_user_snapshot_file_json_result, "{\"address\":%lu, \"size\": %lu, \"width\": %lu, \"height\":%lu }",
-  (unsigned long)snapshot->data, 
-  snapshot->size,
-  snapshot->getHeader()->screenshot.width,
-  snapshot->getHeader()->screenshot.height
+  (unsigned long)snapshot->getData(), 
+  snapshot->getSize(),
+  snapshot->previewImageSize().first,
+  snapshot->previewImageSize().second
   );
   printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
   return wasm_pull_user_snapshot_file_json_result;
-}
-
-extern "C" void wasm_take_user_snapshot()
-{
-  wrapper->c64->requestUserSnapshot();
 }
 
 
@@ -739,11 +790,12 @@ extern "C" float* wasm_get_sound_buffer_address()
 
 extern "C" unsigned wasm_copy_into_sound_buffer()
 {
-  auto count=wrapper->c64->muxer.stream.count();
+ // auto count=wrapper->emu->audioPort.stream.count();
+  auto count=wrapper->emu->audioPort.audioPort->count();
   auto copied_samples=0;
   for(;copied_samples+1024<=count;copied_samples+=1024)
   {
-    wrapper->c64->muxer.copyMono((float *)sound_buffer+copied_samples, 1024);
+    wrapper->emu->audioPort.copyMono((float *)sound_buffer+copied_samples, 1024);
   }
   sum_samples += copied_samples; 
   return copied_samples;
@@ -751,12 +803,12 @@ extern "C" unsigned wasm_copy_into_sound_buffer()
 
 extern "C" unsigned wasm_copy_into_sound_buffer_stereo()
 {
-  auto count=wrapper->c64->muxer.stream.count();
+  auto count=wrapper->emu->audioPort.audioPort->count();
   
   auto copied_samples=0;
   for(unsigned ipos=1024;ipos<=count;ipos+=1024)
   {
-    wrapper->c64->muxer.copyStereo(
+    wrapper->emu->audioPort.copyStereo(
     sound_buffer+copied_samples,
      sound_buffer+copied_samples+1024, 
      1024); 
@@ -772,36 +824,37 @@ extern "C" void wasm_set_warp(unsigned on)
 {
   warp_mode = (on == 1);
 
-  if(wrapper->c64->iec.isTransferring() && 
+  wrapper->emu->set(OPT_EMU_WARP_MODE, warp_mode? WARP_AUTO : WARP_NEVER);
+/*  if(wrapper->emu->serialPort.serialPort->isTransferring() && 
       (
-        (wrapper->c64->inWarpMode() && warp_mode == false)
+        (wrapper->emu->isWarping() && warp_mode == false)
         ||
-        (wrapper->c64->inWarpMode() == false && warp_mode)
+        (wrapper->emu->isWarping() == false && warp_mode)
       )
   )
   {
     if(warp_mode)
-      wrapper->c64->warpOn();
+      wrapper->emu->warpOn();
     else
-      wrapper->c64->warpOff();
+      wrapper->emu->warpOff();
   }
+  */
 }
 
 bool borderless=false;
 void calculate_viewport()
 {
-  auto pal = wrapper->c64->vic.pal();
-
+  auto pal = wrapper->emu->vicii.vicii->pal();// frame_rate < 60;//*/wrapper->emu->vicii.vicii->pal();
   if(pal)
   {
     eat_border_width = 31 * borderless;
     xOff = 12 + eat_border_width + 92;
-    clipped_width  = TEX_WIDTH -112 -24 -2*eat_border_width; //392
+    clipped_width  = Texture::width -112 -24 -2*eat_border_width; //392
   //428-12-24-2*33 =326
 
     eat_border_height = 34 * borderless;
     yOff = 16 + eat_border_height;
-    clipped_height = TEX_HEIGHT -42  -2*eat_border_height; //248
+    clipped_height = Texture::height -42  -2*eat_border_height; //248
   //284-11-24-2*22=205
   }
   else //NTSC
@@ -817,8 +870,8 @@ void calculate_viewport()
     {
       eat_border_width = 31; //redundant
       xOff = 12 + eat_border_width + 92;
-      clipped_width  = TEX_WIDTH -112 -24 -2*eat_border_width; //392
-      if(  wrapper->c64->getConfigItem(OPT_VIC_REVISION) ==VICII_NTSC_6567_R56A)
+      clipped_width  = Texture::width -112 -24 -2*eat_border_width; //392
+      if(  wrapper->emu->get(OPT_VICII_REVISION) ==VICII_NTSC_6567_R56A)
       {
         eat_border_height++;
       }
@@ -839,8 +892,8 @@ void calculate_viewport()
 
 extern "C" void wasm_set_PAL(unsigned on)
 {
-  wrapper->c64->configure(OPT_VIC_REVISION, on == 0 ? VICII_NTSC_8562 : VICII_PAL_6569_R1);
-  printf("set to =%s\n", wrapper->c64->vic.pal() ? "PAL":"NTSC");
+  wrapper->emu->set(OPT_VICII_REVISION, on == 0 ? VICII_NTSC_8562 : VICII_PAL_6569_R1);
+  printf("set to =%s\n", frame_rate<60 ? "PAL":"NTSC");
   calculate_viewport();
 }
 
@@ -850,12 +903,20 @@ extern "C" void wasm_set_borderless(unsigned on)
   calculate_viewport();
 }
 
+string
+extractSuffix(const string &s)
+{
+    auto idx = s.rfind('.');
+    auto pos = idx != string::npos ? idx + 1 : 0;
+    auto len = string::npos;
+    return s.substr(pos, len);
+}
 
 extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 {
   printf("load file=%s len=%ld, header bytes= %x, %x, %x\n", name, len, blob[0],blob[1],blob[2]);
   filename=name;
-  auto file_suffix= util::extractSuffix(name); 
+//  auto file_suffix= util::extractSuffix(name); 
   if(wrapper == NULL)
   {
     return "";
@@ -864,57 +925,63 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
   if (D64File::isCompatible(filename)) {    
     try{
       printf("try to build D64File\n");
-      D64File d64 = D64File(blob, len);
+/*      D64File d64 = D64File(blob, len);
       auto disk = std::make_unique<Disk>(d64);
       printf("isD64\n");  
-      wrapper->c64->drive8.insertDisk(std::move(disk));
+      wrapper->emu->drive8.insertDisk(std::move(disk));*/
+      auto file = MediaFile::make(blob, len, FILETYPE_D64);
+      wrapper->emu->drive8.insertMedia(*file, false /* wp*/);
       file_still_unprocessed=false;
-    } catch(VC64Error &exception) {
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+    } catch(Error &exception) {
+      //ErrorCode ec=exception.data;
+      printf("%s\n", exception.description.c_str());
+      //printf("%s\n", ErrorCodeEnum::key(ec));
     }
   }
   if (file_still_unprocessed && G64File::isCompatible(filename)) {
     try{
       printf("try to build G64File\n");
-      G64File g64 = G64File(blob, len);
-      auto disk = std::make_unique<Disk>(g64);
+      auto file = MediaFile::make(blob, len, FILETYPE_G64);
       printf("isG64 ...\n");  
-      wrapper->c64->drive8.insertDisk(std::move(disk));
+      wrapper->emu->drive8.insertMedia(*file, false /* wp*/);
       file_still_unprocessed=false;
-    } catch(VC64Error &exception) {
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+    } catch(Error &exception) {
+      printf("%s\n", exception.what());
     }
   }
   if (file_still_unprocessed && PRGFile::isCompatible(filename)) {
     try
     {
       printf("try to build PRGFile\n");
-      PRGFile *file = new PRGFile(blob, len);
+      auto file = MediaFile::make(blob, len, FILETYPE_PRG);
+//      PRGFile *file = new PRGFile(blob, len);
       printf("isPRG\n");
-      wrapper->c64->flash(*file ,0);
+      //wrapper->emu->flash(*file ,0);
+      wrapper->emu->c64.flash(*file,0);
+      printf("flash done\n");
+      
       file_still_unprocessed=false;
     }
-    catch(VC64Error &exception) {
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+    catch(Error &exception) {
+      printf("%s\n", exception.what());
     }
   }
   if (file_still_unprocessed && CRTFile::isCompatible(filename)) {
     try
     {
       printf("try to build CRTFile\n");
-      CRTFile *file = new CRTFile(blob, len);
+//      CRTFile *file = new CRTFile(blob, len);
+      auto file = MediaFile::make(blob, len, FILETYPE_CRT);
 
       printf("isCRT\n");
-      wrapper->c64->expansionport.attachCartridge( Cartridge::makeWithCRTFile(*(wrapper->c64),*file));
-      wrapper->c64->reset(true);
+
+//      wrapper->emu->expansionport.attachCartridge( Cartridge::makeWithCRTFile(*(wrapper->emu),*file));
+//      wrapper->emu->reset(true);
+      wrapper->emu->expansionPort.attachCartridge(*file, true);
       file_still_unprocessed=false;
     } 
-    catch(VC64Error &exception) {
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+    catch(Error &exception) {
+      printf("error loading snapshot: %s\n", exception.what());
     }
   }
   if (file_still_unprocessed && TAPFile::isCompatible(filename)) {
@@ -923,49 +990,51 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       printf("try to build TAPFile\n");
       TAPFile *file = new TAPFile(blob, len);
       printf("isTAP\n");
-      wrapper->c64->datasette.insertTape(*file);
-      wrapper->c64->datasette.rewind();
-  //  wrapper->c64->datasette.pressPlay();
-  //  wrapper->c64->datasette.pressStop();
+      wrapper->emu->datasette.insertTape(*file);
+      //wrapper->emu->datasette.rewind();
+      wrapper->emu->put(CMD_DATASETTE_REWIND);
+  //  wrapper->emu->datasette.pressPlay();
+  //  wrapper->emu->datasette.pressStop();
       file_still_unprocessed=false;
     }
-    catch(VC64Error &exception) {
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+    catch(Error &exception) {
+      printf("error loading snapshot: %s\n", exception.what());
     }
   }
   if (file_still_unprocessed && T64File::isCompatible(filename)) {
     try
     {
       printf("try to build T64File\n");
-      T64File *file = new T64File(blob, len);
+//      T64File *file = new T64File(blob, len);
+      auto file = MediaFile::make(blob, len, FILETYPE_T64);
       printf("isT64\n");
-      wrapper->c64->flash(*file ,0);
+      wrapper->emu->c64.flash(*file,0);
       file_still_unprocessed=false;
     }
-    catch(VC64Error &exception) {
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+    catch(Error &exception) {
+      printf("error loading snapshot: %s\n", exception.what());
     }
   }
-  if (file_still_unprocessed && Snapshot::isCompatible(filename) && util::extractSuffix(filename)!="rom" && util::extractSuffix(filename)!="bin") {
+  if (file_still_unprocessed && Snapshot::isCompatible(filename) && extractSuffix(filename)!="rom" && extractSuffix(filename)!="bin") {
     try
     {
       printf("try to build Snapshot\n");
-      Snapshot *file = new Snapshot(blob, len);      
+      auto file = MediaFile::make(blob, len, FILETYPE_SNAPSHOT);
       printf("isSnapshot\n");
-      wrapper->c64->loadSnapshot(*file);
+      wrapper->emu->c64.loadSnapshot(*file);
+      printf("Snapshot loaded\n");
+      
       file_still_unprocessed=false;
     }
-    catch(VC64Error &exception) {
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+    catch(Error &exception) {
+      printf("error loading snapshot: %s\n", exception.what());
     }
   }
+
   if(file_still_unprocessed)
   {
     bool wasRunnable = true;
-    try { wrapper->c64->isReady(); } catch(...) { wasRunnable=false; }
+    try { wrapper->emu->isReady(); } catch(...) { wasRunnable=false; }
 
     RomFile *rom = NULL;
     try
@@ -973,32 +1042,30 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       printf("try to build RomFile\n");
       rom = new RomFile(blob, len);
     }
-    catch(VC64Error &exception) {
+    catch(Error &exception) {
       printf("Failed to read ROM image file %s\n", name);
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+      printf("%s\n", exception.description.c_str());
       return "";
     }
     
-    wrapper->c64->suspend();
+    wrapper->emu->suspend();
     try { 
-      wrapper->c64->flash(*rom); 
+      wrapper->emu->c64.flash(*rom); 
       printf("Loaded ROM image %s.\n", name);
     }  
-    catch(VC64Error &exception) { 
+    catch(Error &exception) { 
       printf("Failed to flash ROM image %s.\n", name);
-      ErrorCode ec=exception.data;
-      printf("%s\n", ErrorCodeEnum::key(ec));
+      printf("%s\n", exception.description.c_str());
     }
-    wrapper->c64->resume();
+    wrapper->emu->resume();
 
 
     bool is_ready_now = true;
-    try { wrapper->c64->isReady(); } catch(...) { is_ready_now=false; }
+    try { wrapper->emu->isReady(); } catch(...) { is_ready_now=false; }
 
     if (!wasRunnable && is_ready_now)
     {
-       //wrapper->c64->putMessage(MSG_READY_TO_RUN);
+       //wrapper->emu->putMessage(MSG_READY_TO_RUN);
       const char* ready_msg= "READY_TO_RUN";
       printf("sending ready message %s.\n", ready_msg);
       send_message_to_js(ready_msg);    
@@ -1010,10 +1077,15 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       rom_type = "kernal_rom";
     }
     else if(rom->isRomBuffer(ROM_TYPE_VC1541, blob,len))
-    {
+    {   
+      printf(" is ROM_TYPE_VC1541 \n");
       rom_type = "vc1541_rom";
-      wrapper->c64->configure(OPT_DRV_CONNECT,DRIVE8,1);
-      wrapper->c64->drive8.dump(dump::Config);
+      wrapper->emu->set(OPT_DRV_CONNECT,true, DRIVE8);
+      wrapper->emu->set(OPT_DRV_POWER_SWITCH,true);
+      wrapper->emu->emu->update();
+      printf("------------------------------\n");
+      wrapper->emu->drive8.drive->dump(Category::Config);
+      printf("------------------------------\n");
     }
     else if(rom->isRomBuffer(ROM_TYPE_CHAR, blob,len))
     {
@@ -1034,15 +1106,19 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
 
 extern "C" void wasm_reset()
 {
-  wrapper->c64->expansionport.detachCartridge();
-  wrapper->c64->reset(true);
+  auto traits = wrapper->emu->expansionPort.getCartridgeTraits();
+  if(traits.type != CRT_GEO_RAM && traits.type != CRT_REU)
+  {
+    wrapper->emu->expansionPort.detachCartridge();
+  }
+  wrapper->emu->c64.hardReset();
 }
 
 
 extern "C" void wasm_halt()
 {
   printf("wasm_halt\n");
-  wrapper->c64->pause();
+  wrapper->emu->pause();
 
       printf("emscripten_pause_main_loop() at MSG_PAUSE\n");
     paused_the_emscripten_main_loop=true;
@@ -1055,9 +1131,9 @@ extern "C" void wasm_run()
 {
   printf("wasm_run\n");
   
-  printf("is running = %u\n",wrapper->c64->isRunning());
+  printf("is running = %u\n",wrapper->emu->isRunning());
 
-  wrapper->c64->run();
+  wrapper->emu->run();
 
   if(paused_the_emscripten_main_loop)
   {
@@ -1067,7 +1143,7 @@ extern "C" void wasm_run()
   else
   {
     printf("emscripten_set_main_loop_arg() at MSG_RUN\n");
-    emscripten_set_main_loop_arg(draw_one_frame_into_SDL, (void *)wrapper->c64, 0, 1);
+    emscripten_set_main_loop_arg(draw_one_frame_into_SDL, (void *)wrapper->emu, 0, 1);
     printf("after emscripten_set_main_loop_arg() at MSG_RUN\n");
 
   }
@@ -1078,17 +1154,20 @@ extern "C" void wasm_run()
 extern "C" void wasm_press_play()
 {
   printf("wasm_press_play\n");
-  wrapper->c64->datasette.pressPlay();
+  wrapper->emu->put(CMD_DATASETTE_PLAY);
+//  wrapper->emu->datasette.datasette->pressPlay();
 }
 extern "C" void wasm_press_stop()
 {
   printf("wasm_press_stop\n");
-  wrapper->c64->datasette.pressStop();
+  wrapper->emu->put(CMD_DATASETTE_STOP);
+//  wrapper->emu->datasette.datasette->pressStop();
 }
 extern "C" void wasm_rewind()
 {
   printf("wasm_rewind\n");
-  wrapper->c64->datasette.rewind();
+  wrapper->emu->put(CMD_DATASETTE_REWIND);
+//  wrapper->emu->datasette.datasette->rewind();
 }
 
 
@@ -1160,11 +1239,13 @@ RELEASE_FIRE
 
   if(joyport == '1')
   {
-    wrapper->c64->port1.joystick.trigger(code);
+   // wrapper->emu->controlPort1.joystick.trigger(code);
+    wrapper->emu->put(Cmd(CMD_JOY_EVENT, GamePadCmd(0,code)));
   }
   else if(joyport == '2')
   {
-    wrapper->c64->port2.joystick.trigger(code);
+//    wrapper->emu->port2.joystick.trigger(code);
+    wrapper->emu->put(Cmd(CMD_JOY_EVENT, GamePadCmd(1,code)));
   }
 
 }
@@ -1173,22 +1254,22 @@ char buffer[50];
 extern "C" char* wasm_sprite_info()
 {
    sprintf(buffer, "%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u", 
-     wrapper->c64->vic.reg.current.sprX[0],
-     wrapper->c64->vic.reg.current.sprY[0],
-     wrapper->c64->vic.reg.current.sprX[1],
-     wrapper->c64->vic.reg.current.sprY[1],
-     wrapper->c64->vic.reg.current.sprX[2],
-     wrapper->c64->vic.reg.current.sprY[2],
-     wrapper->c64->vic.reg.current.sprX[3],
-     wrapper->c64->vic.reg.current.sprY[3],
-     wrapper->c64->vic.reg.current.sprX[4],
-     wrapper->c64->vic.reg.current.sprY[4],
-     wrapper->c64->vic.reg.current.sprX[5],
-     wrapper->c64->vic.reg.current.sprY[5],
-     wrapper->c64->vic.reg.current.sprX[6],
-     wrapper->c64->vic.reg.current.sprY[6],
-     wrapper->c64->vic.reg.current.sprX[7],
-     wrapper->c64->vic.reg.current.sprY[7]
+     wrapper->emu->vicii.vicii->reg.current.sprX[0],
+     wrapper->emu->vicii.vicii->reg.current.sprY[0],
+     wrapper->emu->vicii.vicii->reg.current.sprX[1],
+     wrapper->emu->vicii.vicii->reg.current.sprY[1],
+     wrapper->emu->vicii.vicii->reg.current.sprX[2],
+     wrapper->emu->vicii.vicii->reg.current.sprY[2],
+     wrapper->emu->vicii.vicii->reg.current.sprX[3],
+     wrapper->emu->vicii.vicii->reg.current.sprY[3],
+     wrapper->emu->vicii.vicii->reg.current.sprX[4],
+     wrapper->emu->vicii.vicii->reg.current.sprY[4],
+     wrapper->emu->vicii.vicii->reg.current.sprX[5],
+     wrapper->emu->vicii.vicii->reg.current.sprY[5],
+     wrapper->emu->vicii.vicii->reg.current.sprX[6],
+     wrapper->emu->vicii.vicii->reg.current.sprY[6],
+     wrapper->emu->vicii.vicii->reg.current.sprX[7],
+     wrapper->emu->vicii.vicii->reg.current.sprY[7]
      );  
    return buffer;
 }
@@ -1196,29 +1277,29 @@ extern "C" char* wasm_sprite_info()
 extern "C" void wasm_set_sid_model(unsigned SID_Model)
 {
   bool wasRunning=false;
-  if(wrapper->c64->isRunning()){
+  if(wrapper->emu->isRunning()){
     wasRunning= true;
-    wrapper->c64->pause();
+    wrapper->emu->pause();
   }
   if(SID_Model == 6581)
   {
-    wrapper->c64->configure(OPT_SID_REVISION, MOS_6581);
+    wrapper->emu->set(OPT_SID_REVISION, MOS_6581);
   }
   else if(SID_Model == 8580)
   {
-    wrapper->c64->configure(OPT_SID_REVISION, MOS_8580);  
+    wrapper->emu->set(OPT_SID_REVISION, MOS_8580);  
   }
   if(wasRunning)
   {
-    wrapper->c64->run();
+    wrapper->emu->run();
   }
 }
 
 extern "C" void wasm_cut_layers(unsigned cut_layers)
 {
-//  wrapper->c64->configure(OPT_CUT_LAYERS, 0x1100 | (SPR0|SPR1|SPR2|SPR3|SPR4|SPR5|SPR6|SPR7)); 
+//  wrapper->emu->configure(OPT_CUT_LAYERS, 0x1100 | (SPR0|SPR1|SPR2|SPR3|SPR4|SPR5|SPR6|SPR7)); 
 //  printf("wasm_cut_layers(%u)",cut_layers);
-  wrapper->c64->configure(OPT_CUT_LAYERS, cut_layers); 
+  wrapper->emu->set(OPT_VICII_CUT_LAYERS, cut_layers); 
 }
 
 
@@ -1226,24 +1307,39 @@ extern "C" void wasm_cut_layers(unsigned cut_layers)
 char json_result[1024];
 extern "C" const char* wasm_rom_info()
 {
-  sprintf(json_result, "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\", \"has_floppy_rom\":%s, \"drive_rom\":\"%s\"}",
+  auto kernal_traits = wrapper->emu->c64.getRomTraits(ROM_TYPE_KERNAL);
+  auto basic_traits = wrapper->emu->c64.getRomTraits(ROM_TYPE_BASIC);
+  auto char_traits = wrapper->emu->c64.getRomTraits(ROM_TYPE_CHAR);
+  auto drive_traits = wrapper->emu->c64.getRomTraits(ROM_TYPE_VC1541);
+  auto crt_traits = wrapper->emu->expansionPort.getCartridgeTraits();
 
-  wrapper->c64->hasMega65Rom(ROM_TYPE_KERNAL) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_KERNAL) ? wrapper->c64->romTitle(ROM_TYPE_KERNAL).c_str(): "none", 
-  wrapper->c64->hasMega65Rom(ROM_TYPE_BASIC) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_BASIC) ? wrapper->c64->romTitle(ROM_TYPE_BASIC).c_str() : "none", 
-  wrapper->c64->hasMega65Rom(ROM_TYPE_CHAR) ? "mega" : wrapper->c64->hasRom(ROM_TYPE_CHAR) ? wrapper->c64->romTitle(ROM_TYPE_CHAR).c_str(): "none",
-  wrapper->c64->hasRom(ROM_TYPE_VC1541) ? "true":"false",
-  wrapper->c64->romTitle(ROM_TYPE_VC1541).c_str()
-  /*&& 
-  wrapper->c64->drive8.getConfigItem(OPT_DRIVE_CONNECT)*/
+ sprintf(json_result, 
+ "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\", \"drive_rom\":\"%s\", \"crt\":\"%s%u\"}",
+  kernal_traits.title,
+  basic_traits.title,
+  char_traits.title,
+  drive_traits.title,
+  crt_traits.title,
+  crt_traits.memory
   );
 
+
+
+/*
+  sprintf(json_result, "{\"kernal\":\"%s\", \"basic\":\"%s\", \"charset\":\"%s\", \"y_rom\":%s, \"drive_rom\":\"%s\"}",
+  wrapper->emu->c64.hasMega65Rom(ROM_TYPE_KERNAL) ? "mega" : wrapper->emu->hasRom(ROM_TYPE_KERNAL) ? wrapper->emu->romTitle(ROM_TYPE_KERNAL).c_str(): "none", 
+  wrapper->emu->hasMega65Rom(ROM_TYPE_BASIC) ? "mega" : wrapper->emu->hasRom(ROM_TYPE_BASIC) ? wrapper->emu->romTitle(ROM_TYPE_BASIC).c_str() : "none", 
+  wrapper->emu->hasMega65Rom(ROM_TYPE_CHAR) ? "mega" : wrapper->emu->hasRom(ROM_TYPE_CHAR) ? wrapper->emu->romTitle(ROM_TYPE_CHAR).c_str(): "none",
+  wrapper->emu->hasRom(ROM_TYPE_VC1541) ? "true":"false",
+  wrapper->emu->romTitle(ROM_TYPE_VC1541).c_str()
+  );
+*/
 //  printf("json: %s\n",  json_result);
 
-
-  printf("%s, %s, %s, %s\n",  wrapper->c64->romTitle(ROM_TYPE_KERNAL).c_str(),
-  wrapper->c64->romTitle(ROM_TYPE_BASIC).c_str(),
-  wrapper->c64->romTitle(ROM_TYPE_CHAR).c_str(),
-  wrapper->c64->romTitle(ROM_TYPE_VC1541).c_str()
+  printf("%s, %s, %s, %s\n",  kernal_traits.title,
+  basic_traits.title,
+  char_traits.title,
+  drive_traits.title
 );
   return json_result;
 }
@@ -1253,15 +1349,15 @@ extern "C" void wasm_set_2nd_sid(long address)
 {
   if(address == 0)
   {
-    wrapper->c64->configure(OPT_AUDVOL, 1, 0);
-    wrapper->c64->configure(OPT_SID_ENABLE, 1, false);
+    wrapper->emu->set(OPT_AUD_VOL1, 1, 0);
+    wrapper->emu->set(OPT_SID_ENABLE, 1, false);
   }
   else
   {
-    wrapper->c64->configure(OPT_AUDVOL, 1, 100);
-    wrapper->c64->configure(OPT_AUDPAN, 1, 50);
-    wrapper->c64->configure(OPT_SID_ENABLE, 1, true);
-    wrapper->c64->configure(OPT_SID_ADDRESS, 1, address);
+    wrapper->emu->set(OPT_AUD_VOL1, 1, 100);
+    wrapper->emu->set(OPT_AUD_PAN1, 1, 50);
+    wrapper->emu->set(OPT_SID_ENABLE, 1, true);
+    wrapper->emu->set(OPT_SID_ADDRESS, 1, address);
   }
 }
 
@@ -1271,40 +1367,35 @@ extern "C" void wasm_set_sid_engine(char* engine)
   printf("wasm_set_sid_engine %s\n", engine);
 
   bool wasRunning=false;
-  if(wrapper->c64->isRunning()){
+  if(wrapper->emu->isRunning()){
     wasRunning= true;
-    wrapper->c64->pause();
+    wrapper->emu->pause();
   }
 
 
-  if( strcmp(engine,"FastSID") == 0)
-  {
-    printf("c64->configure(OPT_SID_ENGINE, ENGINE_FASTSID);\n");
-    wrapper->c64->configure(OPT_SID_ENGINE, SIDENGINE_FASTSID);
-  }
-  else if( strcmp(engine,"ReSID fast") == 0)
+  if( strcmp(engine,"ReSID fast") == 0)
   { 
-    printf("c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_FAST);\n");
-    wrapper->c64->configure(OPT_SID_ENGINE, SIDENGINE_RESID);
-    wrapper->c64->configure(OPT_SID_SAMPLING, reSID::SAMPLE_FAST);
+    printf("emu->set(OPT_SID_SAMPLING, SID_SAMPLE_FAST);\n");
+    wrapper->emu->set(OPT_SID_ENGINE, SIDENGINE_RESID);
+    wrapper->emu->set(OPT_SID_SAMPLING, reSID::SAMPLE_FAST);
   }
   else if( strcmp(engine,"ReSID interpolate") == 0)
   {
-    printf("c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);\n");
-    wrapper->c64->configure(OPT_SID_ENGINE, SIDENGINE_RESID);
-    wrapper->c64->configure(OPT_SID_SAMPLING, reSID::SAMPLE_INTERPOLATE);
+    printf("emu->set(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);\n");
+    wrapper->emu->set(OPT_SID_ENGINE, SIDENGINE_RESID);
+    wrapper->emu->set(OPT_SID_SAMPLING, reSID::SAMPLE_INTERPOLATE);
   }
   else if( strcmp(engine,"ReSID resample") == 0)
   {
-    printf("c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_RESAMPLE);\n");
-    wrapper->c64->configure(OPT_SID_ENGINE, SIDENGINE_RESID);
-    wrapper->c64->configure(OPT_SID_SAMPLING, reSID::SAMPLE_RESAMPLE);
+    printf("emu->set(OPT_SID_SAMPLING, SID_SAMPLE_RESAMPLE);\n");
+    wrapper->emu->set(OPT_SID_ENGINE, SIDENGINE_RESID);
+    wrapper->emu->set(OPT_SID_SAMPLING, reSID::SAMPLE_RESAMPLE);
   }
 
 
   if(wasRunning)
   {
-    wrapper->c64->run();
+    wrapper->emu->run();
   }
 
 }
@@ -1315,51 +1406,55 @@ extern "C" void wasm_set_color_palette(char* palette)
 
   if( strcmp(palette,"color") == 0)
   {
-    wrapper->c64->configure(OPT_PALETTE, PALETTE_COLOR);
+    wrapper->emu->set(OPT_MON_PALETTE, PALETTE_COLOR);
   }
   else if( strcmp(palette,"black white") == 0)
   { 
-    wrapper->c64->configure(OPT_PALETTE, PALETTE_BLACK_WHITE); 
+    wrapper->emu->set(OPT_MON_PALETTE, PALETTE_BLACK_WHITE); 
   }
   else if( strcmp(palette,"paper white") == 0)
   { 
-    wrapper->c64->configure(OPT_PALETTE, PALETTE_PAPER_WHITE); 
+    wrapper->emu->set(OPT_MON_PALETTE, PALETTE_PAPER_WHITE); 
   }
   else if( strcmp(palette,"green") == 0)
   { 
-    wrapper->c64->configure(OPT_PALETTE, PALETTE_GREEN); 
+    wrapper->emu->set(OPT_MON_PALETTE, PALETTE_GREEN); 
   }
   else if( strcmp(palette,"amber") == 0)
   { 
-    wrapper->c64->configure(OPT_PALETTE, PALETTE_AMBER); 
+    wrapper->emu->set(OPT_MON_PALETTE, PALETTE_AMBER); 
   }
   else if( strcmp(palette,"sepia") == 0)
   { 
-    wrapper->c64->configure(OPT_PALETTE, PALETTE_SEPIA); 
+    wrapper->emu->set(OPT_MON_PALETTE, PALETTE_SEPIA); 
   }
 }
 
 
 extern "C" u64 wasm_get_cpu_cycles()
 {
-  return wrapper->c64->cpu.cycle;
+  return wrapper->emu->cpu.getInfo().cycle;
 }
 
 extern "C" u8 wasm_peek(u16 addr)
 {
-  return wrapper->c64->mem.spypeek(addr);
+  return wrapper->emu->mem.mem->spypeek(addr);
 }
 
 
 extern "C" void wasm_write_string_to_ser(char* chars_to_send)
 {
-  wrapper->c64->write_string_to_ser(chars_to_send);
+  printf("wasm_write_string_to_ser %s\n",chars_to_send);
+  //wrapper->emu->c64.c64->write_string_to_ser(chars_to_send);
+//  wrapper->emu->set(OPT_USR_DEVICE, USR_RS232);
+  wrapper->emu->userPort.rs232 << chars_to_send;
 }
 
 //const char chars_to_send[] = "HELLOMYWORLD!";
 extern "C" void wasm_poke(u16 addr, u8 value)
 {
-    wrapper->c64->mem.poke(addr, value);
+    wrapper->emu->mem.mem->poke(addr, value);
+    wrapper->emu->c64.c64->markAsDirty(); 
 }
 
 /*
@@ -1376,11 +1471,13 @@ extern "C" char* wasm_translate(char c)
 
 extern "C" unsigned wasm_get_config(char* option)
 {
- // if(strcmp(option,"OPT_VIC_REVISION") == 0)
-  //{
-    return wrapper->c64->getConfigItem(OPT_VIC_REVISION);
-  //}
-  //return 0;
+  if(strcmp(option,"OPT_VIC_REVISION") == 0)
+  {
+    printf("before emu->get(OPT_VICII_REVISION)\n");
+    auto val= wrapper->emu->get(OPT_VICII_REVISION);
+    printf("after emu->get(OPT_VICII_REVISION)=%u\n",val);
+    return val;
+  }
 }
 
 extern "C" void wasm_configure(char* option, unsigned on)
@@ -1389,69 +1486,82 @@ extern "C" void wasm_configure(char* option, unsigned on)
 
   printf("wasm_configure %s = %d\n", option, on);
 
-  if(strcmp(option,"OPT_DRV_POWER_SAVE") == 0)
+  if(strcmp(option,"REU") == 0 || strcmp(option,"GeoRAM") == 0)
+  {
+    // The RAM capacity must be a power of two between 128 and 16384
+    printf("calling c64->configure %s = %d\n", option, on);
+    wrapper->emu->expansionPort.detachCartridge();
+    if(on > 0)
+    {
+      if(strcmp(option,"REU") == 0)
+      {
+        printf("expansionPort.attachReu(%u)\n",on);
+        wrapper->emu->expansionPort.attachReu(on);
+      }
+      else
+      {
+        printf("expansionPort.attachGeoRam(%u)\n",on);
+        wrapper->emu->expansionPort.attachGeoRam(on);
+      }
+    }
+    auto traits = wrapper->emu->expansionPort.getCartridgeTraits();
+    printf("attached %s with %u bytes\n",traits.title, traits.memory);
+  }
+  else if(strcmp(option,"OPT_EMU_RUN_AHEAD") == 0)
   {
     printf("calling c64->configure %s = %d\n", option, on);
-    wrapper->c64->configure(OPT_DRV_POWER_SAVE, 8, on_value);
+    wrapper->emu->set(OPT_EMU_RUN_AHEAD, on);
+  }
+  else if(strcmp(option,"OPT_DRV_POWER_SAVE") == 0)
+  {
+    printf("calling c64->configure %s = %d\n", option, on);
+    wrapper->emu->set(OPT_DRV_POWER_SAVE, DRIVE8, on_value);
   }
   else if(strcmp(option,"OPT_SID_POWER_SAVE") == 0)
   {
     printf("calling c64->configure %s = %d\n", option, on);
-    wrapper->c64->configure(OPT_SID_POWER_SAVE, on_value);
+    wrapper->emu->set(OPT_SID_POWER_SAVE, on_value);
   }
   else if(strcmp(option,"OPT_VIC_POWER_SAVE") == 0)
   {
     printf("calling c64->configure %s = %d\n", option, on);
-    wrapper->c64->configure(OPT_VIC_POWER_SAVE, on_value);
+    wrapper->emu->set(OPT_VICII_POWER_SAVE, on_value);
   }
   else if(strcmp(option,"OPT_SER_SPEED") == 0)
   {
     printf("calling c64->configure_rs232_ser_speed %d\n", on);
-    wrapper->c64->configure_rs232_ser_speed(on);
+    wrapper->emu->set(OPT_RS232_BAUD, on);
   }
   else if(strcmp(option,"PAL 50Hz 6569") == 0)
   {
-    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
-    wrapper->c64->configure(OPT_VIC_REVISION, VICII_PAL_6569_R1);
-    calculate_viewport();
+    wrapper->emu->set(OPT_POWER_GRID,   GRID_STABLE_50HZ);
+    wrapper->emu->set(OPT_VICII_REVISION, VICII_PAL_6569_R1);
   }
   else if(strcmp(option,"PAL 50Hz 6569 R3") == 0)
   {
-    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
-    wrapper->c64->configure(OPT_VIC_REVISION, VICII_PAL_6569_R3);
-    calculate_viewport();
+    wrapper->emu->set(OPT_POWER_GRID,   GRID_STABLE_50HZ);
+    wrapper->emu->set(OPT_VICII_REVISION, VICII_PAL_6569_R3);
   }
   else if(strcmp(option,"PAL 50Hz 8565") == 0)
   {
-    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
-    wrapper->c64->configure(OPT_VIC_REVISION, VICII_PAL_8565);
-    calculate_viewport();
+    wrapper->emu->set(OPT_POWER_GRID,   GRID_STABLE_50HZ);
+    wrapper->emu->set(OPT_VICII_REVISION, VICII_PAL_8565);
   }
   else if(strcmp(option,"NTSC 60Hz 6567 R56A") == 0)
   {
-    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_60HZ);
-    wrapper->c64->configure(OPT_VIC_REVISION, VICII_NTSC_6567_R56A);
-    calculate_viewport();
+    wrapper->emu->set(OPT_POWER_GRID,   GRID_STABLE_60HZ);
+    wrapper->emu->set(OPT_VICII_REVISION, VICII_NTSC_6567_R56A);
   }
   else if(strcmp(option,"NTSC 60Hz 6567") == 0)
   {
-    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_60HZ);
-    wrapper->c64->configure(OPT_VIC_REVISION, VICII_NTSC_6567);
-    calculate_viewport();
+    wrapper->emu->set(OPT_POWER_GRID,   GRID_STABLE_60HZ);
+    wrapper->emu->set(OPT_VICII_REVISION, VICII_NTSC_6567);
   }
   else if(strcmp(option,"NTSC 60Hz 8562") == 0)
   {
-    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_60HZ);
-    wrapper->c64->configure(OPT_VIC_REVISION, VICII_NTSC_8562);
-    calculate_viewport();
+    wrapper->emu->set(OPT_POWER_GRID,   GRID_STABLE_60HZ);
+    wrapper->emu->set(OPT_VICII_REVISION, VICII_NTSC_8562);
   }
-/*  else if(strcmp(option,"freset") == 0)
-  {
-    wrapper->c64->configure(OPT_POWER_GRID,   GRID_STABLE_50HZ);
-    frame_rate = 50.125;//
-    EM_ASM({PAL_VIC=true});
-    requested_targetFrameCount_reset=true;
-  }*/
   else
   {
     printf("error !!!!! unknown option= %s\n", option);
@@ -1471,8 +1581,10 @@ extern "C" void wasm_print_error(unsigned exception_ptr)
 extern "C" void wasm_set_sample_rate(unsigned sample_rate)
 {
     printf("set muxer to freq= %d\n", sample_rate);
-    wrapper->c64->muxer.setSampleRate(sample_rate);
-    printf("paula.muxer.getSampleRate()==%f\n", wrapper->c64->muxer.getSampleRate());
+//    wrapper->emu->muxer.setSampleRate(sample_rate);
+    wrapper->emu->set(OPT_HOST_SAMPLE_RATE,sample_rate);
+    auto got_sample_rate=wrapper->emu->get(OPT_HOST_SAMPLE_RATE);
+    printf("paula.muxer.getSampleRate()==%ld\n", got_sample_rate);
 }
 
 SDL_AudioDeviceID audio_device_id;
@@ -1493,7 +1605,7 @@ extern "C" void wasm_open_main_thread_audio()
     //sample buffer 512 in original vc64, vc64web=512 under macOs ok, but iOS needs 2048;
     want.samples = 2048*2;
     want.callback = MyAudioCallback;
-    want.userdata = wrapper->c64;   //will be passed to the callback
+    want.userdata = wrapper->emu;   //will be passed to the callback
     audio_device_id = SDL_OpenAudioDevice(NULL, 0, &want, &have, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
     if(audio_device_id == 0)
     {
@@ -1501,9 +1613,20 @@ extern "C" void wasm_open_main_thread_audio()
     }
 
     printf("set SID to freq= %d\n", have.freq);
-    wrapper->c64->muxer.setSampleRate(have.freq);
-    printf("freq in SIDBridge= %f\n", wrapper->c64->muxer.getSampleRate());
+    wrapper->emu->set(OPT_HOST_SAMPLE_RATE,have.freq);
+   // wrapper->emu->muxer.setSampleRate(have.freq);
+    printf("freq in SIDBridge= %f\n",  wrapper->emu->get(OPT_HOST_SAMPLE_RATE));
  
 
     SDL_PauseAudioDevice(audio_device_id, 0); //unpause the audio device
+}
+
+
+extern "C" const char* wasm_get_core_version()
+{
+  sprintf(json_result, "%s",
+    wrapper->emu->version().c_str() 
+  );
+
+  return json_result;
 }

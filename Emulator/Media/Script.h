@@ -2,14 +2,21 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "AnyFile.h"
+
+namespace vc64 {
+
+class VirtualC64;
 
 class Script : public AnyFile {
     
@@ -19,7 +26,7 @@ public:
     // Class methods
     //
     
-    static bool isCompatible(const string &path);
+    static bool isCompatible(const fs::path &path);
     static bool isCompatible(std::istream &stream);
     
     
@@ -30,15 +37,15 @@ public:
 public:
     
     // Script();
-    Script(const string &path) throws { init(path); }
+    Script(const fs::path &path) throws { init(path); }
     Script(const u8 *buf, isize len) throws { init(buf, len); }
     
     
     //
-    // Methods from C64Object
+    // Methods from CoreObject
     //
-        
-    const char *getDescription() const override { return "Script"; }
+
+    const char *objectName() const override { return "Script"; }
     
     
     //
@@ -47,7 +54,7 @@ public:
     
 public:
     
-    bool isCompatiblePath(const string &path) override { return isCompatible(path); }
+    bool isCompatiblePath(const fs::path &path) override { return isCompatible(path); }
     bool isCompatibleStream(std::istream &stream) override { return isCompatible(stream); }
     FileType type() const override { return FILETYPE_SCRIPT; }
     
@@ -57,5 +64,7 @@ public:
     //
     
     // Executes the script
-    void execute(class C64 &c64);
+    // void execute(VirtualC64 &c64);
 };
+
+}

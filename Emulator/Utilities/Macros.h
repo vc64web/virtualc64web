@@ -2,27 +2,37 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "Types.h"
-#include <arpa/inet.h>
 
 //
 // Optimizing code
 //
 
+#ifdef _MSC_VER
+
+#define unreachable    __assume(false)
+#define likely(x)      (x)
+#define unlikely(x)    (x)
+
+#else
+
 #define unreachable    __builtin_unreachable()
-#define fatalError     assert(false); __builtin_unreachable()
-
-#define assume(x)      do { if (!(x)) __builtin_unreachable(); } while(false)
-
 #define likely(x)      __builtin_expect(!!(x), 1)
 #define unlikely(x)    __builtin_expect(!!(x), 0)
+
+#endif
+
+#define fatalError     assert(false); unreachable
 
 
 //
@@ -58,6 +68,7 @@
 #define BYTE1(x) LO_BYTE((x) >> 8)
 #define BYTE2(x) LO_BYTE((x) >> 16)
 #define BYTE3(x) LO_BYTE((x) >> 24)
+#define GET_BYTE(x,nr) LO_BYTE((x) >> (8 * (nr)))
 
 // Returns a non-zero value if the n-th bit is set in x
 #define GET_BIT(x,nr) ((x) & (1 << (nr)))
@@ -73,6 +84,10 @@
 #define REPLACE_HI(x,y) (((x) & ~0xFF00) | ((y) << 8))
 #define REPLACE_LO_WORD(x,y) (((x) & ~0xFFFF) | (y))
 #define REPLACE_HI_WORD(x,y) (((x) & ~0xFFFF0000) | ((y) << 16))
+
+// Checks if none or all bits of a bitmask are set
+#define ALL_CLR(x,m) (((x) & (m)) == 0)
+#define ALL_SET(x,m) (((x) & (m)) == m)
 
 // Checks for a rising or a falling edge
 #define RISING_EDGE(x,y) (!(x) && (y))
@@ -92,43 +107,59 @@
 
 
 //
-// Accessing memory
+// Converting data types
 //
 
-// Reads a value in big-endian format
-#define R8BE(a)  (*(u8 *)(a))
-#define R16BE(a) HI_LO(*(u8 *)(a), *(u8 *)((a)+1))
-#define R32BE(a) HI_HI_LO_LO(*(u8 *)(a), *(u8 *)((a)+1), *(u8 *)((a)+2), *(u8 *)((a)+3))
+// Signed alternative for the sizeof keyword
+#define isizeof(x) (isize)(sizeof(x))
 
-#define R8BE_ALIGNED(a)  (*(u8 *)(a))
-#define R16BE_ALIGNED(a) (htons(*(u16 *)(a)))
-#define R32BE_ALIGNED(a) (htonl(*(u32 *)(a)))
 
-// Writes a value in big-endian format
-#define W8BE(a,v)  { *(u8 *)(a) = (v); }
-#define W16BE(a,v) { *(u8 *)(a) = HI_BYTE(v); *(u8 *)((a)+1) = LO_BYTE(v); }
-#define W32BE(a,v) { W16BE(a,HI_WORD(v)); W16BE((a)+2,LO_WORD(v)); }
+//
+// Converting units
+//
 
-#define W8BE_ALIGNED(a,v)  { *(u8 *)(a) = (u8)(v); }
-#define W16BE_ALIGNED(a,v) { *(u16 *)(a) = ntohs((u16)v); }
-#define W32BE_ALIGNED(a,v) { *(u32 *)(a) = ntohl((u32)v); }
+// Converts kilo and mega bytes to bytes
+#define KB(x) ((x) << 10)
+#define MB(x) ((x) << 20)
+#define GB(x) ((x) << 30)
+
+// Converts kilo and mega Hertz to Hertz
+#define KHz(x) ((x) * 1000)
+#define MHz(x) ((x) * 1000000)
 
 
 //
 // Performing overflow-prone arithmetic
 //
 
-// Sanitizer friendly macros for adding signed offsets to u32 values
+// Sanitizer friendly macros for adding signed offsets to integer values
+#define U8_ADD(x,y) (u8)((i64)(x) + (i64)(y))
+#define U8_SUB(x,y) (u8)((i64)(x) - (i64)(y))
+#define U8_ADD3(x,y,z) (u8)((i64)(x) + (i64)(y) + (i64)(z))
+#define U8_SUB3(x,y,z) (u8)((i64)(x) - (i64)(y) - (i64)(z))
+#define U8_INC(x,y) x = U8_ADD(x,y)
+#define U8_DEC(x,y) x = U8_SUB(x,y)
+
+#define U16_ADD(x,y) (u16)((i64)(x) + (i64)(y))
+#define U16_SUB(x,y) (u16)((i64)(x) - (i64)(y))
+#define U16_ADD3(x,y,z) (u16)((i64)(x) + (i64)(y) + (i64)(z))
+#define U16_SUB3(x,y,z) (u16)((i64)(x) - (i64)(y) - (i64)(z))
+#define U16_INC(x,y) x = U16_ADD(x,y)
+#define U16_DEC(x,y) x = U16_SUB(x,y)
+
 #define U32_ADD(x,y) (u32)((i64)(x) + (i64)(y))
 #define U32_SUB(x,y) (u32)((i64)(x) - (i64)(y))
 #define U32_ADD3(x,y,z) (u32)((i64)(x) + (i64)(y) + (i64)(z))
 #define U32_SUB3(x,y,z) (u32)((i64)(x) - (i64)(y) - (i64)(z))
+#define U32_INC(x,y) x = U32_ADD(x,y)
+#define U32_DEC(x,y) x = U32_SUB(x,y)
 
-// Sanitizer friendly macros for adding signed offsets to u64 values
 #define U64_ADD(x,y) (u64)((i64)(x) + (i64)(y))
 #define U64_SUB(x,y) (u64)((i64)(x) - (i64)(y))
 #define U64_ADD3(x,y,z) (u64)((i64)(x) + (i64)(y) + (i64)(z))
 #define U64_SUB3(x,y,z) (u64)((i64)(x) - (i64)(y) - (i64)(z))
+#define U64_INC(x,y) x = U64_ADD(x,y)
+#define U64_DEC(x,y) x = U64_SUB(x,y)
 
 /* The following macro can be used to disable clang sanitizer checks. It has
  * been added to make the code compatible with gcc which doesn't recognize

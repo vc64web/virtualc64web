@@ -2,9 +2,12 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -13,50 +16,45 @@
 #include "DriveTypes.h"
 #include "SubComponent.h"
 
-class ParCable : public SubComponent {
-    
-    //
-    // Initializing
-    //
-    
+namespace vc64 {
+
+class ParCable final : public SubComponent {
+        
+    Descriptions descriptions = {{
+
+        .name           = "ParCable",
+        .description    = "Parallel Drive Cable"
+    }};
+
 public:
     
     ParCable(C64 &ref);
-    
+
+    ParCable& operator= (const ParCable& other) { return *this; }
+
+
+    //
+    // Methods from Serializable
+    //
+
+public:
+
+    template <class T> void serialize(T& worker) { } SERIALIZERS(serialize);
+
     
     //
-    // Methods from C64Object
+    // Methods from CoreComponent
     //
+
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
 
 private:
-    
-    const char *getDescription() const override { return "ParCable"; }
-    void _dump(dump::Category category, std::ostream& os) const override;
 
-    
-    //
-    // Methods from C64Component
-    //
+    void _dump(Category category, std::ostream& os) const override;
 
-private:
-    
-    void _reset(bool hard) override;
-        
-    template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-    }
-    
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-    }
-    
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }    
 
-    
     //
     // Using
     //
@@ -65,7 +63,7 @@ public:
     
     // Returns the current value on the cable
     u8 getValue() const;
-        
+
     // Sends a handshake signal
     void driveHandshake();
     void c64Handshake();
@@ -77,7 +75,9 @@ private:
 private:
     
     // Collects port values
-    u8 getCIA() const;
+    u8 getCIA(u8 cable) const;
     u8 getVIA(const Drive &drive) const;
     u8 getPIA(const Drive &drive) const;
 };
+
+}

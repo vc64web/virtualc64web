@@ -2,17 +2,22 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "AnyFile.h"
 
+namespace vc64 {
+
 class TAPFile : public AnyFile {
- 
+
     // File pointer (used by read() and seek())
     isize fp = -1;
     
@@ -22,7 +27,7 @@ public:
     // Class methods
     //
 
-    static bool isCompatible(const string &name);
+    static bool isCompatible(const fs::path &path);
     static bool isCompatible(std::istream &stream);
     
     
@@ -30,26 +35,27 @@ public:
     // Initializing
     //
     
-    TAPFile(const string &path) throws { init(path); }
+    TAPFile(const fs::path &path) throws { init(path); }
     TAPFile(const u8 *buf, isize len) throws { init(buf, len); }
 
     
     //
-    // Methods from C64Object
+    // Methods from CoreObject
     //
     
-    const char *getDescription() const override { return "TAPFile"; }
+    const char *objectName() const override { return "TAPFile"; }
     
     
     //
     // Methods from AnyFile
     //
     
-    bool isCompatiblePath(const string &path) override { return isCompatible(path); }
+    bool isCompatiblePath(const fs::path &path) override { return isCompatible(path); }
     bool isCompatibleStream(std::istream &stream) override { return isCompatible(stream); }
     FileType type() const override { return FILETYPE_TAP; }
     PETName<16> getName() const override;
-    
+    void finalizeRead() override;
+
     
     //
     // Reading
@@ -69,11 +75,6 @@ public:
     
     // Reads the next pulse and advances the file pointer
     isize read();
-    
-
-    //
-    // Repairing
-    //
-    
-    void repair() override;
 };
+
+}

@@ -2,20 +2,31 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "SubComponent.h"
 
+namespace vc64 {
+
 class PIA6821 : public SubComponent {
     
     friend class Drive;
     friend class ParCable;
-    
+
+    Descriptions descriptions = {{
+
+        .name           = "PIA",
+        .description    = "PIA 6821"
+    }};
+
 protected:
     
     // Owner of this PIA
@@ -24,7 +35,7 @@ protected:
     // Peripheral ports (pin values)
     u8 pa;
     u8 pb;
-        
+
     // Output registers
     u8 ora;
     u8 orb;
@@ -45,67 +56,72 @@ protected:
 
     
     //
-    // Initializing
+    // Methods
     //
     
 public:
     
     PIA6821(C64 &ref, Drive &drvref);
-    
-    
+
+    PIA6821& operator= (const PIA6821& other) {
+
+        CLONE(pa)
+        CLONE(pb)
+        CLONE(ora)
+        CLONE(orb)
+        CLONE(ddra)
+        CLONE(ddrb)
+        CLONE(cra)
+        CLONE(crb)
+        CLONE(ca1)
+        CLONE(ca2)
+        CLONE(cb1)
+        CLONE(cb2)
+
+        return *this;
+    }
+
+
     //
-    // Methods from C64Object
+    // Methods from Serializable
     //
 
-private:
-    
-    const char *getDescription() const override { return "PIA"; }
-    
-    
+public:
+
+    template <class T>
+    void serialize(T& worker)
+    {
+        worker
+
+        << pa
+        << pb
+        << ora
+        << orb
+        << ddra
+        << ddrb
+        << cra
+        << crb
+        << ca1
+        << ca2
+        << cb1
+        << cb2;
+
+    } SERIALIZERS(serialize);
+
+
     //
-    // Methods from C64Component
+    // Methods from CoreComponent
     //
 
-private:
-    
-    void _reset(bool hard) override;
-        
-    template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-    }
-    
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-        if (hard) {
-            
-            worker
-            
-            << pa
-            << pb
-            << ora
-            << orb
-            << ddra
-            << ddrb
-            << cra
-            << crb
-            << ca1
-            << ca2
-            << cb1
-            << cb2;
-        }
-    }
-    
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    
-        
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
     //
     // Managing interrupts
     //
-        
+
 public:
     
     void setCA1External(bool value);
@@ -166,16 +182,14 @@ protected:
 // PIA (DolphinDOS 3)
 //
 
-class PiaDolphin : public PIA6821 {
-    
+class PiaDolphin final : public PIA6821 {
+
 public:
 
     using PIA6821::PIA6821;
-    
-    const char *getDescription() const override { return "PiaDolphin"; }
-    
-private:
         
+private:
+
     void ca2HasChangedTo(bool value) override;
     void cb2HasChangedTo(bool value) override;
     void irqAHasOccurred() const override;
@@ -189,3 +203,5 @@ public:
     u8 spypeek(u16 addr) const;
     void poke(u16 addr, u8 value);
 };
+
+}

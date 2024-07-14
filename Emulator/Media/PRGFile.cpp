@@ -2,21 +2,26 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "PRGFile.h"
-#include "FSDevice.h"
-#include "IO.h"
+#include "FileSystem.h"
+#include "IOUtils.h"
+
+namespace vc64 {
 
 bool
-PRGFile::isCompatible(const string &path)
+PRGFile::isCompatible(const fs::path &path)
 {
-    auto s = util::extractSuffix(path);
-    return s == "prg" || s == "PRG";
+    auto s = util::uppercased(path.extension().string());
+    return s == ".PRG";
 }
 
 bool
@@ -26,17 +31,17 @@ PRGFile::isCompatible(std::istream &stream)
 }
 
 void
-PRGFile::init(FSDevice &fs)
+PRGFile::init(FileSystem &fs)
 {
     isize item = 0;
     isize itemSize = fs.fileSize(item);
 
     // Only proceed if the requested file exists
-    if (fs.numFiles() <= item) throw VC64Error(ERROR_FS_HAS_NO_FILES);
-        
+    if (fs.numFiles() <= item) throw Error(ERROR_FS_HAS_NO_FILES);
+
     // Create new archive
     init(itemSize);
-                
+
     // Add data
     fs.copyFile(item, data, itemSize);
 }
@@ -60,7 +65,7 @@ PRGFile::itemName(isize nr) const
     return PETName<16>(getName());
 }
 
-u64
+isize
 PRGFile::itemSize(isize nr) const
 {
     assert(nr == 0);
@@ -68,9 +73,11 @@ PRGFile::itemSize(isize nr) const
 }
 
 u8
-PRGFile::readByte(isize nr, u64 pos) const
+PRGFile::readByte(isize nr, isize pos) const
 {
     assert(nr == 0);
     assert(pos < itemSize(nr));
     return data[pos];
+}
+
 }

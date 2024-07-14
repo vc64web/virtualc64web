@@ -2,15 +2,20 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "AnyFile.h"
+#include "DriveTypes.h"
 
+namespace vc64 {
 
 class D64File : public AnyFile {
 
@@ -27,9 +32,8 @@ public:
     // Error information stored in the D64 archive
     u8 errors[802];
     
-    static bool isCompatible(const string &name);
-    static bool isCompatible(std::istream &stream);  
-    static D64File *makeWithFileSystem(class FSDevice &volume) throws;
+    static bool isCompatible(const fs::path &name);
+    static bool isCompatible(std::istream &stream);
 
 
     //
@@ -38,37 +42,37 @@ public:
     
     D64File();
     D64File(isize tracks, bool ecc);
-    D64File(const string &path) : D64File() throws { init(path); }
-    D64File(const u8 *buf, isize len) : D64File() throws { init(buf, len); }
-    D64File(FSDevice &fs) : D64File() throws { init(fs); }
+    D64File(const fs::path &path) throws : D64File() { init(path); }
+    D64File(const u8 *buf, isize len) throws : D64File() { init(buf, len); }
+    D64File(class FileSystem &fs) throws : D64File() { init(fs); }
     
 private:
     
     using AnyFile::init;
     void init(isize tracks, bool ecc);
-    void init(FSDevice &fs) throws;
+    void init(FileSystem &fs) throws;
     
     
     //
-    // Methods from C64Object
+    // Methods from CoreObject
     //
     
 public:
     
-    const char *getDescription() const override { return "D64File"; }
+    const char *objectName() const override { return "D64File"; }
 
-        
+
     //
     // Methods from AnyFile
     //
     
-    bool isCompatiblePath(const string &path) override { return isCompatible(path); }
+    bool isCompatiblePath(const fs::path &path) override { return isCompatible(path); }
     bool isCompatibleStream(std::istream &stream) override { return isCompatible(stream); }
     FileType type() const override { return FILETYPE_D64; }
     PETName<16> getName() const override;
-    void readFromStream(std::istream &stream) throws override;
+    void finalizeRead() throws override;
 
-        
+
     //
     // Querying properties
     //
@@ -97,3 +101,5 @@ public:
     // Dumps the contents of a sector
     void dump(Track track, Sector sector) const;
 };
+
+}

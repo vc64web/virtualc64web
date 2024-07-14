@@ -2,19 +2,29 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "DiskTypes.h"
+#include "DiskAnalyzerTypes.h"
 #include "FSTypes.h"
 #include "SubComponent.h"
 #include "PETName.h"
 
-class Disk : public C64Object {
+
+namespace vc64 {
+
+class DiskAnalyzer;
+class FileSystem;
+
+class Disk final : public CoreObject {
     
     friend class Drive;
     
@@ -24,46 +34,9 @@ public:
     // Constants and lookup tables
     //
     
-    // Disk parameters of a standard floppy disk
-    typedef struct
-    {
-        
-        u8  sectors;          // Typical number of sectors in this track
-        u8  speedZone;        // Default speed zone for this track
-        u16 lengthInBytes;    // Typical track size in bits
-        u16 lengthInBits;     // Typical track size in bits
-        Sector firstSectorNr; // Logical number of first sector in track
-        double stagger;       // Relative position of first bit (from Hoxs64)
-    }
-    TrackDefaults;
-    
     static const TrackDefaults trackDefaults[43];
- 
-    
-    /* Disk error codes. Some D64 files contain an error code for each sector.
-     * If possible, these errors are reproduced during disk encoding.
-     */
-    typedef enum
-    {
-        DISK_OK = 0x1,
-        HEADER_BLOCK_NOT_FOUND_ERROR = 0x2,
-        NO_SYNC_SEQUENCE_ERROR = 0x3,
-        DATA_BLOCK_NOT_FOUND_ERROR = 0x4,
-        DATA_BLOCK_CHECKSUM_ERROR = 0x5,
-        WRITE_VERIFY_ERROR_ON_FORMAT_ERROR = 0x6,
-        WRITE_VERIFY_ERROR = 0x7,
-        WRITE_PROTECT_ON_ERROR = 0x8,
-        HEADER_BLOCK_CHECKSUM_ERROR = 0x9,
-        WRITE_ERROR = 0xA,
-        DISK_ID_MISMATCH_ERROR = 0xB,
-        DRIVE_NOT_READY_ERRROR = 0xF
-    }
-    DiskErrorCode;
 
-private:
-    
-    /* GCR encoding table. Maps 4 data bits to 5 GCR bits.
-     */
+    // GCR encoding table. Maps 4 data bits to 5 GCR bits.
     static constexpr u8 gcr[16] = {
         
         0x0a, 0x0b, 0x12, 0x13, /*  0 -  3 */
@@ -72,9 +45,7 @@ private:
         0x0d, 0x1d, 0x1e, 0x15  /* 12 - 15 */
     };
     
-    /* Inverse GCR encoding table. Maps 5 GCR bits to 4 data bits. Invalid
-     * patterns are marked with 255.
-     */
+    // Inverse GCR encoding table. Maps 5 GCR bits to 4 data bits.
     static constexpr u8 invgcr[32] = {
         
         255, 255, 255, 255, /* 0x00 - 0x03 */
@@ -87,24 +58,17 @@ private:
         255,  13,  14, 255  /* 0x1C - 0x1F */
     };
 
-    /* Maps a byte to an expanded 64 bit representation. This method is used to
-     * quickly inflate a bit stream into a byte stream.
-     *
-     *     Example: 0110 ... -> 00000000 00000001 0000001 00000000 ...
-     */
-    static u64 bitExpansion[256];
-    
-    
+
     //
     // Disk properties
     //
     
+private:
+    
     // Write protection mark
     bool writeProtected = false;
     
-    /* Indicates whether data has been written. Depending on this flag, the GUI
-     * shows a warning dialog before a disk gets ejected.
-     */
+    // Indicates whether data has been written (data would be lost on eject)
     bool modified = false;
     
     
@@ -120,28 +84,6 @@ public:
     // Length information for each halftrack on this disk
     DiskLength length = { };
 
-    
-    //
-    // Debug information
-    //
-    
-private:
-    
-    // Track layout as determined by analyzeTrack
-    TrackInfo trackInfo = { };
-
-    // Error log created by analyzeTrack
-    std::vector<string> errorLog;
-
-    // Stores the start offset of the erroneous bit sequence
-    std::vector<isize> errorStartIndex;
-
-    // Stores the end offset of the erroneous bit sequence
-    std::vector<isize> errorEndIndex;
-
-    // Textual representation of track data
-    char text[maxBitsOnTrack + 1] = { };
-    
     
     //
     // Class functions
@@ -163,59 +105,73 @@ public:
     
     
     //
-    // Initializing
+    // Methods
     //
     
 public:
     
     Disk();
-    Disk(const string &path, bool wp = false) { init(path, wp); } throws
-    Disk(DOSType type, PETName<16> name, bool wp = false) { init(type, name, wp); } throws
-    Disk(const class FSDevice &device, bool wp = false) { init(device, wp); } throws
-    Disk(const G64File &g64, bool wp = false) { init(g64, wp); } throws
-    Disk(const D64File &d64, bool wp = false) { init(d64, wp); } throws
-    Disk(AnyCollection &archive, bool wp = false) { init(archive, wp); } throws
-    Disk(util::SerReader &reader) throws { init(reader); }
+    Disk(const fs::path &path, bool wp = false) throws { init(path, wp); }
+    Disk(DOSType type, PETName<16> name, bool wp = false) { init(type, name, wp); }
+    Disk(const FileSystem &device, bool wp = false) { init(device, wp); }
+    Disk(const class G64File &g64, bool wp = false) { init(g64, wp); }
+    Disk(const class D64File &d64, bool wp = false) throws { init(d64, wp); }
+    Disk(class AnyCollection &archive, bool wp = false) throws { init(archive, wp); }
+    Disk(SerReader &reader) throws { init(reader); }
     
 private:
     
-    void init(const string &path, bool wp) throws;
+    void init(const fs::path &path, bool wp) throws;
     void init(DOSType type, PETName<16> name, bool wp);
-    void init(const class FSDevice &device, bool wp);
-    void init(const G64File &g64, bool wp);
-    void init(const D64File &d64, bool wp) throws;
-    void init(AnyCollection &archive, bool wp) throws;
-    void init(util::SerReader &reader) throws;
+    void init(const class FileSystem &device, bool wp);
+    void init(const class G64File &g64, bool wp);
+    void init(const class D64File &d64, bool wp) throws;
+    void init(class AnyCollection &archive, bool wp) throws;
+    void init(SerReader &reader) throws;
 
-    
+public:
+
+    Disk& operator= (const Disk& other) {
+
+        CLONE(writeProtected)
+        CLONE(modified)
+        CLONE(data)
+        CLONE(length)
+
+        return *this;
+    }
+
+
     //
-    // Methods from C64Object
+    // Methods from Serializable
     //
 
-private:
-    
-    const char *getDescription() const override { return "Disk"; }
-    void _dump(dump::Category category, std::ostream& os) const override;
+public:
 
-    
-    //
-    // Serializing
-    //
-    
-private:
-    
     template <class T>
-    void applyToPersistentItems(T& worker)
+    void serialize(T& worker)
     {
+        if (isResetter(worker)) return;
+
         worker
-        
+
         << writeProtected
         << modified
-        >> data
-        >> length;
+        << data
+        << length;
     }
-        
+
     
+    //
+    // Methods from CoreObject and Dumpable
+    //
+
+private:
+
+    const char *objectName() const override { return "Disk"; }
+    void _dump(Category category, std::ostream& os) const override;
+
+
     //
     // Accessing
     //
@@ -249,17 +205,6 @@ public:
      */
     void encodeGcr(u8 value, Track t, HeadPos offset);
     void encodeGcr(u8 *values, isize length, Track t, HeadPos offset);
-    
-    
-    /* Decodes a nibble (4 bit) from a previously encoded GCR bitstream.
-     * Returns 0xFF, if no valid GCR sequence is found.
-     */
-    u8 decodeGcrNibble(u8 *gcrBits);
-
-    /* Decodes a byte (8 bit) form a previously encoded GCR bitstream. Returns
-     * an unpredictable result if invalid GCR sequences are found.
-     */
-    u8 decodeGcr(u8 *gcrBits);
 
     
     //
@@ -287,7 +232,7 @@ public:
      */
     u8 _readBitFromHalftrack(Halftrack ht, HeadPos pos) const {
         assert(isValidHeadPos(ht, pos));
-        return (data.halftrack[ht][pos / 8] & (0x80 >> (pos % 8))) != 0;
+        return (data.halftrack[ht][pos >> 3] & (0x80 >> (pos & 7))) != 0;
     }
     u8 readBitFromHalftrack(Halftrack ht, HeadPos pos) const {
         return _readBitFromHalftrack(ht, wrap(ht, pos));
@@ -295,9 +240,9 @@ public:
     void _writeBitToHalftrack(Halftrack ht, HeadPos pos, bool bit) {
         assert(isValidHeadPos(ht, pos));
         if (bit) {
-            data.halftrack[ht][pos / 8] |= (0x0080 >> (pos % 8));
+            data.halftrack[ht][pos >> 3] |= (0x0080 >> (pos & 7));
         } else {
-            data.halftrack[ht][pos / 8] &= (0xFF7F >> (pos % 8));
+            data.halftrack[ht][pos >> 3] &= (0xFF7F >> (pos & 7));
         }
     }
     void _writeBitToTrack(Track t, HeadPos pos, bool bit) {
@@ -316,7 +261,7 @@ public:
             writeBitToHalftrack(ht, pos++, bit);
     }
     void writeBitToTrack(Track t, HeadPos pos, bool bit, isize count) {
-            writeBitToHalftrack(2 * t - 1, pos, bit, count);
+        writeBitToHalftrack(2 * t - 1, pos, bit, count);
     }
 
     // Writes a single byte
@@ -338,13 +283,18 @@ public:
     }
 
     // Clears a single halftrack
-    void clearHalftrack(Halftrack ht); 
+    void clearHalftrack(Halftrack ht);
 
-    /* Reverts to a factory-new disk. All disk data gets erased and the copy
-     * protection mark removed.
-     */
+    // Reverts to a factory-fresh disk
     void clearDisk();
     
+    
+    //
+    // Analyzing the disk
+    //
+
+public:
+
     /* Checks whether a track or halftrack is cleared. Avoid calling these
      * methods frequently, because they scan the whole track.
      */
@@ -352,67 +302,10 @@ public:
     bool halftrackIsEmpty(Halftrack ht) const;
     isize nonemptyHalftracks() const;
 
-    
-    //
-    // Analyzing the disk
-    //
-
-public:
-    
     // Returns the length of a halftrack in bits
-    u16 lengthOfHalftrack(Halftrack ht) const;
-    u16 lengthOfTrack(Track t) const;
-    
-    /* Analyzes the sector layout. The functions determines the start and end
-     * offsets of all sectors and writes them into variable trackLayout.
-     */
-    void analyzeHalftrack(Halftrack ht);
-    void analyzeTrack(Track t);
-    
-private:
-    
-    // Checks the integrity of a sector header or sector data block
-    void analyzeSectorHeaderBlock(isize offset);
-    void analyzeSectorDataBlock(isize offset);
+    isize lengthOfTrack(Track t) const;
+    isize lengthOfHalftrack(Halftrack ht) const;
 
-    // Writes an error message into the error log
-    void log(isize begin, isize length, const char *fmt, ...);
-    
-public:
-    
-    // Returns a sector layout from variable trackInfo
-    SectorInfo sectorLayout(Sector nr) {
-        assert(isSectorNumber(nr)); return trackInfo.sectorInfo[nr]; }
-    
-    // Returns the number of entries in the error log
-    isize numErrors() { return errorLog.size(); }
-    
-    // Reads an error message from the error log
-    string errorMessage(isize nr) const { return errorLog.at(nr); }
-    
-    // Reads the error begin index from the error log
-    isize firstErroneousBit(isize nr) const { return errorStartIndex.at(nr); }
-    
-    // Reads the error end index from the error log
-    isize lastErroneousBit(isize nr) const { return errorEndIndex.at(nr); }
-    
-    // Returns a textual representation of the disk name
-    const char *diskNameAsString();
-    
-    // Returns a textual representation of the data stored in trackInfo
-    const char *trackBitsAsString();
-
-    // Returns a textual representation of the data stored in trackInfo
-    const char *sectorHeaderBytesAsString(Sector nr, bool hex);
-
-    // Returns a textual representation of the data stored in trackInfo
-    const char *sectorDataBytesAsString(Sector nr, bool hex);
-
-private:
-    
-    // Returns a textual representation
-    const char *sectorBytesAsString(u8 *buffer, isize length, bool hex);
-    
     
     //
     // Decoding disk data
@@ -426,12 +319,13 @@ public:
      * determine how many bytes will be written.
      */
     isize decodeDisk(u8 *dest);
- 
+
 private:
     
-    isize decodeDisk(u8 *dest, isize numTracks);
-    isize decodeTrack(Track t, u8 *dest);
-    isize decodeSector(isize offset, u8 *dest);
+    isize decodeDisk(u8 *dest, isize numTracks, DiskAnalyzer &analyzer);
+    isize decodeTrack(Track t, u8 *dest, DiskAnalyzer &analyzer);
+    isize decodeHalfrack(Halftrack ht, u8 *dest, DiskAnalyzer &analyzer);
+    isize decodeSector(Halftrack ht, isize offset, u8 *dest, DiskAnalyzer &analyzer);
 
 
     //
@@ -447,7 +341,7 @@ public:
      * and data blocks, checksums and gaps. If alignTracks is true, the first
      * sector always starts at the beginning of a track.
      */
-    void encode(const FSDevice &fs, bool alignTracks = false);
+    void encode(const FileSystem &fs, bool alignTracks = false);
     
 private:
     
@@ -459,13 +353,15 @@ private:
      * follwowing sectors with odd sector numbers. The number of written bits
      * is returned.
      */
-    isize encodeTrack(const FSDevice &fs, Track t, isize gap, HeadPos start);
+    isize encodeTrack(const FileSystem &fs, Track t, isize gap, HeadPos start);
     
     /* Encode a single sector. This function translates the logical byte
      * sequence of a single sector into the native VC1541 byte representation.
      * The sector is closed by 'gap' tail gap bytes. The number of written bits
      * is returned.
      */
-    isize encodeSector(const FSDevice &fs, Track t, Sector sector, HeadPos start, isize gap);
+    isize encodeSector(const FileSystem &fs, Track t, Sector sector, HeadPos start, isize gap);
 };
+
+}
  

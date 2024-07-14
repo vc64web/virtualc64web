@@ -2,78 +2,58 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
+/// @file
 
 #pragma once
 
-#include "Aliases.h"
 #include "Reflection.h"
+
+namespace vc64 {
 
 //
 // Enumerations
 //
 
+/// Mouse model
 enum_long(MOUSE_MODEL)
 {
-    MOUSE_C1350,
-    MOUSE_C1351,
-    MOUSE_NEOS
+    MOUSE_C1350,    ///< Joystick mouse (Commodore)
+    MOUSE_C1351,    ///< Analog mouse (Commodore)
+    MOUSE_NEOS,     ///< Analog mouse (Neos)
+    MOUSE_PADDLE_X, ///< Paddle (POTX)
+    MOUSE_PADDLE_Y, ///< Paddle (POTY)
+    MOUSE_PADDLE_XY ///< Paddle (POTX + POTX)
 };
 typedef MOUSE_MODEL MouseModel;
 
-#ifdef __cplusplus
 struct MouseModelEnum : util::Reflection<MouseModelEnum, MouseModel> {
-    
-    static long min() { return 0; }
-    static long max() { return MOUSE_NEOS; }
-    static bool isValid(long value) { return value >= min() && value <= max(); }
-    
-    static const char *prefix() { return "DISK_TYPE"; }
-    static const char *key(MouseModel value)
+
+    static constexpr long minVal = 0;
+    static constexpr long maxVal = MOUSE_PADDLE_XY;
+    static bool isValid(auto value) { return value >= minVal && value <= maxVal; }
+
+    static const char *prefix() { return "MOUSE"; }
+    static const char *key(long value)
     {
         switch (value) {
-                
-            case MOUSE_C1350:  return "C1350";
-            case MOUSE_C1351:  return "C1351";
-            case MOUSE_NEOS:   return "NEOS";
+
+            case MOUSE_C1350:       return "C1350";
+            case MOUSE_C1351:       return "C1351";
+            case MOUSE_NEOS:        return "NEOS";
+            case MOUSE_PADDLE_X:    return "PADDLE_X";
+            case MOUSE_PADDLE_Y:    return "PADDLE_Y";
+            case MOUSE_PADDLE_XY:   return "PADDLE_XY";
         }
         return "???";
     }
 };
-#endif
-
-enum_long(PORT_ID)
-{
-    PORT_NONE,
-    PORT_ONE,
-    PORT_TWO
-};
-typedef PORT_ID PortId;
-
-#ifdef __cplusplus
-struct PortIdEnum : util::Reflection<PortIdEnum, PortId> {
-    
-    static long min() { return 0; }
-    static long max() { return PORT_TWO; }
-    static bool isValid(long value) { return value >= min() && value <= max(); }
-    
-    static const char *prefix() { return "PORT"; }
-    static const char *key(PortId value)
-    {
-        switch (value) {
-                
-            case PORT_NONE:   return "NONE";
-            case PORT_ONE:    return "ONE";
-            case PORT_TWO:    return "TWO";
-        }
-        return "???";
-    }
-};
-#endif
-
 
 //
 // Structures
@@ -83,6 +63,8 @@ typedef struct
 {
     MouseModel model;
     bool shakeDetection;
-    long velocity;
+    isize velocity;
 }
 MouseConfig;
+
+}

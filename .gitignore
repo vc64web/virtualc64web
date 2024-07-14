@@ -1,3 +1,9 @@
+b
+.DS_Store
+vC64.js
+vC64.wasm
+index.html
+
 #roms
 *.bin
 

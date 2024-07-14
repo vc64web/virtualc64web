@@ -2,22 +2,25 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "C64.h"
-#include "IO.h"
-#include "MemUtils.h"
+#include "IOUtils.h"
+
+namespace vc64 {
 
 bool
-D64File::isCompatible(const string &path)
+D64File::isCompatible(const fs::path &path)
 {
-    auto s = util::extractSuffix(path);
- 
-    return s == "d64" || s == "D64";
+    auto s = util::uppercased(path.extension().string());
+    return s == ".D64";
 }
 
 bool
@@ -54,31 +57,6 @@ D64File::D64File(isize tracks, bool ecc) : D64File()
     data = new u8[size]();
 }
 
-D64File *
-D64File::makeWithFileSystem(FSDevice &volume)
-{
-    D64File *d64 = nullptr;
-        
-    switch (volume.getNumBlocks() * 256) {
-                        
-        case D64_683_SECTORS: d64 = new D64File(35, false); break;
-        case D64_768_SECTORS: d64 = new D64File(40, false); break;
-        case D64_802_SECTORS: d64 = new D64File(42, false); break;
-
-        default:
-            fatalError;
-    }
-
-    ErrorCode err;
-    if (!volume.exportVolume(d64->data, d64->size, &err)) {
-
-        delete d64;
-        throw VC64Error(err);
-    }
-    
-    return d64;
-}
-
 void
 D64File::init(isize tracks, bool ecc)
 {
@@ -96,10 +74,10 @@ D64File::init(isize tracks, bool ecc)
 }
 
 void
-D64File::init(FSDevice &volume)
+D64File::init(FileSystem &volume)
 {
     switch (volume.getNumBlocks() * 256) {
-                        
+
         case D64_683_SECTORS: init(35, false); break;
         case D64_768_SECTORS: init(40, false); break;
         case D64_802_SECTORS: init(42, false); break;
@@ -110,7 +88,7 @@ D64File::init(FSDevice &volume)
 
     ErrorCode err;
     if (!volume.exportVolume(data, size, &err)) {
-        throw VC64Error(err);
+        throw Error(err);
     }
 }
 
@@ -122,13 +100,11 @@ D64File::getName() const
 }
 
 void
-D64File::readFromStream(std::istream &stream)
+D64File::finalizeRead()
 {
-    AnyFile::readFromStream(stream);
-    
     isize numSectors;
     bool errorCodes;
- 
+
     switch (size)
     {
         case D64_683_SECTORS: // 35 tracks, no errors
@@ -179,10 +155,10 @@ D64File::readFromStream(std::istream &stream)
             errorCodes = false;
             assert(false);
     }
-        
+
     // Copy error codes
     if (errorCodes) {
-        memcpy(errors, data + (numSectors * 256), numSectors);
+        std::memcpy(errors, data + (numSectors * 256), numSectors);
     }
 }
 
@@ -230,4 +206,6 @@ void
 D64File::dump(Track track, Sector sector) const
 {
     util::hexdump(data + offset(track, sector), 256);
+}
+
 }

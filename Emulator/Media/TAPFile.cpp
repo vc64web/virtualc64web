@@ -2,20 +2,26 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "TAPFile.h"
-#include "IO.h"
+#include "IOUtils.h"
+#include "Macros.h"
+
+namespace vc64 {
 
 bool
-TAPFile::isCompatible(const string &path)
+TAPFile::isCompatible(const fs::path &path)
 {
-    auto s = util::uppercased(util::extractSuffix(path));
-    return s == "TAP" || s == "T64";
+    auto s = util::uppercased(path.extension().string());
+    return s == ".TAP" || s == ".T64";
 }
 
 bool
@@ -75,7 +81,8 @@ TAPFile::read()
             
         } else {
             
-            warn("TAP1 with a zero pulse byte\n");
+            debug(TAP_DEBUG, "TAP1 with a zero pulse byte\n");
+
             // TAP1 with a zero pulse byte
             result = LO_LO_HI_HI(fp + 1 < (isize)size ? data[fp + 1] : 0,
                                  fp + 2 < (isize)size ? data[fp + 2] : 0,
@@ -91,7 +98,7 @@ TAPFile::read()
 }
 
 void
-TAPFile::repair()
+TAPFile::finalizeRead()
 {
     isize length = LO_LO_HI_HI(data[0x10], data[0x11], data[0x12], data[0x13]);
     isize header = 0x14;
@@ -101,4 +108,6 @@ TAPFile::repair()
     } else {
         debug(TAP_DEBUG, "TAP file has been scanned with no errros\n");
     }
+}
+
 }

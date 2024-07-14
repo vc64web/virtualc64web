@@ -2,19 +2,24 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
-#include "C64Object.h"
-#include "FileTypes.h"
+#include "CoreObject.h"
+#include "MediaFile.h"
 #include "PETName.h"
 
 #include <sstream>
 #include <fstream>
+
+namespace vc64 {
 
 /* All media files are organized in the class hierarchy displayed below. Two
  * abstract classes are involed: AnyFile and AnyCollection. AnyFiles provides
@@ -47,14 +52,14 @@
  *              | T64File | | PRGFile |  | P00File |  | Folder  |
  *               ---------   ---------    ---------    ---------
  */
-  
-class AnyFile : public C64Object {
-    
+
+class AnyFile : public CoreObject, public MediaFile {
+
 public:
-	     
+
     // Physical location of this file
-    string path = "";
-    
+    fs::path path = "";
+
     // The raw data of this file
     u8 *data = nullptr;
     
@@ -73,13 +78,24 @@ public:
     virtual ~AnyFile();
     
     void init(isize capacity);
-    void init(const string &path) throws;
-    void init(const string &path, std::istream &stream) throws;
+    void init(const fs::path &path) throws;
+    void init(const fs::path &path, std::istream &stream) throws;
     void init(std::istream &stream) throws;
     void init(const u8 *buf, isize len) throws;
     void init(FILE *file) throws;
     
     
+    //
+    // Methods from MediaFile
+    //
+
+    // Returns the size of this file
+    virtual isize getSize() const override { return size; }
+
+    // Returns a pointer to the file data
+    virtual u8 *getData() const override { return data; }
+
+
     //
     // Accessing
     //
@@ -87,19 +103,14 @@ public:
 public:
     
     // Returns the logical name of this file
+    virtual string name() const override;
     virtual PETName<16> getName() const;
 
-    // Determines the type of an arbitrary file on file
-    static FileType type(const string &path);
-
-    // Returns the media type of this file
-    virtual FileType type() const { return FILETYPE_UNKNOWN; }
-     
     // Returns a data byte
     u8 getData(isize nr) { return (data && nr < size) ? data[nr] : 0; }
-        
+
     // Returns a fingerprint (hash value) for this file
-    u64 fnv() const;
+    u64 fnv() const override;
     
     // Removes a certain number of bytes from the beginning of the file
     void strip(isize count);
@@ -110,7 +121,8 @@ public:
     //
 
     // Copies the file contents into a buffer starting at the provided offset
-    void flash(u8 *buf, isize offset = 0) const;
+    // DEPRECATED
+    void flash(u8 *buf, isize offset = 0) const override;
 
     
     //
@@ -119,28 +131,25 @@ public:
     
 protected:
 
-    virtual bool isCompatiblePath(const string &path) = 0;
+    virtual bool isCompatiblePath(const fs::path &path) = 0;
     virtual bool isCompatibleStream(std::istream &stream) = 0;
-    virtual void readFromStream(std::istream &stream) throws;
-    void readFromFile(const string &path) throws;
-    void readFromBuffer(const u8 *buf, isize len) throws;
+    
+    void readFromStream(std::istream &stream) override;
+    void readFromFile(const fs::path &path) override;
+    void readFromBuffer(const u8 *buf, isize len) override;
 
 public:
     
-    virtual void writeToStream(std::ostream &stream) throws;
-    void writeToFile(const string &path) throws;
-    void writeToBuffer(u8 *buf) throws;
+    void writeToStream(std::ostream &stream) override;
+    void writeToFile(const fs::path &path) override;
+    void writeToBuffer(u8 *buf) override;
 
 
-    //
-    // Repairing
-    //
+private:
     
-public:
-    
-    /* This function is called in the default implementation of readFromStream.
-     * It can be overwritten to fix known inconsistencies in certain media
-     * files.
-     */
-    virtual void repair() { };    
+    // Delegation methods
+    virtual void finalizeRead() throws { };
+    virtual void finalizeWrite() throws { };
 };
+
+}

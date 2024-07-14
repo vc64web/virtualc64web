@@ -2,18 +2,23 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
-#include "C64Object.h"
-#include "MemUtils.h"
+#include "CoreObject.h"
+#include <assert.h>
 
-template <int len> class PETName : C64Object {
-        
+namespace vc64 {
+
+template <int len> class PETName : CoreObject {
+
     // PETSCII representation
     u8 pet[len + 1];
     
@@ -38,7 +43,7 @@ public:
         asciichar = (u8)std::toupper(asciichar);
         return asciichar >= 0x20 && asciichar <= 0x5D ? asciichar : ' ';
     }
-        
+
     PETName(const u8 *_pet, u8 _pad = 0xA0) : pad(_pad)
     {
         assert(_pet);
@@ -47,7 +52,7 @@ public:
         memset(asc, 0x0, sizeof(asc));
         
         for (int i = 0; i < len && _pet[i] != pad; i++) {
-                    
+
             asc[i] = petscii2printable(_pet[i], '_');
             pet[i] = _pet[i];
         }
@@ -69,7 +74,15 @@ public:
 
     PETName(string str) : PETName(str.c_str()) { }
     
-    const char *getDescription() const override { return "PETName"; }
+    void setPad(u8 _pad) {
+
+        for (int i = 0; i < len; i++) {
+            if (pet[i] == pad) pet[i] = _pad;
+        }
+        pad = _pad;
+    }
+
+    const char *objectName() const override { return "PETName"; }
     
     bool operator== (PETName &rhs)
     {
@@ -85,8 +98,9 @@ public:
     PETName<len> stripped(u8 c)
     {
         PETName<len> name = *this;
-        
-        for (isize i = strlen(name.asc); i > 0 && name.asc[i - 1] == c; i--) {
+
+        auto length = isize(strlen(name.asc));
+        for (isize i = length; i > 0 && name.asc[i - 1] == c; i--) {
 
             name.asc[i - 1] = 0;
             name.pet[i - 1] = 0xA0;
@@ -94,18 +108,6 @@ public:
         
         return name;
     }
-
-    /*
-    void strip(u8 c)
-    {
-        if (isize length = strlen(asc); length > 0 && asc[length - 1] == c) {
-            
-            asc[length - 1] = 0;
-            pet[length - 1] = 0xA0;
-            strip(c);
-        }
-    }
-    */
     
     void write(u8 *p, isize length)
     {
@@ -120,3 +122,5 @@ public:
     const char *c_str() { return asc; }
     string str() { return string(asc); }
 };
+
+}

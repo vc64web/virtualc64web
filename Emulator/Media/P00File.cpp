@@ -2,21 +2,26 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "P00File.h"
-#include "FSDevice.h"
-#include "IO.h"
+#include "FileSystem.h"
+#include "IOUtils.h"
+
+namespace vc64 {
 
 bool
-P00File::isCompatible(const string &path)
+P00File::isCompatible(const fs::path &path)
 {
-    auto s = util::extractSuffix(path);
-    return s == "p00" || s == "P00";
+    auto s = util::uppercased(path.extension().string());
+    return s == ".P00";
 }
 
 bool
@@ -27,20 +32,20 @@ P00File::isCompatible(std::istream &stream)
     if (util::streamLength(stream) < 0x1A) return false;
     return util::matchingStreamHeader(stream, magicBytes, sizeof(magicBytes));
 }
- 
+
 void
-P00File::init(FSDevice &fs)
+P00File::init(FileSystem &fs)
 {
     isize item = 0;
     isize itemSize = fs.fileSize(item);
 
     // Only proceed if the requested file exists
-    if (fs.numFiles() <= item) throw VC64Error(ERROR_FS_HAS_NO_FILES);
-        
+    if (fs.numFiles() <= item) throw Error(ERROR_FS_HAS_NO_FILES);
+
     // Create new archive
     isize p00Size = itemSize + 8 + 17 + 1;
     init(p00Size);
-            
+
     // Write magic bytes (8 bytes)
     u8 *p = data;
     strcpy((char *)p, "C64File");
@@ -55,7 +60,7 @@ P00File::init(FSDevice &fs)
 
     // Record size (applies to REL files, only) (1 byte)
     *p++ = 0;
-        
+
     // Add data
     fs.copyFile(item, p, itemSize);
 }
@@ -63,13 +68,19 @@ P00File::init(FSDevice &fs)
 PETName<16>
 P00File::getName() const
 {
-    return PETName<16>(data + 8, 0x00);
+    // P00 files use 0x00 as padding character
+    auto result = PETName<16>(data + 8, 0x00);
+
+    // Rectify the padding characters
+    result.setPad(0xA0);
+
+    return result;
 }
 
 PETName<16>
 P00File::collectionName()
 {
-    return PETName<16>(data + 8, 0x00);
+    return getName();
 }
 
 isize
@@ -82,11 +93,11 @@ PETName<16>
 P00File::itemName(isize nr) const
 {
     assert(nr == 0);
-    u8 padChar = 0x00;
-    return PETName<16>(data + 0x08, padChar);
+
+    return getName();
 }
 
-u64
+isize
 P00File::itemSize(isize nr) const
 {
     assert(nr == 0);
@@ -94,9 +105,11 @@ P00File::itemSize(isize nr) const
 }
 
 u8
-P00File::readByte(isize nr, u64 pos) const
+P00File::readByte(isize nr, isize pos) const
 {
     assert(nr == 0);
     assert(pos < itemSize(nr));
     return data[0x1A + pos];
+}
+
 }

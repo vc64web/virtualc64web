@@ -2,17 +2,28 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "SubComponent.h"
 
-class Mouse1351 : public SubComponent {
+namespace vc64 {
+
+class Mouse1351 final : public SubComponent {
     
+    Descriptions descriptions = {{
+
+        .name           = "Mouse1351",
+        .description    = "Mouse 1351"
+    }};
+
     // Mouse position
     i64 mouseX;
     i64 mouseY;
@@ -24,52 +35,53 @@ class Mouse1351 : public SubComponent {
     // Dividers applied to raw coordinates in setXY()
     int dividerX = 256;
     int dividerY = 256;
-        
+
     // Mouse movement in pixels per execution step
     i64 shiftX = 31;
     i64 shiftY = 31;
     
     //
-    // Initializing
+    // Methods
     //
     
 public:
-        
+
     Mouse1351(C64 &ref) : SubComponent(ref) { }
-    
+
+    Mouse1351& operator= (const Mouse1351& other) {
+
+        CLONE(mouseX)
+        CLONE(mouseY)
+        CLONE(leftButton)
+        CLONE(rightButton)
+        CLONE(dividerX)
+        CLONE(dividerY)
+        CLONE(shiftX)
+        CLONE(shiftY)
+
+        return *this;
+    }
+
     
     //
-    // Methods from C64Component
+    // Methods from Serializable
     //
 
-private:
-    
-    const char *getDescription() const override { return "Mouse1351"; }
+public:
 
-    
-    //
-    // Methods from C64Component
-    //
-
-private:
-    
+    template <class T> void serialize(T& worker) { } SERIALIZERS(serialize);
     void _reset(bool hard) override;
-        
-    template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-    }
-    
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-    }
-    
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    
-    
+
+
+    //
+    // Methods from CoreComponent
+    //
+
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+
     //
     // Accessing
     //
@@ -95,3 +107,5 @@ public:
     u8 mouseXBits() const { return (u8)((mouseX & 0x3F) << 1); }
     u8 mouseYBits() const { return (u8)((mouseY & 0x3F) << 1); }
 };
+
+}

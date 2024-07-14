@@ -2,20 +2,28 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "DriveTypes.h"
+#include "C64Types.h"
+#include "CmdQueueTypes.h"
 #include "SubComponent.h"
 #include "CPU.h"
 #include "Disk.h"
+#include "DiskAnalyzer.h"
 #include "DriveMemory.h"
 #include "VIA.h"
 #include "PIA.h"
+
+namespace vc64 {
 
 /*
  * This implementation is based on the following two documents written
@@ -24,9 +32,40 @@
  * Description: http://www.baltissen.org/newhtm/1541a.htm
  * Schematics:  http://www.baltissen.org/images/1540.gif
  */
- 
-class Drive : public SubComponent {
-        
+
+class Drive final : public SubComponent, public Inspectable<DriveInfo> {
+
+    Descriptions descriptions = {
+        {
+            .name           = "Drive8",
+            .description    = "First Floppy Drive"
+        },
+        {
+            .name           = "Drive9",
+            .description    = "Second Floppy Drive"
+        }
+    };
+
+    ConfigOptions options = {
+
+        OPT_DRV_AUTO_CONFIG,
+        OPT_DRV_TYPE,
+        OPT_DRV_RAM,
+        OPT_DRV_SAVE_ROMS,
+        OPT_DRV_PARCABLE,
+        OPT_DRV_CONNECT,
+        OPT_DRV_POWER_SWITCH,
+        OPT_DRV_POWER_SAVE,
+        OPT_DRV_EJECT_DELAY,
+        OPT_DRV_SWAP_DELAY,
+        OPT_DRV_INSERT_DELAY,
+        OPT_DRV_PAN,
+        OPT_DRV_POWER_VOL,
+        OPT_DRV_STEP_VOL,
+        OPT_DRV_INSERT_VOL,
+        OPT_DRV_EJECT_VOL
+    };
+
     friend class DriveMemory;
     friend class VIA1;
     friend class VIA2;
@@ -41,7 +80,7 @@ class Drive : public SubComponent {
      * the run loop. As a effect, the current drive state is frozen until the
      * drive is woken up.
      */
-    const i64 powerSafeThreshold = 100;
+    static constexpr i64 powerSafeThreshold = 100;
     
     /* Time between two carry pulses of UE7 in 1/10 nano seconds. The VC1541
      * drive is clocked by 16 Mhz. The base frequency is divided by N where N
@@ -59,28 +98,24 @@ class Drive : public SubComponent {
         8125   // Density bits = 11: Carry pulse every 13/16 * 10^4 1/10 nsec
     };
 
-    // Device number of this disk drive (8 = first drive, 9 = second drive)
-    DriveID deviceNr;
-
     // Current configuration
     DriveConfig config = { };
 
     
     //
-    // Sub components
+    // Subcomponents
     //
     
 public:
     
-	DriveMemory mem = DriveMemory(c64, *this);
-    DriveCPU cpu = DriveCPU(c64, mem);
+    DriveMemory mem = DriveMemory(c64, *this);
+    CPU cpu = CPU(MOS_6502, c64);
     VIA1 via1 = VIA1(c64, *this);
     VIA2 via2 = VIA2(c64, *this);
     PiaDolphin pia = PiaDolphin(c64, *this);
     
     // The currently inserted disk (if any)
     std::unique_ptr<Disk> disk;
-    // Disk disk = Disk(c64);
     
 
     //
@@ -89,17 +124,14 @@ public:
     
     // A disk waiting to be inserted
     std::unique_ptr<Disk> diskToInsert;
-    
-    // State change delay counter (checked in the vsync handler)
-    i64 diskChangeCounter = 0;
-    
+
     
     //
     // Drive state
     //
     
 private:
-        
+
     // Indicates whether the disk is rotating
     bool spinning = false;
     
@@ -108,7 +140,7 @@ private:
     
     // Indicates if or how a disk is inserted
     InsertionStatus insertionStatus = DISK_FULLY_EJECTED;
-        
+
     
     //
     // Clocking logic
@@ -123,7 +155,7 @@ private:
      * the two VIA chips.
      */
     i64 nextClock = 0;
-     
+
     /* Indicates when the next carry output pulse occurs on UE7. The 16 MHz
      * signal is also fed into UE7, a 74SL193 4-bit couter, which generates a
      * carry output signal on overflow. The pre-load inputs of this counter are
@@ -212,46 +244,107 @@ public:
     //
     
     // Idle counter
-    i64 idleCounter = 0;
+    i64 watchdog = INT64_MAX;
 
     // Indicates whether execute() should be called inside the run loop
-    bool needsEmulation = false; 
+    bool needsEmulation = false;
     
     
     //
-    // Initializing
+    // Methods
     //
     
 public:
     
-    Drive(DriveID id, C64 &ref);
-    
-    
+    Drive(C64 &ref, isize id);
+
+    Drive& operator= (const Drive& other) {
+
+        CLONE(mem)
+        CLONE(cpu)
+        CLONE(via1)
+        CLONE(via2)
+        CLONE(pia)
+
+        CLONE(spinning)
+        CLONE(redLED)
+        CLONE(elapsedTime)
+        CLONE(nextClock)
+        CLONE(nextCarry)
+        CLONE(carryCounter)
+        CLONE(counterUF4)
+        CLONE(bitReadyTimer)
+        CLONE(byteReadyCounter)
+        CLONE(halftrack)
+        CLONE(offset)
+        CLONE(zone)
+        CLONE(readShiftreg)
+        CLONE(writeShiftreg)
+        CLONE(sync)
+        CLONE(byteReady)
+        CLONE(watchdog)
+        CLONE(needsEmulation)
+
+        CLONE(insertionStatus)
+
+        CLONE(config)
+
+        if (other.disk && !disk) disk = std::make_unique<Disk>();
+        if (!other.disk) disk = nullptr;
+        if (disk) *disk = *other.disk;
+
+        if (other.diskToInsert && !diskToInsert) diskToInsert = std::make_unique<Disk>();
+        if (!other.diskToInsert) diskToInsert = nullptr;
+        if (diskToInsert) *diskToInsert = *other.diskToInsert;
+
+        return *this;
+    }
+
+
     //
-    // Methods from C64Object
+    // Methods from Serializable
     //
 
-private:
-    
-    const char *getDescription() const override;
-    void _dump(dump::Category category, std::ostream& os) const override;
-
-    
-    //
-    // Methods from C64Component
-    //
-
-private:
-
-    void _initialize() override;
-    void _reset(bool hard) override;
-    void _run() override;
+public:
 
     template <class T>
-    void applyToPersistentItems(T& worker)
+    void serialize(T& worker)
     {
         worker
         
+        << mem
+        << cpu
+        << via1
+        << via2
+        << pia
+        
+        << spinning
+        << redLED
+        << elapsedTime
+        << nextClock
+        << nextCarry
+        << carryCounter
+        << counterUF4
+        << bitReadyTimer
+        << byteReadyCounter
+        << halftrack
+        << offset
+        << zone
+        << readShiftreg
+        << writeShiftreg
+        << sync
+        << byteReady
+        << watchdog
+        << needsEmulation;
+
+        if (isResetter(worker)) return;
+
+        worker
+
+        << insertionStatus;
+
+        worker
+
         << config.type
         << config.ram
         << config.parCable
@@ -266,58 +359,58 @@ private:
         << config.stepVolume
         << config.insertVolume
         << config.ejectVolume
-        << insertionStatus;
+        << config.saveRoms;
     }
     
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-        worker
-        
-        << spinning
-        << redLED
-        << idleCounter
-        << elapsedTime
-        << nextClock
-        << nextCarry
-        << carryCounter
-        << counterUF4
-        << bitReadyTimer
-        << byteReadyCounter
-        << halftrack
-        << offset
-        << zone
-        << readShiftreg
-        << writeShiftreg
-        << sync
-        << byteReady;
-    }
-    
-    isize _size() override;
-    isize _load(const u8 *buffer) override;
-    isize _save(u8 *buffer) override;
+    void operator << (SerResetter &worker) override { serialize(worker); };
+    void operator << (SerChecker &worker) override;
+    void operator << (SerCounter &worker) override;
+    void operator << (SerReader &worker) override;
+    void operator << (SerWriter &worker) override;
 
-    
+
     //
-    // Configuring
+    // Methods from CoreComponent
     //
-    
+
 public:
-        
-    static DriveConfig getDefaultConfig();
-    const DriveConfig &getConfig() const { return config; }
-    void resetConfig() override;
 
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+
+    void _initialize() override;
+    void _dump(Category category, std::ostream& os) const override;
+    void _reset(bool hard) override;
+
+
+    //
+    // Methods from Inspectable
+    //
+
+public:
+
+    void cacheInfo(DriveInfo &result) const override;
+
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const DriveConfig &getConfig() const { return config; }
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getFallback(Option opt) const override;
+    i64 getOption(Option opt) const override;
+    void checkOption(Option opt, i64 value) override;
+    void setOption(Option opt, i64 value) override;
+    void resetConfig() override;
 
     // Updates the current configuration according to the installed ROM
     void autoConfigure();
-    
-    bool hasParCable() { return config.parCable != PAR_CABLE_NONE; }
-    ParCableType getParCableType() const { return config.parCable; }
 
-    
+
     //
     // Working with the drive
     //
@@ -325,8 +418,23 @@ public:
 public:
     
     // Returns the device number
-    DriveID getDeviceNr() const { return deviceNr; }
-        
+    isize getDeviceNr() const { return objid; }
+
+    // Convenience wrappers
+    bool isDrive8() { return objid == DRIVE8; }
+    bool isDrive9() { return objid == DRIVE9; }
+    bool hasParCable() { return config.parCable != PAR_CABLE_NONE; }
+    ParCableType getParCableType() const { return config.parCable; }
+
+    // Checks whether the drive is ready to be connected
+    bool canConnect();
+
+    // Checks whether the drive is connected and switched on
+    bool connectedAndOn() { return config.connected && config.switchedOn; }
+
+    // Checks whether the drive has been idle for a while
+    bool isIdle() const { return watchdog < 0; }
+
     // Returns true iff the red drive LED is on
     bool getRedLED() const { return redLED; };
 
@@ -340,31 +448,34 @@ public:
     void setRotating(bool b);
     
     // Wakes up the drive (clears the idle state)
-    void wakeUp();
-    
-    // Checks whether the drive has been idle for a while
-    bool isIdle() const { return idleCounter >= powerSafeThreshold; }
-    
-    // Checks whether the drive is connected and switched on
-    bool connectedAndOn() { return config.connected && config.switchedOn; }
-    
+    void wakeUp(isize awakeness = powerSafeThreshold);
+
     
     //
     // Handling disks
     //
 
 public:
-    
-    // Checks if a disk is present
-    bool hasDisk() const { return insertionStatus == DISK_FULLY_INSERTED; }
-    bool hasPartiallyRemovedDisk() const {
-        return insertionStatus == DISK_PARTIALLY_INSERTED || insertionStatus == DISK_PARTIALLY_EJECTED; }
-    bool hasWriteProtectedDisk() const { return hasDisk() && disk->isWriteProtected(); }
 
-    // Gets or sets the modification status
+    // Checks whether the drive contains a disk of a certain kind
+    bool hasDisk() const;
+    bool hasPartiallyRemovedDisk() const;
+    bool hasProtectedDisk() const { return hasDisk() && disk->isWriteProtected(); }
     bool hasModifiedDisk() const { return hasDisk() && disk->isModified(); }
-    void setModifiedDisk(bool value);
- 
+    bool hasUnmodifiedDisk() const { return hasDisk() && !hasModifiedDisk(); }
+    bool hasUnprotectedDisk() const { return hasDisk() && !hasProtectedDisk(); }
+
+    // Changes the modification state
+    void setModificationFlag(bool value);
+    void markDiskAsModified() { setModificationFlag(true); }
+    void markDiskAsUnmodified() { setModificationFlag(false); }
+
+    // Changes the write-protection state
+    void setProtection(bool value);
+    void protectDisk() { setProtection(true); }
+    void unprotectDisk() { setProtection(false); }
+    void toggleProtection();
+
     /* Returns the current state of the write protection barrier. If the light
      * barrier is blocked, the drive head is unable to modify bits on disk.
      * Note: We block the write barrier on power up for about 1.5 sec, because
@@ -374,9 +485,9 @@ public:
      */
     bool getLightBarrier() const {
         return
-        (cpu.cycle < 1500000)
+        cpu.clock < 1500000
         || hasPartiallyRemovedDisk()
-        || hasWriteProtectedDisk();
+        || hasProtectedDisk();
     }
 
     /* Requests the emulator to inserts or eject a disk. Background: Many C64
@@ -387,14 +498,14 @@ public:
      * the currently inserted disk halfway out before it is removed completely,
      * and pushing the new disk halfway in before it is inserted completely.
      */
-    void insertDisk(const string &path, bool wp) throws;
+    void insertDisk(const fs::path &path, bool wp) throws;
     void insertDisk(std::unique_ptr<Disk> disk);
-    void insertNewDisk(DOSType fstype);
-    void insertNewDisk(DOSType fstype, PETName<16> name);
-    void insertD64(const D64File &d64, bool wp);
-    void insertG64(const G64File &g64, bool wp);
-    void insertCollection(AnyCollection &archive, bool wp) throws;
-    void insertFileSystem(const class FSDevice &device, bool wp);
+    void insertNewDisk(DOSType fstype, string name);
+    void insertMediaFile(class MediaFile &file, bool wp);
+    void insertD64(const class D64File &d64, bool wp);
+    void insertG64(const class G64File &g64, bool wp);
+    void insertCollection(class AnyCollection &archive, bool wp) throws;
+    void insertFileSystem(const class FileSystem &device, bool wp);
     void ejectDisk();
 
 
@@ -423,11 +534,11 @@ public:
     // Returns the current halftrack or track number
     Halftrack getHalftrack() const { return halftrack; }
     Track getTrack() const { return (halftrack + 1) / 2; }
-        
+
     // Returns the number of bits in a halftrack
-    u16 sizeOfHalftrack(Halftrack ht) {
+    isize sizeOfHalftrack(Halftrack ht) {
         return hasDisk() ? disk->lengthOfHalftrack(ht) : 0; }
-    u16 sizeOfCurrentHalftrack() { return sizeOfHalftrack(halftrack); }
+    isize sizeOfCurrentHalftrack() { return sizeOfHalftrack(halftrack); }
 
     // Returns the position of the drive head inside the current track
     HeadPos getOffset() const { return offset; }
@@ -469,8 +580,21 @@ public:
     // Performs periodic actions
     void vsyncHandler();
     
-private:
-    
-    // Execute the disk state transition for a single frame
-    void executeStateTransition();    
+
+    //
+    // Processing commands and events
+    //
+
+public:
+
+    // Processes a datasette command
+    void processCommand(const Cmd &cmd);
+
+    // Initiates the disk change procedure
+    void scheduleFirstDiskChangeEvent(EventID id);
+
+    // Carries out the disk change procedure
+    void processDiskChangeEvent(EventID id);
 };
+
+}

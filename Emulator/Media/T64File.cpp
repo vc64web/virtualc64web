@@ -2,43 +2,48 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "T64File.h"
-#include "FSDevice.h"
-#include "IO.h"
+#include "FileSystem.h"
+#include "IOUtils.h"
 #include "Macros.h"
 
+namespace vc64 {
+
 bool
-T64File::isCompatible(const string &path)
+T64File::isCompatible(const fs::path &path)
 {
-    auto s = util::extractSuffix(path);
-    return s == "t64" || s == "T64";
+    auto s = util::uppercased(path.extension().string());
+    return s == ".T64";
 }
 
 bool
 T64File::isCompatible(std::istream &stream)
 {
-     const string magicT64 = "C64";
-     const string magicTAP = "C64-TAPE";
+    const string magicT64 = "C64";
+    const string magicTAP = "C64-TAPE";
 
-     if (util::streamLength(stream) < 0x40) return false;
-     
-     // T64 files must begin with "C64"
-     if (!util::matchingStreamHeader(stream, magicT64)) return false;
-     
-     // T64 files must *not* begin with "C64-TAPE" (which is used by TAP files)
-     if (util::matchingStreamHeader(stream, magicTAP)) return false;
-     
-     return true;
+    if (util::streamLength(stream) < 0x40) return false;
+
+    // T64 files must begin with "C64"
+    if (!util::matchingStreamHeader(stream, magicT64)) return false;
+
+    // T64 files must *not* begin with "C64-TAPE" (which is used by TAP files)
+    if (util::matchingStreamHeader(stream, magicTAP)) return false;
+
+    return true;
 }
 
 void
-T64File::init(class FSDevice &fs)
+T64File::init(class FileSystem &fs)
 {
     // Analyze the file system
     isize numFiles = fs.numFiles();
@@ -99,7 +104,7 @@ T64File::init(class FSDevice &fs)
         
         // Skip if this is an empty tape slot
         if (n >= numFiles) { ptr += 32; continue; }
-                        
+
         // Entry used (1 byte)
         *ptr++ = 0x01;
         
@@ -130,8 +135,8 @@ T64File::init(class FSDevice &fs)
         ptr += 4;
         
         // File name (16 bytes)
-        PETName<16> name = fs.fileName(n);
-        name.write(ptr);
+        PETName<16> fileName = fs.fileName(n);
+        fileName.write(ptr);
         ptr += 16;
     }
     
@@ -140,7 +145,7 @@ T64File::init(class FSDevice &fs)
     //
     
     for (isize n = 0; n < numFiles; n++) {
-    
+
         fs.copyFile(n, ptr, length[n], 2);
         ptr += length[n];
     }
@@ -172,17 +177,17 @@ T64File::itemName(isize nr) const
     return PETName<16>(data + 0x50 + nr * 0x20).stripped(' ');
 }
 
-u64
+isize
 T64File::itemSize(isize nr) const
 {
     assert(nr < collectionCount());
     
     // Return the number of data bytes plus 2 (for the loading address header)
-    return (u64)(memEnd(nr) - memStart(nr) + 2);
+    return isize(memEnd(nr) - memStart(nr) + 2);
 }
 
 u8
-T64File::readByte(isize nr, u64 pos) const
+T64File::readByte(isize nr, isize pos) const
 {
     assert(nr < collectionCount());
     assert(pos < itemSize(nr));
@@ -230,8 +235,21 @@ T64File::directoryItemIsPresent(isize item)
 }
 
 void
-T64File::repair()
+T64File::finalizeRead()
 {
+    /* This methods eliminates the following inconsistencies:
+     *
+     *   - number of files:
+     *     Some archives state falsely in their header that zero files are
+     *     present. This value will be fixed.
+     *
+     *   - end loading address:
+     *     Archives that are created with CONVC64 often contain a value of
+     *     0xC3C6, which is wrong (e.g., paradrd.t64). This value will be
+     *     changed such that getByte() will read until the end of the physical
+     *     file.
+     */
+    
     isize i, n;
     isize noOfItems = collectionCount();
 
@@ -247,8 +265,8 @@ T64File::repair()
         isize noOfItemsStatedInHeader = collectionCount();
         if (noOfItems != noOfItemsStatedInHeader) {
             
-            warn("T64: Changing number of items from %zd to %zd.\n",
-                  noOfItemsStatedInHeader, noOfItems);
+            warn("T64: Changing number of items from %ld to %ld.\n",
+                 noOfItemsStatedInHeader, noOfItems);
             
             data[0x24] = LO_BYTE(noOfItems);
             data[0x25] = HI_BYTE(noOfItems);
@@ -271,7 +289,7 @@ T64File::repair()
             warn("T64: Offset mismatch. Sorry, can't repair.\n");
             return;
         }
-    
+
         //
         // 3. Check for file end address mismatches (as created by CONVC64)
         //
@@ -279,21 +297,23 @@ T64File::repair()
         // Compute start address in memory
         n = 0x42 + (i * 0x20);
         isize startAddrInMemory = LO_HI(data[n], data[n+1]);
-    
+
         // Compute end address in memory
         n = 0x44 + (i * 0x20);
         isize endAddrInMemory = LO_HI(data[n], data[n+1]);
-    
+
         if (endAddrInMemory == 0xC3C6) {
 
             // Let's assume that the rest of the file data belongs to this file ...
             isize fixedEndAddrInMemory = startAddrInMemory + (size - startAddrInContainer);
 
-            warn("T64: Changing end address of item %zd from %04zX to %04zX.\n",
+            warn("T64: Changing end address of item %ld from %04lX to %04lX.\n",
                  i, endAddrInMemory, fixedEndAddrInMemory);
 
             data[n] = LO_BYTE(fixedEndAddrInMemory);
             data[n+1] = HI_BYTE(fixedEndAddrInMemory);
         }
     }
+}
+
 }

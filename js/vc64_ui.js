@@ -186,6 +186,8 @@ function get_parameter_link()
                 b.transient = true;
                 b.app_scope = true;
                 b.id = 1000+call_param_buttons.length;
+                if(b.key === undefined) b.key='';
+                if(b.title === undefined) b.title='';
                 call_param_buttons.push( b );
             }
         }
@@ -359,16 +361,22 @@ async function disk_loading_finished()
     }
     else
     {
-        await wait_on_message("MSG_IEC_BUS_BUSY");
-        await wait_on_message("MSG_IEC_BUS_IDLE");
-        await wait_on_message("MSG_IEC_BUS_BUSY");
-        await wait_on_message("MSG_IEC_BUS_IDLE");
+        await wait_on_message("MSG_SER_BUSY");
+        await wait_on_message("MSG_SER_IDLE");
+        await wait_on_message("MSG_SER_BUSY");
+        await wait_on_message("MSG_SER_IDLE");
     }
     console.log("detected disk_loading_finished: "+wasm_get_cpu_cycles()+" "+last_drive_event);
 }   
 
 
-function message_handler(msg, data)
+function message_handler(msg, data1, data2)
+{   
+    queueMicrotask(()=>{
+        message_handler_queue_worker( msg, data1, data2 )
+    });
+}
+function message_handler_queue_worker(msg, data1, data2)
 {
     //UTF8ToString(cores_msg);
     if(msg == "MSG_READY_TO_RUN")
@@ -441,8 +449,8 @@ function message_handler(msg, data)
         play_sound(audio_df_insert);
         floppy_has_disk=true; 
     } 
-    else if(msg == "MSG_IEC_BUS_IDLE" || 
-            msg == "MSG_IEC_BUS_BUSY" || 
+    else if(msg == "MSG_SER_IDLE" || 
+            msg == "MSG_SER_BUSY" || 
             msg.startsWith("MSG_DRIVE_")
         )
     {
@@ -452,7 +460,7 @@ function message_handler(msg, data)
             if(floppy_has_disk||floppy_step_count>1)
             { 
                 play_sound(audio_df_step);
-               $("#drop_zone").html(`drv${data&0xff} ${((data>>8)&0xFF).toString().padStart(2, '0')}`);
+               $("#drop_zone").html(`drv${8+data1} ${data2.toString().padStart(2, '0')}`);
             }
         }    
         
@@ -462,11 +470,12 @@ function message_handler(msg, data)
     else if(msg == "MSG_RS232")
     {
         //rs232_message.push(data);
-        rs232_message += String.fromCharCode(data);
+        rs232_message += String.fromCharCode(data1);
     }
     else if(msg =="MSG_PAL" || msg =="MSG_NTSC")
     {
-        let vic = _wasm_get_config("OPT_VIC_REVISION");
+//        wasm_get_config= Module.cwrap('wasm_get_config', 'number', ['string']);
+        let vic = wasm_get_config("OPT_VIC_REVISION");
         let vic_rev=["PAL 50Hz 6569","PAL 50Hz 6569 R3","PAL 50Hz 8565","NTSC 60Hz 6567 R56A","NTSC 60Hz 6567","NTSC 60Hz 8562"];
         if(0 <= vic && vic<vic_rev.length) $("#button_vic_rev").text("vicII rev "+ vic_rev[vic]);
     }
@@ -548,7 +557,7 @@ function load_roms(install_to_core){
         }
         else
         {
-            $("#rom_basic").attr("src", JSON.parse(wasm_rom_info()).basic.startsWith("mega") ?
+            $("#rom_basic").attr("src", JSON.parse(wasm_rom_info()).basic.startsWith("M.E.G.A") ?
             "img/rom_mega65.png":"img/rom.png");
         
             $("#button_delete_basic").show();
@@ -564,7 +573,7 @@ function load_roms(install_to_core){
         {
             let kernal_title =JSON.parse(wasm_rom_info()).kernal; 
             $("#rom_kernal").attr("src", 
-            kernal_title.startsWith("mega") ? "img/rom_mega65.png":
+            kernal_title.startsWith("M.E.G.A") ? "img/rom_mega65.png":
             kernal_title.startsWith("Patched") ? "img/rom_patched.png":
             "img/rom.png");
             $("#button_delete_kernal").show();
@@ -579,8 +588,8 @@ function load_roms(install_to_core){
         else
         {
             $("#rom_charset").attr("src", 
-            //wasm_rom_classifier(the_rom, the_rom.byteLength).startsWith("mega") ?
-            JSON.parse(wasm_rom_info()).charset.startsWith("mega") ?
+            //wasm_rom_classifier(the_rom, the_rom.byteLength).startsWith("M.E.G.A") ?
+            JSON.parse(wasm_rom_info()).charset.startsWith("M.E.G.A") ?
             "img/rom_mega65.png":"img/rom.png");
             $("#button_delete_char_rom").show();
         }
@@ -763,8 +772,7 @@ function configure_file_dialog(reset=false)
                 $("#div_auto_run").show(); auto_run = true;
                 $("#button_insert_file").html("insert disk"+return_icon);
                 
-                if (/*!JSON.parse(wasm_rom_info()).has_floppy_rom //is 1541.rom loaded ?*/
-                    local_storage_get('vc1541_rom.bin')==null)
+                if (local_storage_get('vc1541_rom.bin')==null)
                 {
                     $("#no_disk_rom_msg").show();
                     $("#button_insert_file").attr("disabled", true);
@@ -847,7 +855,7 @@ function configure_file_dialog(reset=false)
                     
                                 if(mountable_count==1)
                                 {//in case that there was only one mountable file in the zip, auto mount it
-                                    configure_file_dialog(true);
+                                    configure_file_dialog(reset_before_load);
                                 }        
                                 else
                                 {//file is ready to insert
@@ -1070,7 +1078,7 @@ function keyup(e) {
          //release the shift in c64 too, because the following keyup will not include the shiftkey
             shift_pressed_state=false;
             var c64code = translateKey2(e.code, e.key, use_positional_mapping=true);
-            wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 1);
+            wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 0);
         }
         return;
     }
@@ -1080,10 +1088,10 @@ function keyup(e) {
         let active_sym_key_on_keycap=key_pressed_buffer[e.code];
         if( active_sym_key_on_keycap!= undefined && active_sym_key_on_keycap!=null)
         {
-            wasm_schedule_key(active_sym_key_on_keycap.raw_key[0], active_sym_key_on_keycap.raw_key[1], 0, 1);
+            wasm_schedule_key(active_sym_key_on_keycap.raw_key[0], active_sym_key_on_keycap.raw_key[1], 0, 0);
             if(active_sym_key_on_keycap.modifier != null )
             {
-                wasm_schedule_key(active_sym_key_on_keycap.modifier[0], active_sym_key_on_keycap.modifier[1], 0, 1);
+                wasm_schedule_key(active_sym_key_on_keycap.modifier[0], active_sym_key_on_keycap.modifier[1], 0, 0);
             }    
         }
         key_pressed_buffer[e.code]=null;
@@ -1093,10 +1101,10 @@ function keyup(e) {
     var c64code = translateKey2(e.code, e.key, !use_symbolic_map);
     if(c64code !== undefined )
     {
-        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 1);
+        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 0);
         if(c64code.modifier != null )
         {
-            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, 1);
+            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, 0);
         }
     }
 }
@@ -1413,8 +1421,7 @@ function InitWrappers() {
     wasm_reset = Module.cwrap('wasm_reset', 'undefined');
     wasm_halt = Module.cwrap('wasm_halt', 'undefined');
     wasm_run = Module.cwrap('wasm_run', 'undefined');
-    wasm_take_user_snapshot = Module.cwrap('wasm_take_user_snapshot', 'undefined');
-    wasm_pull_user_snapshot_file = Module.cwrap('wasm_pull_user_snapshot_file', 'string');
+    wasm_take_user_snapshot = Module.cwrap('wasm_take_user_snapshot', 'string');
 
     wasm_create_renderer = Module.cwrap('wasm_create_renderer', 'undefined', ['string']);
     wasm_set_warp = Module.cwrap('wasm_set_warp', 'undefined', ['number']);
@@ -1442,12 +1449,14 @@ function InitWrappers() {
     wasm_poke = Module.cwrap('wasm_poke', 'undefined', ['number', 'number']);
     wasm_export_disk = Module.cwrap('wasm_export_disk', 'string');
     wasm_configure = Module.cwrap('wasm_configure', 'undefined', ['string', 'number']);
+    wasm_get_config = Module.cwrap('wasm_get_config', 'number', ['string']);
     wasm_write_string_to_ser = Module.cwrap('wasm_write_string_to_ser', 'undefined', ['string']);
     wasm_print_error = Module.cwrap('wasm_print_error', 'undefined', ['number']);
 
     wasm_get_sound_buffer_address = Module.cwrap('wasm_get_sound_buffer_address', 'number');
     wasm_copy_into_sound_buffer = Module.cwrap('wasm_copy_into_sound_buffer', 'number');
     wasm_set_sample_rate = Module.cwrap('wasm_set_sample_rate', 'undefined', ['number']);
+    wasm_auto_type = Module.cwrap('wasm_auto_type', 'undefined', ['string']);
 
     resume_audio=async ()=>{
         try {
@@ -2440,30 +2449,46 @@ $('.layer').change( function(event) {
 });
 
 //------
-
+    load_console=function () { var script = document.createElement('script'); script.src="js/eruda.js"; document.body.appendChild(script); script.onload = function () { eruda.init(
+    {
+        defaults: {
+            displaySize: 50,
+            transparency: 0.9,
+            theme: load_setting('dark_switch', true) ? 'dark':'light'
+        }
+        }) } 
+    }
 
     live_debug_output=load_setting('live_debug_output', false);
+    wasm_configure("log_on", live_debug_output.toString());
     $("#cb_debug_output").prop('checked', live_debug_output);
     if(live_debug_output)
     {
-        $("#output_row").show(); 
+        load_console();
+     //   $("#output_row").show(); 
+        $("#output_row").hide(); 
     }
     else
     {
+//        eruda.destroy();
         $("#output_row").hide(); 
     }
 
     $("#cb_debug_output").change( function() {
         live_debug_output=this.checked;
+        wasm_configure("log_on",live_debug_output.toString());
         save_setting('live_debug_output', this.checked);
         if(this.checked)
         {
-           $("#output_row").show();
+           load_console();
+           //$("#output_row").show();
         }
         else
         {
-            $("#output_row").hide();
+           eruda.destroy();
+        //    $("#output_row").hide();
         }
+        $("#output_row").hide();
     });
 //---    
     $('#modal_reset').keydown(event => {
@@ -2527,7 +2552,8 @@ $('.layer').change( function(event) {
     $( "#modal_file_slot" ).keydown(event => {
             if(event.key === "Enter" && $("#button_insert_file").attr("disabled")!=true)
             {
-                $( "#button_insert_file" ).click();                        
+                insert_file();
+               // $( "#button_insert_file" ).click();                        
             }
             return false;
         }
@@ -2581,7 +2607,8 @@ $('.layer').change( function(event) {
                 if(file_slot_file_name.endsWith('.tap'))
                 {
                     //shift + runStop
-                    emit_string(['Enter','shiftrunstop']);
+                    wasm_auto_type("\nload\n");
+                    //action("'Enter=>30ms=>shiftrunstop'");
                     //emit_string(['Enter','ShiftRunStop']);
                     
                     if(do_auto_press_play)
@@ -2599,25 +2626,17 @@ $('.layer').change( function(event) {
                 }
                 else
                 {                    
-                    emit_string(['Enter','l','o','a','d','"','*','"',',','8',',', '1', 'Enter']);
+                    wasm_auto_type('\nload"*",8,1:\n');
                     if(do_auto_run)
                     {
                         await disk_loading_finished();
-                        /*fire_on_message("MSG_IEC_BUS_BUSY",function() {
-                            fire_on_message("MSG_IEC_BUS_IDLE", function() {
-                                fire_on_message("MSG_IEC_BUS_BUSY",function() {
-                                    fire_on_message("MSG_IEC_BUS_IDLE", function() {*/
-                                        emit_string(['r','u','n','Enter'],0);
-                                    /*})
-                                })               
-                            })
-                        });*/
+                        wasm_auto_type("\nrun:\n");    
                     }
                 }
             }
             else if(do_auto_run)
             {
-                emit_string(['Enter','r','u','n','Enter']);
+                wasm_auto_type("\nrun:\n");
             }
             if(file_slot_file_name.endsWith('.vc64'))
             {
@@ -2634,7 +2653,7 @@ $('.layer').change( function(event) {
             $("#button_run").click();
         }
         let kernal_rom=JSON.parse(wasm_rom_info()).kernal;
-        var faster_open_roms_installed = kernal_rom.startsWith("mega") || kernal_rom.startsWith("Patched");
+        var faster_open_roms_installed = kernal_rom.startsWith("M.E.G.A") || kernal_rom.startsWith("Patched");
         
         //the roms differ from cold-start to ready prompt, orig-roms 3300ms and open-roms 250ms   
         var time_since_start=wasm_get_cpu_cycles();
@@ -2682,7 +2701,11 @@ $('.layer').change( function(event) {
             }, 50);
         }
     }
-    $("#button_insert_file").click(insert_file);
+    
+    document.querySelector("#button_insert_file").addEventListener("click",
+        (event)=>{event.stopPropagation(); insert_file();}
+    )
+    //$("#button_insert_file").click(insert_file);
     
     $('#modal_take_snapshot').on('hidden.bs.modal', function () {
         if(is_running())
@@ -2744,11 +2767,8 @@ $('.layer').change( function(event) {
     $('#button_save_snapshot').click(function() 
     {       
         let app_name = $("#input_app_title").val();
-        wasm_take_user_snapshot();
-        var snapshot_json= wasm_pull_user_snapshot_file();
+        var snapshot_json= wasm_take_user_snapshot();
         var snap_obj = JSON.parse(snapshot_json);
-//        var ptr=wasm_pull_user_snapshot_file();
-//        var size = wasm_pull_user_snapshot_file_size();
         var snapshot_buffer = new Uint8Array(Module.HEAPU8.buffer, snap_obj.address, snap_obj.size);
    
         //snapshot_buffer is only a typed array view therefore slice, which creates a new array with byteposition 0 ...
@@ -2758,31 +2778,61 @@ $('.layer').change( function(event) {
         //document.getElementById('canvas').focus();
     });
 
-/*
-    var delete_cache = () =>{
-    caches.keys().then(keys => {
-        console.log('opening cache:'+keys);
-        return Promise.all(keys
-            .map(key => {
-                caches.open(key).then(function(cache) { 
-                    cache.keys().then(function(cached_requests) { 
-                      for(req_in_cache of cached_requests)
-                      {
-                        //console.log(req_in_cache.url);
-                        if(req_in_cache.url.match('/webservice/')!= null)
-                        {
-                           console.log('delete -> '+req_in_cache.url); 
-                           cache.delete(req_in_cache);
-                        } 
-                      }
-                    });
-                });
-            })
-        );
+    $('#modal_settings').on('show.bs.modal', function() 
+    {    
+        let traits = JSON.parse(wasm_rom_info());
+        if(traits.crt.startsWith("REU"))
+        {
+            let mem=traits.crt.replace("REU","")/1024;
+            mem = mem<1024 ? `${mem} KB`:`${mem/1024} MB` ;
+            $("#button_expansion_ram").text("RAM expansion = REU "+mem);
+        }
+        if(traits.crt.startsWith("GeoRam"))
+        {
+          let mem=traits.crt.replace("GeoRam","")/1024;
+          mem = mem<1024 ? `${mem} KB`:`${mem/1024} MB` ;
+          $("#button_expansion_ram").text("RAM expansion = GeoRAM "+mem);
+        }
+        
     });
+//--
+set_run_ahead = function (run_ahead) {
+    $("#button_run_ahead").text("run ahead = "+run_ahead);
+    wasm_configure("OPT_EMU_RUN_AHEAD", 
+        run_ahead.toString().replace("frames","").replace("frame",""));
+}
+set_run_ahead("0 frame");
+$('#choose_run_ahead a').click(function () 
+{
+    var run_ahead=$(this).text();
+    set_run_ahead(run_ahead);
+    $("#modal_settings").focus();
+});
+//--- REU
+set_expansion_ram = function (expansion) {
+    $("#button_expansion_ram").text("RAM expansion = "+expansion);
+    let isREU = expansion.includes("REU");
+
+    let value = expansion.replace("REU","").replace("GeoRAM","").replace("KB","").trim();
+    if(value.includes("MB"))
+    {
+        value = value.replace("MB","").trim();
+        value = value*1024;
     }
-    delete_cache();
-*/    
+    wasm_configure(isREU ? "REU": "GeoRAM",value);
+    
+}
+set_expansion_ram(load_setting('expansion_ram', 'none'));
+
+$('#choose_expansion_ram a').click(function () 
+{
+    var expansion_ram=$(this).text();
+    set_expansion_ram(expansion_ram);
+    save_setting('expansion_ram',expansion_ram)
+    $("#modal_settings").focus();
+});
+
+//---
 set_vic_rev = function (vic_rev) {
     $("#button_vic_rev").text("vicII rev "+vic_rev);
     wasm_configure(vic_rev);
@@ -3160,9 +3210,11 @@ $('#choose_vic_rev a').click(function ()
                     ${html_encode(key)}
                     </div>`;
                 }
+                let title_display= otherBtn.title === '' && key_display ==='' ?
+                 `${otherBtn.id}` : otherBtn.title;
                 otherButtons+=`<a class="dropdown-item" href="#" id="choose_${otherBtn.id}">
                 <div style="display:flex;justify-content:space-between">
-                    <div>${html_encode(otherBtn.title)}</div>
+                    <div>${html_encode(title_display)}</div>
                     <div style="display:flex;margin-left:0.3em;" 
                         ${otherBtn.key==''?'hidden':''}>
                         ${key_display}
@@ -4074,6 +4126,33 @@ function emit_string(keys_to_emit_array, type_first_key_time=200, release_delay_
         }
     }
 }
+function emit_key(the_key, type_first_key_time=200, release_delay_in_ms=50)
+{  
+    // Set the initial delay for the first key (in frames)
+    var delay = type_first_key_time / 50;
+    var release_delay = delay + release_delay_in_ms / 50;
+    if(release_delay<1)
+    {
+        release_delay = 1;
+    }
+    console.log(the_key);
+    var c64code = translateKey2(the_key, the_key/*.toLowerCase()*/);
+    if(c64code !== undefined)
+    {
+        if(c64code.modifier != null)
+        {
+            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 1, delay);
+        }
+        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 1, delay);
+
+        if(c64code.modifier != null)
+        {
+            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, release_delay);
+        }
+        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, release_delay);
+    }
+}
+
 
 function hide_all_tooltips()
 {

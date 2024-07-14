@@ -2,9 +2,12 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -12,10 +15,16 @@
 #include "SubComponent.h"
 #include "DriveTypes.h"
 
-class DriveMemory : public SubComponent {
+namespace vc64 {
+
+class DriveMemory final : public SubComponent {
     
-private:
-    
+    Descriptions descriptions = {{
+
+        .name           = "DriveMemory",
+        .description    = "Drive Memory"
+    }};
+
     // Reference to the connected disk drive
     class Drive &drive;
     
@@ -35,58 +44,67 @@ public:
      */
     u8 ram[0xA000];
     u8 rom[0x8000] = {};
-            
+
     // Memory usage table (one entry for each KB)
     DrvMemType usage[64];
     
     
     //
-    // Initializing
+    // Methods
     //
     
 public:
     
     DriveMemory(C64 &ref, Drive &drive);
-    
+
+    DriveMemory& operator= (const DriveMemory& other) {
+
+        CLONE_ARRAY(ram)
+        CLONE_ARRAY(rom)
+        CLONE_ARRAY(usage)
+
+        return *this;
+    }
+
     
     //
-    // Methods from C64Object
+    // Methods from Serializable
     //
 
-private:
-    
-    const char *getDescription() const override { return "DriveMemory"; }
-    void _dump(dump::Category category, std::ostream& os) const override;
+public:
 
-    
-    //
-    // Methods from C64Component
-    //
-
-private:
-    
-    void _reset(bool hard) override;
-    
     template <class T>
-    void applyToPersistentItems(T& worker)
+    void serialize(T& worker)
     {
+        if (isResetter(worker)) return;
+
         worker
-        
+
         << ram
-        << rom
         << usage;
     }
-    
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-    }
-    
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    
-    
+
+    void operator << (SerResetter &worker) override { serialize(worker); }
+    void operator << (SerChecker &worker) override { serialize(worker); }
+    void operator << (SerCounter &worker) override;
+    void operator << (SerReader &worker) override;
+    void operator << (SerWriter &worker) override;
+
+
+    //
+    // Methods from CoreComponent
+    //
+
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+
+    void _dump(Category category, std::ostream& os) const override;
+    void _reset(bool hard) override;
+
+
     //
     // Working with Roms
     //
@@ -108,11 +126,11 @@ public:
     void deleteRom();
     
     // Loads a Rom
-    void loadRom(const RomFile &file);
+    void loadRom(const class RomFile &file);
     void loadRom(const u8 *buf, isize size);
     
     // Saves the currently installed Rom
-    void saveRom(const string &path) throws;
+    void saveRom(const fs::path &path) throws;
 
     
     //
@@ -120,7 +138,7 @@ public:
     //
     
 public:
-        
+
     // Reads a value from memory
     u8 peek(u16 addr);
     u8 peekZP(u8 addr) { return ram[addr]; }
@@ -139,7 +157,9 @@ public:
     void poke(u16 addr, u8 value);
     void pokeZP(u8 addr, u8 value) { ram[addr] = value; }
     void pokeStack(u8 sp, u8 value) { ram[0x100 + sp] = value; }
-        
+
     // Updates the bank map
     void updateBankMap();
 };
+
+}

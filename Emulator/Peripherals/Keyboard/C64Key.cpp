@@ -2,13 +2,18 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "C64Key.h"
+
+namespace vc64 {
 
 const C64Key C64Key::del(15);
 const C64Key C64Key::ret(47);
@@ -83,6 +88,7 @@ const C64Key C64Key::Q(18);
 const C64Key C64Key::runStop(33);
 
 const C64Key C64Key::restore(31);
+const C64Key C64Key::shiftLock(34);
 
 C64Key::C64Key(isize nr)
 {
@@ -125,7 +131,8 @@ C64Key::C64Key(isize row, isize col)
     assert(row >= 0 && row < 8);
     assert(col >= 0 && col < 8);
     
-    isize nr[64] {
+    constexpr isize nr[64] {
+        
         15, 47, 63, 64, 16, 32, 48, 62,
         3, 19, 35, 4, 51, 36, 20, 50,
         5, 21, 37, 6, 53, 38, 22, 52,
@@ -167,7 +174,7 @@ C64Key::translate(char c)
         case '0': return std::vector { C64Key::digit0 };
         case '+': return std::vector { C64Key::plus };
         case '-': return std::vector { C64Key::minus };
-        
+
         case 'q': return std::vector { C64Key::Q };
         case 'Q': return std::vector { C64Key::Q, C64Key::leftShift };
         case 'w': return std::vector { C64Key::W };
@@ -190,7 +197,7 @@ C64Key::translate(char c)
         case 'P': return std::vector { C64Key::P, C64Key::leftShift };
         case '@': return std::vector { C64Key::at };
         case '*': return std::vector { C64Key::asterisk };
-        
+
         case 'a': return std::vector { C64Key::A };
         case 'A': return std::vector { C64Key::A, C64Key::leftShift };
         case 's': return std::vector { C64Key::S };
@@ -215,7 +222,7 @@ C64Key::translate(char c)
         case ']': return std::vector { C64Key::semicolon, C64Key::leftShift };
         case '=': return std::vector { C64Key::equal };
         case '\n': return std::vector { C64Key::ret };
-        
+
         case 'z': return std::vector { C64Key::Z };
         case 'Z': return std::vector { C64Key::Z, C64Key::leftShift };
         case 'x': return std::vector { C64Key::X };
@@ -236,9 +243,11 @@ C64Key::translate(char c)
         case '>': return std::vector { C64Key::period, C64Key::leftShift };
         case '/': return std::vector { C64Key::slash };
         case '?': return std::vector { C64Key::slash, C64Key::leftShift };
-        
+
         case ' ': return std::vector { C64Key::space };
-        
+
         default: return std::vector<C64Key> { };
     }
+}
+
 }

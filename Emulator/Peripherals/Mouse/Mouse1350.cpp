@@ -2,9 +2,12 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
@@ -13,11 +16,11 @@
 
 #include <cmath>
 
+namespace vc64 {
+
 void
 Mouse1350::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS(hard)
-    
     leftButton = false;
     rightButton = false;
     mouseX = 0;
@@ -51,13 +54,13 @@ Mouse1350::execute(i64 targetX, i64 targetY)
 {
     mouseX = targetX / dividerX;
     mouseY = targetY / dividerY;
- 
+
     // debug(PRT_DEBUG, "targetX = %lld targetY = %lld\n", targetX, targetY);
     
     controlPort = 0xFF;
     
-    double deltaX = (mouseX - latchedX[0]);
-    double deltaY = (latchedY[0] - mouseY);
+    double deltaX = double(mouseX - latchedX[0]);
+    double deltaY = double(latchedY[0] - mouseY);
     double absDeltaX = abs(deltaX);
     double absDeltaY = abs(deltaY);
     double max = (absDeltaX > absDeltaY) ? absDeltaX : absDeltaY;
@@ -80,3 +83,4 @@ Mouse1350::execute(i64 targetX, i64 targetY)
     latchedY[2] = mouseY;
 }
 
+}

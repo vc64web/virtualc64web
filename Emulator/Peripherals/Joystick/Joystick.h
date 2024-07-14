@@ -2,21 +2,46 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "JoystickTypes.h"
+#include "C64Types.h"
 #include "SubComponent.h"
 
-class Joystick : public SubComponent {
+namespace vc64 {
+
+class Joystick final : public SubComponent, public Inspectable<JoystickInfo> {
+
+    Descriptions descriptions = {
+        {
+            .name           = "Joystick1",
+            .description    = "Joystick in Port 1"
+        },
+        {
+            .name           = "Joystick2",
+            .description    = "Joystick in Port 2"
+        }
+    };
+
+    ConfigOptions options = {
+
+        OPT_AUTOFIRE,
+        OPT_AUTOFIRE_BURSTS,
+        OPT_AUTOFIRE_BULLETS,
+        OPT_AUTOFIRE_DELAY
+    };
     
     // Reference to the control port this device belongs to
     ControlPort &port;
-  
+
     // Current configuration
     JoystickConfig config = { };
     
@@ -28,69 +53,86 @@ class Joystick : public SubComponent {
     
     // Vertical joystick position (-1 = up, 1 = down, 0 = released)
     int axisY = 0;
-        
-    // Bullet counter used in multi-fire mode
-    i64 bulletCounter = 0;
-    
-    // Next frame to auto-press or auto-release the fire button
-    i64 nextAutofireFrame = 0;
-    
-    
+
+
     //
-    // Initializing
+    // Methods
     //
     
 public:
     
     Joystick(C64 &ref, ControlPort& pref);
-    
-    
+
+    Joystick& operator= (const Joystick& other) {
+
+        CLONE(button)
+        CLONE(axisX)
+        CLONE(axisY)
+
+        CLONE(config)
+
+        return *this;
+    }
+
+
     //
-    // Methods from C64Object
+    // Methods from Serializable
+    //
+
+public:
+
+    template <class T> void serialize(T& worker) {
+
+        if (isResetter(worker)) return;
+
+        worker 
+
+        << config.autofire
+        << config.autofireBursts
+        << config.autofireBullets
+        << config.autofireDelay;
+    }
+    void operator << (SerChecker &worker) override { serialize(worker); }
+    void operator << (SerCounter &worker) override { serialize(worker); }
+    void operator << (SerResetter &worker) override;
+    void operator << (SerReader &worker) override;
+    void operator << (SerWriter &worker) override { serialize(worker); }
+
+
+    //
+    // Methods from CoreComponent
+    //
+
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+
+    void _dump(Category category, std::ostream& os) const override;
+
+
+    //
+    // Methods from Inspectable
     //
 
 private:
-    
-    const char *getDescription() const override;
-    void _dump(dump::Category category, std::ostream& os) const override;
 
-    
+    void cacheInfo(JoystickInfo &result) const override;
+
+
     //
-    // Methods from C64Component
+    // Methods from Configurable
     //
 
-private:
-    
-    void _reset(bool hard) override;
-        
-    template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-    }
-    
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-    }
-    
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    isize didLoadFromBuffer(const u8 *buffer) override;
-    
-    
-    //
-    // Configuring
-    //
-    
 public:
 
     const JoystickConfig &getConfig() const { return config; }
-    void resetConfig() override;
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option opt) const override;
+    void checkOption(Option opt, i64 value) override;
+    void setOption(Option opt, i64 value) override;
 
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
-    
     
     //
     // Using the device
@@ -100,20 +142,29 @@ public:
 
     // Reads the port bits that show up in the CIA's data port registers
     u8 getControlPort() const;
-        
+
     // Triggers a gamepad event
     void trigger(GamePadAction event);
 
-    /* Execution function for this control port. This method needs to be
-     * invoked at the end of each frame to make the auto-fire mechanism work.
-     */
-    void execute();
-    
+
+    //
+    // Auto fire
+    //
+
+public:
+
+    // Processes an auto-fire event
+    void processEvent();
+
 private:
     
-    // Reloads the autofire magazine
+    // Indicates if the device is currently auto-firing
+    bool isAutofiring();
+
+    // Reloads the auto-fire gun
     void reload();
-    
-    // Updates variable nextAutofireFrame
-    void scheduleNextShot();
+    void reload(isize bullets);
+    template <EventSlot Slot> void reload(isize bullets);
 };
+
+}

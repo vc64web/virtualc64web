@@ -2,32 +2,31 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "ParCable.h"
 #include "C64.h"
-#include "IO.h"
+#include "IOUtils.h"
+
+namespace vc64 {
 
 ParCable::ParCable(C64& ref) : SubComponent(ref)
 {
 };
 
 void
-ParCable::_reset(bool hard)
-{
-    RESET_SNAPSHOT_ITEMS(hard)
-}
-            
-void
-ParCable::_dump(dump::Category category, std::ostream& os) const
+ParCable::_dump(Category category, std::ostream& os) const
 {
     using namespace util;
 
-    if (category & dump::State) {
+    if (category == Category::State) {
         
         os << tab("Cable value");
         os << hex(getValue()) << std::endl;
@@ -37,8 +36,8 @@ ParCable::_dump(dump::Category category, std::ostream& os) const
 u8
 ParCable::getValue() const
 {
-    u8 result = getCIA();
-    
+    u8 result = userPort.getPB(); //  0xFF;
+
     switch (drive8.getParCableType()) {
             
         case PAR_CABLE_STANDARD: result &= getVIA(drive8); break;
@@ -52,7 +51,7 @@ ParCable::getValue() const
         default: break;
     }
 
-    return result;
+    return getCIA(result);
 }
 
 void
@@ -72,7 +71,7 @@ ParCable::c64Handshake()
 void
 ParCable::c64Handshake(Drive &drive)
 {
-    trace(PAR_DEBUG, "c64Handshake(%lld)\n", drive.getDeviceNr());
+    trace(PAR_DEBUG, "c64Handshake(%ld)\n", drive.getDeviceNr());
     
     switch (drive.getParCableType()) {
             
@@ -92,21 +91,21 @@ ParCable::c64Handshake(Drive &drive)
 }
 
 u8
-ParCable::getCIA() const
+ParCable::getCIA(u8 cable) const
 {
     u8 ciaprb = cia2.portBinternal();
     u8 ciaddr = cia2.getDDRB();
 
-    return (ciaprb & ciaddr) | (0xFF & ~ciaddr);
+    return (ciaprb & ciaddr) | (cable & ~ciaddr);
 }
 
 u8
 ParCable::getVIA(const Drive &drive) const
 {
-        u8 viapra = drive.via1.portAinternal();
-        u8 viaddr = drive.via1.getDDRA();
-        
-        return (viapra & viaddr) | (0xFF & ~viaddr);
+    u8 viapra = drive.via1.portAinternal();
+    u8 viaddr = drive.via1.getDDRA();
+
+    return (viapra & viaddr) | (0xFF & ~viaddr);
 }
 
 u8
@@ -116,4 +115,6 @@ ParCable::getPIA(const Drive &drive) const
     u8 viaddr = drive.pia.ddra;
     
     return (viapra & viaddr) | (0xFF & ~viaddr);
+}
+
 }

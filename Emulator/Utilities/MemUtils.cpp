@@ -2,14 +2,20 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
+#include "config.h"
+#include "string.h"
+#include "IOUtils.h"
 #include "MemUtils.h"
 
-namespace util {
+namespace vc64::util {
 
 bool isZero(const u8 *ptr, isize size)
 {
@@ -18,6 +24,44 @@ bool isZero(const u8 *ptr, isize size)
     }
     return true;
 }
+
+void replace(u8 *p, isize size, const u8 *sequence, const u8 *substitute)
+{
+    replace((char *)p, size, (char *)sequence, (char *)substitute);
+}
+
+void replace(char *p, isize size, const char *sequence, const char *substitute)
+{
+    assert(p);
+    assert(sequence);
+    assert(substitute);
+    assert(strlen(sequence) == strlen(substitute));
+
+    auto len = strlen(sequence);
+        
+    for (isize i = 0; i < size - isize(len); i++) {
+
+        if (strncmp(p + i, sequence, len) == 0) {
+            
+            memcpy((void *)(p + i), (void *)substitute, len);
+            return;
+        }
+    }
+    assert(false);
+}
+
+void readAscii(const u8 *buf, isize len, char *result, char pad)
+{
+    assert(buf);
+    assert(result);
+    
+    for (isize i = 0; i < len; i++) {
+        
+        result[i] = isprint(int(buf[i])) ? char(buf[i]) : pad;
+    }
+    result[len] = 0;
+}
+
 
 void hexdump(u8 *p, isize size, isize cols, isize pad)
 {

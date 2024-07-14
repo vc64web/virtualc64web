@@ -1,4 +1,4 @@
-var vc64web_version ="4.5.0"; //minimum requirement for snapshot version to be compatible
+var vc64web_version ="5.0.0"; //minimum requirement for snapshot version to be compatible
 var current_browser_datasource='snapshots';
 var current_browser_command=null;
 
@@ -1215,9 +1215,8 @@ function set_take_auto_snapshots(on) {
             if(is_running() && emulator_currently_runs==true)
             {
                 wasm_halt();
-                wasm_take_user_snapshot(); 
+                var snapshot_json= wasm_take_user_snapshot();
                 wasm_run();
-                var snapshot_json= wasm_pull_user_snapshot_file();
 
                 var snap_obj = JSON.parse(snapshot_json);
                 var snapshot_buffer = new Uint8Array(Module.HEAPU8.buffer, snap_obj.address, snap_obj.size);

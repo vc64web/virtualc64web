@@ -2,17 +2,21 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
+#include "Chrono.h"
 #include <thread>
 #include <future>
 
-namespace util {
+namespace vc64::util {
 
 class Mutex
 {
@@ -44,27 +48,6 @@ public:
 
     AutoMutex(ReentrantMutex &ref) : mutex(ref) { mutex.lock(); }
     ~AutoMutex() { mutex.unlock(); }
-};
-
-class Wakeable
-{
-#ifdef USE_CONDITION_VARIABLE
-    
-    std::mutex condMutex;
-    std::condition_variable cond;
-    bool condFlag = false;
-    
-#else
-    
-    std::promise<int> promise;
-    std::future<int> future = promise.get_future();
-
-#endif
-    
-public:
-
-    void waitForWakeUp();
-    void wakeUp();
 };
 
 }

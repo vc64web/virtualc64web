@@ -2,16 +2,21 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
-#include "C64Object.h"
+#include "CoreObject.h"
 #include "DiskTypes.h"
 #include "FSTypes.h"
+
+namespace vc64 {
 
 /* To create a FSDevice, the layout parameters of the represendet device have
  * to be provided. This is done by passing a structure of type FSDeviceLayout
@@ -24,7 +29,7 @@
  * file.
  */
 
-struct FSDeviceDescriptor : C64Object {
+struct FSDeviceDescriptor : CoreObject {
     
     // DOS type
     DOSType dos = DOS_TYPE_NODOS;
@@ -34,7 +39,7 @@ struct FSDeviceDescriptor : C64Object {
     
     // Number of heads
     isize numHeads = 0;
-        
+
     
     //
     // Initializing
@@ -48,7 +53,7 @@ struct FSDeviceDescriptor : C64Object {
     // Creates a device descriptor from a D64 file
     FSDeviceDescriptor(const class D64File &d64);
 
-    const char *getDescription() const override { return "FSLayout"; }
+    const char *objectName() const override { return "FSLayout"; }
     
     
     //
@@ -97,3 +102,5 @@ public:
     bool nextBlock(Block b, Block *nb) const;
     TSLink nextBlockRef(TSLink b) const;
 };
+
+}

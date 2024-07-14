@@ -2,59 +2,46 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "Mouse.h"
-#include "C64.h"
-#include "IO.h"
+#include "Emulator.h"
+#include "IOUtils.h"
 #include <cmath>
 
-Mouse::Mouse(C64 &ref, ControlPort& pref) : SubComponent(ref), port(pref)
+namespace vc64 {
+
+Mouse::Mouse(C64 &ref, ControlPort& pref) : SubComponent(ref, pref.objid), port(pref)
 {
-    subComponents = std::vector<C64Component *> {
+    subComponents = std::vector<CoreComponent *> {
         
         &mouse1350,
         &mouse1351,
         &mouseNeos
     };
-
-    /*
-    config.model = MOUSE_C1350;
-    config.shakeDetection = true;
-    config.velocity = 100;
-
-    updateScalingFactors();
-    */
 }
 
 void Mouse::_reset(bool hard)
 {
-    RESET_SNAPSHOT_ITEMS(hard)
-
     targetX = 0;
     targetY = 0;
 }
 
-void
-Mouse::resetConfig()
-{
-    setConfigItem(OPT_MOUSE_MODEL, MOUSE_C1350);
-    setConfigItem(OPT_SHAKE_DETECTION, true);
-    setConfigItem(OPT_MOUSE_VELOCITY, 100);
-}
-
 i64
-Mouse::getConfigItem(Option option) const
+Mouse::getOption(Option option) const
 {
     switch (option) {
 
-        case OPT_MOUSE_MODEL:      return config.model;
-        case OPT_SHAKE_DETECTION:  return config.shakeDetection;
-        case OPT_MOUSE_VELOCITY:   return config.velocity;
+        case OPT_MOUSE_MODEL:           return config.model;
+        case OPT_MOUSE_SHAKE_DETECT:    return config.shakeDetection;
+        case OPT_MOUSE_VELOCITY:        return config.velocity;
 
         default:
             fatalError;
@@ -62,27 +49,58 @@ Mouse::getConfigItem(Option option) const
 }
 
 void
-Mouse::setConfigItem(Option option, i64 value)
+Mouse::checkOption(Option opt, i64 value)
+{
+    switch (opt) {
+
+        case OPT_MOUSE_MODEL:
+
+            if (!MouseModelEnum::isValid(value)) {
+                throw Error(ERROR_OPT_INV_ARG, MouseModelEnum::keyList());
+            }
+            return;
+
+        case OPT_MOUSE_SHAKE_DETECT:
+
+            return;
+
+        case OPT_MOUSE_VELOCITY:
+
+            if (value < 0 || value > 255) {
+                throw Error(ERROR_OPT_INV_ARG, "0 ... 255");
+            }
+            return;
+
+        default:
+            throw Error(ERROR_OPT_UNSUPPORTED);
+    }
+}
+
+void
+Mouse::setOption(Option opt, i64 value)
 {    
-    switch (option) {
+    checkOption(opt, value);
+
+    switch (opt) {
             
         case OPT_MOUSE_MODEL:
             
-            config.model = (MouseModel)value;
-            _reset(true);
+            config.model = MouseModel(value);
+            targetX = 0;
+            targetY = 0;
             return;
             
-        case OPT_SHAKE_DETECTION:
+        case OPT_MOUSE_SHAKE_DETECT:
             
-            config.shakeDetection = value;
+            config.shakeDetection = bool(value);
             return;
             
         case OPT_MOUSE_VELOCITY:
-                        
+
             if (value < 0 || value > 255) {
-                throw VC64Error(ERROR_OPT_INVARG, "0 ... 255");
+                throw Error(ERROR_OPT_INV_ARG, "0 ... 255");
             }
-            config.velocity= value;
+            config.velocity = isize(value);
             updateScalingFactors();
             return;
 
@@ -99,24 +117,21 @@ Mouse::updateScalingFactors()
 }
 
 void
-Mouse::_dump(dump::Category category, std::ostream& os) const
+Mouse::_dump(Category category, std::ostream& os) const
 {
     using namespace util;
 
-    if (category & dump::Config) {
+    if (category == Category::Config) {
         
-        os << tab("Mouse nr") << dec(port.nr) << std::endl;
-        os << tab("Model") << MouseModelEnum::key(config.model) << std::endl;
-        os << tab("Shake detection") << bol(config.shakeDetection) << std::endl;
-        os << tab("Velocity") << config.velocity << std::endl;
+        dumpConfig(os);
     }
 
-    if (category & dump::State) {
+    if (category == Category::State) {
         
-        os << tab("Mouse nr") << dec(port.nr) << std::endl;
+        os << tab("Mouse nr") << dec(objid) << std::endl;
         os << tab("targetX") << targetX << std::endl;
         os << tab("targetY") << targetY << std::endl;
-    }    
+    }
 }
 
 bool
@@ -143,10 +158,32 @@ void
 Mouse::setXY(double x, double y)
 {
     debug(PRT_DEBUG, "setXY(%f,%f)\n", x, y);
-        
-    targetX = x * scaleX;
-    targetY = y * scaleX;
-    
+
+    switch(config.model) {
+
+        case MOUSE_PADDLE_X:
+
+            port.paddle.setPosXY(0, x * scaleX, y * scaleY);
+            break;
+
+        case MOUSE_PADDLE_Y:
+
+            port.paddle.setPosXY(1, x * scaleX, y * scaleY);
+            break;
+
+        case MOUSE_PADDLE_XY:
+
+            port.paddle.setPosXY(0, x * scaleX, y * scaleY);
+            port.paddle.setPosXY(1, x * scaleX, y * scaleY);
+            break;
+
+        default:
+
+            targetX = x * scaleX;
+            targetY = y * scaleX;
+            break;
+    }
+
     port.device = CPDEVICE_MOUSE;
 }
 
@@ -155,9 +192,31 @@ Mouse::setDxDy(double dx, double dy)
 {
     debug(PRT_DEBUG, "setDxDy(%f,%f)\n", dx, dy);
 
-    targetX += dx * scaleX;
-    targetY += dy * scaleY;
-    
+    switch(config.model) {
+
+        case MOUSE_PADDLE_X:    
+
+            port.paddle.setPosDxDy(0, dx * scaleX / 10000, dy * scaleY / 10000);
+            break;
+
+        case MOUSE_PADDLE_Y:    
+
+            port.paddle.setPosDxDy(1, dx * scaleX / 10000, dy * scaleY / 10000);
+            break;
+
+        case MOUSE_PADDLE_XY:
+
+            port.paddle.setPosDxDy(0, dx * scaleX / 10000, dy * scaleY / 10000);
+            port.paddle.setPosDxDy(1, dx * scaleX / 10000, dy * scaleY / 10000);
+            break;
+
+        default:
+
+            targetX += dx * scaleX;
+            targetY -= dy * scaleY;
+            break;
+    }
+
     port.device = CPDEVICE_MOUSE;
 }
 
@@ -168,10 +227,13 @@ Mouse::setLeftButton(bool value)
     
     switch(config.model) {
             
-        case MOUSE_C1350: mouse1350.setLeftMouseButton(value); break;
-        case MOUSE_C1351: mouse1351.setLeftMouseButton(value); break;
-        case MOUSE_NEOS:  mouseNeos.setLeftMouseButton(value); break;
-            
+        case MOUSE_C1350:       mouse1350.setLeftMouseButton(value); break;
+        case MOUSE_C1351:       mouse1351.setLeftMouseButton(value); break;
+        case MOUSE_NEOS:        mouseNeos.setLeftMouseButton(value); break;
+        case MOUSE_PADDLE_X:    port.paddle.setButton(0, value); break;
+        case MOUSE_PADDLE_Y:    port.paddle.setButton(1, value); break;
+        case MOUSE_PADDLE_XY:   port.paddle.setButton(0, value); port.paddle.setButton(1, value); break;
+
         default:
             fatalError;
     }
@@ -185,12 +247,12 @@ Mouse::setRightButton(bool value)
 
     switch(config.model) {
             
-        case MOUSE_C1350: mouse1350.setRightMouseButton(value); break;
-        case MOUSE_C1351: mouse1351.setRightMouseButton(value); break;
-        case MOUSE_NEOS:  mouseNeos.setRightMouseButton(value); break;
-            
+        case MOUSE_C1350:       mouse1350.setRightMouseButton(value); break;
+        case MOUSE_C1351:       mouse1351.setRightMouseButton(value); break;
+        case MOUSE_NEOS:        mouseNeos.setRightMouseButton(value); break;
+
         default:
-            fatalError;
+            break;
     }
     port.device = CPDEVICE_MOUSE;
 }
@@ -200,7 +262,7 @@ Mouse::trigger(GamePadAction event)
 {
     assert_enum(GamePadAction, event);
 
-    debug(PRT_DEBUG, "trigger(%lld)\n", event);
+    debug(PRT_DEBUG, "trigger(%ld)\n", event);
     
     switch (event) {
 
@@ -249,10 +311,13 @@ Mouse::readPotX() const
 {
     switch(config.model) {
             
-        case MOUSE_C1350: return mouse1350.readPotX();
-        case MOUSE_C1351: return mouse1351.readPotX();
-        case MOUSE_NEOS:  return mouseNeos.readPotX();
-            
+        case MOUSE_C1350:       return mouse1350.readPotX();
+        case MOUSE_C1351:       return mouse1351.readPotX();
+        case MOUSE_NEOS:        return mouseNeos.readPotX();
+        case MOUSE_PADDLE_X:
+        case MOUSE_PADDLE_Y:
+        case MOUSE_PADDLE_XY:   return port.paddle.readPotX();
+
         default:
             fatalError;
     }
@@ -263,10 +328,13 @@ Mouse::readPotY() const
 {
     switch(config.model) {
             
-        case MOUSE_C1350: return mouse1350.readPotY();
-        case MOUSE_C1351: return mouse1351.readPotY();
-        case MOUSE_NEOS:  return mouseNeos.readPotY();
-            
+        case MOUSE_C1350:       return mouse1350.readPotY();
+        case MOUSE_C1351:       return mouse1351.readPotY();
+        case MOUSE_NEOS:        return mouseNeos.readPotY();
+        case MOUSE_PADDLE_X:
+        case MOUSE_PADDLE_Y:
+        case MOUSE_PADDLE_XY:   return port.paddle.readPotY();
+
         default:
             fatalError;
     }
@@ -285,10 +353,13 @@ Mouse::getControlPort() const
 {
     switch(config.model) {
             
-        case MOUSE_C1350: return mouse1350.readControlPort();
-        case MOUSE_C1351: return mouse1351.readControlPort();
-        case MOUSE_NEOS:  return mouseNeos.readControlPort();
-            
+        case MOUSE_C1350:       return mouse1350.readControlPort();
+        case MOUSE_C1351:       return mouse1351.readControlPort();
+        case MOUSE_NEOS:        return mouseNeos.readControlPort();
+        case MOUSE_PADDLE_X:
+        case MOUSE_PADDLE_Y:
+        case MOUSE_PADDLE_XY:   return port.paddle.readControlPort();
+
         default:
             fatalError;
     }
@@ -313,7 +384,14 @@ Mouse::execute()
             
             // Coordinates are updated in latchPosition()
             break;
-            
+
+        case MOUSE_PADDLE_X:
+        case MOUSE_PADDLE_Y:
+        case MOUSE_PADDLE_XY:
+
+            // Nothing to do
+            break;
+
         default:
             fatalError;
     }
@@ -334,14 +412,14 @@ ShakeDetector::isShakingRel(double dx) {
     
     // Check for a direction reversal
     if (dx * dxsign < 0) {
-    
+
         u64 dt = util::Time::now().asNanoseconds() - lastTurn;
         dxsign = -dxsign;
 
         // A direction reversal is considered part of a shake, if the
         // previous reversal happened a short while ago.
         if (dt < 400 * 1000 * 1000) {
-  
+
             // Eliminate jitter by demanding that the mouse has travelled
             // a long enough distance.
             if (dxsum > 400) {
@@ -371,4 +449,6 @@ ShakeDetector::isShakingRel(double dx) {
     }
     
     return false;
+}
+
 }

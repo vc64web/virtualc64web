@@ -2,97 +2,73 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
-#include "C64Component.h"
+#include "CoreComponent.h"
 
-class C64;
-class C64Memory;
-class DriveMemory;
-template <typename M> class CPU;
-class ProcessorPort;
-class VICII;
-class CIA1;
-class CIA2;
-class Muxer;
-class SIDStream;
-class Keyboard;
-class ControlPort;
-class ExpansionPort;
-class IEC;
-class Drive;
-class Datasette;
-class Mouse;
-class Mouse1350;
-class Mouse1351;
-class NeosMouse;
-class MsgQueue;
-class PowerSupply;
-class ParCable;
-class Recorder;
-class RegressionTester;
-//class RetroShell;
+namespace vc64 {
 
-class AnyFile;
-class AnyCollection;
-class TAPFile;
-class T64File;
-class PRGFile;
-class P00File;
-class D64File;
-class G64File;
-class CRTFile;
-class RomFile;
-class Snapshot;
-
-/* This class extends the C64Component class with references to all components
- * that are part of the C64 class.
- */
-class SubComponent : public C64Component {
+class References {
 
 protected:
 
-    C64 &c64;
-    CIA1 &cia1;
-    CIA2 &cia2;
-    ControlPort &port1;
-    ControlPort &port2;
-    CPU<C64Memory> &cpu;
-    Datasette &datasette;
-    Drive &drive8;
-    Drive &drive9;
-    ExpansionPort &expansionport;
-    IEC &iec;
-    Keyboard &keyboard;
-    C64Memory &mem;
-    MsgQueue &msgQueue;
-    PowerSupply &oscillator;
-    ParCable &parCable;
-    Recorder &recorder;
-    RegressionTester &regressionTester;
-   // RetroShell &retroShell;
-    Muxer &muxer;
-    VICII &vic;
+    class AudioPort &audioPort;
+    class C64 &c64;
+    class CIA1 &cia1;
+    class CIA2 &cia2;
+    class ControlPort &port1;
+    class ControlPort &port2;
+    class CPU &cpu;
+    class Datasette &datasette;
+    class Debugger &debugger;
+    class Drive &drive8;
+    class Drive &drive9;
+    class ExpansionPort &expansionPort;
+    class UserPort &userPort;
+    class Host &host;
+    class SerialPort &serialPort;
+    class Keyboard &keyboard;
+    class C64Memory &mem;
+    class Monitor &monitor;
+    class MsgQueue &msgQueue;
+    class ParCable &parCable;
+    class PowerPort &powerSupply;
+    class Recorder &recorder;
+    class RegressionTester &regressionTester;
+    class RetroShell &retroShell;
+    class SIDBridge &sidBridge;
+    class SID& sid0;
+    class SID& sid1;
+    class SID& sid2;
+    class SID& sid3;
+    class VICII &vic;
+    class VideoPort &videoPort;
 
     Drive *drive[2] = { &drive8, &drive9 };
 
 public:
 
-    SubComponent(C64& ref);
-    SubComponent(const SubComponent &other) : SubComponent(other.c64) { }
-    
-    virtual bool isPoweredOff() const override;
-    virtual bool isPoweredOn() const override;
-    virtual bool isPaused() const override;
-    virtual bool isRunning() const override;
-
-    virtual void suspend() override;
-    virtual void resume() override;
-    
-    void prefix() const override;
+    References(C64& ref);
 };
+
+class SubComponent : public CoreComponent, public References {
+
+public:
+
+    SubComponent(C64& ref);
+    SubComponent(C64& ref, isize id);
+
+    void prefix() const override;
+
+    void markAsDirty();
+};
+
+}

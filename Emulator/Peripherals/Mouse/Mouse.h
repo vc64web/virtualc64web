@@ -2,9 +2,12 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
@@ -16,6 +19,8 @@
 #include "Mouse1350.h"
 #include "Mouse1351.h"
 #include "NeosMouse.h"
+
+namespace vc64 {
 
 class ShakeDetector {
     
@@ -42,8 +47,26 @@ public:
     bool isShakingRel(double dx);
 };
 
-class Mouse : public SubComponent {
+class Mouse final : public SubComponent {
     
+    Descriptions descriptions = {
+        {
+            .name           = "Mouse1",
+            .description    = "Mouse in Port 1"
+        },
+        {
+            .name           = "Mouse2",
+            .description    = "Mouse in Port 2"
+        }
+    };
+
+    ConfigOptions options = {
+
+        OPT_MOUSE_MODEL,
+        OPT_MOUSE_SHAKE_DETECT,
+        OPT_MOUSE_VELOCITY
+    };
+
     // Reference to the control port this device belongs to
     ControlPort &port;
 
@@ -52,7 +75,7 @@ class Mouse : public SubComponent {
 
     
     //
-    // Sub components
+    // Subcomponents
     //
 
     // Shake detector
@@ -66,7 +89,7 @@ class Mouse : public SubComponent {
     
     // A Neos (analog) mouse
     NeosMouse mouseNeos = NeosMouse(c64);
-        
+
     /* Target mouse position. In order to achieve a smooth mouse movement, a
      * new mouse coordinate is not written directly into mouseX and mouseY.
      * Instead, these variables are set. In execute(), mouseX and mouseY are
@@ -74,72 +97,90 @@ class Mouse : public SubComponent {
      */
     double targetX = 0.0;
     double targetY = 0.0;
-  
+
     // Scaling factors applied to the raw mouse coordinates in setXY()
     double scaleX = 1.0;
     double scaleY = 1.0;
 
     
     //
-    // Initializing
+    // Methods
     //
     
 public:
     
     Mouse(C64 &ref, ControlPort& pref);
-    
-    
+
+    Mouse& operator= (const Mouse& other) {
+
+        CLONE(targetX)
+        CLONE(targetY)
+        CLONE(scaleX)
+        CLONE(scaleY)
+
+        CLONE(mouse1350)
+        CLONE(mouse1351)
+        CLONE(mouseNeos)
+
+        return *this;
+    }
+
+
     //
-    // Methods from C64Object
+    // Methods from Serializable
     //
+
+public:
+
+    template <class T>
+    void serialize(T& worker)
+    {
+        worker
+
+        << mouse1350
+        << mouse1351
+        << mouseNeos;
+
+        if (isResetter(worker)) return;
+
+        worker
+
+        << config.model;
+
+    } SERIALIZERS(serialize)
+
+
+    //
+    // Methods from CoreComponent
+    //
+
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
 
 private:
-    
-    const char *getDescription() const override { return "Mouse"; }
-    void _dump(dump::Category category, std::ostream& os) const override;
 
-    
-    //
-    // Methods from C64Component
-    //
-
-private:
-    
+    void _dump(Category category, std::ostream& os) const override;
     void _reset(bool hard) override;
 
-    template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-        worker << config.model;
-    }
-    
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-    }
-    
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    
-    
+
     //
     // Configuring
     //
-    
-public:
-    
-    const MouseConfig &getConfig() const { return config; }
-    void resetConfig() override;
 
-    i64 getConfigItem(Option option) const;
-    void setConfigItem(Option option, i64 value);
-    
+public:
+
+    const MouseConfig &getConfig() const { return config; }
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option opt) const override;
+    void checkOption(Option opt, i64 value) override;
+    void setOption(Option opt, i64 value) override;
+
 private:
     
     void updateScalingFactors();
     
- 
+
     //
     // Accessing
     //
@@ -182,3 +223,5 @@ public:
     // Performs periodic actions for this device
     void execute();
 };
+
+}

@@ -2,40 +2,45 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
+/// @file
 
 #pragma once
 
-#include "Aliases.h"
 #include "Reflection.h"
+
+namespace vc64 {
 
 //
 // Enumerations
 //
 
+/// Parallel cable type
 enum_long(PAR_CABLE_TYPE)
 {
-    PAR_CABLE_NONE,
-    PAR_CABLE_STANDARD,
-    PAR_CABLE_DOLPHIN3
+    PAR_CABLE_NONE,         ///< No parallel cable attached
+    PAR_CABLE_STANDARD,     ///< Standard parallel cable
+    PAR_CABLE_DOLPHIN3      ///< DolphinDOS cable
 };
 typedef PAR_CABLE_TYPE ParCableType;
 
-#ifdef __cplusplus
 struct ParCableTypeEnum : util::Reflection<ParCableTypeEnum, ParCableType> {
-    
-    static long min() { return 0; }
-    static long max() { return PAR_CABLE_DOLPHIN3; }
-    static bool isValid(long value) { return value >= min() && value <= max(); }
-    
+
+    static constexpr long minVal = 0;
+    static constexpr long maxVal = PAR_CABLE_DOLPHIN3;
+    static bool isValid(auto value) { return value >= minVal && value <= maxVal; }
+
     static const char *prefix() { return "PAR_CABLE"; }
-    static const char *key(ParCableType value)
+    static const char *key(long value)
     {
         switch (value) {
-                
+
             case PAR_CABLE_NONE:     return "PAR_CABLE_NONE";
             case PAR_CABLE_STANDARD: return "PAR_CABLE_STANDARD";
             case PAR_CABLE_DOLPHIN3: return "PAR_CABLE_DOLPHIN3";
@@ -43,4 +48,5 @@ struct ParCableTypeEnum : util::Reflection<ParCableTypeEnum, ParCableType> {
         return "???";
     }
 };
-#endif
+
+}

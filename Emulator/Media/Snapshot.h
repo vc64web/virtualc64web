@@ -2,15 +2,20 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "AnyFile.h"
 #include "Constants.h"
+
+namespace vc64 {
 
 class C64;
 
@@ -20,7 +25,7 @@ struct Thumbnail {
     isize width, height;
     
     // Raw texture data
-    u32 screen[TEX_HEIGHT * TEX_WIDTH];
+    u32 screen[Texture::height * Texture::width];
     
     // Creation date and time
     time_t timestamp;
@@ -28,7 +33,7 @@ struct Thumbnail {
     // Factory methods
     static Thumbnail *makeWithC64(const C64 &c64, isize dx = 1, isize dy = 1);
     
-    // Takes a screenshot from a given Amiga
+    // Takes a screenshot from the current texture
     void take(const C64 &c64, isize dx = 1, isize dy = 1);
 };
 
@@ -41,7 +46,8 @@ struct SnapshotHeader {
     u8 major;
     u8 minor;
     u8 subminor;
-    
+    u8 beta;
+
     // Preview image
     Thumbnail screenshot;
 };
@@ -54,43 +60,49 @@ public:
     // Class methods
     //
 
-    static bool isCompatible(const string &name);
+    static bool isCompatible(const fs::path &path);
     static bool isCompatible(std::istream &stream);
-     
+
     
     //
     // Initializing
     //
-     
-    Snapshot(const string &path) throws { init(path); }
+
+    Snapshot(const fs::path &path) throws { init(path); }
     Snapshot(const u8 *buf, isize len) throws { init(buf, len); }
     Snapshot(isize capacity);
-    Snapshot(class C64 &c64);
+    Snapshot(C64 &c64);
 
     
     //
-    // Methods from C64Object
+    // Methods from CoreObject
     //
 
-    const char *getDescription() const override { return "Snapshot"; }
+    const char *objectName() const override { return "Snapshot"; }
 
     
     //
     // Methods from AnyFile
     //
-      
-    bool isCompatiblePath(const string &path) override { return isCompatible(path); }
-    bool isCompatibleStream(std::istream &stream) override { return isCompatible(stream); }
+
     FileType type() const override { return FILETYPE_SNAPSHOT; }
-    
+    bool isCompatiblePath(const fs::path &path) override { return isCompatible(path); }
+    bool isCompatibleStream(std::istream &stream) override { return isCompatible(stream); }
+    void finalizeRead() throws override;
+
     
     //
     // Accessing
     //
-        
+
+    std::pair <isize,isize> previewImageSize() const override;
+    const u32 *previewImageData() const override;
+    time_t timestamp() const override;
+
     // Checks the snapshot version number
     bool isTooOld() const;
     bool isTooNew() const;
+    bool isBeta() const;
     bool matches() { return !isTooOld() && !isTooNew(); }
 
     // Returns a pointer to the snapshot header
@@ -100,8 +112,10 @@ public:
     const Thumbnail &getThumbnail() const { return getHeader()->screenshot; }
 
     // Returns pointer to the core data
-    u8 *getData() const { return data + sizeof(SnapshotHeader); }
-        
+    u8 *getSnapshotData() const { return data + sizeof(SnapshotHeader); }
+
     // Records a screenshot
-    void takeScreenshot(class C64 &c64);
+    void takeScreenshot(C64 &c64);
 };
+
+}

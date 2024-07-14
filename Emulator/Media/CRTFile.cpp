@@ -2,21 +2,33 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "CRTFile.h"
 #include "Cartridge.h"
 #include "Checksum.h"
-#include "IO.h"
+#include "IOUtils.h"
+
+namespace vc64 {
+
+string
+CRTFile::cartridgeTypeName(CartridgeType type)
+{
+    return std::to_string(type) + " (" + CartridgeTypeEnum::key(type) + ")";
+}
 
 bool
-CRTFile::isCompatible(const string &path)
+CRTFile::isCompatible(const fs::path &path)
 {
-    return util::uppercased(util::extractSuffix(path)) == "CRT";
+    auto s = util::uppercased(path.extension().string());
+    return s == ".CRT";
 }
 
 bool
@@ -32,20 +44,22 @@ CRTFile::getName() const
 }
 
 void
-CRTFile::readFromStream(std::istream &stream)
+CRTFile::finalizeRead()
 {
-    AnyFile::readFromStream(stream);
-    if constexpr (CRT_DEBUG) dump();
-            
+    if (CRT_DEBUG) dump();
+
+    // Fix known inconsistencies
+    repair();
+
     // Load chip packets
     u8 *ptr = data + headerSize();
     for (numberOfChips = 0; ptr < data + size; numberOfChips++) {
         
         if (numberOfChips == MAX_PACKETS) {
-            throw VC64Error(ERROR_CRT_TOO_MANY_PACKETS);
+            throw Error(ERROR_CRT_TOO_MANY_PACKETS);
         }
         if (memcmp("CHIP", ptr, 4) != 0) {
-            throw VC64Error(ERROR_CRT_CORRUPTED_PACKET);
+            throw Error(ERROR_CRT_CORRUPTED_PACKET);
         }
         
         // Remember start address of each chip section
@@ -55,7 +69,7 @@ CRTFile::readFromStream(std::istream &stream)
         ptr += chipSize(numberOfChips);
     }
     
-    plain(CRT_DEBUG, "CRT file imported (%zd chips)\n", numberOfChips);
+    plain(CRT_DEBUG, "CRT file imported (%ld chips)\n", numberOfChips);
 }
 
 CartridgeType
@@ -65,10 +79,58 @@ CRTFile::cartridgeType() const {
     return CartridgeType(type);
 }
 
+u16 
+CRTFile::cartridgeVersion() const
+{
+    return LO_HI(data[0x15], data[0x14]);
+}
+
+u32
+CRTFile::headerSize() const
+{
+    return HI_HI_LO_LO(data[0x10], data[0x11], data[0x12], data[0x13]);
+}
+
 bool
 CRTFile::isSupported() const
 {
     return Cartridge::isSupportedType(cartridgeType());
+}
+
+isize 
+CRTFile::chipCount() const 
+{
+    return numberOfChips;
+}
+
+u8 *
+CRTFile::chipData(isize nr) const
+{
+    return chips[nr]+0x10;
+}
+
+u16 
+CRTFile::chipSize(isize nr) const
+{
+    return LO_HI(chips[nr][0xF], chips[nr][0xE]);
+}
+
+u16
+CRTFile::chipType(isize nr) const
+{
+    return LO_HI(chips[nr][0x9], chips[nr][0x8]);
+}
+
+u16
+CRTFile::chipBank(isize nr) const
+{
+    return LO_HI(chips[nr][0xB], chips[nr][0xA]);
+}
+
+u16
+CRTFile::chipAddr(isize nr) const
+{
+    return LO_HI(chips[nr][0xD], chips[nr][0xC]);
 }
 
 void
@@ -87,7 +149,7 @@ CRTFile::repair()
     //
     // General errors
     //
-        
+
     // Some cartridges show a header size of 0x20 which is wrong
     if (headerSize() < 0x40) {
         u32 newSize = 0x40;
@@ -101,13 +163,15 @@ CRTFile::repair()
     // Individual errors
     //
     
-    switch (util::fnv_1a_64(data, size)) {
+    switch (util::fnv64(data, size)) {
 
         case 0xb2a479a5a2ee6cd5: // Mikro Assembler
 
             // Replace invalid CRT type $00 by $1C
-            msg("Repairing broken Mikro Assembler cartridge\n");
+            debug(CRT_DEBUG, "Repairing broken Mikro Assembler cartridge\n");
             data[0x17] = 0x1C;
-            break;            
+            break;
     }
+}
+
 }

@@ -2,15 +2,20 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "PIA.h"
 #include "ParCable.h"
 #include "Drive.h"
+
+namespace vc64 {
 
 //
 // PIA (commons)
@@ -19,19 +24,6 @@
 PIA6821::PIA6821(C64 &ref, Drive &drvref) : SubComponent(ref), drive(drvref)
 {
     
-}
-
-void
-PIA6821::_reset(bool hard)
-{
-    RESET_SNAPSHOT_ITEMS(hard)
-    
-    /*
-    ca1 = true;
-    ca2 = true;
-    cb1 = true;
-    cb2 = true;
-    */
 }
 
 void
@@ -47,7 +39,7 @@ PIA6821::setCA1External(bool value)
         
         SET_BIT(cra, 7);
         if (enable) irqAHasOccurred();
-    
+
         // Release CA2 in "Read Strobe with CA1 Restore" mode
         if (ca2Control() == 0b100) setCA2Internal(true);
     }
@@ -262,13 +254,13 @@ PIA6821::poke(bool rs1, bool rs0, u8 value)
             
         case 0x0: case 0x1: // DDRA
             
-            if (value != 0) trace(PIA_DEBUG, "pokeDDRA(%x)\n", value);
+            trace(PIA_DEBUG, "pokeDDRA(%x)\n", value);
             ddra = value;
             break;
             
         case 0x4: case 0x5: case 0x6: case 0x7: // CRA
         {
-            if (value != 0 && value != 4) trace(PIA_DEBUG, "pokeCRA(%x)\n", value);
+            trace(PIA_DEBUG, "pokeCRA(%x)\n", value);
 
             bool pendingIrq =
             (GET_BIT(cra, 7) && RISING_EDGE_BIT(cra, value, 0)) ||
@@ -436,4 +428,6 @@ void
 PiaDolphin::poke(u16 addr, u8 value)
 {
     PIA6821::poke(addr & 0b10, addr & 0b01, value);
+}
+
 }

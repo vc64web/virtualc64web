@@ -2,15 +2,20 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "Snapshot.h"
 #include "C64.h"
-#include "IO.h"
+#include "IOUtils.h"
+
+namespace vc64 {
 
 Thumbnail *
 Thumbnail::makeWithC64(const C64 &c64, isize dx, isize dy)
@@ -24,22 +29,21 @@ Thumbnail::makeWithC64(const C64 &c64, isize dx, isize dy)
 void
 Thumbnail::take(const C64 &c64, isize dx, isize dy)
 {
-    u32 *source = (u32 *)c64.vic.stableEmuTexture();
+    isize xStart = PAL::FIRST_VISIBLE_PIXEL;
+    isize yStart = PAL::FIRST_VISIBLE_LINE;
+
+    width = PAL::VISIBLE_PIXELS / dx;
+    height = c64.vic.numVisibleLines() / dy;
+
     u32 *target = screen;
+    u32 *source = (u32 *)c64.videoPort.getTexture();
+    source += xStart + yStart * Texture::width;
 
-    isize xStart = FIRST_VISIBLE_PIXEL;
-    isize yStart = FIRST_VISIBLE_LINE;
-
-    width = VISIBLE_PIXELS;
-    height = c64.vic.numVisibleLines();
-
-    source += xStart + yStart * TEX_WIDTH;
-    
     for (isize y = 0; y < height; y++) {
         for (isize x = 0; x < width; x++) {
             target[x] = source[x * dx];
         }
-        source += TEX_WIDTH;
+        source += Texture::width * dy;
         target += width;
     }
     
@@ -47,7 +51,7 @@ Thumbnail::take(const C64 &c64, isize dx, isize dy)
 }
 
 bool
-Snapshot::isCompatible(const string &path)
+Snapshot::isCompatible(const fs::path &path)
 {
     return true;
 }
@@ -55,6 +59,7 @@ Snapshot::isCompatible(const string &path)
 bool
 Snapshot::isCompatible(std::istream &stream)
 {
+    if (util::streamLength(stream) < 0x15) return false;
     return util::matchingStreamHeader(stream, "VC64");
 }
 
@@ -78,8 +83,38 @@ Snapshot::Snapshot(C64 &c64): Snapshot(c64.size())
 {
     takeScreenshot(c64);
 
-    if constexpr (SNP_DEBUG) c64.dump();
-    c64.save(getData());
+    if (SNP_DEBUG) c64.dump(Category::State);
+    c64.save(getSnapshotData());
+}
+
+void
+Snapshot::finalizeRead()
+{
+    if (FORCE_SNAP_TOO_OLD) throw Error(ERROR_SNAP_TOO_OLD);
+    if (FORCE_SNAP_TOO_NEW) throw Error(ERROR_SNAP_TOO_NEW);
+    if (FORCE_SNAP_IS_BETA) throw Error(ERROR_SNAP_IS_BETA);
+
+    if (isTooOld()) throw Error(ERROR_SNAP_TOO_OLD);
+    if (isTooNew()) throw Error(ERROR_SNAP_TOO_NEW);
+//    if (isBeta() && !betaRelease) throw Error(ERROR_SNAP_IS_BETA);
+}
+
+std::pair <isize,isize> 
+Snapshot::previewImageSize() const
+{
+    return { getThumbnail().width, getThumbnail().height };
+}
+
+const u32 *
+Snapshot::previewImageData() const
+{
+    return getThumbnail().screen;
+}
+
+time_t 
+Snapshot::timestamp() const
+{
+    return getThumbnail().timestamp;
 }
 
 bool
@@ -108,25 +143,16 @@ Snapshot::isTooNew() const
     return header->subminor > SNP_SUBMINOR;
 }
 
+bool
+Snapshot::isBeta() const
+{
+    return getHeader()->beta != 0;
+}
+
 void
 Snapshot::takeScreenshot(C64 &c64)
 {
-    SnapshotHeader *header = (SnapshotHeader *)data;
-    
-    header->screenshot.width = VISIBLE_PIXELS;
-    header->screenshot.height = c64.vic.numVisibleLines();
-    
-    u32 *source = (u32 *)c64.vic.stableEmuTexture();
-    u32 *target = header->screenshot.screen;
+    ((SnapshotHeader *)data)->screenshot.take(c64);
+}
 
-    isize xStart = FIRST_VISIBLE_PIXEL;
-    isize yStart = FIRST_VISIBLE_LINE;
-    source += xStart + yStart * TEX_WIDTH;
-    
-    for (isize i = 0; i < header->screenshot.height; i++) {
-        
-        std::memcpy(target, source, header->screenshot.width * 4);
-        target += header->screenshot.width;
-        source += TEX_WIDTH;
-    }
 }

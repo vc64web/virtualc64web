@@ -2,27 +2,37 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "Folder.h"
 #include "C64.h"
 
+namespace vc64 {
+
 bool
-Folder::isCompatible(const string &path)
+Folder::isCompatible(const fs::path &path)
 {
     return util::isDirectory(path);
 }
 
 void
-Folder::init(const string &path)
+Folder::init(const fs::path &path)
 {
-    if (!isCompatiblePath(path)) throw VC64Error(ERROR_FILE_TYPE_MISMATCH);
+    if (!isCompatiblePath(path)) throw Error(ERROR_FILE_TYPE_MISMATCH);
     
-    fs = new FSDevice(path);
+    fs = new FileSystem(path);
+
+    // REMOVE ASAP
+    fs->scanDirectory();
+    fs->printDirectory();
+    printf("NumFiles: %ld\n", fs->numFiles());
 }
 
 PETName<16>
@@ -34,6 +44,7 @@ Folder::collectionName()
 isize
 Folder::collectionCount() const
 {
+    printf("collectionCount: %ld\n", fs->numFiles());
     return (isize)fs->numFiles();
 }
 
@@ -43,14 +54,14 @@ Folder::itemName(isize nr) const
     return fs->fileName(nr);
 }
 
-u64
+isize
 Folder::itemSize(isize nr) const
 {
     return fs->fileSize(nr);
 }
 
 u8
-Folder::readByte(isize nr, u64 pos) const
+Folder::readByte(isize nr, isize pos) const
 {
     u8 result;
     fs->copyFile(nr, &result, 1, pos);
@@ -58,7 +69,9 @@ Folder::readByte(isize nr, u64 pos) const
 }
 
 void
-Folder::copyItem(isize nr, u8 *buf, u64 len, u64 offset) const
+Folder::copyItem(isize nr, u8 *buf, isize len, isize offset) const
 {
     fs->copyFile(nr, buf, len, offset);
+}
+
 }

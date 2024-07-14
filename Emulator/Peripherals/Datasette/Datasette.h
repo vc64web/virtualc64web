@@ -2,16 +2,24 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
+#include "DatasetteTypes.h"
+#include "C64Types.h"
+#include "CmdQueue.h"
 #include "SubComponent.h"
 #include "Constants.h"
 #include "Chrono.h"
+
+namespace vc64 {
 
 class Pulse {
     
@@ -20,15 +28,30 @@ public:
     i32 cycles;
 
 public:
-        
+
     Pulse() : cycles(0) { };
     Pulse(i32 value) : cycles(value) { };
     
     util::Time delay() const;
 };
 
-class Datasette : public SubComponent {
-    
+class Datasette final : public SubComponent, public Inspectable<DatasetteInfo> {
+
+    Descriptions descriptions = {{
+
+        .name           = "Datasette",
+        .description    = "Datasette"
+    }};
+
+    ConfigOptions options = {
+
+        OPT_DAT_MODEL,
+        OPT_DAT_CONNECT
+    };
+
+    // Current configuration
+    DatasetteConfig config = { };
+
     //
     // Tape
     //
@@ -47,8 +70,8 @@ class Datasette : public SubComponent {
     Pulse *pulses = nullptr;
     
     // Number of pulses stored in the pulse buffer
-    isize size = 0;
-            
+    isize numPulses = 0;
+
 
     //
     // Tape drive
@@ -72,51 +95,30 @@ class Datasette : public SubComponent {
     // Next scheduled falling edge on data line
     i64 nextFallingEdge = 0;
     
-    // Frame counter for controlling the amout of messages sent to the GUI
-    isize msgMotorDelay = 0;
-
     
     //
-    // Initializing
+    // Methods
     //
     
 public:
- 
+
     Datasette(C64 &ref) : SubComponent(ref) { };
     ~Datasette();
-    
+
     void alloc(isize capacity);
     void dealloc();
 
-    
-    //
-    // Methods from C64Object
-    //
+    Datasette& operator= (const Datasette& other);
 
-private:
-    
-    const char *getDescription() const override { return "Datasette"; }
-    void _dump(dump::Category category, std::ostream& os) const override;
 
-    
     //
-    // Methods from C64Component
+    // Methods from Serializable
     //
 
-private:
+public:
 
-    void _reset(bool hard) override;
-    
     template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-        worker
-        
-        << type;
-    }
-    
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
+    void serialize(T& worker)
     {
         worker
         
@@ -125,17 +127,57 @@ private:
         << playKey
         << motor
         << nextRisingEdge
-        << nextFallingEdge
-        << msgMotorDelay;
+        << nextFallingEdge;
+
+        if (isResetter(worker)) return;
+
+        worker
+
+        << type;
     }
     
-    isize _size() override;
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    isize didLoadFromBuffer(const u8 *buffer) override;
-    isize didSaveToBuffer(u8 *buffer) override;
+    void operator << (SerChecker &worker) override { serialize(worker); }
+    void operator << (SerCounter &worker) override;
+    void operator << (SerResetter &worker) override { serialize(worker); }
+    void operator << (SerReader &worker) override;
+    void operator << (SerWriter &worker) override;
 
-    
+
+    //
+    // Methods from CoreComponent
+    //
+
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
+private:
+
+    void _dump(Category category, std::ostream& os) const override;
+
+
+    //
+    // Methods from Inspectable
+    //
+
+public:
+
+    void cacheInfo(DatasetteInfo &result) const override;
+
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const DatasetteConfig &getConfig() const { return config; }
+    const ConfigOptions &getOptions() const override { return options; }
+    i64 getOption(Option opt) const override;
+    void checkOption(Option opt, i64 value) override;
+    void setOption(Option opt, i64 value) override;
+
+
     //
     // Handling tapes
     //
@@ -143,42 +185,29 @@ private:
 public:
     
     // Returns true if a tape is inserted
-    bool hasTape() const { return size != 0; }
+    bool hasTape() const { return numPulses != 0; }
 
     // Returns the duration from the tape start and the specified position
     util::Time tapeDuration(isize pos);
 
     // Returns the duration of the entire tape
-    util::Time tapeDuration() { return tapeDuration(size); }
+    util::Time tapeDuration() { return tapeDuration(numPulses); }
 
     // Returns the current tape counter in (truncated) seconds
-    isize getCounter() { return (isize)counter.asSeconds(); }
+    isize getCounter() const { return (isize)counter.asSeconds(); }
 
     //Inserts a TAP archive as a virtual tape
-    void insertTape(TAPFile &file);
+    void insertTape(class MediaFile &file);
 
     // Ejects the tape (if any)
     void ejectTape();
 
     // Returns the tape type (TAP format, 0 or 1)
     u8 getType() const { return type; }
-        
-    
-    //
-    // Operating the read/write head
-    //
 
-public:
-    
-    // Puts the read/write head at the beginning of the tape
-    void rewind(isize seconds = 0);
-
-    // Advances the read/write head one pulse
-    void advanceHead();
-    
     
     //
-    // Running the device
+    // Operating the device
     //
     
 public:
@@ -187,10 +216,28 @@ public:
     bool getPlayKey() const { return playKey; }
 
     // Presses the play key
-    void pressPlay(); 
+    void pressPlay();
 
     // Presses the stop key
     void pressStop();
+
+private:
+
+    // Performs the pressPlay action
+    void play();
+
+    // Performs the pressStop action
+    void stop();
+
+
+    //
+    // Emulating the device
+    //
+
+public:
+
+    // Puts the read/write head at the beginning of the tape
+    void rewind(isize seconds = 0);
 
     // Returns true if the datasette motor is switched on
     bool getMotor() const { return motor; }
@@ -198,23 +245,36 @@ public:
     // Switches the motor on or off
     void setMotor(bool value);
 
-    
-    //
-    // Performing periodic events
-    //
-    
-public:
-    
-    void vsyncHandler();
+private:
 
-    // Emulates the datasette
-    void execute() { if (playKey && motor) _execute(); }
+    // Advances the read/write head one pulse
+    void advanceHead();
+
+
+
+    //
+    // Processing commands and events
+    //
+
+public:
+
+    // Processes a datasette command
+    void processCommand(const Cmd &cmd);
+
+    // Processes a datesette event
+    void processMotEvent(EventID event);
+    void processDatEvent(EventID event, i64 cycles);
 
 private:
 
-    // Internal execution function
-    void _execute();
-    
-    // Schedules a pulse
+    // Updates the event in the DAT slot
+    void updateDatEvent();
+
+    // Schedules the next event in the DAT slot
+    void scheduleNextDatEvent();
+
+    // Schedules the rising and falling edge of the next pulse
     void schedulePulse(isize nr);
 };
+
+}

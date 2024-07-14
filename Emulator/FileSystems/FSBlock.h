@@ -2,27 +2,33 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "FSTypes.h"
-#include "C64Object.h"
+#include "Buffer.h"
+#include "CoreObject.h"
 #include "PETName.h"
 
-class FSBlock : C64Object {
+namespace vc64 {
+
+class FSBlock : CoreObject {
     
     // The device this block belongs to
-    class FSDevice &device;
+    class FileSystem &device;
     
 public:
     
     // The number of this block
     Block nr;
-        
+
     // Outcome of the last integrity check (0 = OK, n = n-th corrupted block)
     u32 corrupted = 0;
 
@@ -39,9 +45,9 @@ public:
 
 public:
     
-    FSBlock(FSDevice& _device, u32 _nr);
-    virtual ~FSBlock() { }
-    const char *getDescription() const override { return "FSBlock"; }
+    FSBlock(FileSystem& _device, u32 _nr);
+    virtual ~FSBlock() = default;
+    const char *objectName() const override { return "FSBlock"; }
 
     
     //
@@ -91,7 +97,7 @@ public:
     // Scans the block data and returns the number of errors
     isize check(bool strict) const;
 
-      
+
     //
     // Importing and exporting
     //
@@ -103,9 +109,9 @@ public:
 
     // Exports this block to a buffer (bsize must match the volume block size)
     void exportBlock(u8 *dst);
- 
+
 };
-    
+
 typedef FSBlock* BlockPtr;
 
 
@@ -133,3 +139,5 @@ EXPECT_RANGE(0, device.layout.numTracks() + 1)
 #define EXPECT_SECTOR_REF(t) { \
 if (isize num = device.layout.numSectors(t)) \
 EXPECT_RANGE(0,num) else if (strict) EXPECT_MAX(254) }
+
+}

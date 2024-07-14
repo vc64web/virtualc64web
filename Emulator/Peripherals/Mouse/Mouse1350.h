@@ -2,17 +2,28 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "SubComponent.h"
 
-class Mouse1350 : public SubComponent {
+namespace vc64 {
+
+class Mouse1350 final : public SubComponent {
     
+    Descriptions descriptions = {{
+
+        .name           = "Mouse1350",
+        .description    = "Mouse 1350"
+    }};
+
 private:
     
     // Mouse position
@@ -36,45 +47,46 @@ private:
     
     
     //
-    // Initializing
+    // Methods
     //
     
 public:
     
     Mouse1350(C64 &ref) : SubComponent(ref) { }
-    
-    
+
+    Mouse1350& operator= (const Mouse1350& other) {
+
+        CLONE(mouseX)
+        CLONE(mouseY)
+        CLONE(leftButton)
+        CLONE(rightButton)
+        CLONE(dividerX)
+        CLONE(dividerY)
+        CLONE_ARRAY(latchedX)
+        CLONE_ARRAY(latchedY)
+        CLONE(controlPort)
+
+        return *this;
+    }
+
     //
-    // Methods from C64Object
+    // Methods from Serializable
     //
 
-private:
-    
-    const char *getDescription() const override { return "Mouse1350"; }
-    
-    
-    //
-    // Methods from C64Component
-    //
+public:
 
-private:
-    
+    template <class T> void serialize(T& worker) { } SERIALIZERS(serialize);
     void _reset(bool hard) override;
-        
-    template <class T>
-    void applyToPersistentItems(T& worker)
-    {
-    }
-    
-    template <class T>
-    void applyToResetItems(T& worker, bool hard = true)
-    {
-    }
-    
-    isize _size() override { COMPUTE_SNAPSHOT_SIZE }
-    isize _load(const u8 *buffer) override { LOAD_SNAPSHOT_ITEMS }
-    isize _save(u8 *buffer) override { SAVE_SNAPSHOT_ITEMS }
-    
+
+
+    //
+    // Methods from CoreComponent
+    //
+
+public:
+
+    const Descriptions &getDescriptions() const override { return descriptions; }
+
     
     //
     // Accessing
@@ -96,3 +108,5 @@ public:
     // Execution function (Translates movement deltas into joystick events)
     void execute(i64 targetX, i64 targetY);
 };
+
+}

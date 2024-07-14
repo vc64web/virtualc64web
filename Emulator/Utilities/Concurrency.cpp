@@ -2,50 +2,17 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "Concurrency.h"
 
-namespace util {
-
-void
-Wakeable::waitForWakeUp()
-{
-#ifdef USE_CONDITION_VARIABLE
-    
-    std::unique_lock<std::mutex> lock(condMutex);
-    condFlag = false;
-    cond.wait_for(lock,
-                  std::chrono::seconds(1000),
-                  [this]() { return condFlag; } );
-
-#else
-    
-    promise.set_value(true);
-
-#endif
-}
-
-void
-Wakeable::wakeUp()
-{
-#ifdef USE_CONDITION_VARIABLE
-    
-    {
-        std::lock_guard<std::mutex> lock(condMutex);
-        condFlag = true;
-    }
-    cond.notify_one();
-    
-#else
-    
-    (void)future.get();
-    
-#endif
-}
+namespace vc64::util {
 
 }

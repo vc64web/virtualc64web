@@ -2,15 +2,20 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "CartridgeTypes.h"
 #include "AnyFile.h"
+
+namespace vc64 {
 
 /* For details about the .CRT format,
  * see: http://vice-emu.sourceforge.net/vice_16.html
@@ -21,7 +26,7 @@
  */
 
 class CRTFile : public AnyFile {
-        
+
     // Maximum number of chip packets in a CRT file
     static const isize MAX_PACKETS = 128;
 
@@ -37,34 +42,35 @@ public:
     // Class methods
     //
     
-    static bool isCompatible(const string &name);
+    static string cartridgeTypeName(CartridgeType type);
+    static bool isCompatible(const fs::path &path);
     static bool isCompatible(std::istream &stream);
-        
+
     
     //
     // Initializing
     //
     
-    CRTFile(const string &path) throws { init(path); }
+    CRTFile(const fs::path &path) throws { init(path); }
     CRTFile(const u8 *buf, isize len) throws { init(buf, len); }
     
     
     //
-    // Methods from C64Object
+    // Methods from CoreObject
     //
     
-    const char *getDescription() const override { return "CRTFile"; }
+    const char *objectName() const override { return "CRTFile"; }
 
-        
+
     //
     // Methods from AnyFile
     //
     
-    bool isCompatiblePath(const string &path) override { return isCompatible(path); }
+    bool isCompatiblePath(const fs::path &path) override { return isCompatible(path); }
     bool isCompatibleStream(std::istream &stream) override { return isCompatible(stream); }
     FileType type() const override { return FILETYPE_CRT; }
     PETName<16> getName() const override;
-    void readFromStream(std::istream &stream) throws override;
+    void finalizeRead() override;
 
     
     //
@@ -72,13 +78,16 @@ public:
     //
     
     // Returns the version number of the cartridge
-    u16 cartridgeVersion() const { return LO_HI(data[0x15], data[0x14]); }
-    
+    u16 cartridgeVersion() const;
+
     // Returns the size of the cartridge header
-    u32 headerSize() const { return HI_HI_LO_LO(data[0x10], data[0x11], data[0x12], data[0x13]); }
-    
+    u32 headerSize() const;
+
     // Returns the cartridge type (e.g., SimonsBasic, FinalIII)
     CartridgeType cartridgeType() const;
+
+    // Returns a textual description for the cartridge type
+    string cartridgeTypeName() const { return cartridgeTypeName(cartridgeType()); }
 
     // Checks whether the cartridge type is supported by the emulator, yet
     bool isSupported() const;
@@ -93,30 +102,33 @@ public:
     //
     
     // Returns how many chips are contained in this cartridge
-    isize chipCount() const { return numberOfChips; }
-    
+    isize chipCount() const;
+
     // Returns where the data of a certain chip can be found
-    u8 *chipData(isize nr) const { return chips[nr]+0x10; }
-    
+    u8 *chipData(isize nr) const;
+
     // Returns the size of the chip (8 KB or 16 KB)
-    u16 chipSize(isize nr) const { return LO_HI(chips[nr][0xF], chips[nr][0xE]); }
-    
+    u16 chipSize(isize nr) const;
+
     // Returns the type of the chip (0 = ROM, 1 = RAM, 2 = Flash ROM)
-    u16 chipType(isize nr) const { return LO_HI(chips[nr][0x9], chips[nr][0x8]); }
-    
+    u16 chipType(isize nr) const;
+
     // Returns the bank number for this chip
-    u16 chipBank(isize nr) const { return LO_HI(chips[nr][0xB], chips[nr][0xA]); }
-        
+    u16 chipBank(isize nr) const;
+
     // Returns the start of the chip rom in address space
-    u16 chipAddr(isize nr) const { return LO_HI(chips[nr][0xD], chips[nr][0xC]); }
+    u16 chipAddr(isize nr) const;
 
 
     //
-    // Debugging, scanning and repairing a CRT file
+    // Debugging and repairing
     //
 
     // Prints some information about this cartridge
     void dump() const;
     
-    void repair() override;
+    // Fixes known inconsistencies of common CRT files
+    void repair();
 };
+
+}

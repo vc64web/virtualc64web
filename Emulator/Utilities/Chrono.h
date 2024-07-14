@@ -2,16 +2,20 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
 #include "Types.h"
+#include <ctime>
 
-namespace util {
+namespace vc64::util {
 
 class Time {
     
@@ -22,6 +26,12 @@ public:
 public:
     
     static Time now();
+    static Time nanoseconds(i64 value) { return Time(value); }
+    static Time microseconds(i64 value) { return Time(value * 1000); }
+    static Time milliseconds(i64 value)  { return Time(value * 1000000); }
+    static Time seconds(i64 value) { return Time(value * 1000000000); }
+    static Time seconds(float value) { return Time(i64(value * 1000000000.f)); }
+    static std::tm local(const std::time_t &time);
     
     Time() { };
     Time(i64 value) : ticks(value) { };
@@ -39,10 +49,12 @@ public:
     bool operator>(const Time &rhs) const;
     Time operator+(const Time &rhs) const;
     Time operator-(const Time &rhs) const;
-    Time operator*(const int i) const;
+    Time operator*(const long i) const;
+    Time operator/(const long i) const;
     Time& operator+=(const Time &rhs);
     Time& operator-=(const Time &rhs);
-    Time& operator*=(const int i);
+    Time& operator*=(const long i);
+    Time& operator/=(const long i);
     Time abs() const;
     Time diff() const;
     
@@ -68,6 +80,17 @@ public:
     Time stop();
     Time go();
     Time restart();
+};
+
+class StopWatch {
+
+    string description;
+    Clock clock;
+
+public:
+    
+    StopWatch(const string &description = "");
+    ~StopWatch();
 };
 
 }

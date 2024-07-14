@@ -2,60 +2,25 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "DriveMemory.h"
-#include "C64.h"
+#include "Emulator.h"
 #include "Checksum.h"
-#include "IO.h"
+#include "IOUtils.h"
+
+namespace vc64 {
 
 DriveMemory::DriveMemory(C64 &ref, Drive &dref) : SubComponent(ref), drive(dref)
 {
     updateBankMap();
-}
-
-void 
-DriveMemory::_reset(bool hard)
-{
-    RESET_SNAPSHOT_ITEMS(hard)
-
-    // Initialize RAM with the power-up pattern (pattern from Hoxs64)
-    for (isize i = 0; i < isizeof(ram); i++) {
-        ram[i] = (i & 64) ? 0xFF : 0x00;
-    }
-}
-
-void
-DriveMemory::_dump(dump::Category category, std::ostream& os) const
-{
-    using namespace util;
-    
-    if (category & dump::BankMap) {
-        
-        DrvMemType oldsrc = usage[0];
-        isize oldi = 0;
-
-        for (isize i = 0; i <= 64; i++) {
-            DrvMemType newsrc = i < 64 ? usage[i] : (DrvMemType)-1;
-            if (oldsrc != newsrc) {
-                os << "        ";
-                os << util::hex((u16)(oldi << 10)) << " - ";
-                os << util::hex((u16)((i << 10) - 1)) << " : ";
-                os << DrvMemTypeEnum::key(oldsrc) << std::endl;
-                oldsrc = newsrc; oldi = i;
-            }
-        }
-    }
-    
-    if (category & dump::State) {
-        
-        os << tab("Drive ROM");
-        os << bol(c64.hasRom(ROM_TYPE_VC1541)) << std::endl;
-    }
 }
 
 u16
@@ -105,7 +70,7 @@ DriveMemory::romFNV64() const
     isize size = romSize();
     isize offset = romAddr() & 0x7FFF;
     
-    return size ? util::fnv_1a_64(rom + offset, size) : 0;
+    return size ? util::fnv64(rom + offset, size) : 0;
 }
 
 void
@@ -152,11 +117,11 @@ DriveMemory::loadRom(const u8 *buf, isize size)
 }
 
 void
-DriveMemory::saveRom(const string &path)
+DriveMemory::saveRom(const fs::path &path)
 {
     u16 addr = romAddr();
     u16 size = romSize();
-            
+
     debug(true, "Saving Rom at %x (%x bytes)\n", addr, size);
     
     RomFile file = RomFile(rom + (addr & 0x7FFF), size);
@@ -265,7 +230,7 @@ void
 DriveMemory::poke(u16 addr, u8 value)
 {
     switch (usage[addr >> 10]) {
-                        
+
         case DRVMEM_RAM:
             
             ram[addr & 0x07FF] = value;
@@ -339,6 +304,9 @@ DriveMemory::updateBankMap()
         case DRVRAM_6000_7FFF:
             for (isize i = 24; i < 32; i++) usage[i] = DRVMEM_EXP;
             break;
+
+        default:
+            break;
     }
     
     // Map the PIA (Dolphin DOS 3) $5000 - $5FFF
@@ -346,4 +314,6 @@ DriveMemory::updateBankMap()
         
         for (isize i = 20; i < 24; i++) usage[i] = DRVMEM_PIA;
     }
+}
+
 }

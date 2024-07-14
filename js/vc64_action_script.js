@@ -189,10 +189,10 @@ async function execute_single_action(cmd, execute=true, execution_id=-1)
     {
         if(execute)
         {
-            var chars = cmd.substring(1,cmd.length-1).split("");
+            var chars = cmd.substring(1,cmd.length-1);//.split("");
             var time_to_emit_next_char = 100;
-            emit_string(chars,0,time_to_emit_next_char);
-
+//            emit_string(chars,0,time_to_emit_next_char);
+            wasm_auto_type(chars);
             //blocking execution of action script and wait for all keys emitted
             await sleep(time_to_emit_next_char*chars.length);                  
         }
@@ -328,10 +328,10 @@ async function execute_single_action(cmd, execute=true, execution_id=-1)
         }
     }
     else if(translateKey2(cmd,cmd) !== undefined)
-    {
+    {//one single char
         if(execute)
         {            
-            emit_string([cmd],0,100); 
+            emit_key(cmd,0,100); 
         }
     }
     else if(
@@ -704,10 +704,10 @@ function press_key(key)
     let c64code=translateKey2(key, key);
     if(c64code !== undefined )
     {
-        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 1, 1);
+        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 1, 0);
         if(c64code.modifier != null)
         {
-            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 1, 1);
+            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 1, 0);
         }
     }
 }
@@ -716,10 +716,10 @@ function release_key(key)
     let c64code=translateKey2(key, key);
     if(c64code !== undefined )
     {
-        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 1);
+        wasm_schedule_key(c64code.raw_key[0], c64code.raw_key[1], 0, 0);
         if(c64code.modifier != null)
         {
-            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, 1);
+            wasm_schedule_key(c64code.modifier[0], c64code.modifier[1], 0, 0);
         }
     }
 }

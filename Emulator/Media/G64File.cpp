@@ -2,21 +2,26 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "G64File.h"
 #include "Disk.h"
-#include "IO.h"
+#include "IOUtils.h"
+
+namespace vc64 {
 
 bool
-G64File::isCompatible(const string &path)
+G64File::isCompatible(const fs::path &path)
 {
-    auto s = util::extractSuffix(path);
-    return s == "g64" || s == "G64";
+    auto s = util::uppercased(path.extension().string());
+    return s == ".G64";
 }
 
 bool
@@ -82,11 +87,11 @@ G64File::init(Disk &disk)
         
         if (!empty[ht]) {
 
-            u16 numDataBytes = disk.lengthOfHalftrack(ht) / 8;
-            u16 numFillBytes = maxBytesOnTrack - numDataBytes;
+            auto numDataBytes = disk.lengthOfHalftrack(ht) / 8;
+            auto numFillBytes = maxBytesOnTrack - numDataBytes;
 
             if (disk.lengthOfHalftrack(ht) % 8 != 0) {
-                warn("Size of halftrack %zd is not a multiple of 8\n", ht);
+                warn("Size of halftrack %ld is not a multiple of 8\n", ht);
             }
             assert(pos == offset[ht]);
             buffer[pos++] = LO_BYTE(numDataBytes);
@@ -146,3 +151,4 @@ G64File::getStartOfHalftrack(Halftrack ht) const
     return LO_LO_HI_HI(data[offset], data[offset+1], data[offset+2], data[offset+3]);
 }
 
+}

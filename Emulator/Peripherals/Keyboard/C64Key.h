@@ -2,33 +2,49 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #pragma once
 
-#include "Aliases.h"
+#include "Types.h"
 #include <vector>
 
+namespace vc64 {
+
+/** Representation of a key on the C64 keyboard
+ */
 struct C64Key {
-  
-    // Unique key identifier (0 .. 65)
+
+    /** @brief  Unique key identifier (0 .. 65)
+     */
     isize nr = -1;
     
-    // Row and column indices
+    /** @brief  Row index of this key in the keyboard matrix
+     *  @note   The RESTORE and the SHIFT LOCK key have no keyboard matrix
+     *          representation.
+     */
     isize row = -1;
+
+    /** @brief  Column index of this key in the keyboard matrix
+     *  @note   The RESTORE and the SHIFT LOCK key have no keyboard matrix
+     *          representation.
+     */
     isize col = -1;
-    
+
     
     //
     // Constants
     //
     
     // First row in key matrix
-    static const C64Key del;
-    static const C64Key ret;
+    static const C64Key del;            //! Delete key
+    static const C64Key ret;            //! Return key
     static const C64Key curLeftRight;
     static const C64Key F7F8;
     static const C64Key F1F2;
@@ -106,15 +122,16 @@ struct C64Key {
     static const C64Key Q;
     static const C64Key runStop;
     
-    // Restore key
+    // Keys not represented in the keyboard matrix
     static const C64Key restore;
-    
+    static const C64Key shiftLock;
+
     
     //
     // Initializing
     //
     
-    C64Key(isize nr);
+    C64Key(isize nr = 0);
     C64Key(isize row, isize col);
 
     
@@ -122,5 +139,12 @@ struct C64Key {
     // Translating
     //
     
+    /** @brief      Translates a character into a series of C64 keys.
+     *  @return     A vector of C64 keys.
+     *  @note       The return type is a vector as some characters additionally
+     *              require the shift key to be pressed.
+     */
     static std::vector<C64Key> translate(char c);
 };
+
+}

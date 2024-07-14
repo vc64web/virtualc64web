@@ -2,23 +2,28 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
 #include "config.h"
 #include "Script.h"
-#include "C64.h"
-#include "IO.h"
+#include "VirtualC64.h"
+#include "IOUtils.h"
 
 #include <sstream>
 
+namespace vc64 {
+
 bool
-Script::isCompatible(const string &path)
+Script::isCompatible(const fs::path &path)
 {
-    auto s = util::extractSuffix(path);
-    return s == "ini" || s == "INI";
+    auto s = util::uppercased(path.extension().string());
+    return s == ".INI";
 }
 
 bool
@@ -27,9 +32,4 @@ Script::isCompatible(std::istream &stream)
     return true;
 }
 
-void
-Script::execute(class C64 &c64)
-{
-    string s((char *)data, size);
-//    try { c64.retroShell.execScript(s); } catch (util::Exception &e) { }
 }

@@ -2,12 +2,19 @@
 // This file is part of VirtualC64
 //
 // Copyright (C) Dirk W. Hoffmann. www.dirkwhoffmann.de
-// Licensed under the GNU General Public License v3
+// This FILE is dual-licensed. You are free to choose between:
 //
-// See https://www.gnu.org for license information
+//     - The GNU General Public License v3 (or any later version)
+//     - The Mozilla Public License v2
+//
+// SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
 
+#include "config.h"
 #include "Chrono.h"
+#include <chrono>
+#include <thread>
+
 #ifdef __MACH__
 #include <mach/mach_time.h>
 #endif
@@ -17,14 +24,12 @@
 #endif
 
 
+namespace vc64::util {
 
-
-namespace util {
-
-#ifdef __MACH__
+#if defined(__MACH__)
 
 //
-// macOS
+// MacOS
 //
 
 static struct mach_timebase_info timebaseInfo()
@@ -41,6 +46,15 @@ Time::now()
     return (i64)mach_absolute_time() * tb.numer / tb.denom;
 }
 
+std::tm
+Time::local(const std::time_t &time)
+{
+    std::tm local {};
+    localtime_r(&time, &local);
+    
+    return local;
+}
+    
 void
 Time::sleep()
 {
@@ -57,16 +71,15 @@ Time::sleepUntil()
     mach_wait_until(ticks * tb.denom / tb.numer);
 }
 
-#else
-    
+#elif defined(__unix__)
+
 //
-// Linux
+// Unix
 //
 
 Time
 Time::now()
 {
-
 #ifndef __EMSCRIPTEN__
     struct timespec ts;
     (void)clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -74,6 +87,15 @@ Time::now()
 #else
  return (uint64_t)(emscripten_get_now()*1000000.0);
 #endif
+}
+
+std::tm
+Time::local(const std::time_t &time)
+{
+    std::tm local {};
+    localtime_r(&time, &local);
+    
+    return local;
 }
 
 void
@@ -94,11 +116,48 @@ void
 Time::sleepUntil()
 {
 #ifndef __EMSCRIPTEN__
-    (now() - *this).sleep();
+    (*this - now()).sleep();
 #endif
 }
 
+#else
+    
+//
+// Generic
+//
+
+Time
+Time::now()
+{
+    const auto now = std::chrono::steady_clock::now();
+    static auto start = now;
+    return std::chrono::nanoseconds(now - start).count();
+}
+
+std::tm
+Time::local(const std::time_t &time)
+{
+    std::tm local {};
+    localtime_s(&local, &time);
+    
+    return local;
+}
+
+void
+Time::sleep()
+{
+    if (ticks > 0)
+        std::this_thread::sleep_for(std::chrono::nanoseconds(ticks));
+}
+
+void
+Time::sleepUntil()
+{
+    (*this - now()).sleep();
+}
+
 #endif
+
 
 //
 // All platforms
@@ -153,9 +212,15 @@ Time::operator-(const Time &rhs) const
 }
 
 Time
-Time::operator*(const int i) const
+Time::operator*(const long i) const
 {
-    return Time(i * this->ticks);
+    return Time(this->ticks * i);
+}
+
+Time
+Time::operator/(const long i) const
+{
+    return Time(this->ticks / i);
 }
 
 Time&
@@ -171,9 +236,15 @@ Time::operator-=(const Time &rhs)
 }
 
 Time&
-Time::operator*=(const int i)
+Time::operator*=(const long i)
 {
     return *this = *this * i;
+}
+
+Time&
+Time::operator/=(const long i)
+{
+    return *this = *this / i;
 }
 
 Time
@@ -234,6 +305,17 @@ Clock::restart()
     paused = false;
     
     return result;
+}
+
+StopWatch::StopWatch(const string &description) : description(description)
+{
+    clock.restart();
+}
+
+StopWatch::~StopWatch()
+{
+    auto elapsed = clock.stop();
+    fprintf(stderr, "%s: %f sec\n", description.c_str(), elapsed.asSeconds());
 }
 
 }

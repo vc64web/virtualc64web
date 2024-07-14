@@ -37,11 +37,11 @@ target_link_libraries(vc64 vc64Core)
 set(LF_OPTI  "-O3 -mnontrapping-fptoint -fwasm-exceptions -s USE_SDL=2")
 set(LF_SHELL "--shell-file ../shell.html")
 
-set(LF_EXPORTS "-s EXPORTED_RUNTIME_METHODS=['cwrap','ccall'] -s EXPORTED_FUNCTIONS=\"['_main', '_wasm_toggleFullscreen', '_wasm_loadFile', '_wasm_key', '_wasm_joystick', '_wasm_reset', '_wasm_halt', '_wasm_run', '_wasm_take_user_snapshot', '_wasm_create_renderer', '_wasm_set_warp','_wasm_set_borderless', '_wasm_press_play', '_wasm_press_stop', '_wasm_rewind', '_wasm_sprite_info', '_wasm_set_sid_model', '_wasm_cut_layers', '_wasm_rom_info', '_wasm_set_2nd_sid', '_wasm_set_sid_engine', '_wasm_get_cpu_cycles', '_wasm_set_color_palette', '_wasm_schedule_key', '_wasm_peek', '_wasm_poke', '_wasm_export_disk', '_wasm_configure', '_wasm_write_string_to_ser', '_wasm_print_error', '_wasm_get_sound_buffer_address', '_wasm_copy_into_sound_buffer','_wasm_copy_into_sound_buffer_stereo', '_wasm_open_main_thread_audio', '_wasm_close_main_thread_audio', '_wasm_set_sample_rate', '_wasm_keyboard_reset', '_wasm_set_PAL', '_wasm_get_config', '_wasm_auto_type', '_wasm_get_core_version']\"")
+set(LF_EXPORTS "-s EXPORTED_RUNTIME_METHODS=['cwrap','ccall'] -s EXPORTED_FUNCTIONS=\"['_wasm_delete_disk','_main', '_wasm_toggleFullscreen', '_wasm_loadFile', '_wasm_key', '_wasm_joystick', '_wasm_reset', '_wasm_halt', '_wasm_run', '_wasm_take_user_snapshot', '_wasm_create_renderer', '_wasm_set_warp','_wasm_set_borderless', '_wasm_press_play', '_wasm_press_stop', '_wasm_rewind', '_wasm_sprite_info', '_wasm_set_sid_model', '_wasm_cut_layers', '_wasm_rom_info', '_wasm_set_2nd_sid', '_wasm_set_sid_engine', '_wasm_get_cpu_cycles', '_wasm_set_color_palette', '_wasm_schedule_key', '_wasm_peek', '_wasm_poke', '_wasm_export_disk', '_wasm_configure', '_wasm_write_string_to_ser', '_wasm_print_error', '_wasm_get_sound_buffer_address', '_wasm_copy_into_sound_buffer','_wasm_copy_into_sound_buffer_stereo', '_wasm_open_main_thread_audio', '_wasm_close_main_thread_audio', '_wasm_set_sample_rate', '_wasm_keyboard_reset', '_wasm_set_PAL', '_wasm_get_config', '_wasm_auto_type', '_wasm_get_core_version']\"")
 
 #only safari shows 20% performance regression since vamiga v2.4. To fix it safari
 #needs LF -s BINARYEN_EXTRA_PASSES=--one-caller-inline-max-function-size=550
-set(LF_OTHER  "-s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=1  -s LLD_REPORT_UNDEFINED -s ASSERTIONS=0 -s GL_ASSERTIONS=0 -sNO_EXIT_RUNTIME=1 -s WARN_UNALIGNED=1 -mbulk-memory")
+set(LF_OTHER  "-s WASM_BIGINT -s DISABLE_DEPRECATED_FIND_EVENT_TARGET_BEHAVIOR=1  -s LLD_REPORT_UNDEFINED -s ASSERTIONS=0 -s GL_ASSERTIONS=0 -sNO_EXIT_RUNTIME=1 -s WARN_UNALIGNED=1 -mbulk-memory")
 
 #configure the service worker
 file(READ sw_template.js sw_template)
@@ -60,7 +60,7 @@ else()
 	file(CONFIGURE OUTPUT sw.js CONTENT "${sw_template}" @ONLY)
 
 	#bug iOS/iPadOS does not allow mem growing above 1GB consider using fixed memsize for >1GB 
-	set(LF_MEM   "-s INITIAL_MEMORY=320MB -s TOTAL_STACK=32MB -s ALLOW_MEMORY_GROWTH=1")
+	set(LF_MEM   "-s INITIAL_MEMORY=240MB -s TOTAL_STACK=10MB -s ALLOW_MEMORY_GROWTH=1")
 endif()
 
 #-s ALLOW_MEMORY_GROWTH=1 -g -s BINARYEN_EXTRA_PASSES=--one-caller-inline-max-function-size=19306 

@@ -2730,7 +2730,8 @@ $('.layer').change( function(event) {
 
         let d64_json = wasm_export_disk();
         let d64_obj = JSON.parse(d64_json);
-
+        Module._wasm_delete_disk();
+        
         if(d64_obj.size>0)
         {
             $("#button_export_disk").show();
@@ -2747,6 +2748,8 @@ $('.layer').change( function(event) {
         let d64_buffer = new Uint8Array(Module.HEAPU8.buffer, d64_obj.address, d64_obj.size);
         let filebuffer = d64_buffer.slice(0,d64_obj.size);
         let blob_data = new Blob([filebuffer], {type: 'application/octet-binary'});
+        Module._wasm_delete_disk();
+        
         const url = window.URL.createObjectURL(blob_data);
         const a = document.createElement('a');
         a.style.display = 'none';

@@ -1031,11 +1031,11 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     try
     {
       printf("try to build Snapshot\n");
-      auto file = MediaFile::make(blob, len, FILETYPE_SNAPSHOT);
+      auto *file = MediaFile::make(blob, len, FILETYPE_SNAPSHOT);
       printf("isSnapshot\n");
       wrapper->emu->c64.loadSnapshot(*file);
       printf("Snapshot loaded\n");
-      
+      delete file;
       file_still_unprocessed=false;
     }
     catch(Error &exception) {

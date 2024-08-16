@@ -60,7 +60,7 @@ else()
 	file(CONFIGURE OUTPUT sw.js CONTENT "${sw_template}" @ONLY)
 
 	#bug iOS/iPadOS does not allow mem growing above 1GB consider using fixed memsize for >1GB 
-	set(LF_MEM   "-s INITIAL_MEMORY=240MB -s TOTAL_STACK=10MB -s ALLOW_MEMORY_GROWTH=1")
+	set(LF_MEM   "-s INITIAL_MEMORY=260MB -s TOTAL_STACK=32MB -s ALLOW_MEMORY_GROWTH=1")
 endif()
 
 #-s ALLOW_MEMORY_GROWTH=1 -g -s BINARYEN_EXTRA_PASSES=--one-caller-inline-max-function-size=19306 

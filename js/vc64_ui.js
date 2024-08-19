@@ -1900,6 +1900,242 @@ function InitWrappers() {
         setTheme();
     });
     
+    //--- mouse pointer lock
+    canvas = document.querySelector('canvas');
+    canvas.requestPointerLock = canvas.requestPointerLock ||
+                                canvas.mozRequestPointerLock;
+
+    document.exitPointerLock = document.exitPointerLock ||
+                            document.mozExitPointerLock;
+
+    has_pointer_lock=false;
+    try_to_lock_pointer=0;
+    has_pointer_lock_fallback=false;
+    window.last_mouse_x=0;
+    window.last_mouse_y=0;
+
+    is_pointer_lock_supported = 'pointerLockElement' in document ||
+            'requestPointerLock' in Element.prototype;
+
+    request_pointerlock = async function() {
+        if(!is_pointer_lock_supported)
+        {
+            if(!has_pointer_lock_fallback)
+            {
+                add_pointer_lock_fallback();      
+            }
+            return;
+        }
+        if(!has_pointer_lock && try_to_lock_pointer <20)
+        {
+            try_to_lock_pointer++;
+            try {
+                if(has_pointer_lock_fallback) {remove_pointer_lock_fallback();}
+                await canvas.requestPointerLock();
+                try_to_lock_pointer=0;
+            } catch (error) {
+                await sleep(100);
+                await request_pointerlock();                
+            }
+        }
+    };
+    
+    window.add_pointer_lock_fallback=()=>{
+        document.addEventListener("mousemove", updatePosition_fallback, false); 
+        document.addEventListener("mousedown", mouseDown, false);
+        document.addEventListener("mouseup", mouseUp, false);
+        has_pointer_lock_fallback=true;
+    };
+    window.remove_pointer_lock_fallback=()=>{
+        document.removeEventListener("mousemove", updatePosition_fallback, false); 
+        document.removeEventListener("mousedown", mouseDown, false);
+        document.removeEventListener("mouseup", mouseUp, false);
+        has_pointer_lock_fallback=false;
+    };
+    document.addEventListener('pointerlockerror', add_pointer_lock_fallback, false);
+
+    // Hook pointer lock state change events for different browsers
+    document.addEventListener('pointerlockchange', lockChangeAlert, false);
+    document.addEventListener('mozpointerlockchange', lockChangeAlert, false);
+
+    function lockChangeAlert() {
+        if (document.pointerLockElement === canvas ||
+            document.mozPointerLockElement === canvas) {
+            has_pointer_lock=true;
+//            console.log('The pointer lock status is now locked');
+            document.addEventListener("mousemove", updatePosition, false);
+            document.addEventListener("mousedown", mouseDown, false);
+            document.addEventListener("mouseup", mouseUp, false);
+
+        } else {
+//            console.log('The pointer lock status is now unlocked');  
+            document.removeEventListener("mousemove", updatePosition, false);
+            document.removeEventListener("mousedown", mouseDown, false);
+            document.removeEventListener("mouseup", mouseUp, false);
+
+            has_pointer_lock=false;
+        }
+    }
+    var mouse_port=1;
+    function updatePosition(e) {
+        if(e.movementX != 0 || e.movementY !=0)
+            Module._wasm_mouse(mouse_port,e.movementX,e.movementY);
+    }
+    function updatePosition_fallback(e) {
+        let movementX=e.screenX-window.last_mouse_x;
+        let movementY=e.screenY-window.last_mouse_y;
+        window.last_mouse_x=e.screenX;
+        window.last_mouse_y=e.screenY;
+        let border_speed=4;
+        let border_pixel=2;
+    
+        if(e.screenX<=border_pixel)
+          movementX=-border_speed;
+        if(e.screenX>=window.innerWidth-border_pixel)
+          movementX=border_speed;
+        if(e.screenY<=border_pixel)
+          movementY=-border_speed;
+        if(e.screenY>=window.innerHeight-border_pixel)
+          movementY=border_speed;        
+        Module._wasm_mouse(mouse_port,movementX*8,movementY*8);  
+    }
+    function mouseDown(e) {
+        Module._wasm_mouse_button(mouse_port,e.which, 1/* down */);
+    }
+    function mouseUp(e) {
+        Module._wasm_mouse_button(mouse_port,e.which, 0/* up */);
+    }
+
+    //--
+    mouse_touchpad_port=1;
+    mouse_touchpad_move_touch=null;
+    mouse_touchpad_left_button_touch=null;
+    mouse_touchpad_right_button_touch=null;
+
+    function emulate_mouse_touchpad_start(e)
+    {
+        for (var i=0; i < e.changedTouches.length; i++) {
+            let touch = e.changedTouches[i];
+        
+            if(mouse_touchpad_pattern=='mouse touchpad')
+            {
+                let mouse_touchpad_move_area= touch.clientX > window.innerWidth/10 &&
+                touch.clientX < window.innerWidth-window.innerWidth/10;
+                let mouse_touchpad_button_area=!mouse_touchpad_move_area;
+
+                if(mouse_touchpad_button_area)
+                {
+                    let left_button = touch.clientX < window.innerWidth/10;
+                    if(left_button)
+                    {
+                        mouse_touchpad_left_button_touch=touch; 
+                        Module._wasm_mouse_button(mouse_touchpad_port,1, 1/* down */);                
+                    }
+                    else
+                    {
+                        mouse_touchpad_right_button_touch=touch; 
+                        Module._wasm_mouse_button(mouse_touchpad_port,3, 1/* down */);                
+                    }
+                }
+                else
+                {
+                    mouse_touchpad_move_touch=touch;
+                }
+            }
+            else if(mouse_touchpad_pattern=='mouse touchpad2')
+            {
+                let mouse_touchpad_move_area= touch.clientX < window.innerWidth/2;
+                let mouse_touchpad_button_area=!mouse_touchpad_move_area;
+
+                if(mouse_touchpad_button_area)
+                {
+                    let left_button = touch.clientY >= window.innerHeight/2;
+                    if(left_button)
+                    {
+                        mouse_touchpad_left_button_touch=touch; 
+                        Module._wasm_mouse_button(mouse_touchpad_port,1, 1/* down */);                
+                    }
+                    else
+                    {
+                        mouse_touchpad_right_button_touch=touch; 
+                        Module._wasm_mouse_button(mouse_touchpad_port,3, 1/* down */);                
+                    }
+                }
+                else
+                {
+                    mouse_touchpad_move_touch=touch;
+                }
+            }
+
+        }
+    }
+    function emulate_mouse_touchpad_move(e)
+    {
+        for (var i=0; i < e.changedTouches.length; i++) {
+            let touch = e.changedTouches[i];
+            if(mouse_touchpad_move_touch!=null && 
+                mouse_touchpad_move_touch.identifier== touch.identifier)
+            {
+                Module._wasm_mouse(
+                    mouse_touchpad_port,
+                    (touch.clientX-mouse_touchpad_move_touch.clientX)*8,
+                    (touch.clientY-mouse_touchpad_move_touch.clientY)*8
+                );
+                mouse_touchpad_move_touch=touch;
+            }
+        }
+    }
+    function emulate_mouse_touchpad_end(e)
+    {
+        for (var i=0; i < e.changedTouches.length; i++) {
+            let touch = e.changedTouches[i];
+            if(mouse_touchpad_move_touch!=null && 
+                mouse_touchpad_move_touch.identifier== touch.identifier)
+            {
+                mouse_touchpad_move_touch=null;
+            }
+            else if(mouse_touchpad_left_button_touch != null && 
+                mouse_touchpad_left_button_touch.identifier == touch.identifier)
+            {
+                Module._wasm_mouse_button(mouse_touchpad_port,1, 0/* down */);
+                mouse_touchpad_left_button_touch=null;
+            }
+            else if(mouse_touchpad_right_button_touch != null && 
+                mouse_touchpad_right_button_touch.identifier == touch.identifier)
+            {
+                Module._wasm_mouse_button(mouse_touchpad_port,3, 0/* down */);
+                mouse_touchpad_right_button_touch=null;
+            }
+        }
+    }
+    //check if call_param_mouse is set
+    call_param_mouse=false;
+    if(call_param_mouse)
+    {
+        if(call_param_touch==true)
+        {
+            port1="mouse touchpad2";
+            $('#port1').val(port1);
+            mouse_touchpad_pattern=port1;
+            mouse_touchpad_port=1;
+            document.addEventListener('touchstart',emulate_mouse_touchpad_start, false);
+            document.addEventListener('touchmove',emulate_mouse_touchpad_move, false);
+            document.addEventListener('touchend',emulate_mouse_touchpad_end, false);
+            if(port2=="touch")
+            {
+                port2="none";
+                $('#port2').val(port2);
+            }    
+        }
+        else
+        { 
+            port1="mouse";
+            $('#port1').val(port1);
+            canvas.addEventListener('click', request_pointerlock);
+        }
+    }
+    //--
+
     installKeyboard();
     $("#button_keyboard").click(function(){
         if(virtual_keyboard_clipping==false)
@@ -2975,11 +3211,37 @@ $('#choose_vic_rev a').click(function ()
         {
             unregister_v_joystick();
         }
+        if(port1 == 'mouse')
+        {                
+            mouse_port=1;    
+            canvas.addEventListener('click', request_pointerlock);
+            request_pointerlock();
+        }
+        else if(port2 != 'mouse')
+        {
+            canvas.removeEventListener('click', request_pointerlock);
+            remove_pointer_lock_fallback();
+        }
+        if(port1.startsWith('mouse touch'))
+        {
+            mouse_touchpad_pattern=port1;
+            mouse_touchpad_port=1;
+            document.addEventListener('touchstart',emulate_mouse_touchpad_start, false);
+            document.addEventListener('touchmove',emulate_mouse_touchpad_move, false);
+            document.addEventListener('touchend',emulate_mouse_touchpad_end, false);
+        }
+        else if(!port2.startsWith('mouse touch'))
+        {
+            document.removeEventListener('touchstart',emulate_mouse_touchpad_start, false);
+            document.removeEventListener('touchmove',emulate_mouse_touchpad_move, false);
+            document.removeEventListener('touchend',emulate_mouse_touchpad_end, false);
+        }
         this.blur();
     }
     document.getElementById('port2').onchange = function() {
         port2 = document.getElementById('port2').value;
-       if(port1 == port2)
+        if(port1 == port2 || 
+           port1.indexOf("touch")>=0 && port2.indexOf("touch")>=0)
         {
             port1 = 'none';
             document.getElementById('port1').value = 'none';
@@ -2994,6 +3256,31 @@ $('#choose_vic_rev a').click(function ()
         if(port1 != 'touch' && port2 != 'touch')
         {
             unregister_v_joystick();
+        }
+        if(port2 == 'mouse')
+        {                
+            mouse_port=2;
+            canvas.addEventListener('click', request_pointerlock);
+            request_pointerlock();
+        }
+        else if(port1 != 'mouse')
+        {
+            canvas.removeEventListener('click', request_pointerlock);
+            remove_pointer_lock_fallback();
+        }
+        if(port2.startsWith('mouse touch'))
+        {
+            mouse_touchpad_pattern=port2;
+            mouse_touchpad_port=2;
+            document.addEventListener('touchstart',emulate_mouse_touchpad_start, false);
+            document.addEventListener('touchmove',emulate_mouse_touchpad_move, false);
+            document.addEventListener('touchend',emulate_mouse_touchpad_end, false);
+        }
+        else if(!port1.startsWith('mouse touch'))
+        {
+            document.removeEventListener('touchstart',emulate_mouse_touchpad_start, false);
+            document.removeEventListener('touchmove',emulate_mouse_touchpad_move, false);
+            document.removeEventListener('touchend',emulate_mouse_touchpad_end, false);
         }
         this.blur();
     }

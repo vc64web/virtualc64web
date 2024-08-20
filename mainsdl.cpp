@@ -582,6 +582,10 @@ class C64Wrapper {
     emu->set(OPT_SID_ENGINE, SIDENGINE_RESID);
 //    c64->configure(OPT_SID_SAMPLING, SID_SAMPLE_INTERPOLATE);
 
+    emu->set(OPT_MOUSE_MODEL, MOUSE_C1351);
+    emu->set(OPT_MOUSE_VELOCITY, 255);
+    emu->set(OPT_MOUSE_SHAKE_DETECT, false);
+    
 
     // master Volumne
     emu->set(OPT_AUD_VOL_L, 100); 
@@ -993,7 +997,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       file_still_unprocessed=false;
     } 
     catch(Error &exception) {
-      printf("error loading snapshot: %s\n", exception.what());
+      printf("error loading crt: %s\n", exception.what());
     }
   }
   if (file_still_unprocessed && TAPFile::isCompatible(filename)) {
@@ -1010,7 +1014,7 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       file_still_unprocessed=false;
     }
     catch(Error &exception) {
-      printf("error loading snapshot: %s\n", exception.what());
+      printf("error loading tap: %s\n", exception.what());
     }
   }
   if (file_still_unprocessed && T64File::isCompatible(filename)) {
@@ -1024,19 +1028,23 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       file_still_unprocessed=false;
     }
     catch(Error &exception) {
-      printf("error loading snapshot: %s\n", exception.what());
+      printf("error loading t64: %s\n", exception.what());
     }
   }
   if (file_still_unprocessed && Snapshot::isCompatible(filename) && extractSuffix(filename)!="rom" && extractSuffix(filename)!="bin") {
     try
     {
       printf("try to build Snapshot\n");
-      auto file = MediaFile::make(blob, len, FILETYPE_SNAPSHOT);
+      auto *file = MediaFile::make(blob, len, FILETYPE_SNAPSHOT);
       printf("isSnapshot\n");
       wrapper->emu->c64.loadSnapshot(*file);
       printf("Snapshot loaded\n");
-      
+      delete file;
       file_still_unprocessed=false;
+
+      wrapper->emu->set(OPT_MOUSE_MODEL, MOUSE_C1351);
+      wrapper->emu->set(OPT_MOUSE_VELOCITY, 255);
+      wrapper->emu->set(OPT_MOUSE_SHAKE_DETECT, false);
     }
     catch(Error &exception) {
       printf("error loading snapshot: %s\n", exception.what());
@@ -1182,6 +1190,24 @@ extern "C" void wasm_rewind()
 //  wrapper->emu->datasette.datasette->rewind();
 }
 
+
+extern "C" void wasm_mouse(int port, int x, int y)
+{
+  //printf("wasm_mouse port%d x=%d, y=%d\n", port-1, x, y);
+  wrapper->emu->put(CMD_MOUSE_MOVE_REL, CoordCmd(port-1, x*8, y*8));
+}
+
+extern "C" void wasm_mouse_button(int port, int button_id, int pressed)
+{ 
+//  printf("wasm_mouse button%d id=%d, pressed=%d\n", port-1, button_id, pressed);
+
+  if(button_id==1)
+    wrapper->emu->put(CMD_MOUSE_EVENT, GamePadCmd(port-1,(pressed==1?PRESS_LEFT:RELEASE_LEFT)));
+//    wrapper->amiga->controlPort1.mouse.setLeftButton(pressed==1);
+  else if(button_id==3)
+    wrapper->emu->put(CMD_MOUSE_EVENT, GamePadCmd(port-1,(pressed==1?PRESS_RIGHT:RELEASE_RIGHT)));
+//    wrapper->amiga->controlPort1.mouse.setMiddleButton(pressed==1);
+}
 
 extern "C" void wasm_joystick(char* port_plus_event)
 {

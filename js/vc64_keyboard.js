@@ -525,6 +525,11 @@ draggable="false">
 
     $('#virtual_keyboard').css("user-select","none");
     
+    //stop handled touch events on and between keys being propagated
+    //touch events left/right area of virtual keyboard is still propagated
+    document.getElementById("divKeyboardRows").addEventListener("touchstart",e=>e.stopPropagation());
+
+
     keymap.forEach(row => {
         row.forEach(keydef => {
             if(keydef.k === undefined)

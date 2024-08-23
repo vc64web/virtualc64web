@@ -1652,9 +1652,7 @@ extern "C" void wasm_open_main_thread_audio()
 
     printf("set SID to freq= %d\n", have.freq);
     wrapper->emu->set(OPT_HOST_SAMPLE_RATE,have.freq);
-   // wrapper->emu->muxer.setSampleRate(have.freq);
-    printf("freq in SIDBridge= %f\n",  wrapper->emu->get(OPT_HOST_SAMPLE_RATE));
- 
+    printf("freq in SIDBridge= %ld\n",  wrapper->emu->get(OPT_HOST_SAMPLE_RATE));
 
     SDL_PauseAudioDevice(audio_device_id, 0); //unpause the audio device
 }

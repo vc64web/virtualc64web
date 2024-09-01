@@ -2775,10 +2775,32 @@ $('.layer').change( function(event) {
     }
     );
     document.getElementById('button_reset').onclick = function() {
+        if(Module._wasm_expansion_port_info()) $("#button_detach_cartridge").show();
+        else $("#button_detach_cartridge").hide();
         $("#modal_reset").modal('show');
     }
+    document.getElementById('button_soft_reset_confirmed').onclick = function() {
+        Module._wasm_soft_reset();
+        reset_keyboard();
+
+        if(!is_running())
+        {
+            $("#button_run").click();
+        }
+        $("#modal_reset").modal('hide').blur();
+    }
     document.getElementById('button_reset_confirmed').onclick = function() {
-        wasm_reset();
+        Module._wasm_hard_reset();
+        reset_keyboard();
+
+        if(!is_running())
+        {
+            $("#button_run").click();
+        }
+        $("#modal_reset").modal('hide').blur();
+    }
+    document.getElementById('button_detach_cartridge').onclick = function() {
+        Module._wasm_detach_cartridge();
         reset_keyboard();
 
         if(!is_running())
@@ -3067,11 +3089,15 @@ $('.layer').change( function(event) {
             mem = mem<1024 ? `${mem} KB`:`${mem/1024} MB` ;
             $("#button_expansion_ram").text("RAM expansion = REU "+mem);
         }
-        if(traits.crt.startsWith("GeoRam"))
+        else if(traits.crt.startsWith("GeoRam"))
         {
           let mem=traits.crt.replace("GeoRam","")/1024;
           mem = mem<1024 ? `${mem} KB`:`${mem/1024} MB` ;
           $("#button_expansion_ram").text("RAM expansion = GeoRAM "+mem);
+        }
+        else
+        {
+            $("#button_expansion_ram").text("RAM expansion = none");
         }
         
     });
@@ -3313,6 +3339,7 @@ $('#choose_vic_rev a').click(function ()
     }, false);
     document.getElementById('filedialog').addEventListener("change", function(e) {
           handleFileInput();
+          this.value=null; //to be able to load the same file again on change
     }, false);
 
     $("html").on('dragover', function(e) {dragover_handler(e.originalEvent); return false;}) 

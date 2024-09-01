@@ -1115,6 +1115,32 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
   return "";
 }
 
+extern "C" bool wasm_expansion_port_info()
+{
+  auto traits = wrapper->emu->expansionPort.getCartridgeTraits();
+  
+  if(traits.type != CRT_NONE /*&& traits.type != CRT_GEO_RAM && traits.type != CRT_REU*/)
+  {
+    return true;
+  }
+  return false;
+}
+
+extern "C" void wasm_detach_cartridge()
+{
+  wrapper->emu->expansionPort.detachCartridge();
+  wrapper->emu->c64.hardReset();
+}
+
+extern "C" void wasm_soft_reset()
+{
+  wrapper->emu->c64.softReset();
+}
+extern "C" void wasm_hard_reset()
+{
+  wrapper->emu->c64.hardReset();
+}
+
 
 extern "C" void wasm_reset()
 {

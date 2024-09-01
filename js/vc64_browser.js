@@ -1,4 +1,4 @@
-var vc64web_version ="5.0.0"; //minimum requirement for snapshot version to be compatible
+var vc64web_version ="5.1.0"; //minimum requirement for snapshot version to be compatible
 var current_browser_datasource='snapshots';
 var current_browser_command=null;
 
@@ -407,6 +407,12 @@ var collectors = {
             {
                 var src_data = item.data;
                 var version = src_data[4] +'.'+src_data[5]+'.'+src_data[6];
+                let get_thumbnail_data = (snapshot_data)=>{
+                    let version=src_data[4] +'.'+src_data[5];
+                    return snapshot_data.subarray(
+                        (version >= 5.1 ? 16 : 8), snapshot_data.length); 
+                }
+                let thumbnail_data=get_thumbnail_data(src_data);
                 if(version.startsWith("3.3"))
                 { 
                     width=392;
@@ -414,8 +420,8 @@ var collectors = {
                 }
                 else //v4.0
                 {
-                    width=src_data[8] + src_data[9] * 256; //384;
-                    height=src_data[12] + src_data[13] * 256; //284;
+                    width=thumbnail_data[0] + thumbnail_data[1] * 256; //384;
+                    height=thumbnail_data[4] + thumbnail_data[5] * 256; //284;
                 }
                 var ctx = teaser_canvas.getContext("2d");
                 teaser_canvas.width = width;
@@ -425,7 +431,7 @@ var collectors = {
                     imgData=ctx.createImageData(width,height);
                 
                     var data = imgData.data;
-                    snapshot_data = new Uint8Array(src_data, 40/* offset .. this number was a guess... */, data.length);
+                    snapshot_data = new Uint8Array(thumbnail_data, 8/* offset .. skipping width, height */, data.length);
                     data.set(snapshot_data.subarray(0,data.length),0);
                     ctx.putImageData(imgData,0,0); 
                 
@@ -450,7 +456,6 @@ var collectors = {
                 {
                     wasm_halt();
                 }
-                _wasm_set_PAL(snapshot_data[12] + snapshot_data[13] * 256 ==284);
                 wasm_loadfile(
                             global_apptitle /*snapshot.title*/+".vc64",
                             snapshot_data, 
@@ -471,7 +476,6 @@ var collectors = {
                             alert(`This snapshot has been taken with the older virtual C64 version ${version} and can not be loaded with the current version ${vc64web_version}, sorry.`);
                             return;
                         }
-                        _wasm_set_PAL(snapshot.data[12] + snapshot.data[13] * 256 ==284);
                         wasm_loadfile(
                             snapshot.title+".vc64",
                             snapshot.data, 
@@ -503,18 +507,6 @@ var collectors = {
             return false;
         },
         //helper method...
-        copy_snapshot_to_canvas: function(snapshot_ptr, canvas, width, height){ 
-            var ctx = canvas.getContext("2d");
-            canvas.width = width;
-            canvas.height = height;
-            imgData=ctx.createImageData(width,height);
-
-            var data = imgData.data;
-
-            let snapshot_data = new Uint8Array(Module.HEAPU8.buffer, snapshot_ptr, data.length);
-            data.set(snapshot_data.subarray(0,data.length),0);
-            ctx.putImageData(imgData,0,0); 
-        },
         copy_autosnapshot_to_canvas: function(snapshot_data, canvas, width, height){ 
             var ctx = canvas.getContext("2d");
             canvas.width = width;
@@ -522,7 +514,7 @@ var collectors = {
             imgData=ctx.createImageData(width,height);
 
             var data = imgData.data;
-            data.set(snapshot_data.subarray(0,data.length),0);
+            data.set(snapshot_data.subarray(16+8,data.length),0);
             ctx.putImageData(imgData,0,0); 
         }
 

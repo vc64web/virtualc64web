@@ -25,21 +25,28 @@ G64File::isCompatible(const fs::path &path)
 }
 
 bool
-G64File::isCompatible(std::istream &stream)
+G64File::isCompatible(const u8 *buf, isize len)
 {
     // const u8 magicBytes[] = { 0x47, 0x43, 0x52, 0x2D, 0x31, 0x35, 0x34, 0x31 };
     const u8 magicBytes[] = { 'G', 'C', 'R', '-', '1', '5', '4', '1' };
 
-    if (util::streamLength(stream) < 0x2AC) return false;
-    return util::matchingStreamHeader(stream, magicBytes, sizeof(magicBytes));
+    if (len < 0x2AC) return false;
+    return util::matchingBufferHeader(buf, magicBytes, sizeof(magicBytes));
+}
+
+bool
+G64File::isCompatible(const Buffer<u8> &buf)
+{
+    return isCompatible(buf.ptr, buf.size);
 }
 
 G64File::G64File(isize capacity)
 {
     assert(capacity > 0);
     
-    data = new u8[capacity];
-    size = capacity;
+    // data = new u8[capacity];
+    // size = capacity;
+    init(capacity);
 }
 
 void
@@ -113,13 +120,9 @@ G64File::init(Disk &disk)
         buffer[pos++] = 0;
         buffer[pos++] = 0;
     }
-    assert(pos == length);
-    
-    std::stringstream stream;
-    stream.write((char *)buffer, length);
-    stream.seekg(0, std::ios::beg);
-    
-    init(stream);
+
+    assert(isize(pos) == length);
+    init(buffer, length);
 }
 
 isize
@@ -139,7 +142,7 @@ G64File::copyHalftrack(Halftrack ht, u8 *buf) const
     isize start = getStartOfHalftrack(ht) + 2;
     isize len = getSizeOfHalftrack(ht);
     
-    memcpy(buf, data + start, len);
+    memcpy(buf, data.ptr + start, len);
 }
 
 isize

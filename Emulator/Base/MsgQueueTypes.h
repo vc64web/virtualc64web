@@ -24,7 +24,7 @@ namespace vc64 {
 /// Emulator message
 enum_long(MSG_TYPE)
 {
-    MSG_NONE = 0,           ///< Unclassified
+    MSG_NONE,               ///< Unclassified
 
     // Execution state
     MSG_CONFIG,             ///< The configuration has changed
@@ -40,11 +40,11 @@ enum_long(MSG_TYPE)
     MSG_MUTE,               ///< The emulator has been muted or unmuted
 
     // Retro shell
-    MSG_CONSOLE_CLOSE,      ///< RetroShell has been closed
-    MSG_CONSOLE_UPDATE,     ///< RetroShell has generated new output
-    MSG_CONSOLE_DEBUGGER,   ///< The RetroShell debugger has been opend or closed
-    MSG_SCRIPT_DONE,        ///< A RetroShell script has been successfully executed
-    MSG_SCRIPT_ABORT,       ///< The execution of a RetroShell ccript has been aborted
+    MSG_RSH_CLOSE,          ///< RetroShell has been closed
+    MSG_RSH_UPDATE,         ///< RetroShell has generated new output
+    MSG_RSH_DEBUGGER,       ///< The RetroShell debugger has been opend or closed
+    MSG_RSH_WAIT,           ///< Execution has peen postponed due to a wait command
+    MSG_RSH_ERROR,          ///< Command execution has been aborted due to an error
 
     // CPU
     MSG_BREAKPOINT_UPDATED, ///< The breakpoint list has beed modified
@@ -95,7 +95,7 @@ enum_long(MSG_TYPE)
     MSG_SHAKING,            ///< A shaking mouse has been detected
 
     // Snapshots
-    MSG_SNAPSHOT_TAKEN,     ///< A snapshot has been taken (see OPT_SNAPSHOTS)
+    MSG_SNAPSHOT_TAKEN,     ///< A snapshot has been taken (see OPT_C64_SNAP_AUTO)
     MSG_SNAPSHOT_RESTORED,  ///< A snapshot has been restored
 
     // Screen recording
@@ -110,19 +110,23 @@ enum_long(MSG_TYPE)
     MSG_ALARM,              ///< A user-set alarm event has fired
     MSG_RS232,              ///< RS232 activity (DEPRECATED)
     MSG_RS232_IN,           ///< RS232 adapter has received data
-    MSG_RS232_OUT           ///< RS232 adapter has sent data
+    MSG_RS232_OUT,          ///< RS232 adapter has sent data
+
+    // Remote server
+    MSG_SRV_STATE,
+    MSG_SRV_RECEIVE,
+    MSG_SRV_SEND
 };
 
 typedef MSG_TYPE MsgType;
 
-struct MsgTypeEnum : util::Reflection<MsgType, MsgType> {
+struct MsgTypeEnum : util::Reflection<MsgTypeEnum, MsgType> {
 
     static constexpr long minVal = 0;
-    static constexpr long maxVal = MSG_ALARM;
-    static bool isValid(auto value) { return value >= minVal && value <= maxVal; }
+    static constexpr long maxVal = MSG_SRV_SEND;
 
     static const char *prefix() { return "MSG"; }
-    static const char *key(long value)
+    static const char *_key(long value)
     {
         switch (value) {
 
@@ -139,12 +143,12 @@ struct MsgTypeEnum : util::Reflection<MsgType, MsgType> {
             case MSG_TRACK:                 return "TRACK";
             case MSG_MUTE:                  return "MUTE";
 
-            case MSG_CONSOLE_CLOSE:         return "CONSOLE_CLOSE";
-            case MSG_CONSOLE_UPDATE:        return "CONSOLE_UPDATE";
-            case MSG_CONSOLE_DEBUGGER:      return "CONSOLE_DEBUGGER";
-            case MSG_SCRIPT_DONE:           return "SCRIPT_DONE";
-            case MSG_SCRIPT_ABORT:          return "SCRIPT_ABORT";
-
+            case MSG_RSH_CLOSE:             return "RSH_CLOSE";
+            case MSG_RSH_UPDATE:            return "RSH_UPDATE";
+            case MSG_RSH_DEBUGGER:          return "RSH_DEBUGGER";
+            case MSG_RSH_WAIT:              return "RSH_WAIT";
+            case MSG_RSH_ERROR:             return "RSH_ERROR";
+                
             case MSG_BREAKPOINT_UPDATED:    return "BREAKPOINT_UPDATED";
             case MSG_BREAKPOINT_REACHED:    return "BREAKPOINT_REACHED";
             case MSG_WATCHPOINT_UPDATED:    return "WATCHPOINT_UPDATED";
@@ -198,6 +202,10 @@ struct MsgTypeEnum : util::Reflection<MsgType, MsgType> {
             case MSG_RS232:                 return "RS232";
             case MSG_RS232_IN:              return "RS232_IN";
             case MSG_RS232_OUT:             return "RS232_OUT";
+
+            case MSG_SRV_STATE:             return "SRV_STATE";
+            case MSG_SRV_RECEIVE:           return "SRV_RECEIVE";
+            case MSG_SRV_SEND:              return "SRV_SEND";
         }
         return "???";
     }
@@ -210,6 +218,7 @@ struct MsgTypeEnum : util::Reflection<MsgType, MsgType> {
 typedef struct { u16 pc; } CpuMsg;
 typedef struct { i16 nr; i16 value; i16 volume; i16 pan; } DriveMsg;
 typedef struct { isize line; i16 delay; } ScriptMsg;
+typedef struct { void *snapshot; } SnapshotMsg;
 
 typedef struct
 {
@@ -222,7 +231,7 @@ typedef struct
         CpuMsg cpu;
         DriveMsg drive;
         ScriptMsg script;
-        class MediaFile *snapshot;
+        SnapshotMsg snapshot;
     };
 }
 Message;

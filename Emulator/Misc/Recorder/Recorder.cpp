@@ -25,8 +25,6 @@ Recorder::Recorder(C64& ref) : SubComponent(ref)
 void
 Recorder::_initialize()
 {
-    CoreComponent::_initialize();
-
     FFmpeg::init();
 }
 
@@ -47,7 +45,7 @@ Recorder::_dump(Category category, std::ostream& os) const
         os << tab("Available");
         os << bol(FFmpeg::available()) << std::endl;
         os << tab("Recorder state");
-        os << bol(RecStateEnum::plainkey(state)) << std::endl;
+        os << bol(RecStateEnum::key(state)) << std::endl;
         os << tab("Duration");
         os << flt(getDuration().asSeconds()) << std::endl;
     }
@@ -83,7 +81,7 @@ Recorder::checkOption(Option opt, i64 value)
             return;
 
         default:
-            throw Error(ERROR_OPT_UNSUPPORTED);
+            throw Error(VC64ERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -181,17 +179,17 @@ Recorder::startRecording(isize x1, isize y1, isize x2, isize y2)
     if (REC_DEBUG) dump(Category::State);
 
     if (isRecording()) {
-        throw Error(ERROR_REC_LAUNCH, "Recording in progress.");
+        throw Error(VC64ERROR_REC_LAUNCH, "Recording in progress.");
     }
 
     // Create pipes
     debug(REC_DEBUG, "Creating pipes...\n");
 
     if (!videoPipe.create(videoPipePath())) {
-        throw Error(ERROR_REC_LAUNCH, "Failed to create the video encoder pipe.");
+        throw Error(VC64ERROR_REC_LAUNCH, "Failed to create the video encoder pipe.");
     }
     if (!audioPipe.create(audioPipePath())) {
-        throw Error(ERROR_REC_LAUNCH, "Failed to create the video encoder pipe.");
+        throw Error(VC64ERROR_REC_LAUNCH, "Failed to create the video encoder pipe.");
     }
 
     debug(REC_DEBUG, "Pipes created\n");
@@ -284,7 +282,7 @@ Recorder::startRecording(isize x1, isize y1, isize x2, isize y2)
     debug(REC_DEBUG, "%s\n", cmd1.c_str());
 
     if (!videoFFmpeg.launch(cmd1)) {
-        throw Error(ERROR_REC_LAUNCH, "Unable to launch the FFmpeg video encoder.");
+        throw Error(VC64ERROR_REC_LAUNCH, "Unable to launch the FFmpeg video encoder.");
     }
 
     // Launch the audio encoder
@@ -292,21 +290,21 @@ Recorder::startRecording(isize x1, isize y1, isize x2, isize y2)
     debug(REC_DEBUG, "%s\n", cmd2.c_str());
 
     if (!audioFFmpeg.launch(cmd2)) {
-        throw Error(ERROR_REC_LAUNCH, "Unable to launch the FFmpeg audio encoder.");
+        throw Error(VC64ERROR_REC_LAUNCH, "Unable to launch the FFmpeg audio encoder.");
     }
 
     // Open the video pipe
     debug(REC_DEBUG, "Opening video pipe\n");
 
     if (!videoPipe.open()) {
-        throw Error(ERROR_REC_LAUNCH, "Unable to open the video pipe.");
+        throw Error(VC64ERROR_REC_LAUNCH, "Unable to open the video pipe.");
     }
 
     // Open the audio pipe
     debug(REC_DEBUG, "Opening audio pipe\n");
 
     if (!audioPipe.open()) {
-        throw Error(ERROR_REC_LAUNCH, "Unable to launch the audio pipe.");
+        throw Error(VC64ERROR_REC_LAUNCH, "Unable to launch the audio pipe.");
     }
 
     debug(REC_DEBUG, "Success\n");

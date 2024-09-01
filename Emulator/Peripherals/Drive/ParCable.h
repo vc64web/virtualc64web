@@ -22,10 +22,16 @@ class ParCable final : public SubComponent {
         
     Descriptions descriptions = {{
 
+        .type           = ParCableClass,
         .name           = "ParCable",
-        .description    = "Parallel Drive Cable"
+        .description    = "Parallel Drive Cable",
+        .shell          = "parcable"
     }};
 
+    Options options = {
+
+    };
+    
 public:
     
     ParCable(C64 &ref);
@@ -53,6 +59,15 @@ public:
 private:
 
     void _dump(Category category, std::ostream& os) const override;
+
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
 
 
     //

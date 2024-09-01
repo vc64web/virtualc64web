@@ -26,20 +26,26 @@ T64File::isCompatible(const fs::path &path)
 }
 
 bool
-T64File::isCompatible(std::istream &stream)
+T64File::isCompatible(const u8 *buf, isize len)
 {
     const string magicT64 = "C64";
     const string magicTAP = "C64-TAPE";
 
-    if (util::streamLength(stream) < 0x40) return false;
+    if (len < 0x40) return false;
 
     // T64 files must begin with "C64"
-    if (!util::matchingStreamHeader(stream, magicT64)) return false;
+    if (!util::matchingBufferHeader(buf, len, magicT64)) return false;
 
     // T64 files must *not* begin with "C64-TAPE" (which is used by TAP files)
-    if (util::matchingStreamHeader(stream, magicTAP)) return false;
+    if (util::matchingBufferHeader(buf, len, magicTAP)) return false;
 
     return true;
+}
+
+bool
+T64File::isCompatible(const Buffer<u8> &buf)
+{
+    return isCompatible(buf.ptr, buf.size);
 }
 
 void
@@ -66,7 +72,7 @@ T64File::init(const class FileSystem &fs)
     //
     
     // Magic bytes (32 bytes)
-    u8 *ptr = data;
+    u8 *ptr = data.ptr;
     strncpy((char *)ptr, "C64 tape image file", 32);
     ptr += 32;
     
@@ -91,8 +97,8 @@ T64File::init(const class FileSystem &fs)
     name.write(ptr);
     ptr += 24;
     
-    assert(ptr - data == 64);
-    
+    assert(ptr - data.ptr == 64);
+
     //
     // Tape entries
     //
@@ -154,13 +160,13 @@ T64File::init(const class FileSystem &fs)
 PETName<16>
 T64File::getName() const
 {
-    return PETName<16>(data + 0x28).stripped(' ');
+    return PETName<16>(data.ptr + 0x28).stripped(' ');
 }
 
 PETName<16>
 T64File::collectionName()
 {
-    return PETName<16>(data + 0x28).stripped(' ');
+    return PETName<16>(data.ptr + 0x28).stripped(' ');
 }
 
 isize
@@ -174,7 +180,7 @@ T64File::itemName(isize nr) const
 {
     assert(nr < collectionCount());
     
-    return PETName<16>(data + 0x50 + nr * 0x20).stripped(' ');
+    return PETName<16>(data.ptr + 0x50 + nr * 0x20).stripped(' ');
 }
 
 isize
@@ -197,12 +203,12 @@ T64File::readByte(isize nr, isize pos) const
     
     // Locate the first byte of the requested file
     isize i = 0x48 + (nr * 0x20);
-    u64 start = LO_LO_HI_HI(data[i], data[i+1], data[i+2], data[i+3]);
+    isize start = LO_LO_HI_HI(data[i], data[i+1], data[i+2], data[i+3]);
 
     // Locate the requested byte
-    i64 offset = start + pos - 2;
-    assert(offset < size);
-    
+    isize offset = start + pos - 2;
+    assert(offset < data.size);
+
     return data[offset];
 }
 
@@ -226,7 +232,7 @@ T64File::directoryItemIsPresent(isize item)
     isize i;
     
     // check for zeros...
-    if (last < (isize)size)
+    if (last < data.size)
         for (i = first; i < last; i++)
             if (data[i] != 0)
                 return true;
@@ -285,7 +291,7 @@ T64File::finalizeRead()
         n = 0x48 + (i * 0x20);
         isize startAddrInContainer = LO_LO_HI_HI(data[n], data[n+1], data[n+2], data[n+3]);
 
-        if (startAddrInContainer >= size) {
+        if (startAddrInContainer >= data.size) {
             warn("T64: Offset mismatch. Sorry, can't repair.\n");
             return;
         }
@@ -305,7 +311,7 @@ T64File::finalizeRead()
         if (endAddrInMemory == 0xC3C6) {
 
             // Let's assume that the rest of the file data belongs to this file ...
-            isize fixedEndAddrInMemory = startAddrInMemory + (size - startAddrInContainer);
+            isize fixedEndAddrInMemory = startAddrInMemory + (data.size - startAddrInContainer);
 
             warn("T64: Changing end address of item %ld from %04lX to %04lX.\n",
                  i, endAddrInMemory, fixedEndAddrInMemory);

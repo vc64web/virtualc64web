@@ -13,22 +13,25 @@
 #pragma once
 
 #include "MemoryTypes.h"
+#include "MemoryDebugger.h"
 #include "SubComponent.h"
 #include "Heatmap.h"
 
 namespace vc64 {
 
-class C64Memory final : public SubComponent, public Inspectable<MemInfo, MemStats> {
+class Memory final : public SubComponent, public Inspectable<MemInfo, MemStats> {
 
     friend class Heatmap;
 
     Descriptions descriptions = {{
 
+        .type           = MemoryClass,
         .name           = "Memory",
-        .description    = "C64 Memory"
+        .description    = "C64 Memory",
+        .shell          = "memory"
     }};
 
-    ConfigOptions options = {
+    Options options = {
 
         OPT_MEM_INIT_PATTERN,
         OPT_MEM_HEATMAP,
@@ -39,6 +42,9 @@ class C64Memory final : public SubComponent, public Inspectable<MemInfo, MemStat
     MemConfig config = { };
 
 public:
+
+    // Subcomponents
+    MemoryDebugger debugger = MemoryDebugger(c64);
 
     /* C64 bank mapping
      *
@@ -86,9 +92,9 @@ public:
 
 public:
 
-    C64Memory(C64 &ref);
+    Memory(C64 &ref);
 
-    C64Memory& operator= (const C64Memory& other) {
+    Memory& operator= (const Memory& other) {
 
         CLONE_ARRAY(ram)
         CLONE_ARRAY(rom)
@@ -149,7 +155,7 @@ public:
 private:
 
     void _dump(Category category, std::ostream& os) const override;
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
 
 
     //
@@ -159,7 +165,7 @@ private:
 public:
 
     const MemConfig &getConfig() const { return config; }
-    const ConfigOptions &getOptions() const override { return options; }
+    const Options &getOptions() const override { return options; }
     i64 getOption(Option opt) const override;
     void checkOption(Option opt, i64 value) override;
     void setOption(Option opt, i64 value) override;

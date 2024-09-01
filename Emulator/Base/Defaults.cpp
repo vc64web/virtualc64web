@@ -25,13 +25,15 @@ Defaults::Defaults()
     setFallback(OPT_HOST_FRAMEBUF_WIDTH,        0);
     setFallback(OPT_HOST_FRAMEBUF_HEIGHT,       0);
 
-    setFallback(OPT_EMU_WARP_BOOT,              0);
-    setFallback(OPT_EMU_WARP_MODE,              WARP_NEVER);
-    setFallback(OPT_EMU_VSYNC,                  false);
-    setFallback(OPT_EMU_SPEED_ADJUST,           100);
-    setFallback(OPT_EMU_SNAPSHOTS,              false);
-    setFallback(OPT_EMU_SNAPSHOT_DELAY,         10);
-    setFallback(OPT_EMU_RUN_AHEAD,              0);
+    setFallback(OPT_C64_WARP_BOOT,              0);
+    setFallback(OPT_C64_WARP_MODE,              WARP_NEVER);
+    setFallback(OPT_C64_VSYNC,                  false);
+    setFallback(OPT_C64_SPEED_ADJUST,           100);
+    setFallback(OPT_C64_RUN_AHEAD,              0);
+
+    setFallback(OPT_C64_SNAP_AUTO,              false);
+    setFallback(OPT_C64_SNAP_DELAY,             10);
+    setFallback(OPT_C64_SNAP_COMPRESS,          true);
 
     setFallback(OPT_POWER_GRID,                 GRID_STABLE_50HZ);
 
@@ -39,6 +41,7 @@ Defaults::Defaults()
 
     setFallback(OPT_CIA_REVISION,               MOS_6526);
     setFallback(OPT_CIA_TIMER_B_BUG,            true);
+    setFallback(OPT_CIA_IDLE_SLEEP,             true);
 
     setFallback(OPT_VICII_REVISION,             VICII_PAL_8565);
     setFallback(OPT_VICII_POWER_SAVE,           true);
@@ -64,6 +67,8 @@ Defaults::Defaults()
     setFallback(OPT_DMA_DEBUG_COLOR3,           GpuColor(0x00, 0xFF, 0xFF).abgr);
     setFallback(OPT_DMA_DEBUG_COLOR4,           GpuColor(0x00, 0xFF, 0x00).abgr);
     setFallback(OPT_DMA_DEBUG_COLOR5,           GpuColor(0x00, 0x80, 0xFF).abgr);
+
+    setFallback(OPT_EXP_REU_SPEED,              1);
 
     setFallback(OPT_USR_DEVICE,                 USR_RS232);
 
@@ -164,6 +169,11 @@ Defaults::Defaults()
     setFallback(OPT_REC_ASPECT_X,               768);
     setFallback(OPT_REC_ASPECT_Y,               702);
 
+    setFallback(OPT_SRV_PORT,                   8081,                   { SERVER_RSH });
+    setFallback(OPT_SRV_PROTOCOL,               SRVPROT_DEFAULT,        { SERVER_RSH });
+    setFallback(OPT_SRV_AUTORUN,                false,                  { SERVER_RSH });
+    setFallback(OPT_SRV_VERBOSE,                true,                   { SERVER_RSH });
+
     setFallback("BASIC_PATH", "");
     setFallback("CHAR_PATH", "");
     setFallback("KERNAL_PATH", "");
@@ -196,7 +206,7 @@ Defaults::load(const fs::path &path)
     auto fs = std::ifstream(path, std::ifstream::binary);
 
     if (!fs.is_open()) {
-        throw Error(ERROR_FILE_NOT_FOUND);
+        throw Error(VC64ERROR_FILE_NOT_FOUND);
     }
 
     debug(DEF_DEBUG, "Loading user defaults from %s...\n", path.string().c_str());
@@ -274,7 +284,7 @@ Defaults::load(std::stringstream &stream)
                 continue;
             }
 
-            throw Error(ERROR_SYNTAX, line);
+            throw Error(VC64ERROR_SYNTAX, line);
         }
 
         if (accepted || skipped) {
@@ -289,7 +299,7 @@ Defaults::save(const fs::path &path)
     auto fs = std::ofstream(path, std::ofstream::binary);
 
     if (!fs.is_open()) {
-        throw Error(ERROR_FILE_CANT_WRITE);
+        throw Error(VC64ERROR_FILE_CANT_WRITE);
     }
 
     save(fs);
@@ -358,7 +368,7 @@ Defaults::getRaw(const string &key) const
     if (values.contains(key)) return values.at(key);
     if (fallbacks.contains(key)) return fallbacks.at(key);
 
-    throw Error(ERROR_INVALID_KEY, key);
+    throw Error(VC64ERROR_INVALID_KEY, key);
 }
 
 i64
@@ -382,11 +392,11 @@ Defaults::get(Option option, isize nr) const
 {
     try {
 
-        return get(string(OptionEnum::key(option)) + std::to_string(nr));
+        return get(string(OptionEnum::rawkey(option)) + std::to_string(nr));
 
     } catch (...) {
 
-        return get(string(OptionEnum::key(option)));
+        return get(string(OptionEnum::rawkey(option)));
     }
 }
 
@@ -395,7 +405,7 @@ Defaults::getFallbackRaw(const string &key) const
 {
     if (fallbacks.contains(key)) return fallbacks.at(key);
 
-    throw Error(ERROR_INVALID_KEY, key);
+    throw Error(VC64ERROR_INVALID_KEY, key);
 }
 
 i64
@@ -419,11 +429,11 @@ Defaults::getFallback(Option option, isize nr) const
 {
     try {
 
-        return getFallback(string(OptionEnum::key(option)) + std::to_string(nr));
+        return getFallback(string(OptionEnum::rawkey(option)) + std::to_string(nr));
 
     } catch (...) {
 
-        return getFallback(string(OptionEnum::key(option)));
+        return getFallback(string(OptionEnum::rawkey(option)));
     }
 }
 
@@ -438,7 +448,7 @@ Defaults::set(const string &key, const string &value)
 
             warn("Invalid key: %s\n", key.c_str());
             assert(false);
-            throw Error(ERROR_INVALID_KEY, key);
+            throw Error(VC64ERROR_INVALID_KEY, key);
         }
 
         values[key] = value;
@@ -448,13 +458,13 @@ Defaults::set(const string &key, const string &value)
 void
 Defaults::set(Option option, const string &value)
 {
-    set(OptionEnum::key(option), value);
+    set(OptionEnum::rawkey(option), value);
 }
 
 void
 Defaults::set(Option option, const string &value, std::vector <isize> objids)
 {
-    auto key = string(OptionEnum::key(option));
+    auto key = string(OptionEnum::rawkey(option));
 
     for (auto &nr : objids) {
         set(key + std::to_string(nr), value);
@@ -486,13 +496,13 @@ Defaults::setFallback(const string &key, const string &value)
 void
 Defaults::setFallback(Option option, const string &value)
 {
-    setFallback(OptionEnum::key(option), value);
+    setFallback(OptionEnum::rawkey(option), value);
 }
 
 void
 Defaults::setFallback(Option option, const string &value, std::vector <isize> objids)
 {
-    auto key = string(OptionEnum::key(option));
+    auto key = string(OptionEnum::rawkey(option));
 
     for (auto &nr : objids) {
         setFallback(key + std::to_string(nr), value);
@@ -526,7 +536,7 @@ Defaults::remove(const string &key)
 
             warn("Invalid key: %s\n", key.c_str());
             assert(false);
-            throw Error(ERROR_INVALID_KEY, key);
+            throw Error(VC64ERROR_INVALID_KEY, key);
         }
         if (values.contains(key)) {
             values.erase(key);
@@ -537,14 +547,14 @@ Defaults::remove(const string &key)
 void
 Defaults::remove(Option option)
 {
-    remove(string(OptionEnum::key(option)));
+    remove(string(OptionEnum::rawkey(option)));
 }
 
 void
 Defaults::remove(Option option, std::vector <isize> nrs)
 {
     for (auto &nr : nrs) {
-        remove(string(OptionEnum::key(option)) + std::to_string(nr));
+        remove(string(OptionEnum::rawkey(option)) + std::to_string(nr));
     }
 }
 

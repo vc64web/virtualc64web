@@ -13,14 +13,11 @@
 
 #include "config.h"
 #include "Headless.h"
-#include "IOUtils.h"
+#include "HeadlessScripts.h"
+#include "C64.h"
+#include "Script.h"
 #include <chrono>
-#include <filesystem>
 #include <iostream>
-
-#ifndef _WIN32
-#include <getopt.h>
-#endif
 
 int main(int argc, char *argv[])
 {
@@ -30,37 +27,34 @@ int main(int argc, char *argv[])
 
     } catch (vc64::SyntaxError &e) {
 
-        std::cout << "Usage: VirtualC64Core [-svm] | { [-vm] <script> } " << std::endl;
+        std::cout << "Usage: vAmigaCore [-fsdvm] [<script>]" << std::endl;
         std::cout << std::endl;
-        std::cout << "       -s or --selftest  Checks the integrity of the build" << std::endl;
-        std::cout << "       -v or --verbose   Print executed script lines" << std::endl;
-        std::cout << "       -m or --messages  Observe the message queue" << std::endl;
+        std::cout << "       -f or --footprint   Reports the size of certain objects" << std::endl;
+        std::cout << "       -s or --smoke       Runs some smoke tests to test the build" << std::endl;
+        std::cout << "       -d or --diagnose    Launches the emulator thread" << std::endl;
+        std::cout << "       -v or --verbose     Print executed script lines" << std::endl;
+        std::cout << "       -m or --messages    Observe the message queue" << std::endl;
+        std::cout << "       <script>            Execute this script instead of the default" << std::endl;
         std::cout << std::endl;
 
         if (auto what = string(e.what()); !what.empty()) {
             std::cout << what << std::endl;
         }
-        
-        return 1;
 
     } catch (vc64::Error &e) {
 
-        std::cout << "VC64Error: " << std::endl;
-        std::cout << e.what() << std::endl;
-        return 1;
-        
+        std::cout << "VAError: " << e.what() << std::endl;
+
     } catch (std::exception &e) {
 
-        std::cout << "Error: " << std::endl;
-        std::cout << e.what() << std::endl;
-        return 1;
-    
+        std::cout << "System Error: " << e.what() << std::endl;
+
     } catch (...) {
-    
+
         std::cout << "Error" << std::endl;
     }
-    
-    return 0;
+
+    return 1;
 }
 
 namespace vc64 {
@@ -68,139 +62,110 @@ namespace vc64 {
 int
 Headless::main(int argc, char *argv[])
 {
-    std::cout << "VirtualC64 Headless v" << c64.version();
+    std::cout << "VirtualC64 Headless v" << VirtualC64::version();
     std::cout << " - (C)opyright Dirk W. Hoffmann" << std::endl << std::endl;
 
     // Parse all command line arguments
     parseArguments(argc, argv);
 
-    // Redirect shell output to the console in verbose mode
-    if (keys.find("verbose") != keys.end()) c64.retroShell.setStream(std::cout);
-
-    // Read the input script
-    auto script = MediaFile::make(keys["arg1"], FILETYPE_SCRIPT);
-
-    // Launch the emulator thread
-    c64.launch(this, vc64::process);
-
-    // Execute the script
-    barrier.lock();
-    c64.retroShell.execScript(*script);
+    // Check options
+    if (keys.find("footprint") != keys.end())   { reportSize(); }
+    if (keys.find("smoke") != keys.end())       { runScript(smokeTestScript); }
+    if (keys.find("diagnose") != keys.end())    { runScript(selfTestScript); }
+    if (keys.find("arg1") != keys.end())        { runScript(keys["arg1"]); }
 
     return returnCode;
 }
 
-#ifdef _WIN32
-
 void
 Headless::parseArguments(int argc, char *argv[])
 {
-    keys["selftest"] = "1";
-    keys["verbose"] = "1";
-    keys["arg1"] = selfTestScript();
-}
-
-#else
-
-void
-Headless::parseArguments(int argc, char *argv[])
-{
-    static struct option long_options[] = {
-        
-        { "selftest",   no_argument,    NULL,   's' },
-        { "verbose",    no_argument,    NULL,   'v' },
-        { "messages",   no_argument,    NULL,   'm' },
-        { NULL,         0,              NULL,    0  }
-    };
-    
-    // Don't print the default error messages
-    opterr = 0;
-    
     // Remember the execution path
-    keys["exec"] = fs::absolute(argv[0]);
+    keys["exec"] = std::filesystem::absolute(std::filesystem::path(argv[0])).string();
 
-    // Parse all options
-    while (1) {
-        
-        int arg = getopt_long(argc, argv, ":svm", long_options, NULL);
-        if (arg == -1) break;
+    // Parse command line arguments
+    for (isize i = 1, n = 1; i < argc; i++) {
 
-        switch (arg) {
-                
-            case 's':
-                keys["selftest"] = "1";
-                break;
+        auto arg = string(argv[i]);
 
-            case 'v':
-                keys["verbose"] = "1";
-                break;
+        if (arg[0] == '-') {
 
-            case 'm':
-                keys["messages"] = "1";
-                break;
+            if (arg == "-f" || arg == "--footprint") { keys["footprint"] = "1"; continue; }
+            if (arg == "-s" || arg == "--smoke")     { keys["smoke"] = "1"; continue; }
+            if (arg == "-d" || arg == "--diagnose")  { keys["diagnose"] = "1"; continue; }
+            if (arg == "-v" || arg == "--verbose")   { keys["verbose"] = "1"; continue; }
+            if (arg == "-m" || arg == "--messages")  { keys["messages"] = "1"; continue; }
 
-            case ':':
-                throw SyntaxError("Missing argument for option '" +
-                                  string(argv[optind - 1]) + "'");
-                
-            default:
-                throw SyntaxError("Invalid option '" +
-                                  string(argv[optind - 1]) + "'");
+            throw SyntaxError("Invalid option '" + arg + "'");
         }
-    }
-    
-    // Parse all remaining arguments
-    auto nr = 1;
-    while (optind < argc) {
-        keys["arg" + std::to_string(nr++)] = fs::absolute(fs::path(argv[optind++])).string();
+
+        auto path = std::filesystem::path(arg);
+        keys["arg" + std::to_string(n++)] = std::filesystem::absolute(path).string();
     }
 
     // Check for syntax errors
     checkArguments();
-
-    // Create the selftest script if needed
-    if (keys.find("selftest") != keys.end()) keys["arg1"] = selfTestScript();
 }
-
-#endif
 
 void
 Headless::checkArguments()
 {
-    if (keys.find("selftest") != keys.end()) {
+    // At most one file must be specified
+    if (keys.find("arg2") != keys.end()) {
+        throw SyntaxError("More than one script file is given");
+    }
 
-        // No input file must be given
-        if (keys.find("arg1") != keys.end()) {
-            throw SyntaxError("No script file must be given in selftest mode");
-        }
-
-    } else {
-
-        // The user needs to specify a single input file
-        if (keys.find("arg1") == keys.end()) {
-            throw SyntaxError("No script file is given");
-        }
-        if (keys.find("arg2") != keys.end()) {
-            throw SyntaxError("More than one script file is given");
-        }
+    if (keys.find("arg1") != keys.end()) {
 
         // The input file must exist
         if (!util::fileExists(keys["arg1"])) {
             throw SyntaxError("File " + keys["arg1"] + " does not exist");
         }
+
+    } else {
+
+        // Either -f, -s, or -d needs to be specified
+        if (!keys.contains("footprint") &&
+            !keys.contains("smoke") &&
+            !keys.contains("diagnose")) throw SyntaxError("");
     }
 }
 
-string
-Headless::selfTestScript()
+void
+Headless::runScript(const char **script)
 {
-    auto path = std::filesystem::temp_directory_path() / "selftest.ini";
-    auto file = std::ofstream(path);
+    auto path = std::filesystem::temp_directory_path() / "script.ini";
+    auto file = std::ofstream(path, std::ios::binary);
 
-    for (isize i = 0; i < isizeof(testScript) / isizeof(const char *); i++) {
-        file << testScript[i] << std::endl;
+    for (isize i = 0; script[i] != nullptr; i++) {
+        file << script[i] << std::endl;
     }
-    return path.string();
+    runScript(path);
+}
+
+void
+Headless::runScript(const std::filesystem::path &path)
+{
+    // Read the input script
+    Script script(path);
+
+    // Create an emulator instance
+    VirtualC64 c64;
+
+    // Plug in the three MEGA65 OpenROMs
+    c64.c64.installOpenRoms();
+    c64.c64.deleteRom(ROM_TYPE_VC1541);
+
+    // Redirect shell output to the console in verbose mode
+    if (keys.find("verbose") != keys.end()) c64.retroShell.setStream(std::cout);
+
+    // Launch the emulator thread
+    c64.launch(this, vc64::process);
+
+    // Execute script
+    const auto timeout = util::Time::seconds(500.0);
+    c64.retroShell.execScript(script);
+    waitForWakeUp(timeout);
 }
 
 void
@@ -222,23 +187,47 @@ Headless::process(Message msg)
     }
 
     switch (msg.type) {
-            
-        case MSG_SCRIPT_DONE:
 
-            returnCode = 0;
-            barrier.unlock();
-            break;
-
-        case MSG_SCRIPT_ABORT:
-        case MSG_ABORT:
+        case MSG_RSH_ERROR:
 
             returnCode = 1;
-            barrier.unlock();
+            wakeUp();
             break;
-            
+
+        case MSG_ABORT:
+
+            wakeUp();
+            break;
+
         default:
             break;
     }
+}
+
+void
+Headless::reportSize()
+{
+    msg("               C64 : %zu bytes\n", sizeof(C64));
+    msg("            Memory : %zu bytes\n", sizeof(Memory));
+    msg("       DriveMemory : %zu bytes\n", sizeof(DriveMemory));
+    msg("               CPU : %zu bytes\n", sizeof(CPU));
+    msg("               CIA : %zu bytes\n", sizeof(CIA));
+    msg("             VICII : %zu bytes\n", sizeof(VICII));
+    msg("         SIDBridge : %zu bytes\n", sizeof(SIDBridge));
+    msg("         PowerPort : %zu bytes\n", sizeof(PowerPort));
+    msg("       ControlPort : %zu bytes\n", sizeof(ControlPort));
+    msg("     ExpansionPort : %zu bytes\n", sizeof(ExpansionPort));
+    msg("        SerialPort : %zu bytes\n", sizeof(SerialPort));
+    msg("          Keyboard : %zu bytes\n", sizeof(Keyboard));
+    msg("             Drive : %zu bytes\n", sizeof(Drive));
+    msg("          ParCable : %zu bytes\n", sizeof(ParCable));
+    msg("         Datasette : %zu bytes\n", sizeof(Datasette));
+    msg("        RetroShell : %zu bytes\n", sizeof(RetroShell));
+    msg("  RegressionTester : %zu bytes\n", sizeof(RegressionTester));
+    msg("          Recorder : %zu bytes\n", sizeof(Recorder));
+    msg("          MsgQueue : %zu bytes\n", sizeof(MsgQueue));
+    msg("          CmdQueue : %zu bytes\n", sizeof(CmdQueue));
+    msg("\n");
 }
 
 }

@@ -45,12 +45,11 @@ VICII::VICII(C64 &ref) : SubComponent(ref), dmaDebugger(ref)
 void 
 VICII::_initialize()
 {
-    CoreComponent::_initialize();
     setRevision(config.revision);
 }
 
 void
-VICII::_reset(bool hard)
+VICII::_didReset(bool hard)
 {
     if (hard) {
 
@@ -495,12 +494,15 @@ VICII::updateBA(u8 value)
     if (value != baLine.current()) {
 
         if (value) {
+
             baLine.write(value);
+            cpu.pullDownRdyLine(INTSRC_VIC);
+
         } else {
+
             baLine.clear();
+            cpu.releaseRdyLine(INTSRC_VIC);
         }
-        
-        cpu.setRDY(value == 0);
     }
 }
 

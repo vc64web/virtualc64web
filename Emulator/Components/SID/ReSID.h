@@ -40,10 +40,14 @@ class ReSID final : public SubComponent, public Inspectable<SIDInfo> {
     Descriptions descriptions = {{
 
         .name           = "ReSID",
-        .description    = "ReSID Backend"
+        .description    = "ReSID Backend",
+        .shell          = "resid"
     }};
 
+    Options options = {
 
+    };
+    
     // Entry point to the reSID backend
     reSID::SID *sid;
     
@@ -149,7 +153,7 @@ public:
 
 private:
 
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
 
 
     //
@@ -161,6 +165,15 @@ public:
     virtual void record() const override;
     void cacheInfo(SIDInfo &result) const override;
 
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
+    
 
     //
     // Configuring

@@ -26,10 +26,11 @@ namespace vc64 {
 /// Emulator command
 enum_long(CMD_TYPE)
 {
-    CMD_NONE = 0,               ///< None
+    CMD_NONE,                   ///< None
 
     // Emulator
     CMD_CONFIG,                 ///< Configure the emulator
+    CMD_CONFIG_ALL,             ///< Configure the emulator
 
     // C64
     CMD_ALARM_ABS,              ///< Schedule an alarm (absolute cycle)
@@ -105,20 +106,20 @@ enum_long(CMD_TYPE)
 };
 typedef CMD_TYPE CmdType;
 
-struct CmdTypeEnum : util::Reflection<CmdType, CmdType> {
+struct CmdTypeEnum : util::Reflection<CmdTypeEnum, CmdType> {
 
     static constexpr long minVal = 0;
     static constexpr long maxVal = CMD_FOCUS;
-    static bool isValid(auto value) { return value >= minVal && value <= maxVal; }
 
     static const char *prefix() { return "CMD"; }
-    static const char *key(long value)
+    static const char *_key(long value)
     {
         switch (value) {
 
             case CMD_NONE:                  return "NONE";
 
             case CMD_CONFIG:                return "CONFIG";
+            case CMD_CONFIG_ALL:            return "CONFIG_ALL";
 
             case CMD_ALARM_ABS:             return "ALARM_ABS";
             case CMD_ALARM_REL:             return "ALARM_REL";

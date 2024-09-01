@@ -28,9 +28,15 @@ class TOD final : public SubComponent, public Inspectable<TODInfo> {
     
     Descriptions descriptions = {{
 
+        .type           = TODClass,
         .name           = "TOD",
-        .description    = "Time-of-day Clock"
+        .description    = "Time-of-day Clock",
+        .shell          = "tod"
     }};
+
+    Options options = {
+
+    };
 
 private:
     
@@ -128,7 +134,7 @@ public:
 private:
 
     void _dump(Category category, std::ostream& os) const override;
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
 
 
     //
@@ -139,7 +145,16 @@ public:
 
     void cacheInfo(TODInfo &result) const override;
 
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
     
+
     //
     // Accessing
     //

@@ -37,9 +37,7 @@ Drive::Drive(C64 &ref, isize id) : SubComponent(ref, id)
 
 void
 Drive::_initialize()
-{
-    CoreComponent::_initialize();
-    
+{    
     insertionStatus = DISK_FULLY_EJECTED;
     if (disk) disk->clearDisk();
 }
@@ -426,7 +424,7 @@ Drive::insertMediaFile(class MediaFile &file, bool wp)
 
     } catch (...) {
         
-        throw Error(ERROR_FILE_TYPE_MISMATCH);
+        throw Error(VC64ERROR_FILE_TYPE_MISMATCH);
     }}}
 }
 

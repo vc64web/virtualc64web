@@ -21,9 +21,14 @@ class Mouse1350 final : public SubComponent {
     Descriptions descriptions = {{
 
         .name           = "Mouse1350",
-        .description    = "Mouse 1350"
+        .description    = "Mouse 1350",
+        .shell          = ""
     }};
 
+    Options options = {
+
+    };
+    
 private:
     
     // Mouse position
@@ -76,7 +81,7 @@ public:
 public:
 
     template <class T> void serialize(T& worker) { } SERIALIZERS(serialize);
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
 
 
     //
@@ -87,7 +92,16 @@ public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
     
+
     //
     // Accessing
     //

@@ -48,6 +48,9 @@ struct SnapshotHeader {
     u8 subminor;
     u8 beta;
 
+    // Indicates if the snapshot contents is stored as compressed data
+    bool compressed;
+
     // Preview image
     Thumbnail screenshot;
 };
@@ -61,36 +64,38 @@ public:
     //
 
     static bool isCompatible(const fs::path &path);
-    static bool isCompatible(std::istream &stream);
+    static bool isCompatible(const u8 *buf, isize len);
+    static bool isCompatible(const Buffer<u8> &buffer);
 
-    
+
     //
     // Initializing
     //
 
+    Snapshot(const Snapshot &other) throws { init(other.data.ptr, other.data.size); }
     Snapshot(const fs::path &path) throws { init(path); }
     Snapshot(const u8 *buf, isize len) throws { init(buf, len); }
     Snapshot(isize capacity);
     Snapshot(C64 &c64);
 
-    
+
     //
     // Methods from CoreObject
     //
 
     const char *objectName() const override { return "Snapshot"; }
 
-    
+
     //
     // Methods from AnyFile
     //
 
     FileType type() const override { return FILETYPE_SNAPSHOT; }
     bool isCompatiblePath(const fs::path &path) override { return isCompatible(path); }
-    bool isCompatibleStream(std::istream &stream) override { return isCompatible(stream); }
+    bool isCompatibleBuffer(const u8 *buf, isize len) override { return isCompatible(buf, len); }
     void finalizeRead() throws override;
 
-    
+
     //
     // Accessing
     //
@@ -106,16 +111,28 @@ public:
     bool matches() { return !isTooOld() && !isTooNew(); }
 
     // Returns a pointer to the snapshot header
-    SnapshotHeader *getHeader() const { return (SnapshotHeader *)data; }
+    SnapshotHeader *getHeader() const { return (SnapshotHeader *)data.ptr; }
 
     // Returns a pointer to the thumbnail image
     const Thumbnail &getThumbnail() const { return getHeader()->screenshot; }
 
     // Returns pointer to the core data
-    u8 *getSnapshotData() const { return data + sizeof(SnapshotHeader); }
+    u8 *getSnapshotData() const { return data.ptr + sizeof(SnapshotHeader); }
 
     // Records a screenshot
     void takeScreenshot(C64 &c64);
+
+
+    //
+    // Compressing
+    //
+
+    // Indicates whether the snapshot is compressed
+    bool isCompressed() const override { return getHeader()->compressed; }
+
+    // Compresses or uncompresses the snapshot
+    void compress() override;
+    void uncompress() override;
 };
 
 }

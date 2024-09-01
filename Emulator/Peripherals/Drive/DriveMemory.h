@@ -21,10 +21,16 @@ class DriveMemory final : public SubComponent {
     
     Descriptions descriptions = {{
 
+        .type           = DriveMemoryClass,
         .name           = "DriveMemory",
-        .description    = "Drive Memory"
+        .description    = "Drive Memory",
+        .shell          = ""
     }};
 
+    Options options = {
+
+    };
+    
     // Reference to the connected disk drive
     class Drive &drive;
     
@@ -102,9 +108,18 @@ public:
 private:
 
     void _dump(Category category, std::ostream& os) const override;
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
 
 
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
+
+    
     //
     // Working with Roms
     //

@@ -32,15 +32,21 @@ CRTFile::isCompatible(const fs::path &path)
 }
 
 bool
-CRTFile::isCompatible(std::istream &stream)
+CRTFile::isCompatible(const u8 *buf, isize len)
 {
-    return util::matchingStreamHeader(stream, "C64 CARTRIDGE   ");
+    return util::matchingBufferHeader(buf, len, string("C64 CARTRIDGE   "));
+}
+
+bool
+CRTFile::isCompatible(const Buffer<u8> &buf)
+{
+    return isCompatible(buf.ptr, buf.size);
 }
 
 PETName<16>
 CRTFile::getName() const
 {
-    return PETName<16>(data + 0x20, 0x00);
+    return PETName<16>(data.ptr + 0x20, 0x00);
 }
 
 void
@@ -52,14 +58,14 @@ CRTFile::finalizeRead()
     repair();
 
     // Load chip packets
-    u8 *ptr = data + headerSize();
-    for (numberOfChips = 0; ptr < data + size; numberOfChips++) {
-        
+    u8 *ptr = data.ptr + headerSize();
+    for (numberOfChips = 0; ptr < data.ptr + data.size; numberOfChips++) {
+
         if (numberOfChips == MAX_PACKETS) {
-            throw Error(ERROR_CRT_TOO_MANY_PACKETS);
+            throw Error(VC64ERROR_CRT_TOO_MANY_PACKETS);
         }
         if (memcmp("CHIP", ptr, 4) != 0) {
-            throw Error(ERROR_CRT_CORRUPTED_PACKET);
+            throw Error(VC64ERROR_CRT_CORRUPTED_PACKET);
         }
         
         // Remember start address of each chip section
@@ -69,7 +75,7 @@ CRTFile::finalizeRead()
         ptr += chipSize(numberOfChips);
     }
     
-    plain(CRT_DEBUG, "CRT file imported (%ld chips)\n", numberOfChips);
+    debug(CRT_DEBUG, "CRT file imported (%ld chips)\n", numberOfChips);
 }
 
 CartridgeType
@@ -163,7 +169,7 @@ CRTFile::repair()
     // Individual errors
     //
     
-    switch (util::fnv64(data, size)) {
+    switch (fnv64()) {
 
         case 0xb2a479a5a2ee6cd5: // Mikro Assembler
 

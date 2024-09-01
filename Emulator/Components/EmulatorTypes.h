@@ -39,7 +39,8 @@ enum_long(DEBUG_FLAG)
     FLAG_SNP_DEBUG,         ///< Debug snapshots
 
     // Run ahead
-    FLAG_RUA_DEBUG,         ///< Debug run-ahead mode
+    FLAG_RUA_DEBUG,         ///< Inform about run-ahead activity
+    FLAG_RUA_CHECKSUM,      ///< Verify the integrity of the run-ahead instance
     FLAG_RUA_ON_STEROIDS,   ///< Update the run-ahead instance in every frame
 
     // CPU
@@ -52,7 +53,6 @@ enum_long(DEBUG_FLAG)
     // CIAs
     FLAG_CIA_DEBUG,         ///< Debug the Complex Interface Adapters
     FLAG_CIAREG_DEBUG,      ///< Debug the CIA register accesses
-    FLAG_CIA_ON_STEROIDS,   ///< Keep the CIAs awake all the time
 
     // VICII
     FLAG_VICII_DEBUG,       ///< Debug the Video Interface Controller
@@ -94,6 +94,8 @@ enum_long(DEBUG_FLAG)
     // Other components
     FLAG_REC_DEBUG,         ///< Debug the screen recorder
     FLAG_REU_DEBUG,         ///< Debug the REU memory expansion
+    FLAG_SCK_DEBUG,         ///< Debug the socket interface
+    FLAG_SRV_DEBUG,         ///< Debug the remote servers
 
     //! Forced error condition
     FLAG_FORCE_ROM_MISSING,
@@ -113,10 +115,9 @@ struct DebugFlagEnum : util::Reflection<DebugFlagEnum, DebugFlag>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = FLAG_FORCE_NO_FFMPEG;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "FLAG"; }
-    static const char *key(long value)
+    static const char *_key(long value)
     {
         switch (value) {
 
@@ -132,8 +133,9 @@ struct DebugFlagEnum : util::Reflection<DebugFlagEnum, DebugFlag>
             case FLAG_MSG_DEBUG:                return "MSG_DEBUG";
             case FLAG_SNP_DEBUG:                return "SNP_DEBUG";
 
-                // Run ahead
+                // Run-ahead
             case FLAG_RUA_DEBUG:                return "RUA_DEBUG";
+            case FLAG_RUA_CHECKSUM:             return "RUA_CHECKSUM";
             case FLAG_RUA_ON_STEROIDS:          return "RUA_ON_STEROIDS";
 
                 // CPU
@@ -146,7 +148,6 @@ struct DebugFlagEnum : util::Reflection<DebugFlagEnum, DebugFlag>
                 // CIAs
             case FLAG_CIA_DEBUG:                return "CIA_DEBUG";
             case FLAG_CIAREG_DEBUG:             return "CIAREG_DEBUG";
-            case FLAG_CIA_ON_STEROIDS:          return "CIA_ON_STEROIDS";
 
                 // VICII
             case FLAG_VICII_DEBUG:              return "VICII_DEBUG";
@@ -188,6 +189,8 @@ struct DebugFlagEnum : util::Reflection<DebugFlagEnum, DebugFlag>
                 // Other components
             case FLAG_REC_DEBUG:                return "REC_DEBUG";
             case FLAG_REU_DEBUG:                return "REU_DEBUG";
+            case FLAG_SCK_DEBUG:                return "SCK_DEBUG";
+            case FLAG_SRV_DEBUG:                return "SRV_DEBUG";
 
                 // Forced error conditions
             case FLAG_FORCE_ROM_MISSING:        return "FORCE_ROM_MISSING";
@@ -222,7 +225,8 @@ struct DebugFlagEnum : util::Reflection<DebugFlagEnum, DebugFlag>
             case FLAG_SNP_DEBUG:                return "Serializing (snapshots)";
 
                 // Run ahead
-            case FLAG_RUA_DEBUG:                return "Run-ahead mode";
+            case FLAG_RUA_DEBUG:                return "Inform about run-ahead activity";
+            case FLAG_RUA_CHECKSUM:             return "Verify the integrity of the run-ahead instance";
             case FLAG_RUA_ON_STEROIDS:          return "Update the run-ahead instance in every frame";
 
                 // CPU
@@ -235,7 +239,6 @@ struct DebugFlagEnum : util::Reflection<DebugFlagEnum, DebugFlag>
                 // CIAs
             case FLAG_CIA_DEBUG:                return "Complex Interface Adapter";
             case FLAG_CIAREG_DEBUG:             return "CIA registers";
-            case FLAG_CIA_ON_STEROIDS:          return "Keep CIAs awake all the time";
 
                 // VICII
             case FLAG_VICII_DEBUG:              return "Video Interface Controller";
@@ -276,6 +279,8 @@ struct DebugFlagEnum : util::Reflection<DebugFlagEnum, DebugFlag>
                 // Other components
             case FLAG_REC_DEBUG:                return "Screen recorder";
             case FLAG_REU_DEBUG:                return "REU memory expansion";
+            case FLAG_SCK_DEBUG:                return "Sockets";
+            case FLAG_SRV_DEBUG:                return "Remote servers";
 
                 // Forced error conditions
             case FLAG_FORCE_ROM_MISSING:        return "";

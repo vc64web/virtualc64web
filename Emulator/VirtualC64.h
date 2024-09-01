@@ -21,9 +21,11 @@
 namespace vc64 {
 
 using peddle::Guard;
+using peddle::DasmStyle;
+using peddle::DasmNumberFormat;
 
 //
-// Public API
+// Base class for all APIs
 //
 
 class API {
@@ -38,6 +40,8 @@ public:
     void suspend();
     void resume();
 
+protected:
+
     bool isUserThread() const;
 };
 
@@ -45,7 +49,7 @@ public:
  */
 struct MemoryAPI : API {
 
-    class C64Memory *mem = nullptr;
+    class Memory *mem = nullptr;
 
     /** @brief  Returns the component's current configuration.
      */
@@ -95,7 +99,7 @@ struct CPUAPI : API {
      *  @param  instrFormat Format for numbers inside instructions
      *  @param  dataFormat  Format for printed data values
      */
-    void setNumberFormat(peddle::DasmNumberFormat instrFormat, peddle::DasmNumberFormat dataFormat);
+    void setNumberFormat(DasmNumberFormat instrFormat, DasmNumberFormat dataFormat);
 
     /** Disassembles an instruction.
      *  @param  dst     Destination buffer
@@ -157,7 +161,6 @@ struct CIAAPI : API {
     /** @brief  Returns statistical information about the components.
      */
     CIAStats getStats() const;
-
 };
 
 
@@ -340,6 +343,16 @@ struct KeyboardAPI : API {
      */
     void press(C64Key key, double delay = 0.0);
 
+    /** @brief  Toggles a key
+     *  @param  key     The key to press or release.
+     *  @param  delay   An optional delay in seconds.
+     *
+     *  If no delay is specified, the function will immediately modify the
+     *  C64's keyboard matrix. Otherwise, it will ask the event scheduler
+     *  to modify the matrix with the specified delay.
+     */
+    void toggle(C64Key key, double delay = 0.0);
+
     /** @brief  Releases a key
      *  @param  key     The key to release.
      *  @param  delay   An optional delay in seconds.
@@ -352,7 +365,7 @@ struct KeyboardAPI : API {
 
     /** @brief  Releases all currently pressed keys
      */
-    void releaseAll();
+    void releaseAll(double delay = 0.0);
 
     /** @brief  Uses the auto-typing daemon to type a string.
      *  @param  text    The text to type.
@@ -697,6 +710,24 @@ struct DriveAPI : API {
 };
 
 
+/** RemoteManager Public API
+ */
+struct RemoteManagerAPI : public API {
+
+    class RemoteManager *remoteManager = nullptr;
+
+    /// @name Analyzing the emulator
+    /// @{
+
+    /** @brief  Returns the component's current state.
+     */
+    const RemoteManagerInfo &getInfo() const;
+    const RemoteManagerInfo &getCachedInfo() const;
+
+    /// @}
+};
+
+
 /** RetroShell Public API
  */
 struct RetroShellAPI : API {
@@ -809,23 +840,23 @@ struct DefaultsAPI : API {
 public:
 
     /** @brief  Loads a storage file from disk
-     *  @throw  VC64Error (#ERROR_FILE_NOT_FOUND)
-     *  @throw  VC64Error (#ERROR_SYNTAX)
+     *  @throw  VC64Error (#VC64ERROR_FILE_NOT_FOUND)
+     *  @throw  VC64Error (#VC64ERROR_SYNTAX)
      */
     void load(const std::filesystem::path &path);
 
     /** @brief  Loads a storage file from a stream
-     *  @throw  VC64Error (#ERROR_SYNTAX)
+     *  @throw  VC64Error (#VC64ERROR_SYNTAX)
      */
     void load(std::ifstream &stream);
 
     /** @brief  Loads a storage file from a string stream
-     *  @throw  VC64Error (#ERROR_SYNTAX)
+     *  @throw  VC64Error (#VC64ERROR_SYNTAX)
      */
     void load(std::stringstream &stream);
 
     /** @brief  Saves a storage file to disk
-     *  @throw  VC64Error (#ERROR_FILE_CANT_WRITE)
+     *  @throw  VC64Error (#VC64ERROR_FILE_CANT_WRITE)
      */
     void save(const std::filesystem::path &path);
 
@@ -896,14 +927,14 @@ public:
     /** @brief  Writes a key-value pair into the user storage.
      *  @param  key     The key, given as a string.
      *  @param  value   The value, given as a string.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VC64ERROR_INVALID_KEY)
      */
     void set(const string &key, const string &value);
 
     /** @brief  Writes a key-value pair into the user storage.
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value, given as a string.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VC64ERROR_INVALID_KEY)
      */
     void set(Option opt, const string &value);
 
@@ -911,14 +942,14 @@ public:
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value for all pairs, given as a string.
      *  @param  objids  The keys are parameterized by adding the vector values as suffixes.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VC64ERROR_INVALID_KEY)
      */
     void set(Option opt, const string &value, std::vector<isize> objids);
 
     /** @brief  Writes a key-value pair into the user storage.
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value, given as an integer.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VC64ERROR_INVALID_KEY)
      */
     void set(Option opt, i64 value);
 
@@ -926,7 +957,7 @@ public:
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value for all pairs, given as an integer.
      *  @param  objids  The keys are parameterized by adding the vector values as suffixes.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VC64ERROR_INVALID_KEY)
      */
     void set(Option opt, i64 value, std::vector<isize> objids);
 
@@ -939,7 +970,7 @@ public:
     /** @brief  Writes a key-value pair into the fallback storage.
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value, given as an integer.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VC64ERROR_INVALID_KEY)
      */
     void setFallback(Option opt, const string &value);
 
@@ -953,7 +984,7 @@ public:
     /** @brief  Writes a key-value pair into the fallback storage.
      *  @param  opt     The option's name forms the prefix of the keys.
      *  @param  value   The value, given as an integer.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VC64ERROR_INVALID_KEY)
      */
     void setFallback(Option opt, i64 value);
 
@@ -975,20 +1006,20 @@ public:
 
     /** @brief  Deletes a key-value pair
      *  @param  key     The key of the key-value pair.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VC64ERROR_INVALID_KEY)
      */
     void remove(const string &key) throws;
 
     /** @brief  Deletes a key-value pair
      *  @param  option  The option's name forms the key.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VC64ERROR_INVALID_KEY)
      */
     void remove(Option option) throws;
 
     /** @brief  Deletes multiple key-value pairs.
      *  @param  option  The option's name forms the prefix of the keys.
      *  @param  objids  The keys are parameterized by adding the vector values as suffixes.
-     *  @throw  VC64Error (#ERROR_INVALID_KEY)
+     *  @throw  VC64Error (#VC64ERROR_INVALID_KEY)
      */
     void remove(Option option, std::vector <isize> objids) throws;
 
@@ -1009,12 +1040,6 @@ struct C64API : public API {
      */
     const C64Info &getInfo() const;
     const C64Info &getCachedInfo() const;
-
-    /** @brief  Returns the current state of an event slot.
-     *
-     *  @param  nr      Number of the event slot.
-     */
-    EventSlotInfo getSlotInfo(isize nr) const;
 
     /** @brief  Returns information about one of the installed Roms
      *
@@ -1040,33 +1065,30 @@ struct C64API : public API {
      */
     void softReset();
 
+
     /// @}
-    /// @name Setting up auto-inspection
+    /// @name Auto-inspecting components
     /// @{
 
-    /** @brief  Returns the current inspection target.
+    /** @brief  Gets the current auto-inspection mask
+     *  The GUI utilizes Auto-Inspection to display life updates of the internal
+     *  emulator state in the Inspector panel. As soon as an auto-inspection
+     *  mask is set, the emulator caches the internal states of the inspected
+     *  components at periodic intervals. The inspected components are
+     *  specified as a bit mask.
      *
-     *  If you open the inspector panel in the Mac app while the emulator
-     *  is running, you will see continuous updates of the emulator state.
-     *  The displayed information is recorded via the auto-inspection
-     *  mechanism. If auto-inspection is active, the emulator schedules an
-     *  inspect event which calls function cacheInfo() on the inspection
-     *  target in constant intervals. The recorded information is later
-     *  picked up by the GUI.
+     *  @return A bit mask indicating the components under inspection
+     */
+    u64 getAutoInspectionMask() const;
+
+    /** @brief  Sets the current auto-inspection mask
      *
-     *  If you change to a different panel in the inspector window, the
-     *  emulator will change the inspection target to only record the
-     *  information you're seeing in the currently open panel.
+     *  @example The following call enables auto-inspections for the CIA chips
+     *  and the CPU: setAutoInspectionMask(1 << CIAClass | 1 << CPUClass);
+     *
+     *  @param  mask A bit mask indicating the components under inspection
      */
-    InspectionTarget getInspectionTarget() const;
-
-    /** @brief  Sets the current inspection target.
-     */
-    void setInspectionTarget(InspectionTarget target);
-
-    /** @brief  Removes the current inspection target.
-     */
-    void removeInspectionTarget();
+    void setAutoInspectionMask(u64 mask);
 
 
     /// @}
@@ -1096,8 +1118,8 @@ struct C64API : public API {
     /** @brief  Loads a ROM from a file
      *          The ROM type is determined automatically.
      *
-     *  @throw  VC64Error (ERROR_ROM_BASIC_MISSING)
-     *          VC64Error (ERROR_FILE_TYPE_MISMATCH)
+     *  @throw  VC64Error (VC64ERROR_ROM_BASIC_MISSING)
+     *          VC64Error (VC64ERROR_FILE_TYPE_MISMATCH)
      */
     void loadRom(const fs::path &path);
 
@@ -1110,11 +1132,24 @@ struct C64API : public API {
      */
     void deleteRom(RomType type);
 
+    /** @brief  Removes all installed ROMs including the floppy drive ROMs.
+     *          The ROM contents is overwritten with zeroes.
+     */
+    void deleteRoms();
+
     /** @brief  Saves a ROM to disk
      *
-     *  @throw  VC64Error (ERROR_FILE_CANT_WRITE)
+     *  @throw  VC64Error (VC64ERROR_FILE_CANT_WRITE)
      */
     void saveRom(RomType rom, const std::filesystem::path &path);
+
+    /** @brief  Installes a MEGA65 OpenRom
+     */
+    void installOpenRom(RomType type);
+
+    /** @brief  Install all three MEGA65 OpenROMs
+     */
+    void installOpenRoms();
 
 
     /// @}
@@ -1186,48 +1221,48 @@ public:
 
     /** @brief  Returns true iff the emulator if the emulator is powered on.
      */
-    bool isPoweredOn();
+    bool isPoweredOn() const;
 
     /** @brief  Returns true iff the emulator if the emulator is powered off.
      */
-    bool isPoweredOff();
+    bool isPoweredOff() const;
 
     /** @brief  Returns true iff the emulator is in paused state.
      */
-    bool isPaused();
+    bool isPaused() const;
 
     /** @brief  Returns true iff the emulator is running.
      */
-    bool isRunning();
+    bool isRunning() const;
 
     /** @brief  Returns true iff the emulator has been suspended.
      */
-    bool isSuspended();
+    bool isSuspended() const;
 
     /** @brief  Returns true iff the emulator has shut down.
      */
-    bool isHalted();
+    bool isHalted() const;
 
     /** @brief  Returns true iff warp mode is active.
      */
-    bool isWarping();
+    bool isWarping() const;
 
     /** @brief  Returns true iff the emulator runs in track mode.
      */
-    bool isTracking();
+    bool isTracking() const;
 
     /** @brief  Checks if the emulator is runnable.
      *  The function checks if the necessary ROMs are installed to lauch the
      *  emulator. On success, the functions returns. Otherwise, an exception
      *  is thrown.
      *
-     *  @throw  Error (ERROR_ROM_BASIC_MISSING)
-     *  @throw  Error (ERROR_ROM_CHAR_MISSING)
-     *  @throw  Error (ERROR_ROM_KERNAL_MISSING)
-     *  @throw  Error (ERROR_ROM_CHAR_MISSING)
-     *  @throw  Error (ERROR_ROM_MEGA65_MISMATCH)
+     *  @throw  Error (VC64ERROR_ROM_BASIC_MISSING)
+     *  @throw  Error (VC64ERROR_ROM_CHAR_MISSING)
+     *  @throw  Error (VC64ERROR_ROM_KERNAL_MISSING)
+     *  @throw  Error (VC64ERROR_ROM_CHAR_MISSING)
+     *  @throw  Error (VC64ERROR_ROM_MEGA65_MISMATCH)
      */
-    void isReady();
+    void isReady() const;
 
 
     /// @}
@@ -1482,6 +1517,7 @@ public:
     ExpansionPortAPI expansionPort;
     SerialPortAPI serialPort;
     DriveAPI drive8, drive9;
+    RemoteManagerAPI remoteManager;
     RetroShellAPI retroShell;
 };
 

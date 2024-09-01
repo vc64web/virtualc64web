@@ -23,6 +23,7 @@ C64::C64(class Emulator& ref, isize id) : CoreComponent(ref, id)
 
     subComponents = std::vector<CoreComponent *> {
 
+        &host,
         &mem,
         &cpu,
         &cia1, &cia2,
@@ -42,6 +43,7 @@ C64::C64(class Emulator& ref, isize id) : CoreComponent(ref, id)
         &parCable,
         &datasette,
         &monitor,
+        &remoteManager,
         &retroShell,
         &regressionTester,
         &recorder
@@ -138,13 +140,13 @@ C64::_dump(Category category, std::ostream& os) const
         for (auto &c : subComponents) {
 
             os << tab(c->objectName());
-            os << hex(c->checksum())  << "  " << dec(c->size()) << " bytes";
+            os << hex(c->checksum(false))  << "  " << dec(c->size()) << " bytes";
             os << std::endl;
 
             for (auto &cc : c->subComponents) {
 
                 os << tab(cc->objectName());
-                os << hex(cc->checksum()) << "  " << dec(cc->size()) << " bytes";
+                os << hex(cc->checksum(true)) << "  " << dec(cc->size()) << " bytes";
                 os << std::endl;
             }
         }
@@ -170,59 +172,6 @@ C64::_dump(Category category, std::ostream& os) const
         os << (cpu.getC() ? "1" : "0");
         os << std::endl;
     }
-
-    if (category == Category::Sizeof) {
-
-        os << tab("C64");
-        os << dec(sizeof(C64)) << " Bytes" << std::endl;
-        os << tab("C64 Memory");
-        os << dec(sizeof(C64Memory)) << " Bytes" << std::endl;
-        os << tab("Drive Memory");
-        os << dec(sizeof(DriveMemory)) << " Bytes" << std::endl;
-        os << tab("CPU");
-        os << dec(sizeof(CPU)) << " Bytes" << std::endl;
-        os << tab("CIA");
-        os << dec(sizeof(CIA)) << " Bytes" << std::endl;
-        os << tab("VICII");
-        os << dec(sizeof(VICII)) << " Bytes" << std::endl;
-        os << tab("SIDBridge");
-        os << dec(sizeof(SIDBridge)) << " Bytes" << std::endl;
-        os << tab("Power supply");
-        os << dec(sizeof(PowerPort)) << " Bytes" << std::endl;
-        os << tab("Control port");
-        os << dec(sizeof(ControlPort)) << " Bytes" << std::endl;
-        os << tab("Expansion port");
-        os << dec(sizeof(ExpansionPort)) << " Bytes" << std::endl;
-        os << tab("SerialPort");
-        os << dec(sizeof(SerialPort)) << " Bytes" << std::endl;
-        os << tab("Keyboard");
-        os << dec(sizeof(Keyboard)) << " Bytes" << std::endl;
-        os << tab("Drive");
-        os << dec(sizeof(Drive)) << " Bytes" << std::endl;
-        os << tab("Parallel Cable");
-        os << dec(sizeof(ParCable)) << " Bytes" << std::endl;
-        os << tab("Datasette");
-        os << dec(sizeof(Datasette)) << " Bytes" << std::endl;
-        os << tab("RetroShell");
-        os << dec(sizeof(RetroShell)) << " Bytes" << std::endl;
-        os << tab("Regression Tester");
-        os << dec(sizeof(RegressionTester)) << " Bytes" << std::endl;
-        os << tab("Recorder");
-        os << dec(sizeof(Recorder)) << " Bytes" << std::endl;
-        os << tab("MsgQueue");
-        os << dec(sizeof(MsgQueue)) << " Bytes" << std::endl;
-        os << tab("CmdQueue");
-        os << dec(sizeof(CmdQueue)) << " Bytes" << std::endl;
-    }
-
-    if (category == Category::Debug) {
-
-        for (isize i = DebugFlagEnum::minVal; i < DebugFlagEnum::maxVal; i++) {
-
-            os << tab(DebugFlagEnum::key(i));
-            os << bol(getDebugVariable(DebugFlag(i))) << std::endl;
-        }
-    }
 }
 
 
@@ -235,13 +184,14 @@ C64::getOption(Option opt) const
 {
     switch (opt) {
 
-        case OPT_EMU_WARP_BOOT:         return config.warpBoot;
-        case OPT_EMU_WARP_MODE:         return config.warpMode;
-        case OPT_EMU_VSYNC:             return config.vsync;
-        case OPT_EMU_SPEED_ADJUST:      return config.speedAdjust;
-        case OPT_EMU_SNAPSHOTS:         return config.snapshots;
-        case OPT_EMU_SNAPSHOT_DELAY:    return config.snapshotDelay;
-        case OPT_EMU_RUN_AHEAD:         return config.runAhead;
+        case OPT_C64_WARP_BOOT:         return config.warpBoot;
+        case OPT_C64_WARP_MODE:         return config.warpMode;
+        case OPT_C64_VSYNC:             return config.vsync;
+        case OPT_C64_SPEED_ADJUST:      return config.speedAdjust;
+        case OPT_C64_RUN_AHEAD:         return config.runAhead;
+        case OPT_C64_SNAP_AUTO:         return config.snapshots;
+        case OPT_C64_SNAP_DELAY:        return config.snapshotDelay;
+        case OPT_C64_SNAP_COMPRESS:     return config.compressSnapshots;
 
         default:
             fatalError;
@@ -253,48 +203,52 @@ C64::checkOption(Option opt, i64 value)
 {
     switch (opt) {
 
-        case OPT_EMU_WARP_BOOT:
+        case OPT_C64_WARP_BOOT:
 
             return;
 
-        case OPT_EMU_WARP_MODE:
+        case OPT_C64_WARP_MODE:
 
             if (!WarpModeEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, WarpModeEnum::keyList());
+                throw Error(VC64ERROR_OPT_INV_ARG, WarpModeEnum::keyList());
             }
             return;
 
-        case OPT_EMU_VSYNC:
+        case OPT_C64_VSYNC:
 
             return;
 
-        case OPT_EMU_SPEED_ADJUST:
+        case OPT_C64_SPEED_ADJUST:
 
             if (value < 50 || value > 200) {
-                throw Error(ERROR_OPT_INV_ARG, "50...200");
+                throw Error(VC64ERROR_OPT_INV_ARG, "50...200");
             }
             return;
 
-        case OPT_EMU_SNAPSHOTS:
-
-            return;
-
-        case OPT_EMU_SNAPSHOT_DELAY:
-
-            if (value < 10 || value > 3600) {
-                throw Error(ERROR_OPT_INV_ARG, "10...3600");
-            }
-            return;
-
-        case OPT_EMU_RUN_AHEAD:
+        case OPT_C64_RUN_AHEAD:
 
             if (value < 0 || value > 12) {
-                throw Error(ERROR_OPT_INV_ARG, "0...12");
+                throw Error(VC64ERROR_OPT_INV_ARG, "0...12");
             }
+            return;
+
+        case OPT_C64_SNAP_AUTO:
+
+            return;
+
+        case OPT_C64_SNAP_DELAY:
+
+            if (value < 10 || value > 3600) {
+                throw Error(VC64ERROR_OPT_INV_ARG, "10...3600");
+            }
+            return;
+
+        case OPT_C64_SNAP_COMPRESS:
+
             return;
 
         default:
-            throw Error(ERROR_OPT_UNSUPPORTED);
+            throw Error(VC64ERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -305,42 +259,47 @@ C64::setOption(Option opt, i64 value)
 
     switch (opt) {
 
-        case OPT_EMU_WARP_BOOT:
+        case OPT_C64_WARP_BOOT:
 
             config.warpBoot = isize(value);
             return;
 
-        case OPT_EMU_WARP_MODE:
+        case OPT_C64_WARP_MODE:
 
             config.warpMode = WarpMode(value);
             return;
 
-        case OPT_EMU_VSYNC:
+        case OPT_C64_VSYNC:
 
             config.vsync = bool(value);
             return;
 
-        case OPT_EMU_SPEED_ADJUST:
+        case OPT_C64_SPEED_ADJUST:
 
             config.speedAdjust = isize(value);
             updateClockFrequency();
             return;
 
-        case OPT_EMU_SNAPSHOTS:
+        case OPT_C64_RUN_AHEAD:
+
+            config.runAhead = isize(value);
+            return;
+
+        case OPT_C64_SNAP_AUTO:
 
             config.snapshots = bool(value);
             scheduleNextSNPEvent();
             return;
 
-        case OPT_EMU_SNAPSHOT_DELAY:
+        case OPT_C64_SNAP_DELAY:
 
             config.snapshotDelay = isize(value);
             scheduleNextSNPEvent();
             return;
 
-        case OPT_EMU_RUN_AHEAD:
+        case OPT_C64_SNAP_COMPRESS:
 
-            config.runAhead = isize(value);
+            config.compressSnapshots = bool(value);
             return;
 
         default:

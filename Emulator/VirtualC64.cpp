@@ -50,6 +50,51 @@ VirtualC64::build()
 
 VirtualC64::VirtualC64() {
 
+    // REMOVE ASAP
+    /*
+    u8 payload[8][16] = {
+        { 1,2,2,3,3,3,4,4,4,4,5,5,5,5,5,4},
+        { 1,1,2,3,3,3,4,4,4,4,4,4,4,4,4,4},
+        { 1,1,1,3,3,3,4,4,4,4,5,5,5,5,4,4},
+        { 1,1,1,1,3,3,4,4,4,4,5,5,5,4,4,4},
+        { 0,2,2,3,3,3,4,4,4,4,5,5,5,5,5,4},
+        { 0,0,2,3,3,3,4,4,4,4,4,4,4,4,4,4},
+        { 0,0,0,3,3,3,4,4,4,4,5,5,5,5,4,4},
+        { 0,0,0,0,3,3,4,4,4,4,5,5,5,4,4,4},
+    };
+
+    Buffer<u8> b;
+
+    for (isize test = 0; test < 8; test++) {
+
+        b.alloc(16);
+
+        for (isize i = 0; i < 16; i++) b[i] = payload[test][i];
+
+        auto checksum = b.fnv32();
+
+        printf("%ld: { ", test);
+        for (isize i = 0; i < b.size; i++) {
+            printf("%d ", b.ptr[i]);
+        }
+        printf(" }\n");
+
+        b.compress(3);
+        printf("   { ");
+        for (isize i = 0; i < b.size; i++) {
+            printf("%d ", b.ptr[i]);
+        }
+        printf(" }\n");
+
+        b.uncompress(3);
+        printf("   { ");
+        for (isize i = 0; i < b.size; i++) {
+            printf("%d ", b.ptr[i]);
+        }
+        printf(" } %s\n\n", checksum == b.fnv32() ? "OK" : "*** ERRROR ***");
+    }
+    */
+    
     emu = new Emulator();
 
     c64.emu = emu;
@@ -128,6 +173,9 @@ VirtualC64::VirtualC64() {
     recorder.emu = emu;
     recorder.recorder = &emu->main.recorder;
 
+    remoteManager.emu = emu;
+    remoteManager.remoteManager = &emu->main.remoteManager;
+
     retroShell.emu = emu;
     retroShell.retroShell = &emu->main.retroShell;
 
@@ -160,55 +208,55 @@ VirtualC64::getStats() const
 }
 
 bool
-VirtualC64::isPoweredOn() 
+VirtualC64::isPoweredOn() const
 {
     return emu->isPoweredOn();
 }
 
 bool
-VirtualC64::isPoweredOff()
+VirtualC64::isPoweredOff() const
 {
     return emu->isPoweredOff();
 }
 
 bool
-VirtualC64::isPaused()
+VirtualC64::isPaused() const
 {
     return emu->isPaused();
 }
 
 bool
-VirtualC64::isRunning() 
+VirtualC64::isRunning() const
 {
     return emu->isRunning();
 }
 
 bool
-VirtualC64::isSuspended()
+VirtualC64::isSuspended() const
 {
     return emu->isSuspended();
 }
 
 bool
-VirtualC64::isHalted()
+VirtualC64::isHalted() const
 {
     return emu->isHalted();
 }
 
 bool
-VirtualC64::isWarping() 
+VirtualC64::isWarping() const
 {
     return emu->isWarping();
 }
 
 bool
-VirtualC64::isTracking() 
+VirtualC64::isTracking() const
 {
     return emu->isTracking();
 }
 
 void 
-VirtualC64::isReady() 
+VirtualC64::isReady() const
 {
     return emu->isReady();
 }
@@ -282,14 +330,12 @@ VirtualC64::trackOff(isize source)
 void
 VirtualC64::stepInto()
 {
-    assert(isUserThread());
     emu->stepInto();
 }
 
 void
 VirtualC64::stepOver()
 {
-    assert(isUserThread());
     emu->stepOver();
 }
 
@@ -302,7 +348,6 @@ VirtualC64::wakeUp()
 void
 VirtualC64::launch(const void *listener, Callback *func)
 {
-    assert(isUserThread());
     emu->launch(listener, func);
 }
 
@@ -315,63 +360,53 @@ VirtualC64::isLaunched() const
 i64
 VirtualC64::get(Option option) const
 {
-    assert(isUserThread());
     return emu->get(option);
 }
 
 i64
 VirtualC64::get(Option option, long id) const
 {
-    assert(isUserThread());
     return emu->get(option, id);
 }
 
 void
 VirtualC64::set(C64Model model)
 {
-    assert(isUserThread());
     emu->set(model);
-    emu->main.markAsDirty();
+    emu->markAsDirty();
 }
 
 void
 VirtualC64::set(Option opt, i64 value) throws
 {
-    assert(isUserThread());
-
     emu->check(opt, value);
-    put(CMD_CONFIG, ConfigCmd { .option = opt, .value = value, .id = -1 });
-    emu->main.markAsDirty();
+    put(CMD_CONFIG_ALL, ConfigCmd { .option = opt, .value = value });
+    emu->markAsDirty();
 }
 
 void
 VirtualC64::set(Option opt, i64 value, long id)
 {
-    assert(isUserThread());
-
-    emu->check(opt, value, id);
+    emu->check(opt, value, { id });
     put(CMD_CONFIG, ConfigCmd { .option = opt, .value = value, .id = id });
-    emu->main.markAsDirty();
+    emu->markAsDirty();
 }
 
 void
 VirtualC64::exportConfig(const fs::path &path) const
 {
-    assert(isUserThread());
     emu->main.exportConfig(path);
 }
 
 void
 VirtualC64::exportConfig(std::ostream& stream) const
 {
-    assert(isUserThread());
     emu->main.exportConfig(stream);
 }
 
 void
 VirtualC64::put(const Cmd &cmd)
 {
-    assert(isUserThread());
     emu->put(cmd);
 }
 
@@ -383,45 +418,27 @@ VirtualC64::put(const Cmd &cmd)
 void
 C64API::hardReset()
 {
-    assert(isUserThread());
-
-    suspend();
-
-    c64->hardReset();
-    c64->markAsDirty();
-
-    resume();
+    emu->hardReset();
+    emu->markAsDirty();
 }
 
 void
 C64API::softReset()
 {
-    assert(isUserThread());
-
-    suspend();
-
-    c64->hardReset();
-    c64->markAsDirty();
-
-    resume();
+    emu->softReset();
+    emu->markAsDirty();
 }
 
-InspectionTarget
-C64API::getInspectionTarget() const
+u64
+C64API::getAutoInspectionMask() const
 {
-    return c64->getInspectionTarget();
+    return c64->getAutoInspectionMask();
 }
 
 void
-C64API::setInspectionTarget(InspectionTarget target)
+C64API::setAutoInspectionMask(u64 mask)
 {
-    c64->emulator.put(CMD_INSPECTION_TARGET, target);
-}
-
-void
-C64API::removeInspectionTarget()
-{
-    c64->emulator.put(CMD_INSPECTION_TARGET, INSPECTION_NONE);
+    c64->setAutoInspectionMask(mask);
 }
 
 const C64Info &
@@ -434,12 +451,6 @@ const C64Info &
 C64API::getCachedInfo() const
 {
     return c64->getCachedInfo();
-}
-
-EventSlotInfo
-C64API::getSlotInfo(isize nr) const
-{
-    return c64->getSlotInfo(nr);
 }
 
 RomTraits
@@ -458,56 +469,77 @@ void
 C64API::loadSnapshot(const MediaFile &snapshot)
 {
     c64->loadSnapshot(snapshot);
-    c64->markAsDirty();
+    emu->markAsDirty();
 }
 
 void
 C64API::loadRom(const fs::path &path)
 {
     c64->loadRom(path);
-    c64->markAsDirty();
+    emu->markAsDirty();
 }
 
 void 
 C64API::loadRom(const MediaFile &file)
 {
     c64->loadRom(file);
-    c64->markAsDirty();
+    emu->markAsDirty();
 }
 
 void 
 C64API::deleteRom(RomType type)
 {
     c64->deleteRom(type);
-    c64->markAsDirty();
+    emu->markAsDirty();
 }
 
 void 
+C64API::deleteRoms()
+{
+    c64->deleteRoms();
+    emu->markAsDirty();
+}
+
+void
 C64API::saveRom(RomType rom, const std::filesystem::path &path)
 {
     c64->saveRom(rom, path);
-    c64->markAsDirty();
+    emu->markAsDirty();
 }
 
-void 
+void
+C64API::installOpenRom(RomType type)
+{
+    c64->installOpenRom(type);
+    emu->markAsDirty();
+}
+
+void
+C64API::installOpenRoms()
+{
+    c64->installOpenRoms();
+    emu->markAsDirty();
+}
+
+void
 C64API::flash(const MediaFile &file)
 {
     c64->flash(file);
-    c64->markAsDirty();
+    emu->markAsDirty();
 }
 
 void 
 C64API::flash(const MediaFile &file, isize item)
 {
     c64->flash(file, item);
-    c64->markAsDirty();
+    emu->markAsDirty();
 }
 
 void 
 C64API::flash(const FileSystem &fs, isize item)
 {
     c64->flash(fs, item);
-    c64->markAsDirty();
+    emu->markAsDirty();
 }
 
 
@@ -518,49 +550,42 @@ C64API::flash(const FileSystem &fs, isize item)
 const CPUInfo &
 CPUAPI::getInfo() const
 {
-    assert(isUserThread());
     return cpu->getInfo();
 }
 
 const CPUInfo &
 CPUAPI::getCachedInfo() const
 {
-    assert(isUserThread());
     return cpu->getCachedInfo();
 }
 
 isize
 CPUAPI::loggedInstructions() const
 {
-    assert(isUserThread());
     return cpu->debugger.loggedInstructions();
 }
 
 void
 CPUAPI::clearLog()
 {
-    assert(isUserThread());
     return cpu->debugger.clearLog();
 }
 
 void
 CPUAPI::setNumberFormat(DasmNumberFormat instrFormat, DasmNumberFormat dataFormat)
 {
-    assert(isUserThread());
     return cpu->disassembler.setNumberFormat(instrFormat, dataFormat);
 }
 
 isize
 CPUAPI::disassemble(char *dst, const char *fmt, u16 addr) const
 {
-    assert(isUserThread());
     return cpu->disassembler.disass(dst, fmt, addr);
 }
 
 isize
 CPUAPI::disassembleRecorded(char *dst, const char *fmt, isize nr) const
 {
-    assert(isUserThread());
     return cpu->debugger.disassRecorded(dst, fmt, nr);
 }
 
@@ -596,35 +621,30 @@ CPUAPI::watchpointAt(u32 addr) const
 const MemConfig &
 MemoryAPI::getConfig() const
 {
-    assert(isUserThread());
     return mem->getConfig();
 }
 
 const MemInfo &
 MemoryAPI::getInfo() const
 {
-    assert(isUserThread());
     return mem->getInfo();
 }
 
 const MemInfo &
 MemoryAPI::getCachedInfo() const
 {
-    assert(isUserThread());
     return mem->getCachedInfo();
 }
 
 string
 MemoryAPI::memdump(u16 addr, isize num, bool hex, isize pads, MemoryType src) const
 {
-    assert(isUserThread());
     return mem->memdump(addr, num, hex, pads, src);
 }
 
 string
 MemoryAPI::txtdump(u16 addr, isize num, MemoryType src) const
 {
-    assert(isUserThread());
     return mem->txtdump(addr, num, src);
 }
 
@@ -720,7 +740,6 @@ SIDAPI::getInfo(isize nr) const
 {
     assert(nr < 3);
 
-    assert(isUserThread());
     return sidBridge->sid[nr].getInfo();
 }
 
@@ -729,7 +748,6 @@ SIDAPI::getCachedInfo(isize nr) const
 {
     assert(nr < 3);
 
-    assert(isUserThread());
     return sidBridge->sid[nr].getCachedInfo();
 }
 
@@ -737,7 +755,6 @@ float
 SIDAPI::draw(u32 *buffer, isize width, isize height,
                          float maxAmp, u32 color, isize sid) const
 {
-    assert(isUserThread());
     return sidBridge->draw(buffer, width, height, maxAmp, color, sid);
 }
 
@@ -749,28 +766,24 @@ SIDAPI::draw(u32 *buffer, isize width, isize height,
 AudioPortStats
 AudioPortAPI::getStats() const
 {
-    assert(isUserThread());
     return audioPort->getStats();
 }
 
 isize
 AudioPortAPI::copyMono(float *buffer, isize n)
 {
-    assert(isUserThread());
     return audioPort->copyMono(buffer, n);
 }
 
 isize
 AudioPortAPI::copyStereo(float *left, float *right, isize n)
 {
-    assert(isUserThread());
     return audioPort->copyStereo(left, right, n);
 }
 
 isize
 AudioPortAPI::copyInterleaved(float *buffer, isize n)
 {
-    assert(isUserThread());
     return audioPort->copyInterleaved(buffer, n);
 }
 
@@ -799,7 +812,6 @@ VideoPortAPI::getDmaTexture() const
 const DmaDebuggerConfig &
 DmaDebuggerAPI::getConfig() const
 {
-    assert(isUserThread());
     return dmaDebugger->getConfig();
 }
 
@@ -817,31 +829,61 @@ KeyboardAPI::isPressed(C64Key key) const
 void
 KeyboardAPI::press(C64Key key, double delay)
 {
-    emu->put(Cmd(CMD_KEY_PRESS, KeyCmd { .keycode = (u8)key.nr, .delay = delay }));
+    if (delay > 0.0) {
+
+        emu->put(Cmd(CMD_KEY_PRESS, KeyCmd { .keycode = (u8)key.nr, .delay = delay }));
+        return;
+    }
+    keyboard->press(key);
+    emu->markAsDirty();
+}
+
+void 
+KeyboardAPI::toggle(C64Key key, double delay)
+{
+    if (delay > 0.0) {
+
+        emu->put(Cmd(CMD_KEY_TOGGLE, KeyCmd { .keycode = (u8)key.nr, .delay = delay }));
+        return;
+    }
+    keyboard->toggle(key);
+    emu->markAsDirty();
 }
 
 void
 KeyboardAPI::release(C64Key key, double delay)
 {
-    emu->put(Cmd(CMD_KEY_RELEASE, KeyCmd { .keycode = (u8)key.nr, .delay = delay }));
+    if (delay > 0.0) {
+
+        emu->put(Cmd(CMD_KEY_RELEASE, KeyCmd { .keycode = (u8)key.nr, .delay = delay }));
+        return;
+    }
+    keyboard->release(key);
+    emu->markAsDirty();
 }
 
 void 
-KeyboardAPI::releaseAll()
+KeyboardAPI::releaseAll(double delay)
 {
-    emu->put(Cmd(CMD_KEY_RELEASE_ALL));
+    if (delay > 0.0) {
+
+        emu->put(Cmd(CMD_KEY_RELEASE_ALL, KeyCmd { .delay = delay }));
+        return;
+    }
+    keyboard->releaseAll();
+    emu->markAsDirty();
 }
 
 void KeyboardAPI::autoType(const string &text)
 {
     keyboard->autoType(text);
-    keyboard->markAsDirty();
+    emu->markAsDirty();
 }
 
 void KeyboardAPI::abortAutoTyping()
 {
     keyboard->abortAutoTyping();
-    keyboard->markAsDirty();
+    emu->markAsDirty();
 }
 
 
@@ -899,14 +941,14 @@ void
 DatasetteAPI::insertTape(MediaFile &file)
 {
     datasette->insertTape(file);
-    datasette->markAsDirty();
+    emu->markAsDirty();
 }
 
 void
 DatasetteAPI::ejectTape()
 {
     datasette->ejectTape();
-    datasette->markAsDirty();
+    emu->markAsDirty();
 }
 
 
@@ -1019,6 +1061,23 @@ RecorderAPI::exportAs(const std::filesystem::path &path)
 
 
 //
+// RemoteManager
+//
+
+const RemoteManagerInfo &
+RemoteManagerAPI::getInfo() const
+{
+    return remoteManager->getInfo();
+}
+
+const RemoteManagerInfo &
+RemoteManagerAPI::getCachedInfo() const
+{
+    return remoteManager->getCachedInfo();
+}
+
+
+//
 // RetroShell
 //
 
@@ -1035,59 +1094,51 @@ RetroShellAPI::cursorRel()
 }
 
 void
-RetroShellAPI::press(RetroShellKey key, bool shift) // shift no longer used
+RetroShellAPI::press(RetroShellKey key, bool shift)
 {
     retroShell->press(key, shift);
-    retroShell->markAsDirty();
 }
 
 void
 RetroShellAPI::press(char c)
 {
     retroShell->press(c);
-    retroShell->markAsDirty();
 }
 
 void
 RetroShellAPI::press(const string &s)
 {
     retroShell->press(s);
-    retroShell->markAsDirty();
 }
 
 void
 RetroShellAPI::execScript(std::stringstream &ss)
 {
-    retroShell->execScript(ss);
-    retroShell->markAsDirty();
+    retroShell->asyncExecScript(ss);
 }
 
 void
 RetroShellAPI::execScript(const std::ifstream &fs)
 {
-    retroShell->execScript(fs);
-    retroShell->markAsDirty();
+    retroShell->asyncExecScript(fs);
 }
 
 void
 RetroShellAPI::execScript(const string &contents)
 {
-    retroShell->execScript(contents);
-    retroShell->markAsDirty();
+    retroShell->asyncExecScript(contents);
 }
 
 void 
 RetroShellAPI::execScript(const MediaFile &file)
 {
-    retroShell->execScript(file);
-    retroShell->markAsDirty();
+    retroShell->asyncExecScript(file);
 }
 
 void
 RetroShellAPI::setStream(std::ostream &os)
 {
     retroShell->setStream(os);
-    retroShell->markAsDirty();
 }
 
 
@@ -1123,42 +1174,42 @@ void
 ExpansionPortAPI::attachCartridge(const std::filesystem::path &path, bool reset)
 {
     expansionPort->attachCartridge(path, reset);
-    expansionPort->markAsDirty();
+    emu->markAsDirty();
 }
 
 void
 ExpansionPortAPI::attachCartridge(const MediaFile &c, bool reset)
 {
     expansionPort->attachCartridge(c, reset);
-    expansionPort->markAsDirty();
+    emu->markAsDirty();
 }
 
 void
 ExpansionPortAPI::attachReu(isize capacity)
 {
     expansionPort->attachReu(capacity);
-    expansionPort->markAsDirty();
+    emu->markAsDirty();
 }
 
 void
 ExpansionPortAPI::attachGeoRam(isize capacity)
 {
     expansionPort->attachGeoRam(capacity);
-    expansionPort->markAsDirty();
+    emu->markAsDirty();
 }
 
 void
 ExpansionPortAPI::attachIsepicCartridge()
 {
     expansionPort->attachIsepicCartridge();
-    expansionPort->markAsDirty();
+    emu->markAsDirty();
 }
 
 void
 ExpansionPortAPI::detachCartridge()
 {
     expansionPort->detachCartridge();
-    expansionPort->markAsDirty();
+    emu->markAsDirty();
 }
 
 
@@ -1199,28 +1250,28 @@ void
 DriveAPI::insertBlankDisk(DOSType fstype, string name)
 {
     drive->insertNewDisk(fstype, name);
-    drive->markAsDirty();
+    emu->markAsDirty();
 }
 
 void
 DriveAPI::insertMedia(MediaFile &file, bool wp)
 {
     drive->insertMediaFile(file, wp);
-    drive->markAsDirty();
+    emu->markAsDirty();
 }
 
 void
 DriveAPI::insertFileSystem(const class FileSystem &device, bool wp)
 {
     drive->insertFileSystem(device, wp);
-    drive->markAsDirty();
+    emu->markAsDirty();
 }
 
 void
 DriveAPI::ejectDisk()
 {
     drive->ejectDisk();
-    drive->markAsDirty();
+    emu->markAsDirty();
 }
 
 

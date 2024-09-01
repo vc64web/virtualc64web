@@ -39,11 +39,13 @@ class Datasette final : public SubComponent, public Inspectable<DatasetteInfo> {
 
     Descriptions descriptions = {{
 
+        .type           = DatasetteClass,
         .name           = "Datasette",
-        .description    = "Datasette"
+        .description    = "Datasette",
+        .shell          = "datasette"
     }};
 
-    ConfigOptions options = {
+    Options options = {
 
         OPT_DAT_MODEL,
         OPT_DAT_CONNECT
@@ -172,7 +174,7 @@ public:
 public:
 
     const DatasetteConfig &getConfig() const { return config; }
-    const ConfigOptions &getOptions() const override { return options; }
+    const Options &getOptions() const override { return options; }
     i64 getOption(Option opt) const override;
     void checkOption(Option opt, i64 value) override;
     void setOption(Option opt, i64 value) override;

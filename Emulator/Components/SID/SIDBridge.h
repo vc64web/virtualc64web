@@ -46,16 +46,22 @@ namespace vc64 {
 
 class SIDBridge final : public SubComponent {
 
-    friend C64Memory;
+    friend Memory;
     friend AudioPort;
     
     Descriptions descriptions = {{
 
+        .type           = SIDBridgeClass,
         .name           = "SIDBridge",
-        .description    = "SID Bridge"
+        .description    = "SID Bridge",
+        .shell          = "sidbridge"
     }};
 
+    Options options = {
+
+    };
     
+
     //
     // Subcomponents
     //
@@ -94,13 +100,7 @@ public:
 public:
 
     template <class T>
-    void serialize(T& worker)
-    {
-        worker 
-
-        << sid;
-
-    } SERIALIZERS(serialize);
+    void serialize(T& worker) { } SERIALIZERS(serialize);
 
 
     //
@@ -111,6 +111,15 @@ public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
+    
 
     //
     // Parameterizing

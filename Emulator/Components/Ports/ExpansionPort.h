@@ -39,9 +39,19 @@ class ExpansionPort final : public SubComponent, public Inspectable<CartridgeInf
     
     Descriptions descriptions = {{
 
+        .type           = ExpansionPortClass,
         .name           = "Expansion",
-        .description    = "Expansion Port"
+        .description    = "Expansion Port",
+        .shell          = "expansion"
     }};
+
+    Options options = {
+
+        OPT_EXP_REU_SPEED
+    };
+    
+    // Current configuration
+    ExpansionPortConfig config = { };
 
     // Attached cartridge or nullptr
     std::unique_ptr<Cartridge> cartridge;
@@ -100,8 +110,20 @@ public:
 private:
 
     void _dump(Category category, std::ostream& os) const override;
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
 
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const ExpansionPortConfig &getConfig() const { return config; }
+    const Options &getOptions() const override { return options; }
+    i64 getOption(Option opt) const override;
+    void checkOption(Option opt, i64 value) override;
+    void setOption(Option opt, i64 value) override;
 
     //
     // Analyzing
@@ -194,6 +216,15 @@ public:
 
     // Processes a cartridge command
     void processCommand(const Cmd &cmd);
+
+
+    //
+    // Processing events
+    //
+
+public:
+
+    void processEvent(EventID id);
 
 
     //

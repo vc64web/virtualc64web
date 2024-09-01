@@ -51,16 +51,20 @@ class Mouse final : public SubComponent {
     
     Descriptions descriptions = {
         {
+            .type           = MouseClass,
             .name           = "Mouse1",
-            .description    = "Mouse in Port 1"
+            .description    = "Mouse in Port 1",
+            .shell          = "mouse1"
         },
         {
+            .type           = MouseClass,
             .name           = "Mouse2",
-            .description    = "Mouse in Port 2"
+            .description    = "Mouse in Port 2",
+            .shell          = "mouse2"
         }
     };
 
-    ConfigOptions options = {
+    Options options = {
 
         OPT_MOUSE_MODEL,
         OPT_MOUSE_SHAKE_DETECT,
@@ -135,12 +139,6 @@ public:
     template <class T>
     void serialize(T& worker)
     {
-        worker
-
-        << mouse1350
-        << mouse1351
-        << mouseNeos;
-
         if (isResetter(worker)) return;
 
         worker
@@ -161,7 +159,7 @@ public:
 private:
 
     void _dump(Category category, std::ostream& os) const override;
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
 
 
     //
@@ -171,7 +169,7 @@ private:
 public:
 
     const MouseConfig &getConfig() const { return config; }
-    const ConfigOptions &getOptions() const override { return options; }
+    const Options &getOptions() const override { return options; }
     i64 getOption(Option opt) const override;
     void checkOption(Option opt, i64 value) override;
     void setOption(Option opt, i64 value) override;

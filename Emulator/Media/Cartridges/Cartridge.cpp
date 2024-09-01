@@ -141,7 +141,7 @@ Cartridge::makeWithType(C64 &c64, CartridgeType type)
         case CRT_REU:               cart = new Reu(c64); break;
 
         default:
-            throw Error(ERROR_CRT_UNSUPPORTED, CRTFile::cartridgeTypeName(type));
+            throw Error(VC64ERROR_CRT_UNSUPPORTED, CRTFile::cartridgeTypeName(type));
     }
 
     cart->init();
@@ -154,7 +154,7 @@ Cartridge::makeWithCRTFile(C64 &c64, const CRTFile &file)
     auto type = file.cartridgeType();
 
     // Only proceed if the cartridge ID is valid
-    if (!isKnownType(type)) throw Error(ERROR_CRT_UNKNOWN, std::to_string(type));
+    if (!isKnownType(type)) throw Error(VC64ERROR_CRT_UNKNOWN, std::to_string(type));
 
     // Try to create the cartridge
     Cartridge *cart = makeWithType(c64, file.cartridgeType());
@@ -386,14 +386,14 @@ Cartridge::setRamCapacity(isize size)
 u8
 Cartridge::peekRAM(u32 addr) const
 {
-    assert(addr < ramCapacity);
+    assert(isize(addr) < ramCapacity);
     return externalRam[addr];
 }
 
 void
 Cartridge::pokeRAM(u32 addr, u8 value)
 {
-    assert(addr < ramCapacity);
+    assert(isize(addr) < ramCapacity);
     externalRam[addr] = value;
     writes++;
 }

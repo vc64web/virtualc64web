@@ -21,10 +21,16 @@ class SerialPort final : public SubComponent, public Inspectable<Void, SerialPor
 
     Descriptions descriptions = {{
 
+        .type           = SerialPortClass,
         .name           = "Serial",
-        .description    = "Serial Port (IEC Bus)"
+        .description    = "Serial Port (IEC Bus)",
+        .shell          = "serial"
     }};
 
+    Options options = {
+
+    };
+    
 public:
     
     // Current values of the IEC bus lines
@@ -122,8 +128,17 @@ public:
 private:
 
     void _dump(Category category, std::ostream& os) const override;
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
 
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
+    
 
     //
     // Accessing

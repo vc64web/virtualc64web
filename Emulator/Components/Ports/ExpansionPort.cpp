@@ -219,7 +219,7 @@ ExpansionPort::attachCartridge(const MediaFile &file, bool reset)
 
         // Only proceed if this cartridge is supported
         if (!crtFile.isSupported()) {
-            throw Error(ERROR_CRT_UNSUPPORTED, crtFile.cartridgeTypeName());
+            throw Error(VC64ERROR_CRT_UNSUPPORTED, crtFile.cartridgeTypeName());
         }
 
         // Create cartridge from cartridge file
@@ -234,7 +234,7 @@ ExpansionPort::attachCartridge(const MediaFile &file, bool reset)
 
     } catch (...) {
 
-        throw Error(ERROR_FILE_TYPE_MISMATCH);
+        throw Error(VC64ERROR_FILE_TYPE_MISMATCH);
     }
 }
 
@@ -298,6 +298,16 @@ ExpansionPort::processCommand(const Cmd &cmd)
 
         default:
             fatalError;
+    }
+}
+
+void 
+ExpansionPort::processEvent(EventID id)
+{
+    if (cartridge) {
+        cartridge->processEvent(id);
+    } else {
+        c64.cancel<SLOT_EXP>();
     }
 }
 

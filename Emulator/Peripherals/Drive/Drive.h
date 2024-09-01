@@ -37,16 +37,20 @@ class Drive final : public SubComponent, public Inspectable<DriveInfo> {
 
     Descriptions descriptions = {
         {
+            .type           = DriveClass,
             .name           = "Drive8",
-            .description    = "First Floppy Drive"
+            .description    = "First Floppy Drive",
+            .shell          = "drive8"
         },
         {
+            .type           = DriveClass,
             .name           = "Drive9",
-            .description    = "Second Floppy Drive"
+            .description    = "Second Floppy Drive",
+            .shell          = "drive9"
         }
     };
 
-    ConfigOptions options = {
+    Options options = {
 
         OPT_DRV_AUTO_CONFIG,
         OPT_DRV_TYPE,
@@ -311,13 +315,7 @@ public:
     void serialize(T& worker)
     {
         worker
-        
-        << mem
-        << cpu
-        << via1
-        << via2
-        << pia
-        
+                
         << spinning
         << redLED
         << elapsedTime
@@ -381,7 +379,7 @@ private:
 
     void _initialize() override;
     void _dump(Category category, std::ostream& os) const override;
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
 
 
     //
@@ -400,7 +398,7 @@ public:
 public:
 
     const DriveConfig &getConfig() const { return config; }
-    const ConfigOptions &getOptions() const override { return options; }
+    const Options &getOptions() const override { return options; }
     i64 getFallback(Option opt) const override;
     i64 getOption(Option opt) const override;
     void checkOption(Option opt, i64 value) override;

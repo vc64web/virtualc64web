@@ -25,15 +25,21 @@ TAPFile::isCompatible(const fs::path &path)
 }
 
 bool
-TAPFile::isCompatible(std::istream &stream)
+TAPFile::isCompatible(const u8 *buf, isize len)
 {
-    return util::matchingStreamHeader(stream, "C64-TAPE-RAW");
+    return util::matchingBufferHeader(buf, len, string("C64-TAPE-RAW"));
+}
+
+bool
+TAPFile::isCompatible(const Buffer<u8> &buf)
+{
+    return isCompatible(buf.ptr, buf.size);
 }
 
 PETName<16>
 TAPFile::getName() const
 {
-    return PETName<16>(data + 8);
+    return PETName<16>(data.ptr + 8);
 }
 
 isize
@@ -84,14 +90,14 @@ TAPFile::read()
             debug(TAP_DEBUG, "TAP1 with a zero pulse byte\n");
 
             // TAP1 with a zero pulse byte
-            result = LO_LO_HI_HI(fp + 1 < (isize)size ? data[fp + 1] : 0,
-                                 fp + 2 < (isize)size ? data[fp + 2] : 0,
-                                 fp + 3 < (isize)size ? data[fp + 3] : 0, 0);
+            result = LO_LO_HI_HI(fp + 1 < data.size ? data[fp + 1] : 0,
+                                 fp + 2 < data.size ? data[fp + 2] : 0,
+                                 fp + 3 < data.size ? data[fp + 3] : 0, 0);
             fp += 4;
         }
         
         // Check for EOF
-        if (fp >= (isize)size) fp = -1;
+        if (fp >= data.size) fp = -1;
     }
     
     return result;
@@ -103,8 +109,8 @@ TAPFile::finalizeRead()
     isize length = LO_LO_HI_HI(data[0x10], data[0x11], data[0x12], data[0x13]);
     isize header = 0x14;
     
-    if (length + header != size) {
-        warn("TAP: Expected %lu bytes, found %lu\n", length + header, size);
+    if (length + header != data.size) {
+        warn("TAP: Expected %lu bytes, found %lu\n", length + header, data.size);
     } else {
         debug(TAP_DEBUG, "TAP file has been scanned with no errros\n");
     }

@@ -21,9 +21,14 @@ class NeosMouse final : public SubComponent {
     Descriptions descriptions = {{
 
         .name           = "NeosMouse",
-        .description    = "Neos Mouse"
+        .description    = "Neos Mouse",
+        .shell          = ""
     }};
 
+    Options options = {
+
+    };
+    
     // Mouse position
     i64 mouseX;
     i64 mouseY;
@@ -94,7 +99,7 @@ public:
 public:
 
     template <class T> void serialize(T& worker) { } SERIALIZERS(serialize);
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
 
 
     //
@@ -105,6 +110,15 @@ public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
+    
 
     //
     // Accessing

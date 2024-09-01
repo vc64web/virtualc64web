@@ -18,13 +18,13 @@
 
 // Version number
 #define VER_MAJOR 5
-#define VER_MINOR 0
+#define VER_MINOR 1
 #define VER_SUBMINOR 0
 #define VER_BETA 0
 
 // Snapshot version number
 #define SNP_MAJOR 5
-#define SNP_MINOR 0
+#define SNP_MINOR 1
 #define SNP_SUBMINOR 0
 #define SNP_BETA 0
 
@@ -105,6 +105,7 @@ extern debugflag SNP_DEBUG;
 
 // Run ahead
 extern debugflag RUA_DEBUG;
+extern debugflag RUA_CHECKSUM;
 extern debugflag RUA_ON_STEROIDS;
 
 // CPU
@@ -117,7 +118,6 @@ extern debugflag MEM_DEBUG;
 // CIAs
 extern debugflag CIA_DEBUG;
 extern debugflag CIAREG_DEBUG;
-extern debugflag CIA_ON_STEROIDS;
 
 // VICII
 extern debugflag VICII_DEBUG;
@@ -159,6 +159,8 @@ extern debugflag USR_DEBUG;
 // Other components
 extern debugflag REC_DEBUG;
 extern debugflag REU_DEBUG;
+extern debugflag SCK_DEBUG;
+extern debugflag SRV_DEBUG;
 
 
 //

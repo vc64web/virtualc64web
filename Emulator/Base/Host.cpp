@@ -44,7 +44,7 @@ Host::checkOption(Option opt, i64 value)
             return;
 
         default:
-            throw(ERROR_OPT_UNSUPPORTED);
+            throw Error(VC64ERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -112,7 +112,7 @@ Host::tmp() const
 
             if (!logfile.is_open()) {
 
-                throw Error(ERROR_DIR_NOT_FOUND);
+                throw Error(VC64ERROR_DIR_NOT_FOUND);
             }
         }
 

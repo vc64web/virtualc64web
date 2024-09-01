@@ -69,7 +69,7 @@ AudioPort::cacheStats(AudioPortStats &result) const
 }
 
 void
-AudioPort::_reset(bool hard)
+AudioPort::_didReset(bool hard)
 {
     SYNCHRONIZED
 
@@ -174,7 +174,7 @@ AudioPort::checkOption(Option opt, i64 value)
             return;
 
         default:
-            throw Error(ERROR_OPT_UNSUPPORTED);
+            throw Error(VC64ERROR_OPT_UNSUPPORTED);
     }
 }
 

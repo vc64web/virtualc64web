@@ -139,7 +139,7 @@ Drive::cacheInfo(DriveInfo &result) const
 }
 
 void
-Drive::_reset(bool hard)
+Drive::_didReset(bool hard)
 {
     cpu.reg.pc = 0xEAA0;
     halftrack = 41;
@@ -210,14 +210,14 @@ Drive::checkOption(Option opt, i64 value)
         case OPT_DRV_TYPE:
 
             if (!DriveTypeEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, DriveTypeEnum::keyList());
+                throw Error(VC64ERROR_OPT_INV_ARG, DriveTypeEnum::keyList());
             }
             return;
 
         case OPT_DRV_RAM:
 
             if (!DriveRamEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, DriveRamEnum::keyList());
+                throw Error(VC64ERROR_OPT_INV_ARG, DriveRamEnum::keyList());
             }
             return;
 
@@ -229,14 +229,14 @@ Drive::checkOption(Option opt, i64 value)
         case OPT_DRV_PARCABLE:
 
             if (!ParCableTypeEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, ParCableTypeEnum::keyList());
+                throw Error(VC64ERROR_OPT_INV_ARG, ParCableTypeEnum::keyList());
             }
             return;
 
         case OPT_DRV_CONNECT:
 
             if (value && !canConnect()) {
-                throw Error(ERROR_ROM_DRIVE_MISSING);
+                throw Error(VC64ERROR_ROM_DRIVE_MISSING);
             }
             return;
 
@@ -254,7 +254,7 @@ Drive::checkOption(Option opt, i64 value)
             return;
 
         default:
-            throw Error(ERROR_OPT_UNSUPPORTED);
+            throw Error(VC64ERROR_OPT_UNSUPPORTED);
     }
 }
 

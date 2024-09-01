@@ -13,11 +13,11 @@
 #include "config.h"
 #include "Macros.h"
 #include "IOUtils.h"
-
 #include <algorithm>
 #include <bitset>
 #include <fstream>
 #include <iomanip>
+#include <limits>
 #include <vector>
 
 namespace vc64::util {
@@ -37,7 +37,7 @@ makeUniquePath(const fs::path &path)
         if (!util::fileExists(result)) return result;
     }
 
-    return path;
+    unreachable;
 }
 
 isize
@@ -76,7 +76,7 @@ createDirectory(const fs::path &path)
 {
     try {
         
-        return fs::create_directory(fs::path(path));
+        return fs::create_directory(path);
     
     } catch (...) {
         
@@ -158,30 +158,38 @@ matchingStreamHeader(std::istream &is, const string &header, isize offset)
 }
 
 bool
-matchingBufferHeader(const u8 *buffer, const u8 *header, isize len, isize offset)
+matchingBufferHeader(const u8 *buf, const u8 *header, isize hlen, isize offset)
 {
-    assert(buffer != nullptr);
+    assert(buf != nullptr);
     assert(header != nullptr);
     
-    for (isize i = 0; i < len; i++) {
-        if (buffer[offset + i] != header[i])
+    for (isize i = 0; i < hlen; i++) {
+        if (buf[offset + i] != header[i])
             return false;
     }
 
     return true;
 }
 
-isize
-streamLength(std::istream &stream)
+bool matchingBufferHeader(const u8 *buf, isize blen, const string &header, isize offset)
 {
-    auto cur = stream.tellg();
-    stream.seekg(0, std::ios::beg);
-    auto beg = stream.tellg();
-    stream.seekg(0, std::ios::end);
-    auto end = stream.tellg();
-    stream.seekg(cur, std::ios::beg);
+    assert(buf != nullptr);
+
+    if (isize length = isize(header.length()); length <= blen) {
     
-    return (isize)(end - beg);
+        for (usize i = 0; i < header.length(); i++) {
+            if (buf[offset + i] != header[i])
+                return false;
+        }
+    }
+
+    return true;
+}
+
+bool matchingBufferHeader(const u8 *buf, const string &header, isize offset)
+{
+    auto blen = std::numeric_limits<isize>::max();
+    return matchingBufferHeader(buf, blen, header, offset);
 }
 
 void
@@ -264,7 +272,7 @@ dec::operator()(std::ostream &os) const
 std::ostream &
 hex::operator()(std::ostream &os) const
 {
-    os << std::hex << "0x" << std::setw(digits) << std::setfill('0') << value;
+    os << std::hex << "0x" << std::setw(int(digits)) << std::setfill('0') << value;
     return os;
 };
 
@@ -280,7 +288,7 @@ bin::operator()(std::ostream &os) const
             (digits == 16 && i < 2) ||
             (digits == 8  && i < 1)  ) {
 
-            std::bitset<8> x(GET_BYTE(value, 0));
+            std::bitset<8> x(GET_BYTE(value, i));
             os << x << (i ? "." : "");
         }
     }
@@ -296,7 +304,7 @@ flt::operator()(std::ostream &os) const
 
 std::ostream &
 tab::operator()(std::ostream &os) const {
-    os << std::setw(pads) << std::right << std::setfill(' ') << str;
+    os << std::setw(int(pads)) << std::right << std::setfill(' ') << str;
     os << (str.empty() ? "   " : " : ");
     return os;
 }

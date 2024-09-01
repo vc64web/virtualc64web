@@ -25,12 +25,18 @@ P00File::isCompatible(const fs::path &path)
 }
 
 bool
-P00File::isCompatible(std::istream &stream)
+P00File::isCompatible(const u8 *buf, isize len)
 {
     const u8 magicBytes[] = { 0x43, 0x36, 0x34, 0x46, 0x69, 0x6C, 0x65 };
 
-    if (util::streamLength(stream) < 0x1A) return false;
-    return util::matchingStreamHeader(stream, magicBytes, sizeof(magicBytes));
+    if (len < 0x1A) return false;
+    return util::matchingBufferHeader(buf, magicBytes, sizeof(magicBytes));
+}
+
+bool
+P00File::isCompatible(const Buffer<u8> &buf)
+{
+    return isCompatible(buf.ptr, buf.size);
 }
 
 void
@@ -40,14 +46,14 @@ P00File::init(const FileSystem &fs)
     isize itemSize = fs.fileSize(item);
 
     // Only proceed if the requested file exists
-    if (fs.numFiles() <= item) throw Error(ERROR_FS_HAS_NO_FILES);
+    if (fs.numFiles() <= item) throw Error(VC64ERROR_FS_HAS_NO_FILES);
 
     // Create new archive
     isize p00Size = itemSize + 8 + 17 + 1;
     init(p00Size);
 
     // Write magic bytes (8 bytes)
-    u8 *p = data;
+    u8 *p = data.ptr;
     strcpy((char *)p, "C64File");
     p += 8;
     
@@ -69,7 +75,7 @@ PETName<16>
 P00File::getName() const
 {
     // P00 files use 0x00 as padding character
-    auto result = PETName<16>(data + 8, 0x00);
+    auto result = PETName<16>(data.ptr + 8, 0x00);
 
     // Rectify the padding characters
     result.setPad(0xA0);
@@ -101,7 +107,7 @@ isize
 P00File::itemSize(isize nr) const
 {
     assert(nr == 0);
-    return size - 0x1A;
+    return data.size - 0x1A;
 }
 
 u8

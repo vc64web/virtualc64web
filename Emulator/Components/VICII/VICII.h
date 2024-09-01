@@ -106,7 +106,7 @@ struct SpriteSR : Serializable
 
 class VICII final : public SubComponent, public Inspectable<VICIIInfo, VICIIStats> {
 
-    friend class C64Memory;
+    friend class Memory;
     friend class DmaDebugger;
     friend class VideoPort;
     
@@ -115,8 +115,10 @@ class VICII final : public SubComponent, public Inspectable<VICIIInfo, VICIIStat
     
     Descriptions descriptions = {{
 
+        .type           = VICIIClass,
         .name           = "VIC",
-        .description    = "Video Interface Controller"
+        .description    = "Video Interface Controller",
+        .shell          = "vic"
     }};
 
     static constexpr VICIITraits traits[6] = {
@@ -194,7 +196,7 @@ class VICII final : public SubComponent, public Inspectable<VICIIInfo, VICIIStat
         }
     };
 
-    ConfigOptions options = {
+    Options options = {
 
         OPT_VICII_REVISION,
         OPT_VICII_POWER_SAVE,
@@ -251,6 +253,7 @@ public:
     // I/O space (CPU accessible)
     //
     
+public:
     
     /* Piped I/O register state. When an I/O register is written to, the
      * corresponding value in variable current is changed and a flag is set in
@@ -261,8 +264,6 @@ public:
         VICIIRegisters current;
         VICIIRegisters delayed;
     } reg;
-
-private:
     
     // Raster interrupt line ($D011:8 + $D012)
     u16 rasterIrqLine;
@@ -851,8 +852,6 @@ public:
     {
         worker
 
-        << dmaDebugger
-
         << reg.current
         << reg.delayed
         << rasterIrqLine
@@ -950,7 +949,7 @@ private:
 
     void _dump(Category category, std::ostream& os) const override;
     void _initialize() override;
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
     void _trackOn() override;
     void _trackOff() override;
 
@@ -977,7 +976,7 @@ public:
 public:
 
     const VICIIConfig &getConfig() const { return config; }
-    const ConfigOptions &getOptions() const override { return options; }
+    const Options &getOptions() const override { return options; }
     i64 getOption(Option opt) const override;
     void checkOption(Option opt, i64 value) override;
     void setOption(Option opt, i64 value) override;

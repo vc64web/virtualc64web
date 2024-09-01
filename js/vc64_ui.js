@@ -3116,9 +3116,7 @@ $('#choose_expansion_ram a').click(function ()
 set_vic_rev = function (vic_rev) {
     $("#button_vic_rev").text("vicII rev "+vic_rev);
     wasm_configure(vic_rev);
-    let pal=vic_rev.includes("PAL");
-    //_wasm_set_PAL(pal);
-    PAL_VIC=pal;
+    PAL_VIC=vic_rev.includes("PAL");;
     scaleVMCanvas();
 }
 set_vic_rev(load_setting('vic_rev', 'PAL 50Hz 6569 R3'));

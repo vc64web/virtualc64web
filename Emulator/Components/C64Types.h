@@ -103,8 +103,6 @@ enum_long(SLOT)
     SLOT_EXP,                       // Expansion port
     SLOT_TXD,                       // Serial data out (RS232)
     SLOT_RXD,                       // Serial data in (RS232)
-    SLOT_AFI1,                      // Auto-fire (joystick port 1)
-    SLOT_AFI2,                      // Auto-fire (joystick port 2)
     SLOT_MOT,                       // Datasette motor
     SLOT_DC8,                       // Disk change (Drive 8)
     SLOT_DC9,                       // Disk change (Drive 9)
@@ -191,6 +189,7 @@ enum_i8(EventID)
 
     // Expansion port
     EXP_REU_PREPARE     = 1,
+    EXP_REU_PREPARE2,
     EXP_REU_STASH,
     EXP_REU_FETCH,
     EXP_REU_SWAP,
@@ -204,10 +203,6 @@ enum_i8(EventID)
     // Serial data in (RS232)
     RXD_BIT             = 1,
     RXD_EVENT_COUT,
-
-    // Auto-fire
-    AFI_FIRE            = 1,
-    AFI_EVENT_COUNT,
 
     // Datasette motor
     MOT_START           = 1,
@@ -263,11 +258,11 @@ typedef struct
     //! Warp mode
     WarpMode warpMode;
 
+    //! Emulator speed in percent (100 is native speed)
+    isize speedBoost;
+
     //! Vertical Synchronization
     bool vsync;
-
-    //! Emulator speed in percent (100 is native speed)
-    isize speedAdjust;
 
     //! Number of run-ahead frames (0 = run-ahead is disabled)
     isize runAhead;

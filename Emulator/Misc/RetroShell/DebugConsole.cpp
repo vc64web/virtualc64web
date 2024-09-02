@@ -318,6 +318,13 @@ DebugConsole::initCommands(Command &root)
         dump(c64, { Category::Config, Category::State });
     });
 
+    cmd = cpu.shellName();
+    description = cpu.description();
+    root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
+
+        dump(cpu, { Category::Config, Category::State });
+    });
+
     cmd = mem.shellName();
     description = mem.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
@@ -563,7 +570,7 @@ DebugConsole::initCommands(Command &root)
         });
     }
 
-    root.add({"?"}, { Arg::value },
+    root.add({"%"}, { Arg::value },
              "Convert a value into different formats",
              [this](Arguments& argv, long value) {
 

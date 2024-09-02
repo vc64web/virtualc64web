@@ -304,6 +304,18 @@ Reu::poke(u16 addr, u8 value)
 }
 
 u8
+Reu::readFromC64Ram(u16 addr)
+{
+    return addr <= 2 ? mem.peek(addr, M_RAM) : mem.peek(addr);
+}
+
+void
+Reu::writeToC64Ram(u16 addr, u8 value)
+{
+    addr <= 2 ? mem.poke(addr, value, M_RAM) : mem.poke(addr, value);
+}
+
+u8
 Reu::readFromReuRam(u32 addr)
 {
     addr |= upperBankBits;
@@ -328,7 +340,7 @@ Reu::writeToReuRam(u32 addr, u8 value)
     }
 }
 
-void 
+void
 Reu::prepareDma()
 {
     if (REU_DEBUG) { dump(Category::Dma, std::cout); }
@@ -338,10 +350,10 @@ Reu::prepareDma()
     isize len = tlen ? tlen : 0x10000;
 
     // Freeze the CPU
-    cpu.pullDownRdyLine(INTSRC_EXP);
-    
+    // cpu.pullDownRdyLine(INTSRC_EXP);
+
     // Schedule the first event
-    c64.scheduleRel<SLOT_EXP>(2, EXP_REU_PREPARE, len);
+    c64.scheduleRel<SLOT_EXP>(1, EXP_REU_PREPARE, len);
 }
 
 bool
@@ -353,7 +365,7 @@ Reu::doDma(EventID id)
 
         case EXP_REU_STASH:
 
-            c64Val = mem.peek(c64Addr);
+            c64Val = readFromC64Ram(c64Addr);
             writeToReuRam(reuAddr, c64Val);
 
             // debug(REU_DEBUG,"(%x, %02x) -> %x\n", memAddr, c64Val, reuAddr);
@@ -365,7 +377,7 @@ Reu::doDma(EventID id)
         case EXP_REU_FETCH:
 
             reuVal = readFromReuRam(reuAddr);
-            mem.poke(c64Addr, reuVal);
+            writeToC64Ram(c64Addr, reuVal);
 
             // debug(REU_DEBUG,"%x <- (%x, %02x)\n", memAddr, reuAddr, reuVal);
 
@@ -375,10 +387,10 @@ Reu::doDma(EventID id)
 
         case EXP_REU_SWAP:
 
-            c64Val = mem.peek(c64Addr);
+            c64Val = readFromC64Ram(c64Addr);
             reuVal = readFromReuRam(reuAddr);
 
-            mem.poke(c64Addr, reuVal);
+            writeToC64Ram(c64Addr, reuVal);
             writeToReuRam(reuAddr, c64Val);
 
             if (memStep()) incMemAddr(c64Addr);
@@ -387,7 +399,7 @@ Reu::doDma(EventID id)
 
         case EXP_REU_VERIFY:
 
-            c64Val = mem.peek(c64Addr);
+            c64Val = readFromC64Ram(c64Addr);
             reuVal = readFromReuRam(reuAddr);
 
             if (c64Val != reuVal) {
@@ -438,6 +450,17 @@ Reu::processEvent(EventID id)
 {
     if (id == EXP_REU_PREPARE) {
 
+        cpu.pullDownRdyLine(INTSRC_EXP);
+
+        c64.scheduleRel<SLOT_EXP>(1, EXP_REU_PREPARE2, c64.data[SLOT_EXP]);
+        return;
+    }
+
+    if (id == EXP_REU_PREPARE2) {
+
+        // Freeze the CPU
+        cpu.pullDownRdyLine(INTSRC_EXP);
+
         switch (cr & 0x3) {
 
             case 0: id = EXP_REU_STASH; break;
@@ -452,11 +475,8 @@ Reu::processEvent(EventID id)
     // Determine the number of bytes to transfer
     auto todo = std::min(remaining, i64(bytesPerDmaCycle()));
 
-    // Perform DMA if the bus is available
-    if (!(cpu.getRdyLine() & INTSRC_VIC)) {
-
-        for (; todo && doDma(id); todo--) remaining--;
-    }
+    // Perform DMA if VICII does not block the bus
+    if (!vic.baLine.delayed()) for (; todo; todo--, remaining--) doDma(id);
 
     if (remaining) {
 

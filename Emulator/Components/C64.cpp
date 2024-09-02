@@ -105,6 +105,7 @@ C64::eventName(EventSlot slot, EventID id)
 
                 case EVENT_NONE:        return "none";
                 case EXP_REU_PREPARE:   return "EXP_REU_PREPARE";
+                case EXP_REU_PREPARE2:  return "EXP_REU_PREPARE2";
                 case EXP_REU_STASH:     return "EXP_REU_STASH";
                 case EXP_REU_FETCH:     return "EXP_REU_FETCH";
                 case EXP_REU_SWAP:      return "EXP_REU_SWAP";
@@ -129,17 +130,6 @@ C64::eventName(EventSlot slot, EventID id)
 
                 case EVENT_NONE:    return "none";
                 case RXD_BIT:       return "RXD_BIT";
-                default:            return "*** INVALID ***";
-            }
-            break;
-
-        case SLOT_AFI1:
-        case SLOT_AFI2:
-
-            switch (id) {
-
-                case EVENT_NONE:    return "none";
-                case AFI_FIRE:      return "AFI_FIRE";
                 default:            return "*** INVALID ***";
             }
             break;
@@ -241,28 +231,26 @@ C64::eventName(EventSlot slot, EventID id)
 void
 C64::prefix(isize level, const char *component, isize line) const
 {
-    fprintf(stderr, "[%lld] (%3d,%3d) %04X ", frame, scanline, rasterCycle, cpu.getPC0());
-
     if (level) {
 
-        if (level >= 2) {
+        if (objid == 1) fprintf(stderr, "[Run-ahead] ");
 
-            if (objid == 1) fprintf(stderr, "[Run-ahead] ");
-            fprintf(stderr, "%s:%ld", component, line);
-        }
         if (level >= 3) {
 
-            fprintf(stderr, " [%lld] (%3d,%3d)", frame, scanline, rasterCycle);
+            fprintf(stderr, "[%lld] (%3d,%3d) ", frame, scanline, rasterCycle);
         }
         if (level >= 4) {
 
-            fprintf(stderr, " %04X", cpu.getPC0());
+            fprintf(stderr, "%04X ", cpu.getPC0());
         }
         if (level >= 5) {
 
-            fprintf(stderr, " %s%s", (cpu.irqLine ? "*" : "-"), (cpu.nmiLine ? "+" : "-"));
+            fprintf(stderr, "<%s%s> ", (cpu.irqLine ? "I" : "i"), (cpu.nmiLine ? "N" : "n"));
         }
-        fprintf(stderr, " ");
+        if (level >= 2) {
+
+            fprintf(stderr, "%s:%ld ", component, line);
+        }
     }
 }
 
@@ -927,7 +915,7 @@ void
 C64::_run()
 {
     debug(RUN_DEBUG, "_run\n");
-    assert(cpu.inFetchPhase());
+    // assert(cpu.inFetchPhase());
 
     msgQueue.put(MSG_RUN);
 }
@@ -936,7 +924,7 @@ void
 C64::_pause()
 {
     debug(RUN_DEBUG, "_pause\n");
-    assert(cpu.inFetchPhase());
+    // assert(cpu.inFetchPhase());
 
     // Clear pending runloop flags
     flags = 0;
@@ -1151,12 +1139,6 @@ C64::processEvents(Cycle cycle)
             }
             if (isDue<SLOT_RXD>(cycle)) {
                 userPort.rs232.processRxdEvent();
-            }
-            if (isDue<SLOT_AFI1>(cycle)) {
-                port1.joystick.processEvent();
-            }
-            if (isDue<SLOT_AFI2>(cycle)) {
-                port2.joystick.processEvent();
             }
             if (isDue<SLOT_MOT>(cycle)) {
                 datasette.processMotEvent(eventid[SLOT_MOT]);

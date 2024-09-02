@@ -23,16 +23,20 @@ class Paddle final : public SubComponent, public Inspectable<PaddleInfo> {
 
     Descriptions descriptions = {
         {
+            .type           = PaddleClass,
             .name           = "Paddle1",
-            .description    = "Paddle in Port 1"
+            .description    = "Paddle in Port 1",
+            .shell          = "paddle1"
         },
         {
+            .type           = PaddleClass,
             .name           = "Paddle2",
-            .description    = "Paddle in Port 2"
+            .description    = "Paddle in Port 2",
+            .shell          = "paddle2"
         }
     };
 
-    ConfigOptions options = {
+    Options options = {
 
         OPT_PADDLE_ORIENTATION
     };
@@ -75,7 +79,12 @@ public:
     template <class T> void serialize(T& worker) {
 
         if (isResetter(worker)) return;
+
+        worker
+
+        << config.orientation;
     }
+    
     void operator << (SerChecker &worker) override { serialize(worker); }
     void operator << (SerCounter &worker) override { serialize(worker); }
     void operator << (SerResetter &worker) override;
@@ -94,7 +103,7 @@ public:
 private:
 
     void _dump(Category category, std::ostream& os) const override;
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
 
 
     //
@@ -113,7 +122,7 @@ private:
 public:
 
     const PaddleConfig &getConfig() const { return config; }
-    const ConfigOptions &getOptions() const override { return options; }
+    const Options &getOptions() const override { return options; }
     i64 getOption(Option opt) const override;
     void checkOption(Option opt, i64 value) override;
     void setOption(Option opt, i64 value) override;

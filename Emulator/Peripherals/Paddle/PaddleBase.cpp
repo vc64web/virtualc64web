@@ -13,12 +13,11 @@
 #include "config.h"
 #include "Paddle.h"
 #include "Emulator.h"
-// #include "IOUtils.h"
 
 namespace vc64 {
 
 void
-Paddle::_reset(bool hard)
+Paddle::_didReset(bool hard)
 {
     button[0] = false;
     button[1] = false;
@@ -87,12 +86,12 @@ Paddle::checkOption(Option opt, i64 value)
         case OPT_PADDLE_ORIENTATION:
 
             if (!PaddleOrientationEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, PaddleOrientationEnum::keyList());
+                throw Error(VC64ERROR_OPT_INV_ARG, PaddleOrientationEnum::keyList());
             }
             return;
 
         default:
-            throw Error(ERROR_OPT_UNSUPPORTED);
+            throw Error(VC64ERROR_OPT_UNSUPPORTED);
     }
 }
 

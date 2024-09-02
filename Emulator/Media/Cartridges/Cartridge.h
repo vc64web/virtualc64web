@@ -23,10 +23,16 @@ class Cartridge : public SubComponent, public Inspectable<CartridgeInfo> {
 
     Descriptions descriptions = {{
 
+        .type           = CartridgeClass,
         .name           = "Cartridge",
-        .description    = "Cartridge"
+        .description    = "Cartridge",
+        .shell          = "cartridge"
     }};
 
+    Options options = {
+
+    };
+    
 public:
 
     virtual const CartridgeTraits &getCartridgeTraits() const {
@@ -254,6 +260,15 @@ public:
 
 
     //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
+    
+
+    //
     // Analyzing
     //
 
@@ -353,10 +368,18 @@ public:
      */
     void setRamCapacity(isize size);
 
+    /* Initializes the external RAM with the startup value. This function is
+     * called during a reset if the cartridge does not back up memory with a
+     * battery.
+     */
+    virtual void eraseRAM() { eraseRAM(0xFF); }
+
+    // Erases the external RAM with a specific startup value
+    void eraseRAM(u8 value);
+
     // Reads or write RAM cells
     u8 peekRAM(u32 addr) const;
     void pokeRAM(u32 addr, u8 value);
-    void eraseRAM(u8 value);
 
 
     //
@@ -408,6 +431,14 @@ public:
 
     // Switches the LED on or off
     virtual void setLED(bool value) { led = value; }
+
+
+    //
+    // Processing events
+    //
+
+    // Processes an event in the expansion port slot
+    virtual void processEvent(EventID id) { };
 
 
     //

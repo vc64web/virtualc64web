@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "CoreComponentTypes.h"
 #include "SIDTypes.h"
 #include "C64Types.h"
 #include "ReSID.h"
@@ -25,24 +26,32 @@ class SID final : public SubComponent, public Inspectable<SIDInfo>
 
     Descriptions descriptions = {
         {
+            .type           = SIDClass,
             .name           = "SID",
-            .description    = "Primary Sound Interface Device"
+            .description    = "Primary Sound Interface Device",
+            .shell          = "sid"
         },
         {
+            .type           = SIDClass,
             .name           = "SID2",
-            .description    = "First Auxiliary SID"
+            .description    = "First Auxiliary SID",
+            .shell          = "sid2"
         },
         {
+            .type           = SIDClass,
             .name           = "SID3",
-            .description    = "Second Auxiliary SID"
+            .description    = "Second Auxiliary SID",
+            .shell          = "sid3"
         },
         {
+            .type           = SIDClass,
             .name           = "SID4",
-            .description    = "Third Auxiliary SID"
+            .description    = "Third Auxiliary SID",
+            .shell          = "sid4"
         }
     };
 
-    ConfigOptions options = {
+    Options options = {
 
         OPT_SID_ENABLE,
         OPT_SID_ADDRESS,
@@ -153,7 +162,7 @@ private:
 public:
 
     const SIDConfig &getConfig() const { return config; }
-    const ConfigOptions &getOptions() const override { return options; }
+    const Options &getOptions() const override { return options; }
     i64 getFallback(Option opt) const override;
     i64 getOption(Option opt) const override;
     void checkOption(Option opt, i64 value) override;

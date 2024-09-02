@@ -37,10 +37,9 @@ struct CPURevisionEnum : util::Reflection<CPURevisionEnum, vc64::peddle::CPURevi
 
     static constexpr long minVal = 0;
     static constexpr long maxVal = vc64::peddle::MOS_8502;
-    static bool isValid(auto value) { return value >= minVal && value <= maxVal; }
 
     static const char *prefix() { return nullptr; }
-    static const char *key(long value)
+    static const char *_key(long value)
     {
         switch (value) {
 

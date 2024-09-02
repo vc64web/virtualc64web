@@ -19,18 +19,17 @@
 
 namespace vc64 {
 
-typedef std::vector<Option> ConfigOptions;
+typedef std::vector<Option> Options;
 
 class Configurable
 {
-    const static ConfigOptions options;
 
 public:
 
     virtual ~Configurable() = default;
 
     // Returns the available config options
-    virtual const ConfigOptions &getOptions() const { return options; }
+    virtual const Options &getOptions() const = 0;
 
     // Returns true iff a specific option is available
     bool isValidOption(Option opt) const;
@@ -39,7 +38,7 @@ public:
     virtual i64 getOption(Option opt) const { return 0; }
 
     // Gets the fallback for a config option
-    virtual i64 getFallback(Option opt) const { return 0; }
+    virtual i64 getFallback(Option opt) const = 0;
 
     // Throws an exception of if the given option/value pair is invalid
     virtual void checkOption(Option opt, i64 value) { }
@@ -56,11 +55,6 @@ public:
 
     // Dumps the current configuration
     void dumpConfig(std::ostream& os) const;
-
-    // Returns a textual description for all available options
-    string keyList() { return OptionEnum::keyList([&](Option i) { return isValidOption(i); }); }
-    string argList() { return OptionEnum::argList([&](Option i) { return isValidOption(i); }); }
-
 };
 
 }

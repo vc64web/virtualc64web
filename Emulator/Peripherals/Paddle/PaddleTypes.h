@@ -35,10 +35,9 @@ struct PaddleOrientationEnum : util::Reflection<PaddleOrientationEnum, PaddleOri
 
     static constexpr long minVal = 0;
     static constexpr long maxVal = PADDLE_VERTICAL_FLIPPED;
-    static bool isValid(auto value) { return value >= minVal && value <= maxVal; }
 
     static const char *prefix() { return nullptr; }
-    static const char *key(long value)
+    static const char *_key(long value)
     {
         switch (value) {
 

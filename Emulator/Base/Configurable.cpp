@@ -14,23 +14,12 @@
 #include "Configurable.h"
 #include "Option.h"
 #include "Parser.h"
-#include "VICIITypes.h"
-#include "DatasetteTypes.h"
-#include "MemoryTypes.h"
-#include "SIDTypes.h"
-#include "CIATypes.h"
-#include "DriveTypes.h"
-#include "ParCableTypes.h"
-#include "PowerPortTypes.h"
-#include "MouseTypes.h"
 #include "IOUtils.h"
 #include <algorithm>
 
 namespace vc64 {
 
 using namespace util;
-
-const ConfigOptions Configurable::options = { };
 
 bool
 Configurable::isValidOption(Option opt) const
@@ -80,7 +69,7 @@ Configurable::dumpConfig(std::ostream& os) const
 
     for (auto &opt: getOptions()) {
 
-        auto name = OptionEnum::plainkey(opt);
+        auto name = OptionEnum::key(opt);
         auto help = OptionEnum::help(opt);
         auto arg  = OptionParser::asString(opt, getOption(opt));
 

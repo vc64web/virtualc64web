@@ -24,9 +24,14 @@ class RegressionTester : public SubComponent {
     Descriptions descriptions = {{
 
         .name           = "RegressionTester",
-        .description    = "Regression Tester"
+        .description    = "Regression Tester",
+        .shell          = "regression"
     }};
 
+    Options options = {
+
+    };
+    
     // Pixel area ritten to the test image
     static constexpr isize X1 = 104;
     static constexpr isize Y1 = 17;
@@ -81,6 +86,15 @@ public:
 private:
 
     void _dump(Category category, std::ostream& os) const override { }
+
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
 
 
     //

@@ -25,10 +25,11 @@ class DmaDebugger final : public SubComponent {
     Descriptions descriptions = {{
 
         .name           = "DmaDebugger",
-        .description    = "Bus Monitor"
+        .description    = "Bus Monitor",
+        .shell          = "dmadebugger"
     }};
 
-    ConfigOptions options = {
+    Options options = {
 
         OPT_DMA_DEBUG_ENABLE,
         OPT_DMA_DEBUG_MODE,
@@ -117,7 +118,7 @@ private:
 public:
 
     const DmaDebuggerConfig &getConfig() const { return config; }
-    const ConfigOptions &getOptions() const override { return options; }
+    const Options &getOptions() const override { return options; }
     i64 getOption(Option opt) const override;
     void checkOption(Option opt, i64 value) override;
     void setOption(Option opt, i64 value) override;

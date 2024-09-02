@@ -28,7 +28,7 @@ Mouse::Mouse(C64 &ref, ControlPort& pref) : SubComponent(ref, pref.objid), port(
     };
 }
 
-void Mouse::_reset(bool hard)
+void Mouse::_didReset(bool hard)
 {
     targetX = 0;
     targetY = 0;
@@ -56,7 +56,7 @@ Mouse::checkOption(Option opt, i64 value)
         case OPT_MOUSE_MODEL:
 
             if (!MouseModelEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, MouseModelEnum::keyList());
+                throw Error(VC64ERROR_OPT_INV_ARG, MouseModelEnum::keyList());
             }
             return;
 
@@ -67,12 +67,12 @@ Mouse::checkOption(Option opt, i64 value)
         case OPT_MOUSE_VELOCITY:
 
             if (value < 0 || value > 255) {
-                throw Error(ERROR_OPT_INV_ARG, "0 ... 255");
+                throw Error(VC64ERROR_OPT_INV_ARG, "0 ... 255");
             }
             return;
 
         default:
-            throw Error(ERROR_OPT_UNSUPPORTED);
+            throw Error(VC64ERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -98,7 +98,7 @@ Mouse::setOption(Option opt, i64 value)
         case OPT_MOUSE_VELOCITY:
 
             if (value < 0 || value > 255) {
-                throw Error(ERROR_OPT_INV_ARG, "0 ... 255");
+                throw Error(VC64ERROR_OPT_INV_ARG, "0 ... 255");
             }
             config.velocity = isize(value);
             updateScalingFactors();

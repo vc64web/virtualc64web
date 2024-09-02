@@ -35,7 +35,6 @@ enum_long(RSKEY_KEY)
     RSKEY_END,
     RSKEY_TAB,
     RSKEY_RETURN,
-    RSKEY_SHIFT_RETURN,
     RSKEY_CR
 };
 typedef RSKEY_KEY RetroShellKey;
@@ -44,10 +43,9 @@ struct RetroShellKeyEnum : util::Reflection<RetroShellKeyEnum, RetroShellKey>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = RSKEY_CR;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "RSKEY"; }
-    static const char *key(long value)
+    static const char *_key(long value)
     {
         switch (value) {
 
@@ -62,7 +60,6 @@ struct RetroShellKeyEnum : util::Reflection<RetroShellKeyEnum, RetroShellKey>
             case RSKEY_END:             return "END";
             case RSKEY_TAB:             return "TAB";
             case RSKEY_RETURN:          return "RETURN";
-            case RSKEY_SHIFT_RETURN:    return "SHIFT_RETURN";
             case RSKEY_CR:              return "CR";
         }
         return "???";

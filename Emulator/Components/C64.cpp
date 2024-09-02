@@ -15,6 +15,7 @@
 #include "Checksum.h"
 #include "IOUtils.h"
 #include "RomDatabase.h"
+#include "OpenRoms.h"
 #include <algorithm>
 #include <queue>
 
@@ -98,6 +99,21 @@ C64::eventName(EventSlot slot, EventID id)
             }
             break;
 
+        case SLOT_EXP:
+
+            switch (id) {
+
+                case EVENT_NONE:        return "none";
+                case EXP_REU_PREPARE:   return "EXP_REU_PREPARE";
+                case EXP_REU_PREPARE2:  return "EXP_REU_PREPARE2";
+                case EXP_REU_STASH:     return "EXP_REU_STASH";
+                case EXP_REU_FETCH:     return "EXP_REU_FETCH";
+                case EXP_REU_SWAP:      return "EXP_REU_SWAP";
+                case EXP_REU_VERIFY:    return "EXP_REU_VERIFY";
+                default:                return "*** INVALID ***";
+            }
+            break;
+
         case SLOT_TXD:
 
             switch (id) {
@@ -114,17 +130,6 @@ C64::eventName(EventSlot slot, EventID id)
 
                 case EVENT_NONE:    return "none";
                 case RXD_BIT:       return "RXD_BIT";
-                default:            return "*** INVALID ***";
-            }
-            break;
-
-        case SLOT_AFI1:
-        case SLOT_AFI2:
-
-            switch (id) {
-
-                case EVENT_NONE:    return "none";
-                case AFI_FIRE:      return "AFI_FIRE";
                 default:            return "*** INVALID ***";
             }
             break;
@@ -182,6 +187,16 @@ C64::eventName(EventSlot slot, EventID id)
             }
             break;
 
+        case SLOT_SRV:
+
+            switch (id) {
+
+                case EVENT_NONE:        return "none";
+                case SRV_LAUNCH_DAEMON: return "SRV_LAUNCH_DAEMON";
+                default:                return "*** INVALID ***";
+            }
+            break;
+
         case SLOT_ALA:
 
             switch (id) {
@@ -214,13 +229,33 @@ C64::eventName(EventSlot slot, EventID id)
 }
 
 void
-C64::prefix() const
+C64::prefix(isize level, const char *component, isize line) const
 {
-    fprintf(stderr, "[%lld] (%3d,%3d) %04X ", frame, scanline, rasterCycle, cpu.getPC0());
+    if (level) {
+
+        if (objid == 1) fprintf(stderr, "[Run-ahead] ");
+
+        if (level >= 3) {
+
+            fprintf(stderr, "[%lld] (%3d,%3d) ", frame, scanline, rasterCycle);
+        }
+        if (level >= 4) {
+
+            fprintf(stderr, "%04X ", cpu.getPC0());
+        }
+        if (level >= 5) {
+
+            fprintf(stderr, "<%s%s> ", (cpu.irqLine ? "I" : "i"), (cpu.nmiLine ? "N" : "n"));
+        }
+        if (level >= 2) {
+
+            fprintf(stderr, "%s:%ld ", component, line);
+        }
+    }
 }
 
 void 
-C64::_reset(bool hard)
+C64::_didReset(bool hard)
 {
     /* At this point, all components have executed their reset procedure. In
      * the final step, we need to perform some post-reset actions we could not
@@ -280,6 +315,7 @@ C64::operator << (SerResetter &worker)
     // Schedule initial events
     scheduleAbs<SLOT_CIA1>(cpu.clock, CIA_EXECUTE);
     scheduleAbs<SLOT_CIA2>(cpu.clock, CIA_EXECUTE);
+    scheduleRel<SLOT_SRV>(C64::sec(0.5), SRV_LAUNCH_DAEMON);
     if (insEvent) scheduleRel <SLOT_INS> (0, insEvent);
     scheduleNextSNPEvent();
 
@@ -309,7 +345,7 @@ C64::exportConfig(const fs::path &path) const
     auto fs = std::ofstream(path, std::ofstream::binary);
 
     if (!fs.is_open()) {
-        throw Error(ERROR_FILE_CANT_WRITE);
+        throw Error(VC64ERROR_FILE_CANT_WRITE);
     }
 
     exportConfig(fs);
@@ -326,64 +362,355 @@ C64::exportConfig(std::ostream &stream) const
     stream << "c64 power on\n";
 }
 
-InspectionTarget
-C64::getInspectionTarget() const
+i64
+C64::get(Option opt, isize objid) const
 {
-    switch(eventid[SLOT_INS]) {
+    debug(CNF_DEBUG, "get(%s, %ld)\n", OptionEnum::key(opt), objid);
 
-        case EVENT_NONE:  return INSPECTION_NONE;
-        case INS_C64:     return INSPECTION_C64;
-        case INS_CPU:     return INSPECTION_CPU;
-        case INS_MEM:     return INSPECTION_MEM;
-        case INS_CIA:     return INSPECTION_CIA;
-        case INS_VICII:   return INSPECTION_VICII;
-        case INS_SID:     return INSPECTION_SID;
-        case INS_EVENTS:  return INSPECTION_EVENTS;
+    auto target = routeOption(opt, objid);
+    if (target == nullptr) throw Error(VC64ERROR_OPT_INV_ID);
+    return target->getOption(opt);
+}
 
-        default:
-            fatalError;
+void
+C64::check(Option opt, i64 value, const std::vector<isize> objids)
+{
+    value = overrideOption(opt, value);
+
+    if (objids.empty()) {
+
+        for (isize objid = 0;; objid++) {
+
+            auto target = routeOption(opt, objid);
+            if (target == nullptr) break;
+
+            debug(CNF_DEBUG, "check(%s, %lld, %ld)\n", OptionEnum::key(opt), value, objid);
+            target->checkOption(opt, value);
+        }
+    }
+    for (auto &objid : objids) {
+
+        debug(CNF_DEBUG, "check(%s, %lld, %ld)\n", OptionEnum::key(opt), value, objid);
+
+        auto target = routeOption(opt, objid);
+        if (target == nullptr) throw Error(VC64ERROR_OPT_INV_ID);
+
+        target->checkOption(opt, value);
     }
 }
 
 void
-C64::setInspectionTarget(InspectionTarget target)
+C64::set(Option opt, i64 value, const std::vector<isize> objids)
 {
-    EventID id;
+    if (!isInitialized()) initialize();
+
+    value = overrideOption(opt, value);
+
+    if (objids.empty()) {
+
+        for (isize objid = 0;; objid++) {
+
+            auto target = routeOption(opt, objid);
+            if (target == nullptr) break;
+
+            debug(CNF_DEBUG, "set(%s, %lld, %ld)\n", OptionEnum::key(opt), value, objid);
+            target->setOption(opt, value);
+        }
+    }
+    for (auto &objid : objids) {
+
+        debug(CNF_DEBUG, "set(%s, %lld, %ld)\n", OptionEnum::key(opt), value, objid);
+
+        auto target = routeOption(opt, objid);
+        if (target == nullptr) throw Error(VC64ERROR_OPT_INV_ID);
+
+        target->setOption(opt, value);
+    }
+}
+
+void
+C64::set(Option opt, const string &value, const std::vector<isize> objids)
+{
+    set(opt, OptionParser::parse(opt, value), objids);
+}
+
+void
+C64::set(const string &opt, const string &value, const std::vector<isize> objids)
+{
+    set(Option(util::parseEnum<OptionEnum>(opt)), value, objids);
+}
+
+void
+C64::set(C64Model model)
+{
+    assert_enum(C64Model, model);
 
     {   SUSPENDED
 
-        switch(target) {
+        powerOff();
+        emulator.revertToFactorySettings();
 
-            case INSPECTION_NONE:    cancel<SLOT_INS>(); return;
+        switch(model) {
 
-            case INSPECTION_C64:     id = INS_C64; break;
-            case INSPECTION_CPU:     id = INS_CPU; break;
-            case INSPECTION_MEM:     id = INS_MEM; break;
-            case INSPECTION_CIA:     id = INS_CIA; break;
-            case INSPECTION_VICII:   id = INS_VICII; break;
-            case INSPECTION_SID:     id = INS_SID; break;
-            case INSPECTION_EVENTS:  id = INS_EVENTS; break;
+            case C64_MODEL_PAL:
+
+                set(OPT_VICII_REVISION, VICII_PAL_6569_R3);
+                set(OPT_VICII_GRAY_DOT_BUG, false);
+                set(OPT_CIA_REVISION, MOS_6526);
+                set(OPT_CIA_TIMER_B_BUG, true);
+                set(OPT_SID_REVISION, MOS_6581);
+                set(OPT_SID_FILTER, true);
+                set(OPT_POWER_GRID, GRID_STABLE_50HZ);
+                set(OPT_GLUE_LOGIC, GLUE_LOGIC_DISCRETE);
+                set(OPT_MEM_INIT_PATTERN, RAM_PATTERN_VICE);
+                break;
+
+            case C64_MODEL_PAL_II:
+
+                set(OPT_VICII_REVISION, VICII_PAL_8565);
+                set(OPT_VICII_GRAY_DOT_BUG, true);
+                set(OPT_CIA_REVISION, MOS_8521);
+                set(OPT_CIA_TIMER_B_BUG, false);
+                set(OPT_SID_REVISION, MOS_8580);
+                set(OPT_SID_FILTER, true);
+                set(OPT_POWER_GRID, GRID_STABLE_50HZ);
+                set(OPT_GLUE_LOGIC, GLUE_LOGIC_IC);
+                set(OPT_MEM_INIT_PATTERN, RAM_PATTERN_VICE);
+                break;
+
+            case C64_MODEL_PAL_OLD:
+
+                set(OPT_VICII_REVISION, VICII_PAL_6569_R1);
+                set(OPT_VICII_GRAY_DOT_BUG, false);
+                set(OPT_CIA_REVISION, MOS_6526);
+                set(OPT_CIA_TIMER_B_BUG, true);
+                set(OPT_SID_REVISION, MOS_6581);
+                set(OPT_SID_FILTER, true);
+                set(OPT_POWER_GRID, GRID_STABLE_50HZ);
+                set(OPT_GLUE_LOGIC, GLUE_LOGIC_DISCRETE);
+                set(OPT_MEM_INIT_PATTERN, RAM_PATTERN_VICE);
+                break;
+
+            case C64_MODEL_NTSC:
+
+                set(OPT_VICII_REVISION, VICII_NTSC_6567);
+                set(OPT_VICII_GRAY_DOT_BUG, false);
+                set(OPT_CIA_REVISION, MOS_6526);
+                set(OPT_CIA_TIMER_B_BUG, false);
+                set(OPT_SID_REVISION, MOS_6581);
+                set(OPT_SID_FILTER, true);
+                set(OPT_POWER_GRID, GRID_STABLE_60HZ);
+                set(OPT_GLUE_LOGIC, GLUE_LOGIC_DISCRETE);
+                set(OPT_MEM_INIT_PATTERN, RAM_PATTERN_VICE);
+                break;
+
+            case C64_MODEL_NTSC_II:
+
+                set(OPT_VICII_REVISION, VICII_NTSC_8562);
+                set(OPT_VICII_GRAY_DOT_BUG, true);
+                set(OPT_CIA_REVISION, MOS_8521);
+                set(OPT_CIA_TIMER_B_BUG, true);
+                set(OPT_SID_REVISION, MOS_8580);
+                set(OPT_SID_FILTER, true);
+                set(OPT_POWER_GRID, GRID_STABLE_60HZ);
+                set(OPT_GLUE_LOGIC, GLUE_LOGIC_IC);
+                set(OPT_MEM_INIT_PATTERN, RAM_PATTERN_VICE);
+                break;
+
+            case C64_MODEL_NTSC_OLD:
+
+                set(OPT_VICII_REVISION, VICII_NTSC_6567_R56A);
+                set(OPT_VICII_GRAY_DOT_BUG, false);
+                set(OPT_CIA_REVISION, MOS_6526);
+                set(OPT_CIA_TIMER_B_BUG, false);
+                set(OPT_SID_REVISION, MOS_6581);
+                set(OPT_SID_FILTER, true);
+                set(OPT_POWER_GRID, GRID_STABLE_60HZ);
+                set(OPT_GLUE_LOGIC, GLUE_LOGIC_DISCRETE);
+                set(OPT_MEM_INIT_PATTERN, RAM_PATTERN_VICE);
+                break;
 
             default:
                 fatalError;
         }
-
-        processINSEvent(id);
     }
 }
 
+Configurable *
+C64::routeOption(Option opt, isize objid)
+{
+    return CoreComponent::routeOption(opt, objid);
+}
+
+const Configurable *
+C64::routeOption(Option opt, isize objid) const
+{
+    auto result = const_cast<C64 *>(this)->routeOption(opt, objid);
+    return const_cast<const Configurable *>(result);
+}
+
+i64
+C64::overrideOption(Option opt, i64 value) const
+{
+    static std::map<Option,i64> overrides = OVERRIDES;
+
+    if (overrides.find(opt) != overrides.end()) {
+
+        msg("Overriding option: %s = %lld\n", OptionEnum::key(opt), value);
+        return overrides[opt];
+    }
+
+    return value;
+}
+
 void
-C64::execute()
+C64::update(CmdQueue &queue)
+{
+    Cmd cmd;
+    bool cmdConfig = false;
+
+    auto drive = [&]() -> Drive& { return cmd.value == 0 ? drive8 : drive9; };
+
+    while (queue.poll(cmd)) {
+
+        debug(CMD_DEBUG, "Command: %s\n", CmdTypeEnum::key(cmd.type));
+
+        switch (cmd.type) {
+
+            case CMD_CONFIG:
+
+                cmdConfig = true;
+                emulator.set(cmd.config.option, cmd.config.value, { cmd.config.id });
+                break;
+
+            case CMD_CONFIG_ALL:
+
+                cmdConfig = true;
+                emulator.set(cmd.config.option, cmd.config.value, { });
+                break;
+
+            case CMD_ALARM_ABS:
+            case CMD_ALARM_REL:
+            case CMD_INSPECTION_TARGET:
+
+                processCommand(cmd);
+                break;
+
+            case CMD_CPU_BRK:
+            case CMD_CPU_NMI:
+            case CMD_BP_SET_AT:
+            case CMD_BP_MOVE_TO:
+            case CMD_BP_REMOVE_NR:
+            case CMD_BP_REMOVE_AT:
+            case CMD_BP_REMOVE_ALL:
+            case CMD_BP_ENABLE_NR:
+            case CMD_BP_ENABLE_AT:
+            case CMD_BP_ENABLE_ALL:
+            case CMD_BP_DISABLE_NR:
+            case CMD_BP_DISABLE_AT:
+            case CMD_BP_DISABLE_ALL:
+            case CMD_WP_SET_AT:
+            case CMD_WP_MOVE_TO:
+            case CMD_WP_REMOVE_NR:
+            case CMD_WP_REMOVE_AT:
+            case CMD_WP_REMOVE_ALL:
+            case CMD_WP_ENABLE_NR:
+            case CMD_WP_ENABLE_AT:
+            case CMD_WP_ENABLE_ALL:
+            case CMD_WP_DISABLE_NR:
+            case CMD_WP_DISABLE_AT:
+            case CMD_WP_DISABLE_ALL:
+
+                cpu.processCommand(cmd);
+                break;
+
+            case CMD_KEY_PRESS:
+            case CMD_KEY_RELEASE:
+            case CMD_KEY_RELEASE_ALL:
+            case CMD_KEY_TOGGLE:
+
+                keyboard.processCommand(cmd);
+                break;
+
+            case CMD_DSK_TOGGLE_WP:
+            case CMD_DSK_MODIFIED:
+            case CMD_DSK_UNMODIFIED:
+
+                drive().processCommand(cmd);
+                break;
+
+            case CMD_MOUSE_MOVE_ABS:
+            case CMD_MOUSE_MOVE_REL:
+
+                switch (cmd.coord.port) {
+
+                    case PORT_1: port1.processCommand(cmd); break;
+                    case PORT_2: port2.processCommand(cmd); break;
+                    default: fatalError;
+                }
+                break;
+
+            case CMD_MOUSE_EVENT:
+            case CMD_JOY_EVENT:
+
+                switch (cmd.action.port) {
+
+                    case PORT_1: port1.processCommand(cmd); break;
+                    case PORT_2: port2.processCommand(cmd); break;
+                    default: fatalError;
+                }
+                break;
+
+            case CMD_DATASETTE_PLAY:
+            case CMD_DATASETTE_STOP:
+            case CMD_DATASETTE_REWIND:
+
+                datasette.processCommand(cmd);
+                break;
+
+            case CMD_CRT_BUTTON_PRESS:
+            case CMD_CRT_BUTTON_RELEASE:
+            case CMD_CRT_SWITCH_LEFT:
+            case CMD_CRT_SWITCH_NEUTRAL:
+            case CMD_CRT_SWITCH_RIGHT:
+
+                expansionport.processCommand(cmd);
+                break;
+
+            case CMD_RSH_EXECUTE:
+
+                retroShell.exec();
+                break;
+
+            case CMD_FOCUS:
+
+                cmd.value ? focus() : unfocus();
+                break;
+
+            default:
+                fatal("Unhandled command: %s\n", CmdTypeEnum::key(cmd.type));
+        }
+    }
+
+    // Inform the GUI about a changed machine configuration
+    if (cmdConfig) { msgQueue.put(MSG_CONFIG); }
+
+    // Inform the GUI about new RetroShell content
+    if (retroShell.isDirty) { retroShell.isDirty = false; msgQueue.put(MSG_RSH_UPDATE); }
+}
+
+void
+C64::computeFrame()
 {
     if (emulator.get(OPT_VICII_POWER_SAVE)) {
-        execute(emulator.isWarping() && (frame & 7) != 0);
+        computeFrame(emulator.isWarping() && (frame & 7) != 0);
     } else {
-        execute(false);
+        computeFrame(false);
     }
 }
 
 void 
-C64::execute(bool headless)
+C64::computeFrame(bool headless)
 {
     setHeadless(headless);
 
@@ -531,6 +858,7 @@ C64::processFlags()
         if (!stepTo.has_value() || *stepTo == cpu.getPC0()) {
 
             clearFlag(RL::SINGLE_STEP);
+            msgQueue.put(MSG_STEP);
             interrupt = true;
         }
     }
@@ -544,7 +872,7 @@ C64::fastForward(isize frames)
     auto target = frame + frames;
 
     // Execute until the target frame has been reached
-    while (frame < target) execute();
+    while (frame < target) computeFrame();
 }
 
 void
@@ -553,16 +881,16 @@ C64::_isReady() const
     bool mega = hasMega65Rom(ROM_TYPE_BASIC) && hasMega65Rom(ROM_TYPE_KERNAL);
     
     if (!hasRom(ROM_TYPE_BASIC)) {
-        throw Error(ERROR_ROM_BASIC_MISSING);
+        throw Error(VC64ERROR_ROM_BASIC_MISSING);
     }
     if (!hasRom(ROM_TYPE_CHAR)) {
-        throw Error(ERROR_ROM_CHAR_MISSING);
+        throw Error(VC64ERROR_ROM_CHAR_MISSING);
     }
     if (!hasRom(ROM_TYPE_KERNAL) || FORCE_ROM_MISSING) {
-        throw Error(ERROR_ROM_KERNAL_MISSING);
+        throw Error(VC64ERROR_ROM_KERNAL_MISSING);
     }
     if (FORCE_MEGA64_MISMATCH || (mega && string(mega65BasicRev()) != string(mega65KernalRev()))) {
-        throw Error(ERROR_ROM_MEGA65_MISMATCH);
+        throw Error(VC64ERROR_ROM_MEGA65_MISMATCH);
     }
 }
 
@@ -587,7 +915,7 @@ void
 C64::_run()
 {
     debug(RUN_DEBUG, "_run\n");
-    assert(cpu.inFetchPhase());
+    // assert(cpu.inFetchPhase());
 
     msgQueue.put(MSG_RUN);
 }
@@ -596,7 +924,7 @@ void
 C64::_pause()
 {
     debug(RUN_DEBUG, "_pause\n");
-    assert(cpu.inFetchPhase());
+    // assert(cpu.inFetchPhase());
 
     // Clear pending runloop flags
     flags = 0;
@@ -644,71 +972,6 @@ C64::_trackOff()
     msgQueue.put(MSG_TRACK, 0);
 }
 
-isize
-C64::size()
-{
-    return Serializable::size() + 8 /* checksum */;
-}
-
-isize
-C64::load(const u8 *buffer)
-{
-    assert(!isRunning());
-
-    // Load checksum
-    isize count = 8;
-    auto hash = read64(buffer);
-
-    // Load internal state
-    count += Serializable::load(buffer);
-
-    // Check integrity
-    debug(SNP_DEBUG, "Loaded %ld bytes (expected %ld)\n", count, size());
-
-    if (hash != checksum() || FORCE_SNAP_CORRUPTED) {
-
-        if (SNP_DEBUG) {
-         
-            warn("Corrupted snapshot detected:\n");
-            dump(Category::Checksums);
-        }
-        throw Error(ERROR_SNAP_CORRUPTED);
-    }
-
-    return count;
-}
-
-isize
-C64::save(u8 *buffer)
-{
-    // Save checksum
-    isize count = 8;
-    write64(buffer, checksum());
-
-    // Save internal state
-    count += Serializable::save(buffer);
-
-    // Check integrity
-    if (SNP_DEBUG) {
-
-        msg("Saved %ld bytes (expected %ld)\n", count, size());
-        dump(Category::Checksums);
-    }
-    assert(count == size());
-
-    return count;
-}
-
-void
-C64::record() const
-{
-    Inspectable<C64Info>::record();
-
-    for (isize i = 0; i < SLOT_COUNT; i++) {
-            inspectSlot(EventSlot(i));
-    }
-}
-
 void
 C64::cacheInfo(C64Info &result) const
 {
@@ -720,54 +983,59 @@ C64::cacheInfo(C64Info &result) const
         result.frame = frame;
         result.vpos = scanline;
         result.hpos = rasterCycle;
+
+        for (isize i = 0; i < SLOT_COUNT; i++) {
+
+            auto cycle = trigger[i];
+
+            result.slotInfo[i].slot = EventSlot(i);
+            result.slotInfo[i].eventId = eventid[i];
+            result.slotInfo[i].trigger = cycle;
+            result.slotInfo[i].triggerRel = cycle - cpu.clock;
+
+            // Compute clock at pos (0,0)
+            auto clock00 = cpu.clock - vic.getCyclesPerLine() * scanline - rasterCycle;
+
+            // Compute the number of elapsed cycles since then
+            auto diff = cycle - clock00;
+
+            // Split into frame / line / cycle
+            result.slotInfo[i].frameRel = long(diff / vic.getCyclesPerFrame());
+            diff = diff % vic.getCyclesPerFrame();
+            result.slotInfo[i].vpos = long(diff / vic.getCyclesPerLine());
+            result.slotInfo[i].hpos = long(diff % vic.getCyclesPerLine());
+
+            result.slotInfo[i].eventName = eventName(EventSlot(i), eventid[i]);
+        }
     }
 }
 
-EventSlotInfo
-C64::getSlotInfo(isize nr) const
+u64
+C64::getAutoInspectionMask() const
 {
-    assert_enum(EventSlot, nr);
-
-    {   SYNCHRONIZED
-
-        inspectSlot(EventSlot(nr));
-        return slotInfo[nr];
-    }
+    return data[SLOT_INS];
 }
 
 void
-C64::inspectSlot(EventSlot nr) const
+C64::setAutoInspectionMask(u64 mask)
 {
-    assert_enum(EventSlot, nr);
+    if (mask) {
 
-    auto &info = slotInfo[nr];
-    auto cycle = trigger[nr];
+        data[SLOT_INS] = mask;
+        processINSEvent();
 
-    info.slot = nr;
-    info.eventId = eventid[nr];
-    info.trigger = cycle;
-    info.triggerRel = cycle - cpu.clock;
+    } else {
 
-    // Compute clock at pos (0,0)
-    auto clock00 = cpu.clock - vic.getCyclesPerLine() * scanline - rasterCycle;
-
-    // Compute the number of elapsed cycles since then
-    auto diff = cycle - clock00;
-
-    // Split into frame / line / cycle
-    info.frameRel = long(diff / vic.getCyclesPerFrame());
-    diff = diff % vic.getCyclesPerFrame();
-    info.vpos = long(diff / vic.getCyclesPerLine());
-    info.hpos = long(diff % vic.getCyclesPerLine());
-
-    info.eventName = eventName((EventSlot)nr, eventid[nr]);
+        data[SLOT_INS] = 0;
+        cancel<SLOT_INS>();
+    }
 }
 
 void
 C64::executeOneCycle()
 {
     setFlag(RL::SINGLE_STEP);
-    execute();
+    computeFrame();
     clearFlag(RL::SINGLE_STEP);
 }
 
@@ -822,7 +1090,7 @@ C64::processCommand(const Cmd &cmd)
             
         case CMD_INSPECTION_TARGET:
 
-            setInspectionTarget(InspectionTarget(cmd.value));
+            setAutoInspectionMask(cmd.value);
             break;
 
         default:
@@ -863,17 +1131,14 @@ C64::processEvents(Cycle cycle)
             //
             // Check tertiary slots
             //
+            if (isDue<SLOT_EXP>(cycle)) {
+                expansionport.processEvent(eventid[SLOT_EXP]);
+            }
             if (isDue<SLOT_TXD>(cycle)) {
                 userPort.rs232.processTxdEvent();
             }
             if (isDue<SLOT_RXD>(cycle)) {
                 userPort.rs232.processRxdEvent();
-            }
-            if (isDue<SLOT_AFI1>(cycle)) {
-                port1.joystick.processEvent();
-            }
-            if (isDue<SLOT_AFI2>(cycle)) {
-                port2.joystick.processEvent();
             }
             if (isDue<SLOT_MOT>(cycle)) {
                 datasette.processMotEvent(eventid[SLOT_MOT]);
@@ -893,11 +1158,14 @@ C64::processEvents(Cycle cycle)
             if (isDue<SLOT_KEY>(cycle)) {
                 keyboard.processKeyEvent(eventid[SLOT_KEY]);
             }
+            if (isDue<SLOT_SRV>(cycle)) {
+                remoteManager.serviceServerEvent();
+            }
             if (isDue<SLOT_ALA>(cycle)) {
                 processAlarmEvent();
             }
             if (isDue<SLOT_INS>(cycle)) {
-                processINSEvent(eventid[SLOT_INS]);
+                processINSEvent();
             }
 
             // Determine the next trigger cycle for all tertiary slots
@@ -925,30 +1193,23 @@ C64::processEvents(Cycle cycle)
 }
 
 void
-C64::processINSEvent(EventID id)
+C64::processINSEvent()
 {
-    // trace(true, "processINSEvent %d\n", id);
-    switch (id) {
+    u64 mask = data[SLOT_INS];
 
-        case INS_C64:       record(); break;
-        case INS_CPU:       cpu.record(); break;
-        case INS_MEM:       mem.record(); break;
-        case INS_CIA:       cia1.record(); cia2.record(); break;
-        case INS_VICII:     vic.record(); break;
-        
-        case INS_SID:
-
-            sidBridge.sid[0].record();
-            sidBridge.sid[1].record();
-            sidBridge.sid[2].record();
-            break;
-
-        default:
-            fatalError;
+    // Analyze bit mask
+    if (mask & 1LL << C64Class)             { record(); }
+    if (mask & 1LL << CPUClass)             { cpu.record(); }
+    if (mask & 1LL << MemoryClass)          { mem.record(); }
+    if (mask & 1LL << CIAClass)             { cia1.record(); cia2.record(); }
+    if (mask & 1LL << VICIIClass)           { vic.record(); }
+    
+    if (mask & 1LL << SIDClass) {
+        for (isize i = 0; i < 4; i++) sidBridge.sid[i].record();
     }
 
-    // Reschedule event
-    scheduleRel<SLOT_INS>((Cycle)(inspectionInterval * PAL::CYCLES_PER_SECOND), id);
+    // Reschedule the event
+    rescheduleRel<SLOT_INS>(Cycle(inspectionInterval * PAL::CYCLES_PER_SECOND));
 }
 
 void
@@ -970,10 +1231,15 @@ C64::clearFlag(u32 flag)
 MediaFile *
 C64::takeSnapshot()
 {
-    {   SUSPENDED
+    Snapshot *result;
 
-        return new Snapshot(*this);
-    }
+    // Take the snapshot
+    { SUSPENDED result = new Snapshot(*this); }
+
+    // Compress the snapshot if requested
+    if (config.compressSnapshots) result->compress();
+
+    return result;
 }
 
 void
@@ -981,7 +1247,13 @@ C64::loadSnapshot(const MediaFile &file)
 {
     try {
 
-        const Snapshot &snapshot = dynamic_cast<const Snapshot &>(file);
+        const Snapshot &snap = dynamic_cast<const Snapshot &>(file);
+
+        // Make a copy so we can modify the snapshot
+        Snapshot snapshot(snap);
+
+        // Uncompress the snapshot
+        snapshot.uncompress();
 
         {   SUSPENDED
 
@@ -1018,7 +1290,7 @@ C64::loadSnapshot(const MediaFile &file)
 
     } catch (...) {
 
-        throw Error(ERROR_FILE_TYPE_MISMATCH);
+        throw Error(VC64ERROR_FILE_TYPE_MISMATCH);
     }
 }
 
@@ -1029,8 +1301,7 @@ C64::processSNPEvent(EventID eventId)
     if (objid == 0) {
 
         // Take snapshot and hand it over to GUI
-        autoSnapshot = new Snapshot(*this);
-        msgQueue.put( Message { .type = MSG_SNAPSHOT_TAKEN, .snapshot = autoSnapshot } );
+        msgQueue.put( Message { .type = MSG_SNAPSHOT_TAKEN, .snapshot = { new Snapshot(*this) } } );
     }
 
     // Schedule the next event
@@ -1040,8 +1311,8 @@ C64::processSNPEvent(EventID eventId)
 void 
 C64::scheduleNextSNPEvent()
 {
-    auto snapshots = emulator.get(OPT_EMU_SNAPSHOTS);
-    auto delay = emulator.get(OPT_EMU_SNAPSHOT_DELAY);
+    auto snapshots = emulator.get(OPT_C64_SNAP_AUTO);
+    auto delay = emulator.get(OPT_C64_SNAP_DELAY);
 
     if (snapshots) {
         scheduleRel<SLOT_SNP>(C64::sec(double(delay)), SNP_TAKE);
@@ -1259,38 +1530,53 @@ C64::loadRom(const MediaFile &file)
             
         default:
             
-            throw Error(ERROR_FILE_TYPE_MISMATCH);
+            throw Error(VC64ERROR_FILE_TYPE_MISMATCH);
     }
 }
 
 void
 C64::deleteRom(RomType type)
 {
-    switch (type) {
-            
-        case ROM_TYPE_BASIC:
+    {   SUSPENDED
 
-            memset(mem.rom + 0xA000, 0, 0x2000);
-            break;
+        switch (type) {
 
-        case ROM_TYPE_CHAR:
+            case ROM_TYPE_BASIC:
 
-            memset(mem.rom + 0xD000, 0, 0x1000);
-            break;
+                memset(mem.rom + 0xA000, 0, 0x2000);
+                break;
 
-        case ROM_TYPE_KERNAL:
+            case ROM_TYPE_CHAR:
 
-            memset(mem.rom + 0xE000, 0, 0x2000);
-            break;
+                memset(mem.rom + 0xD000, 0, 0x1000);
+                break;
 
-        case ROM_TYPE_VC1541:
+            case ROM_TYPE_KERNAL:
 
-            drive8.mem.deleteRom();
-            drive9.mem.deleteRom();
-            break;
+                memset(mem.rom + 0xE000, 0, 0x2000);
+                break;
 
-        default:
-            fatalError;
+            case ROM_TYPE_VC1541:
+
+                drive8.mem.deleteRom();
+                drive9.mem.deleteRom();
+                break;
+
+            default:
+                fatalError;
+        }
+    }
+}
+
+void 
+C64::deleteRoms()
+{
+    {   SUSPENDED
+
+        deleteRom(ROM_TYPE_BASIC);
+        deleteRom(ROM_TYPE_KERNAL);
+        deleteRom(ROM_TYPE_CHAR);
+        deleteRom(ROM_TYPE_VC1541);
     }
 }
 
@@ -1332,6 +1618,48 @@ C64::saveRom(RomType type, const fs::path &path)
             
         default:
             fatalError;
+    }
+}
+
+void 
+C64::installOpenRoms()
+{
+    {   SUSPENDED
+
+        installOpenRom(ROM_TYPE_BASIC);
+        installOpenRom(ROM_TYPE_KERNAL);
+        installOpenRom(ROM_TYPE_CHAR);
+    }
+}
+
+void
+C64::installOpenRom(RomType type)
+{
+    {   SUSPENDED
+
+        switch (type) {
+
+            case ROM_TYPE_BASIC:
+
+                assert(sizeof(basic_generic) == 0x2000);
+                memcpy(mem.rom + 0xA000, basic_generic, 0x2000);
+                break;
+
+            case ROM_TYPE_CHAR:
+
+                assert(sizeof(chargen_openroms) == 0x1000);
+                memcpy(mem.rom + 0xD000, chargen_openroms, 0x1000);
+                break;
+
+            case ROM_TYPE_KERNAL:
+
+                assert(sizeof(kernel_generic) == 0x2000);
+                memcpy(mem.rom + 0xE000, kernel_generic, 0x2000);
+                break;
+
+            default:
+                fatalError;
+        }
     }
 }
 
@@ -1416,7 +1744,7 @@ C64::flash(const MediaFile &file, isize nr)
 
     } catch (...) {
 
-        throw Error(ERROR_FILE_TYPE_MISMATCH);
+        throw Error(VC64ERROR_FILE_TYPE_MISMATCH);
     }
 }
 
@@ -1493,181 +1821,6 @@ C64::scheduleNextAlarm()
             trigger = alarm.trigger;
         }
     }
-}
-
-bool
-C64::getDebugVariable(DebugFlag flag)
-{
-#ifdef RELEASEBUILD
-
-    throw Error(ERROR_OPT_UNSUPPORTED, "Debug variables are only accessible in debug builds.");
-
-#else
-
-    switch (flag) {
-
-        case FLAG_XFILES:           return XFILES;
-        case FLAG_CNF_DEBUG:        return CNF_DEBUG;
-        case FLAG_DEF_DEBUG:        return DEF_DEBUG;
-
-        case FLAG_RUN_DEBUG:        return RUN_DEBUG;
-        case FLAG_TIM_DEBUG:        return TIM_DEBUG;
-        case FLAG_WARP_DEBUG:       return WARP_DEBUG;
-        case FLAG_CMD_DEBUG:        return CMD_DEBUG;
-        case FLAG_MSG_DEBUG:        return MSG_DEBUG;
-        case FLAG_SNP_DEBUG:        return SNP_DEBUG;
-
-        case FLAG_RUA_DEBUG:        return RUA_DEBUG;
-        case FLAG_RUA_ON_STEROIDS:  return RUA_ON_STEROIDS;
-
-        case FLAG_CPU_DEBUG:        return CPU_DEBUG;
-        case FLAG_IRQ_DEBUG:        return IRQ_DEBUG;
-
-        case FLAG_MEM_DEBUG:        return MEM_DEBUG;
-
-        case FLAG_CIA_DEBUG:        return CIA_DEBUG;
-        case FLAG_CIAREG_DEBUG:     return CIAREG_DEBUG;
-        case FLAG_CIA_ON_STEROIDS:  return CIA_ON_STEROIDS;
-
-        case FLAG_VICII_DEBUG:      return VICII_DEBUG;
-        case FLAG_VICII_REG_DEBUG:  return VICII_REG_DEBUG;
-        case FLAG_VICII_SAFE_MODE:  return VICII_SAFE_MODE;
-        case FLAG_VICII_STATS:      return VICII_STATS;
-        case FLAG_RASTERIRQ_DEBUG:  return RASTERIRQ_DEBUG;
-
-        case FLAG_SID_DEBUG:        return SID_DEBUG;
-        case FLAG_SID_EXEC:         return SID_EXEC;
-        case FLAG_SIDREG_DEBUG:     return SIDREG_DEBUG;
-        case FLAG_AUDBUF_DEBUG:     return AUDBUF_DEBUG;
-        case FLAG_AUDVOL_DEBUG:     return AUDVOL_DEBUG;
-
-        case FLAG_VIA_DEBUG:        return VIA_DEBUG;
-        case FLAG_PIA_DEBUG:        return PIA_DEBUG;
-        case FLAG_SER_DEBUG:        return SER_DEBUG;
-        case FLAG_DSK_DEBUG:        return DSK_DEBUG;
-        case FLAG_DSKCHG_DEBUG:     return DSKCHG_DEBUG;
-        case FLAG_GCR_DEBUG:        return GCR_DEBUG;
-        case FLAG_FS_DEBUG:         return FS_DEBUG;
-        case FLAG_PAR_DEBUG:        return PAR_DEBUG;
-
-        case FLAG_CRT_DEBUG:        return CRT_DEBUG;
-        case FLAG_FILE_DEBUG:       return FILE_DEBUG;
-
-        case FLAG_JOY_DEBUG:        return JOY_DEBUG;
-        case FLAG_DRV_DEBUG:        return DRV_DEBUG;
-        case FLAG_TAP_DEBUG:        return TAP_DEBUG;
-        case FLAG_KBD_DEBUG:        return KBD_DEBUG;
-        case FLAG_PRT_DEBUG:        return PRT_DEBUG;
-        case FLAG_EXP_DEBUG:        return EXP_DEBUG;
-        case FLAG_USR_DEBUG:        return USR_DEBUG;
-
-        case FLAG_REC_DEBUG:        return REC_DEBUG;
-        case FLAG_REU_DEBUG:        return REU_DEBUG;
-
-        case FLAG_FORCE_ROM_MISSING:        return FORCE_ROM_MISSING;
-        case FLAG_FORCE_MEGA64_MISMATCH:    return FORCE_MEGA64_MISMATCH;
-        case FLAG_FORCE_SNAP_TOO_OLD:       return FORCE_SNAP_TOO_OLD;
-        case FLAG_FORCE_SNAP_TOO_NEW:       return FORCE_SNAP_TOO_NEW;
-        case FLAG_FORCE_SNAP_IS_BETA:       return FORCE_SNAP_IS_BETA;
-        case FLAG_FORCE_SNAP_CORRUPTED:     return FORCE_SNAP_CORRUPTED;
-        case FLAG_FORCE_CRT_UNKNOWN:        return FORCE_CRT_UNKNOWN;
-        case FLAG_FORCE_CRT_UNSUPPORTED:    return FORCE_CRT_UNSUPPORTED;
-        case FLAG_FORCE_RECORDING_ERROR:    return FORCE_RECORDING_ERROR;
-        case FLAG_FORCE_NO_FFMPEG:          return FORCE_NO_FFMPEG;
-
-        default:
-            throw Error(ERROR_OPT_UNSUPPORTED, 
-                            "Unhandled debug variable: " + string(DebugFlagEnum::key(flag)));
-    }
-
-#endif
-}
-
-void
-C64::setDebugVariable(DebugFlag flag, bool val)
-{
-#ifdef RELEASEBUILD
-
-    throw Error(ERROR_OPT_UNSUPPORTED, "Debug variables are only accessible in debug builds.");
-
-#else
-
-    switch (flag) {
-
-        case FLAG_XFILES:           XFILES          = val; break;
-        case FLAG_CNF_DEBUG:        CNF_DEBUG       = val; break;
-        case FLAG_DEF_DEBUG:        DEF_DEBUG       = val; break;
-
-        case FLAG_RUN_DEBUG:        RUN_DEBUG       = val; break;
-        case FLAG_TIM_DEBUG:        TIM_DEBUG       = val; break;
-        case FLAG_WARP_DEBUG:       WARP_DEBUG      = val; break;
-        case FLAG_CMD_DEBUG:        CMD_DEBUG       = val; break;
-        case FLAG_MSG_DEBUG:        MSG_DEBUG       = val; break;
-        case FLAG_SNP_DEBUG:        SNP_DEBUG       = val; break;
-
-        case FLAG_RUA_DEBUG:        RUA_DEBUG       = val; break;
-        case FLAG_RUA_ON_STEROIDS:  RUA_ON_STEROIDS = val; break;
-
-        case FLAG_CPU_DEBUG:        CPU_DEBUG       = val; break;
-        case FLAG_IRQ_DEBUG:        IRQ_DEBUG       = val; break;
-
-        case FLAG_MEM_DEBUG:        MEM_DEBUG       = val; break;
-
-        case FLAG_CIA_DEBUG:        CIA_DEBUG       = val; break;
-        case FLAG_CIAREG_DEBUG:     CIAREG_DEBUG    = val; break;
-        case FLAG_CIA_ON_STEROIDS:  CIA_ON_STEROIDS = val; break;
-
-        case FLAG_VICII_DEBUG:      VICII_DEBUG     = val; break;
-        case FLAG_VICII_REG_DEBUG:  VICII_REG_DEBUG = val; break;
-        case FLAG_VICII_SAFE_MODE:  VICII_SAFE_MODE = val; break;
-        case FLAG_VICII_STATS:      VICII_STATS     = val; break;
-        case FLAG_RASTERIRQ_DEBUG:  RASTERIRQ_DEBUG = val; break;
-
-        case FLAG_SID_DEBUG:        SID_DEBUG       = val; break;
-        case FLAG_SID_EXEC:         SID_EXEC        = val; break;
-        case FLAG_SIDREG_DEBUG:     SIDREG_DEBUG    = val; break;
-        case FLAG_AUDBUF_DEBUG:     AUDBUF_DEBUG    = val; break;
-        case FLAG_AUDVOL_DEBUG:     AUDVOL_DEBUG    = val; break;
-
-        case FLAG_VIA_DEBUG:        VIA_DEBUG       = val; break;
-        case FLAG_PIA_DEBUG:        PIA_DEBUG       = val; break;
-        case FLAG_SER_DEBUG:        SER_DEBUG       = val; break;
-        case FLAG_DSK_DEBUG:        DSK_DEBUG       = val; break;
-        case FLAG_DSKCHG_DEBUG:     DSKCHG_DEBUG    = val; break;
-        case FLAG_GCR_DEBUG:        GCR_DEBUG       = val; break;
-        case FLAG_FS_DEBUG:         FS_DEBUG        = val; break;
-        case FLAG_PAR_DEBUG:        PAR_DEBUG       = val; break;
-
-        case FLAG_CRT_DEBUG:        CRT_DEBUG       = val; break;
-        case FLAG_FILE_DEBUG:       FILE_DEBUG      = val; break;
-
-        case FLAG_JOY_DEBUG:        JOY_DEBUG       = val; break;
-        case FLAG_DRV_DEBUG:        DRV_DEBUG       = val; break;
-        case FLAG_TAP_DEBUG:        TAP_DEBUG       = val; break;
-        case FLAG_KBD_DEBUG:        KBD_DEBUG       = val; break;
-        case FLAG_PRT_DEBUG:        PRT_DEBUG       = val; break;
-        case FLAG_EXP_DEBUG:        EXP_DEBUG       = val; break;
-        case FLAG_USR_DEBUG:        USR_DEBUG       = val; break;
-
-        case FLAG_REC_DEBUG:        REC_DEBUG       = val; break;
-        case FLAG_REU_DEBUG:        REU_DEBUG       = val; break;
-
-        case FLAG_FORCE_ROM_MISSING:        FORCE_ROM_MISSING = val; break;
-        case FLAG_FORCE_MEGA64_MISMATCH:    FORCE_MEGA64_MISMATCH = val; break;
-        case FLAG_FORCE_SNAP_TOO_OLD:       FORCE_SNAP_TOO_OLD = val; break;
-        case FLAG_FORCE_SNAP_TOO_NEW:       FORCE_SNAP_TOO_NEW = val; break;
-        case FLAG_FORCE_SNAP_IS_BETA:       FORCE_SNAP_IS_BETA = val; break;
-        case FLAG_FORCE_SNAP_CORRUPTED:     FORCE_SNAP_CORRUPTED = val; break;
-        case FLAG_FORCE_CRT_UNKNOWN:        FORCE_CRT_UNKNOWN = val; break;
-        case FLAG_FORCE_CRT_UNSUPPORTED:    FORCE_CRT_UNSUPPORTED = val; break;
-        case FLAG_FORCE_RECORDING_ERROR:    FORCE_RECORDING_ERROR = val; break;
-        case FLAG_FORCE_NO_FFMPEG:          FORCE_NO_FFMPEG = val; break;
-
-        default:
-            throw Error(ERROR_OPT_UNSUPPORTED,
-                            "Unhandled debug variable: " + string(DebugFlagEnum::key(flag)));
-    }
-#endif
 }
 
 u32

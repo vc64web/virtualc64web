@@ -26,12 +26,11 @@ port1(ref.port1),
 port2(ref.port2),
 cpu(ref.cpu),
 datasette(ref.datasette),
-debugger(ref.debugger),
 drive8(ref.drive8),
 drive9(ref.drive9),
 expansionPort(ref.expansionport),
 userPort(ref.userPort),
-host(ref.emulator.host),
+host(ref.host),
 serialPort(ref.iec),
 keyboard(ref.keyboard),
 mem(ref.mem),
@@ -41,6 +40,7 @@ parCable(ref.parCable),
 powerSupply(ref.supply),
 recorder(ref.recorder),
 regressionTester(ref.regressionTester),
+remoteManager(ref.remoteManager),
 retroShell(ref.retroShell),
 sidBridge(ref.sidBridge),
 sid0(ref.sidBridge.sid[0]),
@@ -57,15 +57,9 @@ SubComponent::SubComponent(C64& ref) : CoreComponent(ref.emulator), References(r
 SubComponent::SubComponent(C64& ref, isize id) : CoreComponent(ref.emulator, id), References(ref) { };
 
 void
-SubComponent::prefix() const
+SubComponent::prefix(isize level, const char *component, isize line) const
 {
-    c64.prefix();
-}
-
-void 
-SubComponent::markAsDirty() 
-{
-    c64.markAsDirty();
+    c64.prefix(level, component, line);
 }
 
 }

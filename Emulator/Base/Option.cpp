@@ -33,13 +33,15 @@ OptionParser::create(Option opt, i64 arg)
         case OPT_HOST_FRAMEBUF_WIDTH:       return numParser(" pixels");
         case OPT_HOST_FRAMEBUF_HEIGHT:      return numParser(" pixels");
 
-        case OPT_EMU_WARP_MODE:             return enumParser.template operator()<WarpModeEnum>();
-        case OPT_EMU_WARP_BOOT:             return numParser(" sec");
-        case OPT_EMU_VSYNC:                 return boolParser();
-        case OPT_EMU_SPEED_ADJUST:          return numParser("%");
-        case OPT_EMU_SNAPSHOTS:             return boolParser();
-        case OPT_EMU_SNAPSHOT_DELAY:        return numParser(" sec");
-        case OPT_EMU_RUN_AHEAD:             return numParser(" frames");
+        case OPT_C64_WARP_MODE:             return enumParser.template operator()<WarpModeEnum>();
+        case OPT_C64_WARP_BOOT:             return numParser(" sec");
+        case OPT_C64_VSYNC:                 return boolParser();
+        case OPT_C64_SPEED_BOOST:           return numParser("%");
+        case OPT_C64_RUN_AHEAD:             return numParser(" frames");
+
+        case OPT_C64_SNAP_AUTO:             return boolParser();
+        case OPT_C64_SNAP_DELAY:            return numParser(" sec");
+        case OPT_C64_SNAP_COMPRESS:         return boolParser();
 
         case OPT_VICII_REVISION:            return enumParser.template operator()<VICIIRevisionEnum>();
         case OPT_VICII_GRAY_DOT_BUG:        return boolParser();
@@ -65,6 +67,8 @@ OptionParser::create(Option opt, i64 arg)
         case OPT_DMA_DEBUG_COLOR3:          return numParser();
         case OPT_DMA_DEBUG_COLOR4:          return numParser();
         case OPT_DMA_DEBUG_COLOR5:          return numParser();
+
+        case OPT_EXP_REU_SPEED:             return numParser();
 
         case OPT_USR_DEVICE:                return enumParser.template operator()<UserPortDeviceEnum>();
 
@@ -98,6 +102,7 @@ OptionParser::create(Option opt, i64 arg)
 
         case OPT_CIA_REVISION:              return enumParser.template operator()<CIARevisionEnum>();
         case OPT_CIA_TIMER_B_BUG:           return boolParser();
+        case OPT_CIA_IDLE_SLEEP:            return boolParser();
 
         case OPT_SID_ENABLE:                return boolParser();
         case OPT_SID_ADDRESS:               return hexParser();
@@ -161,6 +166,11 @@ OptionParser::create(Option opt, i64 arg)
         case OPT_REC_SAMPLE_RATE:           return numParser(" Hz");
         case OPT_REC_ASPECT_X:              return numParser();
         case OPT_REC_ASPECT_Y:              return numParser();
+
+        case OPT_SRV_PORT:                  return numParser();
+        case OPT_SRV_PROTOCOL:              return enumParser.template operator()<ServerProtocolEnum>();
+        case OPT_SRV_AUTORUN:               return boolParser();
+        case OPT_SRV_VERBOSE:               return boolParser();
 
         default:
             fatalError;

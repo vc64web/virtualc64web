@@ -27,6 +27,7 @@ debugflag SNP_DEBUG       = 0;
 
 // Run ahead
 debugflag RUA_DEBUG       = 0;
+debugflag RUA_CHECKSUM    = 0;
 debugflag RUA_ON_STEROIDS = 0;
 
 // CPU
@@ -39,7 +40,6 @@ debugflag MEM_DEBUG       = 0;
 // CIAs
 debugflag CIA_DEBUG       = 0;
 debugflag CIAREG_DEBUG    = 0;
-debugflag CIA_ON_STEROIDS = 0;
 
 // VICII
 debugflag VICII_DEBUG     = 0;
@@ -81,6 +81,8 @@ debugflag USR_DEBUG       = 0;
 // Other components
 debugflag REC_DEBUG       = 0;
 debugflag REU_DEBUG       = 0;
+debugflag SCK_DEBUG       = 0;
+debugflag SRV_DEBUG       = 0;
 
 
 //

@@ -29,11 +29,13 @@ public util::RingBuffer <SamplePair, 12288> {
 
     Descriptions descriptions = {{
 
+        .type           = AudioPortClass,
         .name           = "Audio",
-        .description    = "Audio Port"
+        .description    = "Audio Port",
+        .shell          = "audio"
     }};
 
-    ConfigOptions options = {
+    Options options = {
 
         OPT_AUD_VOL0,
         OPT_AUD_VOL1,
@@ -119,7 +121,7 @@ public:
 private:
 
     void _dump(Category category, std::ostream& os) const override;
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
     void _powerOn() override;
     void _run() override;
     void _pause() override;
@@ -146,7 +148,7 @@ public:
 public:
 
     const AudioPortConfig &getConfig() const { return config; }
-    const ConfigOptions &getOptions() const override { return options; }
+    const Options &getOptions() const override { return options; }
     i64 getOption(Option opt) const override;
     void checkOption(Option opt, i64 value) override;
     void setOption(Option opt, i64 value) override;

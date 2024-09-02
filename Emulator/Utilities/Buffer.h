@@ -12,9 +12,10 @@
 
 #pragma once
 
-#include "Types.h"
+#include "BasicTypes.h"
 #include "Checksum.h"
 #include <filesystem>
+#include <vector>
 
 namespace vc64::util {
 
@@ -30,6 +31,7 @@ template <class T> struct Allocator {
     Allocator(T *&ptr) : ptr(ptr), size(0) { ptr = nullptr; }
     Allocator(const Allocator&) = delete;
     ~Allocator() { dealloc(); }
+    Allocator& operator= (const Allocator& other);
     
     // Queries the buffer state
     isize bytesize() const { return size * sizeof(T); }
@@ -41,7 +43,9 @@ template <class T> struct Allocator {
     void dealloc();
     void init(isize elements, T value = 0);
     void init(const T *buf, isize elements);
+    void init(const string &str);
     void init(const Allocator<T> &other);
+    void init(const std::vector<T> &vector);
     void init(const fs::path &path);
     void init(const fs::path &path, const string &name);
 
@@ -66,6 +70,10 @@ template <class T> struct Allocator {
     u64 fnv64() const { return ptr ? util::fnv64((u8 *)ptr, bytesize()) : 0; }
     u16 crc16() const { return ptr ? util::crc16((u8 *)ptr, bytesize()) : 0; }
     u32 crc32() const { return ptr ? util::crc32((u8 *)ptr, bytesize()) : 0; }
+
+    // Compresses or uncompresses a buffer
+    void compress(isize n = 2, isize offset = 0);
+    void uncompress(isize n = 2, isize offset = 0);
 };
 
 template <class T> struct Buffer : public Allocator <T> {
@@ -85,6 +93,8 @@ template <class T> struct Buffer : public Allocator <T> {
     Buffer(const fs::path &path, const string &name)
     : Allocator<T>(ptr) { this->init(path, name); }
     
+    Buffer& operator= (const Buffer& other) { Allocator<T>::operator=(other); return *this; }
+
     T operator [] (isize i) const { return ptr[i]; }
     T &operator [] (isize i) { return ptr[i]; }
 };

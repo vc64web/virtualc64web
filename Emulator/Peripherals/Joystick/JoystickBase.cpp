@@ -97,7 +97,7 @@ Joystick::checkOption(Option opt, i64 value)
             return;
 
         default:
-            throw Error(ERROR_OPT_UNSUPPORTED);
+            throw Error(VC64ERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -114,11 +114,13 @@ Joystick::setOption(Option opt, i64 value)
         case OPT_AUTOFIRE_BURSTS:
 
             config.autofireBursts = bool(value);
+            if (isAutofiring()) reload();
             return;
 
         case OPT_AUTOFIRE_BULLETS:
 
             config.autofireBullets = isize(value);
+            if (isAutofiring()) reload();
             return;
 
         case OPT_AUTOFIRE_DELAY:

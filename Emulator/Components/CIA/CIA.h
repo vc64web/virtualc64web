@@ -25,19 +25,24 @@ class CIA : public SubComponent, public Inspectable<CIAInfo, CIAStats> {
 
     Descriptions descriptions = {
         {
+            .type           = CIAClass,
             .name           = "CIA1",
-            .description    = "Complex Interface Adapter 1"
+            .description    = "Complex Interface Adapter 1",
+            .shell          = "cia1"
         },
         {
+            .type           = CIAClass,
             .name           = "CIA2",
-            .description    = "Complex Interface Adapter 2"
+            .description    = "Complex Interface Adapter 2",
+            .shell          = "cia2"
         }
     };
 
-    ConfigOptions options = {
+    Options options = {
 
         OPT_CIA_REVISION,
-        OPT_CIA_TIMER_B_BUG
+        OPT_CIA_TIMER_B_BUG,
+        OPT_CIA_IDLE_SLEEP
     };
 
 
@@ -353,8 +358,6 @@ public:
     void serialize(T& worker)
     {
         worker
-
-        << tod
         
         << counterA
         << counterB
@@ -408,7 +411,7 @@ public:
 private:
 
     void _dump(Category category, std::ostream& os) const override;
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
 
 
     //
@@ -428,7 +431,7 @@ public:
 public:
 
     const CIAConfig &getConfig() const { return config; }
-    const ConfigOptions &getOptions() const override { return options; }
+    const Options &getOptions() const override { return options; }
     i64 getOption(Option opt) const override;
     void checkOption(Option opt, i64 value) override;
     void setOption(Option opt, i64 value) override;

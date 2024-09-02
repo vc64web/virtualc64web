@@ -762,8 +762,8 @@ extern "C" char* wasm_export_disk()
   printf("\n");
   */
   sprintf(wasm_pull_user_snapshot_file_json_result, "{\"address\":%lu, \"size\": %lu }",
-  (unsigned long)export_disk->data, 
-  export_disk->size
+  export_disk->data.ptr, 
+  export_disk->data.size
   );
   printf("return => %s\n",wasm_pull_user_snapshot_file_json_result);
   return wasm_pull_user_snapshot_file_json_result;
@@ -840,7 +840,7 @@ extern "C" void wasm_set_warp(unsigned on)
 {
   warp_mode = (on == 1);
 
-  wrapper->emu->set(OPT_EMU_WARP_MODE, warp_mode? WARP_AUTO : WARP_NEVER);
+  wrapper->emu->set(OPT_C64_WARP_MODE, warp_mode? WARP_AUTO : WARP_NEVER);
 /*  if(wrapper->emu->serialPort.serialPort->isTransferring() && 
       (
         (wrapper->emu->isWarping() && warp_mode == false)
@@ -903,14 +903,6 @@ void calculate_viewport()
   SDL_SetWindowMinimumSize(window, clipped_width, clipped_height);
   SDL_RenderSetLogicalSize(renderer, clipped_width, clipped_height); 
   SDL_SetWindowSize(window, clipped_width, clipped_height);
-}
-
-
-extern "C" void wasm_set_PAL(unsigned on)
-{
-  wrapper->emu->set(OPT_VICII_REVISION, on == 0 ? VICII_NTSC_8562 : VICII_PAL_6569_R1);
-  printf("set to =%s\n", frame_rate<60 ? "PAL":"NTSC");
-  calculate_viewport();
 }
 
 extern "C" void wasm_set_borderless(unsigned on)
@@ -1121,6 +1113,32 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
     return rom_type;    
   }
   return "";
+}
+
+extern "C" bool wasm_expansion_port_info()
+{
+  auto traits = wrapper->emu->expansionPort.getCartridgeTraits();
+  
+  if(traits.type != CRT_NONE /*&& traits.type != CRT_GEO_RAM && traits.type != CRT_REU*/)
+  {
+    return true;
+  }
+  return false;
+}
+
+extern "C" void wasm_detach_cartridge()
+{
+  wrapper->emu->expansionPort.detachCartridge();
+  wrapper->emu->c64.hardReset();
+}
+
+extern "C" void wasm_soft_reset()
+{
+  wrapper->emu->c64.softReset();
+}
+extern "C" void wasm_hard_reset()
+{
+  wrapper->emu->c64.hardReset();
 }
 
 
@@ -1492,7 +1510,7 @@ extern "C" void wasm_write_string_to_ser(char* chars_to_send)
 extern "C" void wasm_poke(u16 addr, u8 value)
 {
     wrapper->emu->mem.mem->poke(addr, value);
-    wrapper->emu->c64.c64->markAsDirty(); 
+    wrapper->emu->emu->markAsDirty(); 
 }
 
 /*
@@ -1548,7 +1566,7 @@ extern "C" void wasm_configure(char* option, unsigned on)
   else if(strcmp(option,"OPT_EMU_RUN_AHEAD") == 0)
   {
     printf("calling c64->configure %s = %d\n", option, on);
-    wrapper->emu->set(OPT_EMU_RUN_AHEAD, on);
+    wrapper->emu->set(OPT_C64_RUN_AHEAD, on);
   }
   else if(strcmp(option,"OPT_DRV_POWER_SAVE") == 0)
   {

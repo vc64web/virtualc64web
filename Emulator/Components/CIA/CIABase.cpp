@@ -122,6 +122,8 @@ CIA::getOption(Option option) const
 
         case OPT_CIA_REVISION:      return config.revision;
         case OPT_CIA_TIMER_B_BUG:   return config.timerBBug;
+        case OPT_CIA_IDLE_SLEEP:    return config.idleSleep;
+
 
         default:
             fatalError;
@@ -136,16 +138,17 @@ CIA::checkOption(Option opt, i64 value)
         case OPT_CIA_REVISION:
 
             if (!CIARevisionEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, CIARevisionEnum::keyList());
+                throw Error(VC64ERROR_OPT_INV_ARG, CIARevisionEnum::keyList());
             }
             return;
 
         case OPT_CIA_TIMER_B_BUG:
+        case OPT_CIA_IDLE_SLEEP:
 
             return;
 
         default:
-            throw Error(ERROR_OPT_UNSUPPORTED);
+            throw Error(VC64ERROR_OPT_UNSUPPORTED);
     }
 }
 
@@ -164,6 +167,11 @@ CIA::setOption(Option opt, i64 value)
         case OPT_CIA_TIMER_B_BUG:
 
             config.timerBBug = value;
+            return;
+
+        case OPT_CIA_IDLE_SLEEP:
+
+            config.idleSleep = value;
             return;
 
         default:

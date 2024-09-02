@@ -13,6 +13,7 @@
 #include "config.h"
 #include "AnyFile.h"
 #include "Checksum.h"
+#include "IOUtils.h"
 #include "CRTFile.h"
 #include "D64File.h"
 #include "Folder.h"
@@ -27,62 +28,42 @@
 
 namespace vc64 {
 
-AnyFile::AnyFile(isize capacity)
-{
-    init(capacity);
-}
-
-AnyFile::~AnyFile()
-{
-    if (data) delete[] data;
-}
-
 void
 AnyFile::init(isize capacity)
 {
-    data = new u8[capacity]();
-    size = capacity;
+    data.init(capacity);
+}
+
+void
+AnyFile::init(const Buffer<u8> &buffer)
+{
+    init(buffer.ptr, buffer.size);
+}
+
+void 
+AnyFile::init(const string &str)
+{
+    init((const u8 *)str.c_str(), (isize)str.length());
 }
 
 void
 AnyFile::init(const fs::path &path)
 {
-    std::ifstream stream(path);
-    if (!stream.is_open()) throw Error(ERROR_FILE_NOT_FOUND, path);
-    init(path, stream);
-}
+    std::ifstream stream(path, std::ios::binary);
+    if (!stream.is_open()) throw Error(VC64ERROR_FILE_NOT_FOUND, path);
 
-void
-AnyFile::init(const fs::path &path, std::istream &stream)
-{
-    if (!isCompatiblePath(path)) throw Error(ERROR_FILE_TYPE_MISMATCH);
-    init(stream);
+    std::ostringstream sstr(std::ios::binary);
+    sstr << stream.rdbuf();
+    init(sstr.str());
     this->path = path;
-}
-
-void
-AnyFile::init(std::istream &stream)
-{
-    if (!isCompatibleStream(stream)) throw Error(ERROR_FILE_TYPE_MISMATCH);
-    readFromStream(stream);
 }
 
 void
 AnyFile::init(const u8 *buf, isize len)
 {
     assert(buf);
-    std::stringstream stream;
-    stream.write((const char *)buf, len);
-    init(stream);
-}
-
-void
-AnyFile::init(FILE *file)
-{
-    assert(file);
-    std::stringstream stream(std::ios::binary);
-    int c; while ((c = fgetc(file)) != EOF) { stream.put((char)c); }
-    init(stream);
+    if (!isCompatibleBuffer(buf, len)) throw Error(VC64ERROR_FILE_TYPE_MISMATCH);
+    readFromBuffer(buf, len);
 }
 
 string
@@ -105,105 +86,122 @@ AnyFile::getName() const
     return PETName<16>(s.substr(start, len));
 }
 
-u64
-AnyFile::fnv() const
-{
-    return data ? util::fnv64(data, size) : 0;
-}
-
 void
 AnyFile::strip(isize count)
 {
-    assert(data != nullptr);
-    assert(count < size);
-
-    isize newSize = size - count;
-    u8 *newData = new u8[newSize];
-    
-    memcpy(newData, data + count, newSize);
-    delete [] data;
-    
-    size = newSize;
-    data = newData;
+    data.resize(count);
 }
 
 void
 AnyFile::flash(u8 *buffer, isize offset) const
 {
-    assert(buffer);
-    std::memcpy(buffer + offset, data, size);
-}
+    if (data.ptr) {
 
-void
-AnyFile::readFromStream(std::istream &stream)
-{
-    // Get stream size
-    auto fsize = stream.tellg();
-    stream.seekg(0, std::ios::end);
-    fsize = stream.tellg() - fsize;
-    stream.seekg(0, std::ios::beg);
-
-    // Allocate memory
-    data = new u8[isize(fsize)]();
-    size = isize(fsize);
-
-    // Read data
-    stream.read((char *)data, size);
-    finalizeRead();
-}
-
-void
-AnyFile::readFromFile(const fs::path &path)
-{
-    std::ifstream stream(path);
-
-    if (!stream.is_open()) {
-        throw Error(ERROR_FILE_CANT_READ);
+        assert(buffer);
+        std::memcpy(buffer + offset, data.ptr, data.size);
     }
-    
-    this->path = path;
-
-    readFromStream(stream);
 }
 
-void
+bool 
+AnyFile::isCompatibleBuffer(const Buffer<u8> &buffer)
+{
+    return isCompatibleBuffer(buffer.ptr, buffer.size);
+}
+
+isize
 AnyFile::readFromBuffer(const u8 *buf, isize len)
 {
     assert(buf);
 
     // Allocate memory
-    size = len;
-    assert(data == nullptr);
-    data = new u8[size];
+    data.alloc(len);
 
     // Copy data
-    std::memcpy(data, buf, size);
+    std::memcpy(data.ptr, buf, data.size);
     finalizeRead();
+
+    return data.size;
 }
 
-void
-AnyFile::writeToStream(std::ostream &stream)
+isize
+AnyFile::readFromBuffer(const Buffer<u8> &buffer)
 {
-    stream.write((char *)data, size);
+    return readFromBuffer(buffer.ptr, buffer.size);
 }
 
-void
-AnyFile::writeToFile(const fs::path &path)
+isize
+AnyFile::writeToStream(std::ostream &stream, isize offset, isize len)
 {
-    std::ofstream stream(path);
+    assert(offset >= 0 && offset < data.size);
+    assert(len >= 0 && offset + len <= data.size);
+
+    stream.write((char *)data.ptr + offset, len);
+    finalizeWrite();
+
+    return data.size;
+}
+
+isize
+AnyFile::writeToFile(const std::filesystem::path &path, isize offset, isize len)
+{
+    if (util::isDirectory(path)) {
+        throw Error(VC64ERROR_FILE_IS_DIRECTORY);
+    }
+
+    std::ofstream stream(path, std::ofstream::binary);
 
     if (!stream.is_open()) {
-        throw Error(ERROR_FILE_CANT_WRITE);
+        throw Error(VC64ERROR_FILE_CANT_WRITE, path);
     }
-    
-    writeToStream(stream);
+
+    isize result = writeToStream(stream, offset, len);
+    assert(result == data.size);
+
+    return result;
 }
 
-void
-AnyFile::writeToBuffer(u8 *buf)
+isize
+AnyFile::writeToBuffer(u8 *buf, isize offset, isize len)
 {
     assert(buf);
-    std::memcpy(buf, data, size);
+    assert(offset >= 0 && offset < data.size);
+    assert(len >= 0 && offset + len <= data.size);
+
+    std::memcpy(buf, (char *)data.ptr + offset, len);
+    finalizeWrite();
+
+    return data.size;
+}
+
+isize
+AnyFile::writeToBuffer(Buffer<u8> &buffer, isize offset, isize len)
+{
+    buffer.alloc(len);
+    return writeToBuffer(buffer.ptr, offset, len);
+}
+
+isize
+AnyFile::writeToStream(std::ostream &stream)
+{
+    return writeToStream(stream, 0, data.size);
+}
+
+isize
+AnyFile::writeToFile(const std::filesystem::path &path)
+{
+    return writeToFile(path, 0, data.size);
+}
+
+isize
+AnyFile::writeToBuffer(u8 *buf)
+{
+    return writeToBuffer(buf, 0, data.size);
+}
+
+isize
+AnyFile::writeToBuffer(Buffer<u8> &buffer)
+{
+    return writeToBuffer(buffer, 0, data.size);
 }
 
 }

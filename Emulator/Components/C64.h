@@ -16,10 +16,9 @@
 #include "MsgQueue.h"
 #include "Thread.h"
 
-// Subcomponents
+// Components
 #include "Keyboard.h"
-#include "C64Memory.h"
-#include "Debugger.h"
+#include "Memory.h"
 #include "DriveMemory.h"
 #include "FlashRom.h"
 #include "VICII.h"
@@ -28,8 +27,6 @@
 #include "CIA.h"
 #include "CPU.h"
 #include "Recorder.h"
-#include "RegressionTester.h"
-#include "RetroShell.h"
 
 // Ports
 #include "AudioPort.h"
@@ -64,6 +61,13 @@
 #include "CRTFile.h"
 #include "FileSystem.h"
 
+// Misc
+#include "Host.h"
+#include "RegressionTester.h"
+#include "RemoteManager.h"
+#include "RetroShell.h"
+#include "RshServer.h"
+
 namespace vc64 {
 
 //
@@ -82,37 +86,35 @@ static constexpr Cycle NEVER = INT64_MAX;
 static constexpr double inspectionInterval = 0.1;
 
 
-/* A complete virtual C64. This class is the most prominent one of all. To run
- * the emulator, it is sufficient to create a single object of this type. All
- * subcomponents are created automatically. The public API gives you control
- * over the emulator's behaviour such as running and pausing the emulation.
- * Please note that most subcomponents have their own public API. E.g., to
- * query information from VICII, you need to invoke a method on c64.vicii.
- */
 class C64 final : public CoreComponent, public Inspectable<C64Info> {
 
     friend class Emulator;
 
     Descriptions descriptions = {
         {
+            .type           = C64Class,
             .name           = "C64",
-            .description    = "Commodore 64"
+            .description    = "Commodore 64",
+            .shell          = "c64"
         },
         {
+            .type           = C64Class,
             .name           = "C64[run-ahead]",
-            .description    = "Commodore 64"
+            .description    = "Commodore 64",
+            .shell          = ""
         }
     };
 
-    ConfigOptions options = {
+    Options options = {
 
-        OPT_EMU_WARP_BOOT,
-        OPT_EMU_WARP_MODE,
-        OPT_EMU_VSYNC,
-        OPT_EMU_SPEED_ADJUST,
-        OPT_EMU_SNAPSHOTS,
-        OPT_EMU_SNAPSHOT_DELAY,
-        OPT_EMU_RUN_AHEAD
+        OPT_C64_WARP_BOOT,
+        OPT_C64_WARP_MODE,
+        OPT_C64_SPEED_BOOST,
+        OPT_C64_VSYNC,
+        OPT_C64_RUN_AHEAD,
+        OPT_C64_SNAP_AUTO,
+        OPT_C64_SNAP_DELAY,
+        OPT_C64_SNAP_COMPRESS
     };
     
 private:
@@ -130,8 +132,11 @@ private:
 
 public:
 
-    // Core components
-    C64Memory mem = C64Memory(*this);
+    // Host system information
+    Host host = Host(*this);
+
+    // Components
+    Memory mem = Memory(*this);
     CPU cpu = CPU(MOS_6510, *this);
     CIA1 cia1 = CIA1(*this);
     CIA2 cia2 = CIA2(*this);
@@ -161,7 +166,7 @@ public:
 
     // Misc
     RetroShell retroShell = RetroShell(*this);
-    Debugger debugger = Debugger(*this);
+    RemoteManager remoteManager = RemoteManager(*this);
     RegressionTester regressionTester = RegressionTester(*this);
     Recorder recorder = Recorder(*this);
 
@@ -206,9 +211,6 @@ private:
 
 private:
 
-    Snapshot *autoSnapshot = nullptr;
-    Snapshot *userSnapshot = nullptr;
-
     typedef struct { Cycle trigger; i64 payload; } Alarm;
     std::vector<Alarm> alarms;
 
@@ -247,7 +249,7 @@ private:
      * This flag is used to determine whether the run-ahead instance needs to
      * be recreated.
      */
-    bool isDirty = false;
+    // bool isDirty = false;
     
     // Duration of a CPU cycle in 1/10 nano seconds
     i64 durationOfOneCycle;
@@ -271,6 +273,11 @@ public:
     // Returns a textual description for an event
     static const char *eventName(EventSlot slot, EventID id);
 
+    // Converts a time span to an (approximate) cycle count
+    static Cycle usec(isize delay) { return Cycle(delay * 1LL); }
+    static Cycle msec(isize delay) { return Cycle(delay * 1000LL); }
+    static Cycle sec(double delay) { return Cycle(delay * 1000000LL); }
+
 
     //
     // Methods
@@ -287,19 +294,7 @@ private:
 
 
     //
-    // Static methods
-    //
-
-public:
-    
-    // Converts a time span to an (approximate) cycle count
-    static Cycle usec(isize delay) { return Cycle(delay * 1LL); }
-    static Cycle msec(isize delay) { return Cycle(delay * 1000LL); }
-    static Cycle sec(double delay) { return Cycle(delay * 1000000LL); }
-
-
-    //
-    // Methods from CoreComponent
+    // Operators
     //
 
 public:
@@ -358,29 +353,6 @@ public:
     {
         worker
 
-        << mem
-        << cpu
-        << cia1
-        << cia2
-        << vic
-        << sidBridge
-        << audioPort
-        << videoPort
-        << supply
-        << port1
-        << port2
-        << expansionport
-        << iec
-        << keyboard
-        << drive8
-        << drive9
-        << parCable
-        << datasette
-        << monitor
-        << retroShell
-        << regressionTester
-        << recorder
-
         << trigger
         << eventid
         << data
@@ -399,7 +371,7 @@ public:
         << config.warpBoot
         << config.warpMode
         << config.vsync
-        << config.speedAdjust
+        << config.speedBoost
         << config.snapshots
         << config.snapshotDelay
         << config.runAhead;
@@ -419,115 +391,13 @@ public:
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
-    void prefix() const override;
+    void prefix(isize level, const char *component, isize line) const override;
 
 private:
 
     void _dump(Category category, std::ostream& os) const override;
-    void _reset(bool hard) override;
 
-
-    //
-    // Methods from Inspectable
-    //
-
-public:
-
-    virtual void record() const override;
-    void cacheInfo(C64Info &result) const override;
-
-    EventSlotInfo getSlotInfo(isize nr) const;
-
-private:
-
-    void inspectSlot(EventSlot nr) const;
-
-
-    //
-    // Methods from Configurable
-    //
-
-public:
-
-    const ConfigOptions &getOptions() const override { return options; }
-    i64 getOption(Option opt) const override;
-    void checkOption(Option opt, i64 value) override;
-    void setOption(Option opt, i64 value) override;
-    
-
-    //
-    // Configuring
-    //
-
-public:
-
-    const C64Config &getConfig() const { return config; }
-
-    // Updates the clock frequency and all variables derived from it
-    void updateClockFrequency();
-
-    // Indicates that the run-ahead instance needs an update
-    void markAsDirty() { isDirty = true; }
-
-    // Enables or disables headless mode
-    bool getHeadless() const { return headless; }
-    void setHeadless(bool value) { headless = value; }
-
-    // Exports the current configuration to a script file
-    void exportConfig(const fs::path &path) const;
-    void exportConfig(std::ostream& stream) const;
-
-
-    //
-    // Analyzing
-    //
-
-public:
-
-    InspectionTarget getInspectionTarget() const;
-
-private:
-
-    void setInspectionTarget(InspectionTarget target);
-    void removeInspectionTarget() { setInspectionTarget(INSPECTION_NONE); }
-
-
-    //
-    //
-    //
-
-public:
-
-    isize size();
-    isize load(const u8 *buffer);
-    isize save(u8 *buffer);
-
-
-    //
-    // Executing
-    //
-
-private:
-
-    void execute();
-    void execute(bool headless);
-    void executeHeadless() { execute(true); }
-    template <bool enable8, bool enable9> void execute();
-    template <bool enable8, bool enable9> alwaysinline void executeCycle();
-    template <bool enable8, bool enable9> void finishInstruction();
-    void processFlags();
-
-
-    // Experimental (for runahead)
-    void fastForward(isize frames);
-
-
-    //
-    // Controlling
-    //
-
-private:
-
+    void _didReset(bool hard) override;
     void _isReady() const throws override;
     void _powerOn() override;
     void _powerOff() override;
@@ -541,13 +411,121 @@ private:
 
 
     //
-    // Running the emulator
+    // Methods from Inspectable
+    //
+
+public:
+
+    // virtual void record() const override;
+    void cacheInfo(C64Info &result) const override;
+
+    u64 getAutoInspectionMask() const;
+    void setAutoInspectionMask(u64 mask);
+
+
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const C64Config &getConfig() const { return config; }
+    const Options &getOptions() const override { return options; }
+    
+    i64 getOption(Option opt) const override;
+    void checkOption(Option opt, i64 value) override;
+    void setOption(Option opt, i64 value) override;
+    
+    // Exports the current configuration to a script file
+    void exportConfig(const fs::path &path) const;
+    void exportConfig(std::ostream& stream) const;
+
+
+    //
+    // Main API for configuring the emulator
+    //
+
+public:
+
+    // Queries an option
+    i64 get(Option opt, isize objid = 0) const throws;
+
+    // Checks an option
+    void check(Option opt, i64 value, const std::vector<isize> objids = { }) throws;
+
+    // Sets an option
+    void set(Option opt, i64 value, const std::vector<isize> objids = { }) throws;
+
+    // Convenience wrappers
+    void set(Option opt, const string &value, const std::vector<isize> objids = { }) throws;
+    void set(const string &opt, const string &value, const std::vector<isize> objids = { }) throws;
+
+    // Configures the emulator to match a specific C64 model
+    void set(C64Model model);
+
+public: // private
+
+    // Returns the target component for an option
+    Configurable *routeOption(Option opt, isize objid);
+    const Configurable *routeOption(Option opt, isize objid) const;
+
+    // Overrides a config option if the corresponding debug option is enabled
+    i64 overrideOption(Option opt, i64 value) const;
+
+
+    //
+    //
+    //
+
+public:
+
+    // Updates the clock frequency and all variables derived from it
+    void updateClockFrequency();
+
+    // Enables or disables headless mode
+    bool getHeadless() const { return headless; }
+    void setHeadless(bool value) { headless = value; }
+
+
+
+    //
+    // Analyzing
     //
 
 public:
 
     bool getUltimax() const { return ultimax; }
     void setUltimax(bool b) { ultimax = b; }
+
+
+    //
+    // Emulating
+    //
+
+private:
+
+    // Called by the Emulator class in it's own update function
+    void update(CmdQueue &queue);
+
+    // Emulates a frame
+    void computeFrame();
+    void computeFrame(bool headless);
+    void computeFrameHeadless() { computeFrame(true); }
+    template <bool enable8, bool enable9> void execute();
+    template <bool enable8, bool enable9> alwaysinline void executeCycle();
+    template <bool enable8, bool enable9> void finishInstruction();
+    void processFlags();
+
+    // Fast-forward the run-ahead instance
+    void fastForward(isize frames);
+
+
+    //
+    // Controlling the run loop
+    //
+
+public:
 
     /* Sets or clears a flag for controlling the run loop. The functions are
      * thread-safe and can be called safely from outside the emulator thread.
@@ -681,7 +659,7 @@ public:
 private:
 
     // Services an inspection event
-    void processINSEvent(EventID id);
+    void processINSEvent();
 
 
     //
@@ -735,13 +713,18 @@ public:
     void loadRom(const fs::path &path) throws;
     void loadRom(const MediaFile &file);
 
-    // Erases an installed Rom
+    // Erases an installed Rom or all Roms
     void deleteRom(RomType type);
+    void deleteRoms();
 
     // Saves a Rom to disk
     void saveRom(RomType rom, const fs::path &path) throws;
 
+    // Installs an OpenROM or all three of them
+    void installOpenRom(RomType type);
+    void installOpenRoms();
 
+    
     //
     // Flashing files
     //
@@ -780,14 +763,10 @@ private:
 
 public:
 
-    // Gets or sets an internal debug variable (only available in debug builds)
-    static bool getDebugVariable(DebugFlag flag);
-    static void setDebugVariable(DebugFlag flag, bool val);
-
     // Translates the current clock cycle into pseudo-random number
     u32 random();
 
-    // Translates x into a pseudo-random number
+    // Translates seed into a pseudo-random number
     u32 random(u32 seed);
 };
 

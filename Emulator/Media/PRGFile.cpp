@@ -25,9 +25,15 @@ PRGFile::isCompatible(const fs::path &path)
 }
 
 bool
-PRGFile::isCompatible(std::istream &stream)
+PRGFile::isCompatible(const u8 *buf, isize len)
 {
-    return (util::streamLength(stream) >= 2);
+    return (len >= 2);
+}
+
+bool
+PRGFile::isCompatible(const Buffer<u8> &buf)
+{
+    return isCompatible(buf.ptr, buf.size);
 }
 
 void
@@ -37,13 +43,13 @@ PRGFile::init(const FileSystem &fs)
     isize itemSize = fs.fileSize(item);
 
     // Only proceed if the requested file exists
-    if (fs.numFiles() <= item) throw Error(ERROR_FS_HAS_NO_FILES);
+    if (fs.numFiles() <= item) throw Error(VC64ERROR_FS_HAS_NO_FILES);
 
     // Create new archive
     init(itemSize);
 
     // Add data
-    fs.copyFile(item, data, itemSize);
+    fs.copyFile(item, data.ptr, itemSize);
 }
 
 PETName<16>
@@ -69,7 +75,7 @@ isize
 PRGFile::itemSize(isize nr) const
 {
     assert(nr == 0);
-    return size;
+    return data.size;
 }
 
 u8

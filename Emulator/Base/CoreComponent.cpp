@@ -18,6 +18,12 @@
 
 namespace vc64 {
 
+bool
+CoreComponent::operator== (CoreComponent &other)
+{
+    return checksum(true) == other.checksum(true);
+}
+
 const char *
 CoreComponent::objectName() const
 {
@@ -32,91 +38,17 @@ CoreComponent::description() const
     return getDescriptions().at(objid).description;
 }
 
+const char *
+CoreComponent::shellName() const
+{
+    assert(isize(getDescriptions().size()) > objid);
+    return getDescriptions().at(objid).shell;
+}
+
 bool
-CoreComponent::operator== (CoreComponent &other)
+CoreComponent::isInitialized() const
 {
-    return checksum() == other.checksum();
-}
-
-void
-CoreComponent::initialize()
-{
-    assert(!isRunning());
-
-    try {
-
-        for (CoreComponent *c : subComponents) { c->initialize(); }
-        _initialize();
-
-    } catch (std::exception &e) {
-
-        warn("Initialization aborted: %s\n", e.what());
-    }
-}
-
-void 
-CoreComponent::hardReset()
-{
-    // Start over from a zeroed-out state
-    Serializable::hardReset();
-
-    // Let all components perform their specific actions
-    reset(true);
-}
-
-void 
-CoreComponent::softReset()
-{
-    // Start over from a zeroed-out state
-    Serializable::softReset();
-
-    // Let all components perform their specific actions
-    reset(false);
-}
-
-void
-CoreComponent::reset(bool hard)
-{
-    try {
-
-        for (CoreComponent *c : subComponents) { c->reset(hard); }
-        _reset(hard);
-
-    } catch (std::exception &e) {
-
-        fatal("Failed to reset: %s\n", e.what());
-    }
-}
-
-i64 
-CoreComponent::getFallback(Option opt) const
-{
-    return emulator.defaults.get(opt);
-}
-
-void
-CoreComponent::resetConfig()
-{
-    for (CoreComponent *c : subComponents) { c->resetConfig(); }
-    Configurable::resetConfig(emulator.defaults, objid);
-}
-
-void
-CoreComponent::routeOption(Option opt, std::vector<Configurable *> &result)
-{
-    for (auto &o : getOptions()) {
-        if (o == opt) result.push_back(this);
-    }
-    for (auto &c : subComponents) {
-        c->routeOption(opt, result);
-    }
-}
-
-void
-CoreComponent::isReady() const
-{
-    for (auto c : subComponents) { c->isReady(); }
-    _isReady();
+    return emulator.isInitialized();
 }
 
 bool
@@ -155,16 +87,97 @@ CoreComponent::isHalted() const
     return emulator.isHalted();
 }
 
-void 
-CoreComponent::suspend() 
+void
+CoreComponent::isReady() const
+{
+    for (auto c : subComponents) { c->isReady(); }
+    _isReady();
+}
+
+u64
+CoreComponent::checksum(bool recursive)
+{
+    SerChecker checker;
+
+    // Compute a checksum for the members of this component
+    *this << checker;
+
+    // Incoorporate subcomponents if requested
+    if (recursive) for (auto &c : subComponents) checker << c->checksum(recursive);
+
+    return checker.hash;
+}
+
+void
+CoreComponent::suspend()
 {
     return emulator.suspend();
 }
 
 void
-CoreComponent::resume() 
+CoreComponent::resume()
 {
     return emulator.resume();
+}
+
+void
+CoreComponent::resetConfig()
+{
+    for (CoreComponent *c : subComponents) { c->resetConfig(); }
+    Configurable::resetConfig(emulator.defaults, objid);
+}
+
+i64
+CoreComponent::getFallback(Option opt) const
+{
+    return emulator.defaults.get(opt);
+}
+
+Configurable *
+CoreComponent::routeOption(Option opt, isize objid)
+{
+    if (this->objid == objid) {
+        for (auto &o : getOptions()) if (o == opt) return this;
+    }
+    for (auto &c : subComponents) {
+        if (auto result = c->routeOption(opt, objid); result) return result;
+    }
+
+    return nullptr;
+}
+
+void
+CoreComponent::initialize()
+{
+    assert(!isRunning());
+
+    try {
+
+        for (CoreComponent *c : subComponents) { c->initialize(); }
+        _initialize();
+
+    } catch (std::exception &e) {
+
+        warn("Initialization aborted: %s\n", e.what());
+    }
+}
+
+void
+CoreComponent::reset(bool hard)
+{
+    SerResetter resetter(hard);
+
+    {   SUSPENDED
+
+        // Call the pre-reset delegate
+        postorderWalk([hard](CoreComponent *c) { c->_willReset(hard); });
+
+        // Revert to a clean state
+        postorderWalk([&resetter](CoreComponent *c) { *c << resetter; });
+
+        // Call the post-reset delegate
+        postorderWalk([hard](CoreComponent *c) { c->_didReset(hard); });
+    }
 }
 
 void
@@ -244,10 +257,138 @@ CoreComponent::unfocus()
     _unfocus();
 }
 
+isize
+CoreComponent::size(bool recursive)
+{
+    SerCounter counter;
+    *this << counter;
+    isize result = counter.count;
+
+    // Add 8 bytes for the checksum
+    result += 8;
+
+    // Add size of subcomponents if requested
+    if (recursive) for (CoreComponent *c : subComponents) { result += c->size(); }
+
+    return result;
+}
+
+isize
+CoreComponent::load(const u8 *buffer)
+{
+    assert(!isRunning());
+
+    isize result = 0;
+
+    postorderWalk([this, buffer, &result](CoreComponent *c) {
+
+        const u8 *ptr = buffer + result;
+
+        // Load the checksum for this component
+        auto hash = read64(ptr);
+
+        // Load the internal state of this component
+        SerReader reader(ptr); *c << reader;
+
+        // Determine the number of loaded bytes
+        isize count = (isize)(reader.ptr - (buffer + result));
+
+        // Check integrity
+        if (hash != c->checksum(false) || FORCE_SNAP_CORRUPTED) {
+            if (SNP_DEBUG) { fatalError; } else { throw Error(VC64ERROR_SNAP_CORRUPTED); }
+        }
+
+        debug(SNP_DEBUG, "Loaded %ld bytes (expected %ld)\n", count, c->size(false));
+        result += count;
+    });
+
+    postorderWalk([](CoreComponent *c) { c->_didLoad(); });
+
+    return result;
+}
+
+isize
+CoreComponent::save(u8 *buffer)
+{
+    isize result = 0;
+
+    postorderWalk([this, buffer, &result](CoreComponent *c) {
+
+        u8 *ptr = buffer + result;
+
+        // Save the checksum for this component
+        write64(ptr, c->checksum(false));
+
+        // Save the internal state of this component
+        SerWriter writer(ptr); *c << writer;
+
+        // Determine the number of written bytes
+        isize count = (isize)(writer.ptr - (buffer + result));
+
+        // Check integrity
+        if (count != c->size(false) || FORCE_SNAP_CORRUPTED) {
+            if (SNP_DEBUG) { fatalError; } else { throw Error(VC64ERROR_SNAP_CORRUPTED); }
+        }
+
+        debug(SNP_DEBUG, "Saved %ld bytes (expected %ld)\n", count, c->size(false));
+        result += count;
+    });
+
+    postorderWalk([](CoreComponent *c) { c->_didSave(); });
+
+    return result;
+}
+
+std::vector<CoreComponent *>
+CoreComponent::collectComponents()
+{
+    std::vector<CoreComponent *> result;
+    collectComponents(result);
+    return result;
+}
+
+void
+CoreComponent::collectComponents(std::vector<CoreComponent *> &result)
+{
+    result.push_back(this);
+    for (auto &c : subComponents) c->collectComponents(result);
+}
+
+void
+CoreComponent::preoderWalk(std::function<void(CoreComponent *)> func)
+{
+    func(this);
+    for (auto &c : subComponents) c->preoderWalk(func);
+}
+
+void
+CoreComponent::postorderWalk(std::function<void(CoreComponent *)> func)
+{
+    for (auto &c : subComponents) c->postorderWalk(func);
+    func(this);
+}
+
 bool
 CoreComponent::isEmulatorThread() const
 {
     return emulator.isEmulatorThread();
+}
+
+void
+CoreComponent::diff(CoreComponent &other)
+{
+    auto num = subComponents.size();
+    assert(num == other.subComponents.size());
+
+    // Compare all subcomponents
+    for (usize i = 0; i < num; i++) {
+        subComponents[i]->diff(*other.subComponents[i]);
+    }
+
+    // Compare this component
+    if (auto check1 = checksum(false), check2 = other.checksum(false); check1 != check2) {
+        msg("Checksum mismatch: %llx != %llx\n", check1, check2);
+    }
 }
 
 void CoreComponent::exportConfig(std::ostream& ss, bool diff) const
@@ -267,11 +408,11 @@ void CoreComponent::exportConfig(std::ostream& ss, bool diff) const
                 first = false;
             }
 
-            auto cmd = "try " +Interpreter::shellName(*this);
+            auto cmd = "try " + string(shellName());
             auto currentStr = OptionParser::asPlainString(opt, current);
             auto fallbackStr = OptionParser::asPlainString(opt, fallback);
 
-            string line = cmd + " set " + OptionEnum::plainkey(opt) + " " + currentStr;
+            string line = cmd + " set " + OptionEnum::key(opt) + " " + currentStr;
             string comment = diff ? fallbackStr : OptionEnum::help(opt);
 
             ss << std::setw(40) << std::left << line << " # " << comment << std::endl;

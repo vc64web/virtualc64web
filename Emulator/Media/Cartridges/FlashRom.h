@@ -29,9 +29,14 @@ class FlashRom final : public SubComponent {
     Descriptions descriptions = {{
 
         .name           = "FlashRom",
-        .description    = "Flash ROM"
+        .description    = "Flash ROM",
+        .shell          = ""
     }};
 
+    Options options = {
+
+    };
+    
     // Number of sectors in this Flash Rom
     static const isize numSectors = 8;
 
@@ -117,7 +122,16 @@ public:
 private:
 
     void _dump(Category category, std::ostream& os) const override;
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
+
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
 
 
     //

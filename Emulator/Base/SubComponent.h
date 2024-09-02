@@ -28,7 +28,6 @@ protected:
     class ControlPort &port2;
     class CPU &cpu;
     class Datasette &datasette;
-    class Debugger &debugger;
     class Drive &drive8;
     class Drive &drive9;
     class ExpansionPort &expansionPort;
@@ -36,13 +35,14 @@ protected:
     class Host &host;
     class SerialPort &serialPort;
     class Keyboard &keyboard;
-    class C64Memory &mem;
+    class Memory &mem;
     class Monitor &monitor;
     class MsgQueue &msgQueue;
     class ParCable &parCable;
     class PowerPort &powerSupply;
     class Recorder &recorder;
     class RegressionTester &regressionTester;
+    class RemoteManager &remoteManager;
     class RetroShell &retroShell;
     class SIDBridge &sidBridge;
     class SID& sid0;
@@ -66,9 +66,7 @@ public:
     SubComponent(C64& ref);
     SubComponent(C64& ref, isize id);
 
-    void prefix() const override;
-
-    void markAsDirty();
+    void prefix(isize level, const char *component, isize line) const override;
 };
 
 }

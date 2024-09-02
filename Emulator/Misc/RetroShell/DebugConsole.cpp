@@ -11,20 +11,85 @@
 // -----------------------------------------------------------------------------
 
 #include "config.h"
-#include "RetroShell.h"
+#include "Console.h"
 #include "Emulator.h"
-#include "IOUtils.h"
-#include "Parser.h"
-
-#include <fstream>
-#include <sstream>
 
 namespace vc64 {
 
 void
-Interpreter::initDebugShell(Command &root)
+DebugConsole::_enter()
 {
-    initCommons(root);
+    msgQueue.put(MSG_RSH_DEBUGGER, true);
+
+    // If the console is entered the first time...
+    if (isEmpty()) {
+
+        // Print the welcome message
+        exec("welcome");
+        *this << getPrompt();
+    }
+}
+
+void
+DebugConsole::_pause()
+{
+    *this << '\n' << '\n';
+    exec("state");
+    *this << getPrompt();
+}
+
+string
+DebugConsole::getPrompt()
+{
+    std::stringstream ss;
+
+    ss << "(";
+    ss << std::right << std::setw(0) << std::dec << isize(c64.scanline);
+    ss << ",";
+    ss << std::right << std::setw(0) << std::dec << isize(c64.rasterCycle);
+    ss << ") $";
+    ss << std::right << std::setw(4) << std::hex << isize(cpu.getPC0());
+    ss << ": ";
+
+    return ss.str();
+}
+
+void
+DebugConsole::welcome()
+{
+    printHelp();
+    *this << '\n';
+}
+
+void
+DebugConsole::printHelp()
+{
+    storage << "Type 'help' or press 'TAB' twice for help.\n";
+    storage << "Type '.' or press 'SHIFT+RETURN' to exit debug mode.";
+
+    remoteManager.rshServer << "Type 'help' for help.\n";
+    remoteManager.rshServer << "Type '.' to exit debug mode.";
+
+    *this << '\n';
+}
+
+void
+DebugConsole::pressReturn(bool shift)
+{
+    if (!shift && input.empty()) {
+
+        emulator.isRunning() ? emulator.pause() : emulator.stepInto();
+
+    } else {
+
+        Console::pressReturn(shift);
+    }
+}
+
+void
+DebugConsole::initCommands(Command &root)
+{
+    Console::initCommands(root);
 
     //
     // Debug variables
@@ -36,7 +101,7 @@ Interpreter::initDebugShell(Command &root)
              "Display all debug variables",
              [this](Arguments& argv, long value) {
 
-        retroShell.dump(emulator, Category::Debug);
+        dump(emulator, Category::Debug);
     });
 
     if (debugBuild) {
@@ -45,9 +110,9 @@ Interpreter::initDebugShell(Command &root)
 
             root.add({"debug", DebugFlagEnum::key(i)}, { Arg::boolean },
                      DebugFlagEnum::help(i),
-                     [this](Arguments& argv, long value) {
+                     [](Arguments& argv, long value) {
 
-                c64.setDebugVariable(DebugFlag(value), util::parseBool(argv[0]));
+                Emulator::setDebugVariable(DebugFlag(value), util::parseBool(argv[0]));
 
             }, i);
         }
@@ -58,7 +123,7 @@ Interpreter::initDebugShell(Command &root)
     // Program execution
     //
 
-    root.pushGroup("Program execution");
+    Command::currentGroup = "Program execution";
 
     root.add({"goto"}, { }, { Arg::value },
              std::pair <string, string>("g[oto]", "Goto address"),
@@ -85,13 +150,12 @@ Interpreter::initDebugShell(Command &root)
     root.clone("n", {"next"});
 
     root.add({"break"},     "Manage CPU breakpoints");
-    root.pushGroup("");
 
     root.add({"break", ""},
              "List all breakpoints",
              [this](Arguments& argv, long value) {
 
-        retroShell.dump(cpu, Category::Breakpoints);
+        dump(cpu, Category::Breakpoints);
     });
 
     root.add({"break", "at"}, { Arg::address }, { Arg::ignores },
@@ -115,17 +179,13 @@ Interpreter::initDebugShell(Command &root)
         cpu.toggleBreakpoint(parseNum(argv[0]));
     });
 
-    root.popGroup();
-
     root.add({"watch"},     "Manage CPU watchpoints");
-
-    root.pushGroup("");
 
     root.add({"watch", ""},
              "List all watchpoints",
              [this](Arguments& argv, long value) {
 
-        retroShell.dump(cpu, Category::Watchpoints);
+        dump(cpu, Category::Watchpoints);
     });
 
     root.add({"watch", "at"}, { Arg::address }, { Arg::ignores },
@@ -149,14 +209,12 @@ Interpreter::initDebugShell(Command &root)
         cpu.toggleWatchpoint(parseNum(argv[0]));
     });
 
-    root.popGroup();
-
 
     //
     // Monitoring
     //
 
-    root.pushGroup("Monitoring");
+    Command::currentGroup = "Monitoring";
 
     root.add({"d"}, { }, { Arg::address },
              "Disassemble instructions",
@@ -172,7 +230,7 @@ Interpreter::initDebugShell(Command &root)
              [this](Arguments& argv, long value) {
 
         std::stringstream ss;
-        debugger.ascDump(ss, parseAddr(argv, 0, debugger.current), 16);
+        mem.debugger.ascDump(ss, parseAddr(argv, 0, mem.debugger.current), 16);
         retroShell << '\n' << ss << '\n';
     });
 
@@ -181,7 +239,7 @@ Interpreter::initDebugShell(Command &root)
              [this](Arguments& argv, long value) {
 
         std::stringstream ss;
-        debugger.memDump(ss, parseAddr(argv, 0, debugger.current), 16);
+        mem.debugger.memDump(ss, parseAddr(argv, 0, mem.debugger.current), 16);
         retroShell << '\n' << ss << '\n';
     });
 
@@ -189,16 +247,16 @@ Interpreter::initDebugShell(Command &root)
              std::pair<string, string>("w", "Write into memory"),
              [this](Arguments& argv, long value) {
 
-        u16 addr = debugger.current;
+        u16 addr = mem.debugger.current;
         if (argv.size() > 1) { addr = parseAddr(argv[1]); }
-        debugger.write(addr, u8(parseNum(argv[0])));
+        mem.debugger.write(addr, u8(parseNum(argv[0])));
     });
 
     root.add({"c"}, { Arg::src, Arg::dst, Arg::count },
              std::pair<string, string>("c", "Copy a chunk of memory"),
              [this](Arguments& argv, long value) {
 
-        debugger.copy(u16(parseNum(argv[0])), u16(parseNum(argv[1])), parseNum(argv[2]));
+        mem.debugger.copy(u16(parseNum(argv[0])), u16(parseNum(argv[1])), parseNum(argv[2]));
     });
 
     root.add({"f"}, { Arg::sequence }, { Arg::address },
@@ -206,13 +264,13 @@ Interpreter::initDebugShell(Command &root)
              [this](Arguments& argv, long value) {
 
         auto pattern = parseSeq(argv[0]);
-        auto addr = parseAddr(argv, 1, debugger.current);
-        auto found = debugger.memSearch(pattern, addr);
+        auto addr = parseAddr(argv, 1, mem.debugger.current);
+        auto found = mem.debugger.memSearch(pattern, addr);
 
         if (found >= 0) {
 
             std::stringstream ss;
-            debugger.memDump(ss, u16(found), 16);
+            mem.debugger.memDump(ss, u16(found), 16);
             retroShell << ss;
 
         } else {
@@ -231,161 +289,159 @@ Interpreter::initDebugShell(Command &root)
         auto cnt = parseNum(argv[1]);
         auto val = u8(parseNum(argv, 2, 0));
         
-        debugger.write(addr, val, cnt);
+        mem.debugger.write(addr, val, cnt);
     });
 
     root.add({"i"},
              "Inspect a component");
 
-    root.pushGroup("Components");
+    Command::currentGroup = "Components";
 
     root.add({"i", "thread"},       "Emulator thread");
-
-    root.pushGroup("");
 
     root.add({"i", "thread", ""},        "Displays the thread state",
              [this](Arguments& argv, long value) {
 
-        retroShell.dump(emulator, Category::State);
+        dump(emulator, Category::State);
     });
 
     root.add({"i", "thread", "runahead"},    "Inspects the run-ahead instance",
              [this](Arguments& argv, long value) {
 
-        retroShell.dump(emulator, Category::RunAhead);
+        dump(emulator, Category::RunAhead);
     });
 
-    root.popGroup();
-
-    auto cmd = shellName(c64);
+    auto cmd = c64.shellName();
     auto description = c64.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(c64, { Category::Config, Category::State });
+        dump(c64, { Category::Config, Category::State });
     });
 
-    cmd = shellName(mem);
+    cmd = cpu.shellName();
+    description = cpu.description();
+    root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
+
+        dump(cpu, { Category::Config, Category::State });
+    });
+
+    cmd = mem.shellName();
     description = mem.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(mem, { Category::Config, Category::State });
+        dump(mem, { Category::Config, Category::State });
     });
 
-    cmd = shellName(cia1);
+    cmd = cia1.shellName();
     description = cia1.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(cia1, { Category::Config, Category::State });
+        dump(cia1, { Category::Config, Category::State });
     });
 
-    cmd = shellName(cia2);
+    cmd = cia2.shellName();
     description = cia2.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(cia2, { Category::Config, Category::State });
+        dump(cia2, { Category::Config, Category::State });
     });
 
-    cmd = shellName(vic);
+    cmd = vic.shellName();
     description = vic.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(vic, { Category::Config, Category::State });
+        dump(vic, { Category::Config, Category::State });
     });
 
     root.add({"i", "sid"}, { }, { Arg::value }, "Primary SID",
              [this](Arguments& argv, long value) {
 
         isize nr = parseNum(argv, 0, 0);
-        if (nr < 0 || nr > 3) throw Error(ERROR_OPT_INV_ARG, "0 ... 3");
+        if (nr < 0 || nr > 3) throw Error(VC64ERROR_OPT_INV_ARG, "0 ... 3");
 
-        retroShell.dump(sidBridge.sid[nr], { Category::Config, Category::State });
+        dump(sidBridge.sid[nr], { Category::Config, Category::State });
     });
 
-    cmd = shellName(sidBridge);
+    cmd = sidBridge.shellName();
     description = sidBridge.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(sidBridge, { Category::Config, Category::State });
+        dump(sidBridge, { Category::Config, Category::State });
     });
 
-    cmd = shellName(expansionPort);
+    cmd = expansionPort.shellName();
     description = expansionPort.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(expansionPort, { Category::Config, Category::State });
+        dump(expansionPort, { Category::Config, Category::State });
     });
 
-    root.popGroup();
+    Command::currentGroup = "Peripherals";
 
-    root.pushGroup("Peripherals");
-
-    cmd = shellName(keyboard);
+    cmd = keyboard.shellName();
     description = keyboard.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(keyboard, { Category::Config, Category::State });
+        dump(keyboard, { Category::Config, Category::State });
     });
 
-    cmd = shellName(port1);
+    cmd = port1.shellName();
     description = port1.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(port1, { Category::Config, Category::State });
+        dump(port1, { Category::Config, Category::State });
     });
 
-    cmd = shellName(port2);
+    cmd = port2.shellName();
     description = port2.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(port2, { Category::Config, Category::State });
+        dump(port2, { Category::Config, Category::State });
     });
 
-    cmd = shellName(port1.joystick);
+    cmd = port1.joystick.shellName();
     description = port1.joystick.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(port1.joystick, { Category::Config, Category::State });
+        dump(port1.joystick, { Category::Config, Category::State });
     });
 
-    cmd = shellName(port2.joystick);
+    cmd = port2.joystick.shellName();
     description = port2.joystick.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(port2.joystick, { Category::Config, Category::State });
+        dump(port2.joystick, { Category::Config, Category::State });
     });
 
-    cmd = shellName(port1.mouse);
+    cmd = port1.mouse.shellName();
     description = port1.mouse.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(port1.mouse, { Category::Config, Category::State });
+        dump(port1.mouse, { Category::Config, Category::State });
     });
 
-    cmd = shellName(port2.mouse);
+    cmd = port2.mouse.shellName();
     description = port2.mouse.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(port2.mouse, { Category::Config, Category::State });
+        dump(port2.mouse, { Category::Config, Category::State });
     });
 
     for (isize i = 0; i < 2; i++) {
 
         auto &drive = i == 0 ? c64.drive8 : c64.drive9;
 
-        cmd = shellName(drive);
+        cmd = drive.shellName();
         description = drive.description();
-        root.add({cmd}, description);
 
         root.add({"i", cmd}, description);
-
-        root.pushGroup("");
 
         root.add({"i", cmd, ""},
                  "Inspects the internal state",
                  [this](Arguments& argv, long value) {
 
             auto &drive = value ? drive9 : drive8;
-            retroShell.dump(drive, { Category::Config, Category::State });
+            dump(drive, { Category::Config, Category::State });
         }, i);
 
         root.add({"i", cmd, "bankmap"},
@@ -393,7 +449,7 @@ Interpreter::initDebugShell(Command &root)
                  [this](Arguments& argv, long value) {
 
             auto &drive = value ? drive9 : drive8;
-            retroShell.dump(drive, Category::BankMap);
+            dump(drive, Category::BankMap);
         }, i);
 
         root.add({"i", cmd, "disk"},
@@ -401,7 +457,7 @@ Interpreter::initDebugShell(Command &root)
                  [this](Arguments& argv, long value) {
 
             auto &drive = value ? drive9 : drive8;
-            retroShell.dump(drive, Category::Disk);
+            dump(drive, Category::Disk);
         }, i);
 
         root.add({"i", cmd, "layout"},
@@ -409,49 +465,39 @@ Interpreter::initDebugShell(Command &root)
                  [this](Arguments& argv, long value) {
 
             auto &drive = value ? drive9 : drive8;
-            retroShell.dump(drive, Category::Layout);
+            dump(drive, Category::Layout);
         }, i);
-
-        root.popGroup();
     }
 
-    cmd = shellName(serialPort);
+    cmd = serialPort.shellName();
     description = serialPort.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(serialPort, { Category::Config, Category::State });
+        dump(serialPort, { Category::Config, Category::State });
     });
 
-    cmd = shellName(datasette);
+    cmd = datasette.shellName();
     description = datasette.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(datasette, { Category::Config, Category::State });
+        dump(datasette, { Category::Config, Category::State });
     });
 
-    root.popGroup();
-
-    root.pushGroup("Ports");
-
-    cmd = shellName(audioPort);
+    cmd = audioPort.shellName();
     description = audioPort.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(audioPort, { Category::Config, Category::State });
+        dump(audioPort, { Category::Config, Category::State });
     });
 
-    root.popGroup();
+    Command::currentGroup = "Miscellaneous";
 
-    root.pushGroup("Miscellaneous");
-
-    cmd = shellName(host);
+    cmd = host.shellName();
     description = host.description();
     root.add({"i", cmd}, description, [this](Arguments& argv, long value) {
 
-        retroShell.dump(host, { Category::Config, Category::State });
+        dump(host, { Category::Config, Category::State });
     });
-
-    root.popGroup();
 
     root.add({"r"},
              "Show registers");
@@ -459,51 +505,87 @@ Interpreter::initDebugShell(Command &root)
     root.add({"r", "cia1"},         "CIA1",
              [this](Arguments& argv, long value) {
 
-        retroShell.dump(cia1, Category::Registers);
+        dump(cia1, Category::Registers);
     });
 
     root.add({"r", "cia2"},         "CIA2",
              [this](Arguments& argv, long value) {
 
-        retroShell.dump(cia2, Category::Registers);
+        dump(cia2, Category::Registers);
     });
 
     root.add({"r", "vicii"},        "VICII",
              [this](Arguments& argv, long value) {
 
-        retroShell.dump(cia2, Category::Registers);
+        dump(cia2, Category::Registers);
     });
 
     root.add({"r", "sid"},          "Primary SID",
              [this](Arguments& argv, long value) {
 
-        retroShell.dump(sidBridge.sid[0], Category::Registers);
+        dump(sidBridge.sid[0], Category::Registers);
     });
 
-    root.popGroup();
-
 
     //
-    // Miscellaneous (Recorder)
+    // Miscellaneous
     //
 
-    root.pushGroup("Miscellaneous");
+    Command::currentGroup = "Miscellaneous";
 
     root.add({"checksums"},
              "Displays checksum of various components",
              [this](Arguments& argv, long value) {
 
-        retroShell.dump(c64, Category::Checksums);
+        dump(c64, Category::Checksums);
     });
 
-    root.add({"sizeof"},
-             "Displays static memory footprints of various components",
+    root.add({"debug"}, "Debug variables");
+
+    root.add({"debug", ""}, {},
+             "Display all debug variables",
              [this](Arguments& argv, long value) {
 
-        retroShell.dump(c64, Category::Sizeof);
+        dump(emulator, Category::Debug);
     });
 
-    root.popGroup();
+    if (debugBuild) {
+
+        for (isize i = DebugFlagEnum::minVal; i < DebugFlagEnum::maxVal; i++) {
+
+            root.add({"debug", DebugFlagEnum::key(i)}, { Arg::boolean },
+                     DebugFlagEnum::help(i),
+                     [](Arguments& argv, long value) {
+
+                Emulator::setDebugVariable(DebugFlag(value), int(util::parseNum(argv[0])));
+
+            }, i);
+        }
+
+        root.add({"debug", "verbosity"}, { Arg::value },
+                 "Set the verbosity level for generated debug output",
+                 [](Arguments& argv, long value) {
+
+            CoreObject::verbosity = isize(util::parseNum(argv[0]));
+        });
+    }
+
+    root.add({"%"}, { Arg::value },
+             "Convert a value into different formats",
+             [this](Arguments& argv, long value) {
+
+        std::stringstream ss;
+
+        if (isNum(argv[0])) {
+            mem.debugger.convertNumeric(ss, u32(parseNum(argv[0])));
+        } else {
+            mem.debugger.convertNumeric(ss, argv.front());
+        }
+
+        retroShell << '\n' << ss << '\n';
+    });
 }
+
+
 
 }

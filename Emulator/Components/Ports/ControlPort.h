@@ -29,15 +29,23 @@ class ControlPort final : public SubComponent {
 
     Descriptions descriptions = {
         {
+            .type           = ControlPortClass,
             .name           = "Port1",
-            .description    = "Control Port 1"
+            .description    = "Control Port 1",
+            .shell          = "port1"
         },
         {
+            .type           = ControlPortClass,
             .name           = "Port2",
-            .description    = "Control Port 2"
+            .description    = "Control Port 2",
+            .shell          = "port2"
         }
     };
 
+    Options options = {
+
+    };
+    
     // The connected device
     ControlPortDevice device = CPDEVICE_NONE;
 
@@ -78,15 +86,7 @@ public:
 
 public:
 
-    template <class T> void serialize(T& worker) {
-
-        worker
-
-        << mouse
-        << joystick
-        << paddle;
-
-    } SERIALIZERS(serialize);
+    template <class T> void serialize(T& worker) { } SERIALIZERS(serialize);
 
 
     //
@@ -101,6 +101,15 @@ private:
 
     void _dump(Category category, std::ostream& os) const override;
 
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
+    
 
     //
     // Emulating

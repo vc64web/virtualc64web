@@ -35,10 +35,9 @@ struct DmaDisplayModeEnum : util::Reflection<DmaDisplayModeEnum, DmaDisplayMode>
     
     static constexpr long minVal = 0;
     static constexpr long maxVal = DMA_DISPLAY_MODE_ODD_EVEN_LAYERS;
-    static bool isValid(auto value) { return value >= minVal && value <= maxVal; }
     
     static const char *prefix() { return "DMA_DISPLAY_MODE"; }
-    static const char *key(long value)
+    static const char *_key(long value)
     {
         switch (value) {
                 

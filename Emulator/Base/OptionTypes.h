@@ -30,14 +30,17 @@ enum_long(OPT)
     OPT_HOST_FRAMEBUF_WIDTH,    ///< Current width of the emulator window
     OPT_HOST_FRAMEBUF_HEIGHT,   ///< Current height of the emulator window
 
-    // Emulator
-    OPT_EMU_WARP_BOOT,          ///< Warp-boot time in seconds
-    OPT_EMU_WARP_MODE,          ///< Warp activation mode
-    OPT_EMU_VSYNC,              ///< Derive the frame rate to the VSYNC signal
-    OPT_EMU_SPEED_ADJUST,       ///< Speed adjustment in percent
-    OPT_EMU_SNAPSHOTS,          ///< Automatically take a snapshots
-    OPT_EMU_SNAPSHOT_DELAY,     ///< Delay between two snapshots in seconds
-    OPT_EMU_RUN_AHEAD,          ///< Number of run-ahead frames
+    // C64
+    OPT_C64_WARP_BOOT,          ///< Warp-boot time in seconds
+    OPT_C64_WARP_MODE,          ///< Warp activation mode
+    OPT_C64_VSYNC,              ///< Derive the frame rate to the VSYNC signal
+    OPT_C64_SPEED_BOOST,        ///< Speed adjustment in percent
+    OPT_C64_RUN_AHEAD,          ///< Number of run-ahead frames
+
+    // Snapshots
+    OPT_C64_SNAP_AUTO,          ///< Automatically take a snapshots
+    OPT_C64_SNAP_DELAY,         ///< Delay between two snapshots in seconds
+    OPT_C64_SNAP_COMPRESS,      ///< Compress snapshot data
 
     // VICII
     OPT_VICII_REVISION,         ///< Chip revision
@@ -66,12 +69,15 @@ enum_long(OPT)
     OPT_DMA_DEBUG_COLOR4,       ///< Color for channel 4
     OPT_DMA_DEBUG_COLOR5,       ///< Color for channel 5
 
+    // Expansion port
+    OPT_EXP_REU_SPEED,          ///< Transfer speed of the RAM Extension Unit
+    ///<
     // User port
     OPT_USR_DEVICE,             ///< Device connected to the user port
 
     // Video port
     OPT_VID_WHITE_NOISE,        ///< Generate white-noise when switched off
-    ///<
+
     // Monitor
     OPT_MON_PALETTE,            ///< Color palette
     OPT_MON_BRIGHTNESS,         ///< Brightness
@@ -106,6 +112,7 @@ enum_long(OPT)
     // CIA
     OPT_CIA_REVISION,           ///< Chip revision
     OPT_CIA_TIMER_B_BUG,        ///< Emulate timer B bug
+    OPT_CIA_IDLE_SLEEP,         ///< Enter idle state while not in use
 
     // SID
     OPT_SID_ENABLE,             ///< Enable or disable SID
@@ -180,6 +187,12 @@ enum_long(OPT)
     OPT_REC_ASPECT_X,           ///< Numerator of the video's aspect ratio
     OPT_REC_ASPECT_Y,           ///< Denumerator of the video's aspect ratio
 
+    // Remote servers
+    OPT_SRV_PORT,
+    OPT_SRV_PROTOCOL,
+    OPT_SRV_AUTORUN,
+    OPT_SRV_VERBOSE,
+
     OPT_COUNT
 };
 typedef OPT Option;
@@ -188,10 +201,9 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
 
     static constexpr long minVal = 0;
     static constexpr long maxVal = OPT_AUTOFIRE_DELAY;
-    static bool isValid(auto value) { return value >= minVal && value <= maxVal; }
 
     static const char *prefix() { return "OPT"; }
-    static const char *key(long value)
+    static const char *_key(long value)
     {
         switch (value) {
 
@@ -200,13 +212,15 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
             case OPT_HOST_FRAMEBUF_WIDTH:   return "HOST.FRAMEBUF_WIDTH";
             case OPT_HOST_FRAMEBUF_HEIGHT:  return "HOST.FRAMEBUF_HEIGHT";
 
-            case OPT_EMU_WARP_BOOT:         return "EMU.WARP_BOOT";
-            case OPT_EMU_WARP_MODE:         return "EMU.WARP_MODE";
-            case OPT_EMU_VSYNC:             return "EMU.VSYNC";
-            case OPT_EMU_SPEED_ADJUST:      return "EMU.TIME_LAPSE";
-            case OPT_EMU_SNAPSHOTS:         return "EMU.SNAPSHOTS";
-            case OPT_EMU_SNAPSHOT_DELAY:    return "EMU.SNAPSHOT_DELAY";
-            case OPT_EMU_RUN_AHEAD:         return "EMU.RUN_AHEAD";
+            case OPT_C64_WARP_BOOT:         return "C64.WARP_BOOT";
+            case OPT_C64_WARP_MODE:         return "C64.WARP_MODE";
+            case OPT_C64_VSYNC:             return "C64.VSYNC";
+            case OPT_C64_SPEED_BOOST:       return "C64.SPEED_BOOST";
+            case OPT_C64_RUN_AHEAD:         return "C64.RUN_AHEAD";
+            
+            case OPT_C64_SNAP_AUTO:         return "C64.SNAP_AUTO";
+            case OPT_C64_SNAP_DELAY:        return "C64.SNAP_DELAY";
+            case OPT_C64_SNAP_COMPRESS:     return "C64.SNAP_COMPRESS";
 
             case OPT_VICII_REVISION:        return "VICII.REVISION";
             case OPT_VICII_GRAY_DOT_BUG:    return "VICII.GRAY_DOT_BUG";
@@ -232,6 +246,8 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
             case OPT_DMA_DEBUG_COLOR3:      return "DMA_DEBUG.COLOR3";
             case OPT_DMA_DEBUG_COLOR4:      return "DMA_DEBUG.COLOR4";
             case OPT_DMA_DEBUG_COLOR5:      return "DMA_DEBUG.COLOR5";
+
+            case OPT_EXP_REU_SPEED:         return "EXP.REU_SPEED";
 
             case OPT_USR_DEVICE:            return "USR.DEVICE";
 
@@ -266,6 +282,7 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
 
             case OPT_CIA_REVISION:          return "CIA.REVISION";
             case OPT_CIA_TIMER_B_BUG:       return "CIA.TIMER_B_BUG";
+            case OPT_CIA_IDLE_SLEEP:        return "CIA.IDLE_SLEEP";
 
             case OPT_SID_ENABLE:            return "SID.ENABLE";
             case OPT_SID_ADDRESS:           return "SID.ADDRESS";
@@ -330,6 +347,11 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
             case OPT_REC_ASPECT_X:          return "REC.ASPECT_X";
             case OPT_REC_ASPECT_Y:          return "REC.ASPECT_Y";
 
+            case OPT_SRV_PORT:              return "SRV.PORT";
+            case OPT_SRV_PROTOCOL:          return "SRV.PROTOCOL";
+            case OPT_SRV_AUTORUN:           return "SRV.AUTORUN";
+            case OPT_SRV_VERBOSE:           return "SRV.VERBOSE";
+
             case OPT_COUNT:                 return "???";
         }
         return "???";
@@ -344,13 +366,15 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
             case OPT_HOST_FRAMEBUF_WIDTH:   return "Window width";
             case OPT_HOST_FRAMEBUF_HEIGHT:  return "Window height";
 
-            case OPT_EMU_WARP_BOOT:         return "Warp-boot duration";
-            case OPT_EMU_WARP_MODE:         return "Warp activation";
-            case OPT_EMU_VSYNC:             return "VSYNC mode";
-            case OPT_EMU_SPEED_ADJUST:      return "Speed adjustment";
-            case OPT_EMU_SNAPSHOTS:         return "Automatically take snapshots";
-            case OPT_EMU_SNAPSHOT_DELAY:    return "Time span between two snapshots";
-            case OPT_EMU_RUN_AHEAD:         return "Run-ahead frames";
+            case OPT_C64_WARP_BOOT:         return "Warp-boot duration";
+            case OPT_C64_WARP_MODE:         return "Warp activation";
+            case OPT_C64_VSYNC:             return "VSYNC mode";
+            case OPT_C64_SPEED_BOOST:      return "Speed adjustment";
+            case OPT_C64_RUN_AHEAD:         return "Run-ahead frames";
+
+            case OPT_C64_SNAP_AUTO:         return "Automatically take snapshots";
+            case OPT_C64_SNAP_DELAY:        return "Time span between two snapshots";
+            case OPT_C64_SNAP_COMPRESS:     return "Compress snapshot data";
 
             case OPT_VICII_REVISION:        return "Chip revision";
             case OPT_VICII_GRAY_DOT_BUG:    return "Emulate gray-dot bug";
@@ -376,6 +400,8 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
             case OPT_DMA_DEBUG_COLOR3:      return "Color of channel 3";
             case OPT_DMA_DEBUG_COLOR4:      return "Color of channel 4";
             case OPT_DMA_DEBUG_COLOR5:      return "Color of channel 5";
+
+            case OPT_EXP_REU_SPEED:         return "REU transfer speed";
 
             case OPT_USR_DEVICE:            return "User port device";
 
@@ -410,6 +436,7 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
 
             case OPT_CIA_REVISION:          return "Chip revision";
             case OPT_CIA_TIMER_B_BUG:       return "Emulate Timer-B bug";
+            case OPT_CIA_IDLE_SLEEP:        return "Enter idle state while not in use";
 
             case OPT_SID_ENABLE:            return "Enable";
             case OPT_SID_ADDRESS:           return "Memory location";
@@ -472,6 +499,11 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
             case OPT_REC_SAMPLE_RATE:       return "Audio sample rate of the recorded video";
             case OPT_REC_ASPECT_X:          return "Numerator of the video's aspect ratio";
             case OPT_REC_ASPECT_Y:          return "Denumerator of the video's aspect ratio";
+
+            case OPT_SRV_PORT:              return "Server port";
+            case OPT_SRV_PROTOCOL:          return "Server protocol";
+            case OPT_SRV_AUTORUN:           return "Auto run";
+            case OPT_SRV_VERBOSE:           return "Verbose mode";
 
             case OPT_COUNT:                 return "???";
         }

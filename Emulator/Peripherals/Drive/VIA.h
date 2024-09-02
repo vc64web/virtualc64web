@@ -60,10 +60,16 @@ class VIA6522 : public SubComponent {
     
     Descriptions descriptions = {{
 
+        .type           = VIAClass,
         .name           = "VIA",
-        .description    = "VIA 6522"
+        .description    = "VIA 6522",
+        .shell          = "via"
     }};
 
+    Options options = {
+
+    };
+    
     friend class Drive;
     friend class ParCable;
     
@@ -311,12 +317,20 @@ public:
 public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
-    void prefix() const override;
 
 private:
 
     void _dump(Category category, std::ostream& os) const override;
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
+
+    
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
 
 
     //

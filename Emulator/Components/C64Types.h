@@ -44,10 +44,9 @@ struct C64ModelEnum : util::Reflection<C64ModelEnum, C64Model> {
 
     static constexpr long minVal = 0;
     static constexpr long maxVal = C64_MODEL_NTSC_OLD;
-    static bool isValid(auto value) { return value >= minVal && value <= maxVal; }
 
     static const char *prefix() { return "C64_MODEL"; }
-    static const char *key(long value)
+    static const char *_key(long value)
     {
         switch (value) {
 
@@ -74,10 +73,9 @@ struct WarpModeEnum : util::Reflection<WarpModeEnum, WarpMode>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = WARP_ALWAYS;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "WARP"; }
-    static const char *key(long value)
+    static const char *_key(long value)
     {
         switch (value) {
 
@@ -102,16 +100,16 @@ enum_long(SLOT)
     SLOT_TER,                       // Enables tertiary slots
 
     // Tertiary slots
+    SLOT_EXP,                       // Expansion port
     SLOT_TXD,                       // Serial data out (RS232)
     SLOT_RXD,                       // Serial data in (RS232)
-    SLOT_AFI1,                      // Auto-fire (joystick port 1)
-    SLOT_AFI2,                      // Auto-fire (joystick port 2)
     SLOT_MOT,                       // Datasette motor
     SLOT_DC8,                       // Disk change (Drive 8)
     SLOT_DC9,                       // Disk change (Drive 9)
     SLOT_SNP,                       // Snapshots
     SLOT_RSH,                       // Retro Shell
     SLOT_KEY,                       // Auto-typing
+    SLOT_SRV,                       // Remote server manager
     SLOT_ALA,                       // Alarms (set by the GUI)
     SLOT_INS,                       // Handles periodic calls to inspect()
 
@@ -123,10 +121,9 @@ struct EventSlotEnum : util::Reflection<EventSlotEnum, EventSlot>
 {
     static constexpr long minVal = 0;
     static constexpr long maxVal = SLOT_COUNT - 1;
-    static bool isValid(auto val) { return val >= minVal && val <= maxVal; }
 
     static const char *prefix() { return "SLOT"; }
-    static const char *key(long value)
+    static const char *_key(long value)
     {
         switch (value) {
 
@@ -143,6 +140,7 @@ struct EventSlotEnum : util::Reflection<EventSlotEnum, EventSlot>
             case SLOT_SNP:      return "SNP";
             case SLOT_RSH:      return "RSH";
             case SLOT_KEY:      return "KEY";
+            case SLOT_SRV:      return "SRV";
             case SLOT_ALA:      return "ALA";
             case SLOT_INS:      return "INS";
 
@@ -189,6 +187,15 @@ enum_i8(EventID)
     // Events in tertiary event table
     //
 
+    // Expansion port
+    EXP_REU_PREPARE     = 1,
+    EXP_REU_PREPARE2,
+    EXP_REU_STASH,
+    EXP_REU_FETCH,
+    EXP_REU_SWAP,
+    EXP_REU_VERIFY,
+    EXP_EVENT_COUNT,
+
     // Serial data out (RS232)
     TXD_BIT             = 1,
     TXD_EVENT_COUNT,
@@ -196,10 +203,6 @@ enum_i8(EventID)
     // Serial data in (RS232)
     RXD_BIT             = 1,
     RXD_EVENT_COUT,
-
-    // Auto-fire
-    AFI_FIRE            = 1,
-    AFI_EVENT_COUNT,
 
     // Datasette motor
     MOT_START           = 1,
@@ -223,6 +226,10 @@ enum_i8(EventID)
     KEY_AUTO_TYPE       = 1,
     KEY_EVENT_COUNT,
 
+    // Remote server manager
+    SRV_LAUNCH_DAEMON   = 1,
+    SRV_EVENT_COUNT,
+
     // Alarm event slot
     ALA_TRIGGER         = 1,
     ALA_EVENT_COUNT,
@@ -238,43 +245,6 @@ enum_i8(EventID)
     INS_EVENT_COUNT
 };
 
-enum_long(INSPECTION_TARGET)
-{
-    INSPECTION_NONE,
-    INSPECTION_C64,
-    INSPECTION_CPU,
-    INSPECTION_CIA,
-    INSPECTION_MEM,
-    INSPECTION_VICII,
-    INSPECTION_SID,
-    INSPECTION_EVENTS
-
-};
-typedef INSPECTION_TARGET InspectionTarget;
-
-struct InspectionTargetEnum : util::Reflection<InspectionTargetEnum, InspectionTarget> {
-
-    static constexpr long minVal = 0;
-    static constexpr long maxVal = INSPECTION_EVENTS;
-    static bool isValid(auto value) { return value >= minVal && value <= maxVal; }
-
-    static const char *prefix() { return "INSPECTION"; }
-    static const char *key(long value)
-    {
-        switch (value) {
-
-            case INSPECTION_NONE:   return "NONE";
-            case INSPECTION_C64:    return "C64";
-            case INSPECTION_CPU:    return "CPU";
-            case INSPECTION_CIA:    return "CIA";
-            case INSPECTION_MEM:    return "MEM";
-            case INSPECTION_VICII:  return "VICII";
-            case INSPECTION_SID:    return "SID";
-            case INSPECTION_EVENTS: return "EVENTS";
-        }
-        return "???";
-    }
-};
 
 //
 // Structures
@@ -288,11 +258,14 @@ typedef struct
     //! Warp mode
     WarpMode warpMode;
 
+    //! Emulator speed in percent (100 is native speed)
+    isize speedBoost;
+
     //! Vertical Synchronization
     bool vsync;
 
-    //! Emulator speed in percent (100 is native speed)
-    isize speedAdjust;
+    //! Number of run-ahead frames (0 = run-ahead is disabled)
+    isize runAhead;
 
     //! Enable auto-snapshots
     bool snapshots;
@@ -300,8 +273,8 @@ typedef struct
     //! Delay between two auto-snapshots in seconds
     isize snapshotDelay;
 
-    //! Number of run-ahead frames (0 = run-ahead is disabled)
-    isize runAhead;
+    //! Indicates whether snapshots should be stored in compressed form
+    bool compressSnapshots;
 }
 C64Config;
 
@@ -322,17 +295,6 @@ RomInfo;
 
 typedef struct
 {
-    Cycle cpuProgress;
-    Cycle cia1Progress;
-    Cycle cia2Progress;
-    i64 frame;
-    long vpos;
-    long hpos;
-}
-C64Info;
-
-typedef struct
-{
     EventSlot slot;
     EventID eventId;
     const char *eventName;
@@ -349,6 +311,20 @@ typedef struct
     long hpos;
 }
 EventSlotInfo;
+
+typedef struct
+{
+    Cycle cpuProgress;
+    Cycle cia1Progress;
+    Cycle cia2Progress;
+    i64 frame;
+    long vpos;
+    long hpos;
+
+    // Events
+    EventSlotInfo slotInfo[SLOT_COUNT];
+}
+C64Info;
 
 typedef u32 RunLoopFlags;
 

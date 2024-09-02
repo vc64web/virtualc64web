@@ -25,7 +25,7 @@ VIA6522::VIA6522(C64 &ref, Drive &drvref) : SubComponent(ref), drive(drvref)
 {
 }
 
-void VIA6522::_reset(bool hard)
+void VIA6522::_didReset(bool hard)
 {    
     t1 = 0x01AA;
     t2 = 0x01AA;
@@ -33,12 +33,6 @@ void VIA6522::_reset(bool hard)
     t1_latch_lo = 0x05; // Makes "drive/defaults.prg" happy
     t2_latch_lo = 0xAA;
     feed = (VIACountA0 | VIACountB0);
-}
-
-void
-VIA6522::prefix() const
-{
-    fprintf(stderr, "D[%lld] (%3d,%3d) %04X ", c64.frame, c64.scanline, c64.rasterCycle, drive.cpu.getPC0());
 }
 
 void

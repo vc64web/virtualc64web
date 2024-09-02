@@ -12,19 +12,24 @@
 
 #pragma once
 
-#include "DebuggerTypes.h"
+#include "MemoryTypes.h"
 #include "SubComponent.h"
 
 namespace vc64 {
 
-class Debugger : public SubComponent {
+class MemoryDebugger final : public SubComponent {
 
     Descriptions descriptions = {{
 
-        .name           = "Debugger",
-        .description    = "Debugger"
+        .name           = "MemoryDebugger",
+        .description    = "Memory Debugger",
+        .shell          = ""
     }};
 
+    Options options = {
+
+    };
+    
 public:
 
     // Last used address (current object location)
@@ -38,6 +43,11 @@ public:
 public:
 
     using SubComponent::SubComponent;
+
+    MemoryDebugger& operator= (const Host& other) {
+
+        return *this;
+    }
 
 
     //
@@ -57,6 +67,15 @@ public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
+    
 
     //
     // Managing memory
@@ -85,6 +104,13 @@ public:
     // Copies a chunk of memory
     void copy(u16 src, u16 dst, isize cnt = 1);
 
+    // Loads a chunk of RAM from a stream or file
+    void load(std::istream& is, u16 addr);
+    void load(fs::path& path, u16 addr);
+
+    // Saves a chunk of RAM to a stream or file
+    void save(std::ostream& is, u16 addr, isize count);
+    void save(fs::path& path, u16 addr, isize count);
 
     //
     // Displaying expressions

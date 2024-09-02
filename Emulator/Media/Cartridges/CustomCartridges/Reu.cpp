@@ -19,14 +19,14 @@ Reu::Reu(C64 &ref, isize kb) : Cartridge(ref), kb(kb)
 {
     // The RAM capacity must be a power of two between 128 and 16384
     if ((kb & (kb - 1)) || kb < 128 || kb > 16384) {
-        throw Error(ERROR_OPT_INV_ARG, "128, 256, 512, ..., 16384");
+        throw Error(VC64ERROR_OPT_INV_ARG, "128, 256, 512, ..., 16384");
     }
 
     setRamCapacity(KB(kb));
 }
 
 void
-Reu::_reset(bool hard)
+Reu::_didReset(bool hard)
 {
     // Initialize the status register
     sr = isREU1700() ? 0x00 : 0x10;
@@ -212,7 +212,7 @@ Reu::pokeIO2(u16 addr, u8 value)
             if (GET_BIT(cr,7) && ff00Disabled()) {
 
                 debug(REU_DEBUG, "Initiating DMA...\n");
-                doDma();
+                prepareDma();
             }
             break;
 
@@ -294,13 +294,25 @@ Reu::poke(u16 addr, u8 value)
     if (addr == 0xFF00 && isArmed()) {
 
         // Initiate DMA
-        doDma();
+        prepareDma();
 
     } else {
 
         // Route the write access back
         mem.poke(addr, value, memTypeF);
     }
+}
+
+u8
+Reu::readFromC64Ram(u16 addr)
+{
+    return addr <= 2 ? mem.peek(addr, M_RAM) : mem.peek(addr);
+}
+
+void
+Reu::writeToC64Ram(u16 addr, u8 value)
+{
+    addr <= 2 ? mem.poke(addr, value, M_RAM) : mem.poke(addr, value);
 }
 
 u8
@@ -329,156 +341,154 @@ Reu::writeToReuRam(u32 addr, u8 value)
 }
 
 void
-Reu::doDma()
+Reu::prepareDma()
 {
     if (REU_DEBUG) { dump(Category::Dma, std::cout); }
 
-    u16 memAddr = c64Base;
-    u32 reuAddr = reuBase;
+    c64Addr = c64Base;
+    reuAddr = reuBase;
     isize len = tlen ? tlen : 0x10000;
 
-    switch (cr & 0x3) {
+    // Freeze the CPU
+    // cpu.pullDownRdyLine(INTSRC_EXP);
 
-        case 0: stash(memAddr, reuAddr, len); break;
-        case 1: fetch(memAddr, reuAddr, len); break;
-        case 2: swap(memAddr, reuAddr, len); break;
-        case 3: verify(memAddr, reuAddr, len); break;
+    // Schedule the first event
+    c64.scheduleRel<SLOT_EXP>(1, EXP_REU_PREPARE, len);
+}
+
+bool
+Reu::doDma(EventID id)
+{
+    u8 c64Val, reuVal;
+
+    switch (id) {
+
+        case EXP_REU_STASH:
+
+            c64Val = readFromC64Ram(c64Addr);
+            writeToReuRam(reuAddr, c64Val);
+
+            // debug(REU_DEBUG,"(%x, %02x) -> %x\n", memAddr, c64Val, reuAddr);
+
+            if (memStep()) incMemAddr(c64Addr);
+            if (reuStep()) incReuAddr(reuAddr);
+            break;
+
+        case EXP_REU_FETCH:
+
+            reuVal = readFromReuRam(reuAddr);
+            writeToC64Ram(c64Addr, reuVal);
+
+            // debug(REU_DEBUG,"%x <- (%x, %02x)\n", memAddr, reuAddr, reuVal);
+
+            if (memStep()) incMemAddr(c64Addr);
+            if (reuStep()) incReuAddr(reuAddr);
+            break;
+
+        case EXP_REU_SWAP:
+
+            c64Val = readFromC64Ram(c64Addr);
+            reuVal = readFromReuRam(reuAddr);
+
+            writeToC64Ram(c64Addr, reuVal);
+            writeToReuRam(reuAddr, c64Val);
+
+            if (memStep()) incMemAddr(c64Addr);
+            if (reuStep()) incReuAddr(reuAddr);
+            break;
+
+        case EXP_REU_VERIFY:
+
+            c64Val = readFromC64Ram(c64Addr);
+            reuVal = readFromReuRam(reuAddr);
+
+            if (c64Val != reuVal) {
+
+                debug(REU_DEBUG, "Verify error: (%x,%02x) <-> (%x,%02x)\n",
+                      c64Addr, c64Val, reuAddr, reuVal);
+
+                // Set the "Fault" bit
+                SET_BIT(sr, 5);
+
+                // Trigger interrupt if enabled
+                triggerVerifyErrorIrq();
+
+                return false;
+            }
+
+            if (memStep()) incMemAddr(c64Addr);
+            if (reuStep()) incReuAddr(reuAddr);
+            break;
 
         default:
             fatalError;
     }
+
+    return true;
 }
 
-void
-Reu::stash(u16 memAddr, u32 reuAddr, isize len)
+void 
+Reu::finalizeDma(EventID id)
 {
-    debug(REU_DEBUG, "stash(%x,%x,%ld)\n", memAddr, reuAddr, len);
-
-    for (isize i = 0, ms = memStep(), rs = reuStep(); i < len; i++) {
-
-        u8 memValue = mem.peek(memAddr);
-        writeToReuRam(reuAddr, memValue);
-
-        // debug(REU_DEBUG,"(%x, %02x) -> %x\n", memAddr, value, reuAddr);
-
-        if (ms) incMemAddr(memAddr);
-        if (rs) incReuAddr(reuAddr);
-    }
-
-    // Set the "End of Block" bit
-    SET_BIT(sr, 6);
-
-    // Update registers if autoload is disabled
-    if (!autoloadEnabled()) {
-
-        c64Base = memAddr;
-        reuBase = reuAddr;
-        len = 1;
-    }
-
-    triggerEndOfBlockIrq();
-}
-
-void
-Reu::fetch(u16 memAddr, u32 reuAddr, isize len)
-{
-    debug(REU_DEBUG, "fetch(%x,%x,%ld)\n", memAddr, reuAddr, len);
-
-    for (isize i = 0, ms = memStep(), rs = reuStep(); i < len; i++) {
-
-        u8 reuValue = readFromReuRam(reuAddr);
-        mem.poke(memAddr, reuValue);
-
-        // debug(REU_DEBUG,"%x <- (%x, %02x)\n", memAddr, reuAddr, value);
-
-        if (ms) incMemAddr(memAddr);
-        if (rs) incReuAddr(reuAddr);
-    }
-
-    // Update bus value
-    (void)readFromReuRam(reuAddr);
-
     // Set the "End of Block" bit
     SET_BIT(sr, 6);
 
     if (!autoloadEnabled()) {
 
-        c64Base = memAddr;
+        c64Base = c64Addr;
         reuBase = reuAddr;
-        len = 1;
     }
 
     triggerEndOfBlockIrq();
+
+    // Release the CPU
+    cpu.releaseRdyLine(INTSRC_EXP);
 }
 
-void
-Reu::swap(u16 memAddr, u32 reuAddr, isize len)
+void 
+Reu::processEvent(EventID id)
 {
-    debug(REU_DEBUG, "swap(%x,%x,%ld)\n", memAddr, reuAddr, len);
+    if (id == EXP_REU_PREPARE) {
 
-    for (isize i = 0, ms = memStep(), rs = reuStep(); i < len; i++) {
+        cpu.pullDownRdyLine(INTSRC_EXP);
 
-        u8 memVal = mem.peek(memAddr);
-        u8 reuVal = readFromReuRam(reuAddr);
-
-        mem.poke(memAddr, reuVal);
-        writeToReuRam(reuAddr, memVal);
-
-        if (ms) incMemAddr(memAddr);
-        if (rs) incReuAddr(reuAddr);
+        c64.scheduleRel<SLOT_EXP>(1, EXP_REU_PREPARE2, c64.data[SLOT_EXP]);
+        return;
     }
 
-    // Set the "End of Block" bit
-    SET_BIT(sr, 6);
+    if (id == EXP_REU_PREPARE2) {
 
-    if (!autoloadEnabled()) {
+        // Freeze the CPU
+        cpu.pullDownRdyLine(INTSRC_EXP);
 
-        c64Base = memAddr;
-        reuBase = reuAddr;
-        len = 1;
-    }
+        switch (cr & 0x3) {
 
-    triggerEndOfBlockIrq();
-}
-
-void
-Reu::verify(u16 memAddr, u32 reuAddr, isize len)
-{
-    debug(REU_DEBUG, "verify(%x,%x,%ld)\n", memAddr, reuAddr, len);
-
-    for (isize i = 0, ms = memStep(), rs = reuStep(); i < len; i++) {
-
-        u8 memVal = mem.peek(memAddr);
-        u8 reuVal = readFromReuRam(reuAddr);
-
-        if (memVal != reuVal) {
-
-            debug(REU_DEBUG, "Verify error: (%x,%02x) <-> (%x,%02x)\n", memAddr, memVal, reuAddr, reuVal);
-
-            // Set the "Fault" bit
-            SET_BIT(sr, 5);
-
-            // Trigger interrupt if enabled
-            triggerVerifyErrorIrq();
-
-            break;
+            case 0: id = EXP_REU_STASH; break;
+            case 1: id = EXP_REU_FETCH; break;
+            case 2: id = EXP_REU_SWAP; break;
+            case 3: id = EXP_REU_VERIFY; break;
         }
-
-        if (ms) incMemAddr(memAddr);
-        if (rs) incReuAddr(reuAddr);
     }
 
-    // Set the "End of Block" bit
-    SET_BIT(sr, 6);
+    auto remaining = c64.data[SLOT_EXP];
 
-    if (!autoloadEnabled()) {
+    // Determine the number of bytes to transfer
+    auto todo = std::min(remaining, i64(bytesPerDmaCycle()));
 
-        c64Base = memAddr;
-        reuBase = reuAddr;
-        len = 1;
+    // Perform DMA if VICII does not block the bus
+    if (!vic.baLine.delayed()) for (; todo; todo--, remaining--) doDma(id);
+
+    if (remaining) {
+
+        // Prepare the next event
+        c64.scheduleInc<SLOT_EXP>(1, id, remaining);
+
+    } else {
+
+        // Finalize DMA if this was the last cycle
+        finalizeDma(id);
+        c64.cancel<SLOT_EXP>();
     }
-
-    triggerEndOfBlockIrq();
 }
 
 void
@@ -516,7 +526,7 @@ Reu::updatePeekPokeLookupTables()
      *  expansion bus, which means that, without the FF00 option, I/O space
      *  would be enabled when DMA was initiated. This option, therefore, allows
      *  the user to bank out the the C64 I/O space, replacing it with RAM,
-     *  before the DMA takes place. The FFOO option is cleared each time it is
+     *  before the DMA takes place. The FF00 option is cleared each time it is
      *  used."
      */
 

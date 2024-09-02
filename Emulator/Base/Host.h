@@ -13,7 +13,7 @@
 #pragma once
 
 #include "HostTypes.h"
-#include "CoreComponent.h"
+#include "SubComponent.h"
 
 typedef struct
 {
@@ -34,15 +34,17 @@ namespace vc64 {
 /* This class stores some information about the host system. The values have
  * are set by the GUI on start and updated on-the-fly when a value changes.
  */
-class Host final : public CoreComponent {
+class Host final : public SubComponent {
 
     Descriptions descriptions = {{
 
+        .type           = HostClass,
         .name           = "Host",
-        .description    = "Host Computer"
+        .description    = "Host Computer",
+        .shell          = "host"
     }};
 
-    ConfigOptions options = {
+    Options options = {
 
         OPT_HOST_REFRESH_RATE,
         OPT_HOST_SAMPLE_RATE,
@@ -60,7 +62,7 @@ class Host final : public CoreComponent {
 
 public:
 
-    using CoreComponent::CoreComponent;
+    using SubComponent::SubComponent;
 
     Host& operator= (const Host& other) {
 
@@ -98,7 +100,7 @@ private:
 public:
 
     const HostConfig &getConfig() const { return config; }
-    const ConfigOptions &getOptions() const override { return options; }
+    const Options &getOptions() const override { return options; }
     i64 getOption(Option opt) const override;
     void checkOption(Option opt, i64 value) override;
     void setOption(Option opt, i64 value) override;

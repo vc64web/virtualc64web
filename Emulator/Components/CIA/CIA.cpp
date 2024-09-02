@@ -23,7 +23,7 @@ CIA::CIA(C64 &ref, isize id) : SubComponent(ref, id)
 }
 
 void
-CIA::_reset(bool hard)
+CIA::_didReset(bool hard)
 {
     CNT = true;
     INT = 1;
@@ -488,8 +488,8 @@ CIA::executeOneCycle()
     // Write back local copy
     this->delay = delay;
     
-    // Sleep if threshold is reached
-    if (tiredness > 8 && !CIA_ON_STEROIDS) {
+    // Sleep when threshold is reached
+    if (tiredness > 8 && config.idleSleep) {
         sleep();
         scheduleWakeUp();
     } else {
@@ -538,10 +538,12 @@ CIA::wakeUp()
     if (missedCycles > 0) {
         
         if (feed & CIACountA0) {
+
             assert(counterA >= missedCycles);
             counterA -= u16(missedCycles);
         }
         if (feed & CIACountB0) {
+
             assert(counterB >= missedCycles);
             counterB -= u16(missedCycles);
         }

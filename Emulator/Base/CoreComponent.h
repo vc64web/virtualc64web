@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "CoreComponentTypes.h"
 #include "EmulatorTypes.h"
 #include "CoreObject.h"
 #include "Synchronizable.h"
@@ -28,8 +29,10 @@ namespace vc64 {
 
 struct Description {
 
-    const char *name;
-    const char *description;
+    const CType type;               // Class identifier
+    const char *name;               // Short name
+    const char *description;        // Textual descripiton
+    const char *shell;              // RetroShell access
 };
 
 typedef std::vector<Description> Descriptions;
@@ -50,52 +53,40 @@ public:
 
 
     //
-    // Initializing
+    // Initializers
     //
     
 public:
 
     CoreComponent(Emulator& ref, isize id = 0) : emulator(ref), objid(id) { }
 
-    virtual const Descriptions &getDescriptions() const = 0;
-    const char *objectName() const override;
-    const char *description() const override;
-
-    bool operator== (CoreComponent &other);
-    bool operator!= (CoreComponent &other) { return !(other == *this); }
-
-    /* This function is called inside the emulator's launch routine. It iterates
-     * through all components and calls the _initialize() delegate.
-     */
-    void initialize();
-    virtual void _initialize() { }
-
-    // Main reset routines
-    void hardReset();
-    void softReset();
-
-    /* This function is called inside the C64 reset routines. It iterates
-     * through all components and calls the _reset() delegate.
-     */
-    void reset(bool hard);
-    virtual void _reset(bool hard) { }
-
-    // Returns the fallback value for a config option
-    i64 getFallback(Option opt) const override;
-
-    // Resets the configuration of this component and all subcomponents
-    virtual void resetConfig();
 
     //
-    void routeOption(Option opt, std::vector<Configurable *> &result);
-
-
-    //
-    // Controlling the state (see Thread class for details)
+    // Operators
     //
 
 public:
 
+    bool operator== (CoreComponent &other);
+    bool operator!= (CoreComponent &other) { return !(other == *this); }
+
+
+    //
+    // Querying properties
+    //
+
+public:
+
+    // Returns the description struct of this component
+    virtual const Descriptions &getDescriptions() const = 0;
+
+    // Returns certain elements from the description struct
+    const char *objectName() const override;
+    const char *description() const override;
+    const char *shellName() const;
+
+    // State properties (see Thread class for details)
+    virtual bool isInitialized() const;
     virtual bool isPoweredOff() const;
     virtual bool isPoweredOn() const;
     virtual bool isPaused() const;
@@ -103,14 +94,45 @@ public:
     virtual bool isSuspended() const;
     virtual bool isHalted() const;
 
-    void suspend() override;
-    void resume() override;
-
     // Throws an exception if the emulator is not ready to power on
     virtual void isReady() const throws;
 
-protected:
+    // Computes a checksum
+    u64 checksum(bool recursive);
 
+
+    //
+    // Suspending and Resuming
+    //
+
+    // Suspends or resumes the emulator thread
+    void suspend() override;
+    void resume() override;
+
+
+    //
+    // Configuring
+    //
+
+public:
+
+    // Initializes all configuration items with their default values
+    virtual void resetConfig();
+
+    // Returns the target component for a given configuration option
+    Configurable *routeOption(Option opt, isize objid);
+
+    // Returns the fallback value for a config option
+    i64 getFallback(Option opt) const override;
+
+
+    //
+    // Controlling the state
+    //
+
+public:
+
+    void initialize();
     void powerOn();
     void powerOff();
     void run();
@@ -127,8 +149,14 @@ protected:
     void warpOnOff(bool value) { value ? warpOn() : warpOff(); }
     void trackOnOff(bool value) { value ? trackOn() : trackOff(); }
 
+
+    //
+    // Performing state changes
+    //
+
 private:
 
+    virtual void _initialize() { }
     virtual void _isReady() const throws { }
     virtual void _powerOn() { }
     virtual void _powerOff() { }
@@ -144,6 +172,48 @@ private:
 
 
     //
+    // Serializing
+    //
+
+public:
+
+    // Returns the size of the internal state in bytes
+    isize size(bool recursive = true);
+
+    // Resets the internal state
+    void reset(bool hard);
+    virtual void _willReset(bool hard) { }
+    virtual void _didReset(bool hard) { }
+
+    // Convenience wrappers
+    void hardReset() { reset(true); }
+    void softReset() { reset(false); }
+
+    // Loads the internal state from a memory buffer
+    isize load(const u8 *buf) throws;
+    virtual void _didLoad() { }
+
+    // Saves the internal state to a memory buffer
+    isize save(u8 *buf);
+    virtual void _didSave() { }
+
+
+    //
+    // Working with subcomponents
+    //
+
+public:
+
+    // Collects references to this components and all subcomponents
+    std::vector<CoreComponent *> collectComponents();
+    void collectComponents(std::vector<CoreComponent *> &result);
+
+    // Traverses the component tree and applies a function
+    void preoderWalk(std::function<void(CoreComponent *)> func);
+    void postorderWalk(std::function<void(CoreComponent *)> func);
+
+
+    //
     // Misc
     //
 
@@ -151,8 +221,13 @@ public:
     
     bool isEmulatorThread() const;
 
-    // Experimental
+    // Compares two components and reports differences (for debugging)
+    void diff(CoreComponent &other);
+
+    // Exports the current configuration to a script file
     void exportConfig(std::ostream& ss, bool diff = false) const;
+
+    // Exports only those options that differ from the default config
     void exportDiff(std::ostream& ss) const { exportConfig(ss, true); }
 };
 

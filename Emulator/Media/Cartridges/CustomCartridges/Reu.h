@@ -51,6 +51,10 @@ private:
     u16 c64Base = 0;
     u32 reuBase = 0;
 
+    // Address registers used during DMA
+    u16 c64Addr = 0;
+    u32 reuAddr = 0;
+
     // Upper bank bits (used by modded REUs with higher capacities)
     u32 upperBankBits = 0;
 
@@ -109,6 +113,8 @@ public:
         CLONE(cr)
         CLONE(c64Base)
         CLONE(reuBase)
+        CLONE(c64Addr)
+        CLONE(reuAddr)
         CLONE(upperBankBits)
         CLONE(tlen)
         CLONE(imr)
@@ -132,6 +138,8 @@ public:
         << cr
         << c64Base
         << reuBase
+        << c64Addr
+        << reuAddr
         << upperBankBits
         << tlen
         << imr
@@ -141,7 +149,7 @@ public:
 
     } CARTRIDGE_SERIALIZERS(serialize);
 
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
 
 
     //
@@ -154,6 +162,16 @@ public:
 
     // Returns the bitmask of the REU address register
     u32 wrapMask() const { return isREU1700() ? 0x1FFFF : 0x7FFFF; }
+
+    /* Emulation speed
+     *
+     * This value indicates how many bytes are transfered during a single DMA
+     * cycle. A value of 1 means the REU is emulated at native speed. A value
+     * of 2 emulates a REU at twice the speed etc. A very high value emulates
+     * a turbo REU. In that case, the entire data transfer is performed in a
+     * single DMA cycle.
+     */
+    isize bytesPerDmaCycle() { return expansionPort.getConfig().reuSpeed; }
 
 
     //
@@ -175,7 +193,7 @@ public:
 
 
     //
-    // Accessing cartridge memory
+    // Accessing memory
     //
 
 public:
@@ -184,8 +202,12 @@ public:
     u8 spypeekIO2(u16 addr) const override;
     void pokeIO2(u16 addr, u8 value) override;
     void poke(u16 addr, u8 value) override;
+    void eraseRAM() override { Cartridge::eraseRAM(0x00); }
 
 private:
+
+    u8 readFromC64Ram(u16 addr);
+    void writeToC64Ram(u16 addr, u8 value);
 
     u8 readFromReuRam(u32 addr);
     void writeToReuRam(u32 addr, u8 value);
@@ -200,11 +222,16 @@ private:
     void incMemAddr(u16 &addr) { addr = U16_ADD(addr, 1); }
     void incReuAddr(u32 &addr) { addr = U32_ADD(addr, 1) & wrapMask(); }
 
-    void doDma();
-    void stash(u16 memAddr, u32 reuAddr, isize len);
-    void fetch(u16 memAddr, u32 reuAddr, isize len);
-    void swap(u16 memAddr, u32 reuAddr, isize len);
-    void verify(u16 memAddr, u32 reuAddr, isize len);
+    void prepareDma();
+    bool doDma(EventID id);
+    void finalizeDma(EventID id);
+
+    
+    //
+    // Processing events
+    //
+
+    void processEvent(EventID id) override;
 
 
     //
@@ -222,7 +249,6 @@ private:
 public:
 
     void updatePeekPokeLookupTables() override;
-
 };
 
 }

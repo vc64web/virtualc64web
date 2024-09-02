@@ -35,6 +35,9 @@ public Inspectable<EmulatorInfo, EmulatorStats> {
     // The run-ahead instance
     C64 ahead = C64(*this, 1);
 
+    // Indicates if the run-ahead instance needs to be updated
+    bool isDirty = true;
+
     // Keeps track of the number of recreated run-ahead instances
     isize clones = 0;
 
@@ -45,9 +48,6 @@ public:
 
     // Incoming external events
     CmdQueue cmdQueue;
-
-    // Host system information
-    Host host = Host(*this);
 
 
     //
@@ -64,6 +64,9 @@ public:
 
     // Initializes all components
     void initialize();
+
+    // Forces to recreate the run-ahead instance in the next frame
+    void markAsDirty() { isDirty = true; }
 
 
     //
@@ -96,31 +99,20 @@ public:
 public:
 
     // Queries an option
-    i64 get(Option opt, isize id = 0) const;
+    i64 get(Option opt, isize objid = 0) const throws;
 
     // Checks an option
-    void check(Option opt, i64 value, std::optional<isize> id = std::nullopt);
+    void check(Option opt, i64 value, const std::vector<isize> objids = { }) throws;
 
     // Sets an option
-    void set(Option opt, i64 value, std::optional<isize> id = std::nullopt);
+    void set(Option opt, i64 value, const std::vector<isize> objids = { }) throws;
 
     // Convenience wrappers
-    void set(Option opt, const string &value) throws;
-    void set(Option opt, const string &value, isize id) throws;
-    void set(const string &opt, const string &value) throws;
-    void set(const string &opt, const string &value, isize id) throws;
+    void set(Option opt, const string &value, const std::vector<isize> objids = { }) throws;
+    void set(const string &opt, const string &value, const std::vector<isize> objids = { }) throws;
 
     // Configures the emulator to match a specific C64 model
     void set(C64Model model);
-
-private:
-
-    // Returns the target component for an option
-    std::vector<Configurable *> routeOption(Option opt);
-    std::vector<const Configurable *> routeOption(Option opt) const;
-
-    // Overrides a config option if the corresponding debug option is enabled
-    i64 overrideOption(Option opt, i64 value) const;
 
     // Powers off and resets the emulator to it's initial state
     void revertToFactorySettings();
@@ -131,11 +123,11 @@ private:
     //
 
 public:
+
     void update() override;
     bool shouldWarp();
     isize missingFrames() const override;
     void computeFrame() override;
-    void recreateRunAheadInstance();
 
     void _powerOn() override { main.powerOn(); }
     void _powerOff() override { main.powerOff(); }
@@ -155,11 +147,26 @@ public:
 
 
     //
+    // Managing the run-ahead instance
+    //
+
+private:
+
+    // Clones the run-ahead instance
+    void cloneRunAheadInstance();
+
+    // Clones the run-ahead instance and fast forwards it to the proper frame
+    void recreateRunAheadInstance();
+
+
+    //
     // Execution control
     //
 
 public:
 
+    void hardReset();
+    void softReset();
     void stepInto();
     void stepOver();
 
@@ -170,7 +177,7 @@ public:
 
     u32 *getTexture() const;
     u32 *getDmaTexture() const;
-    
+
 
     //
     // Command queue
@@ -185,7 +192,18 @@ public:
 private:
 
     // Processes a command from the command queue
-    void process(const Cmd &cmd);
+    // void process(const Cmd &cmd);
+
+
+    //
+    // Debugging
+    //
+
+public:
+
+    // Gets or sets an internal debug variable (only available in debug builds)
+    static int getDebugVariable(DebugFlag flag);
+    static void setDebugVariable(DebugFlag flag, bool val);
 };
 
 }

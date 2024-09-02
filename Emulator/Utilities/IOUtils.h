@@ -12,7 +12,7 @@
 
 #pragma once
 
-#include "Types.h"
+#include "BasicTypes.h"
 #include "StringUtils.h"
 
 #include <fcntl.h>
@@ -24,9 +24,10 @@
 #include <sys/stat.h>
 #include <vector>
 
-namespace vc64::util {
+// Namespace aliases
+namespace vc64 { namespace fs = std::filesystem; }
 
-namespace fs = ::std::filesystem;
+namespace vc64::util {
 
 //
 // Handling files
@@ -57,7 +58,10 @@ std::vector<fs::path> files(const fs::path &path, std::vector <string> &suffixes
 // Checks the header signature (magic bytes) of a stream or buffer
 bool matchingStreamHeader(std::istream &is, const u8 *header, isize len, isize offset = 0);
 bool matchingStreamHeader(std::istream &is, const string &header, isize offset = 0);
-bool matchingBufferHeader(const u8 *buffer, const u8 *header, isize len, isize offset = 0);
+bool matchingBufferHeader(const u8 *buf, const u8 *header, isize hlen, isize offset = 0);
+bool matchingBufferHeader(const u8 *buf, const string &header, isize offset = 0);
+bool matchingBufferHeader(const u8 *buf, isize blen, const string &header, isize offset = 0);
+
 
 //
 // Pretty printing
@@ -80,8 +84,6 @@ void sprint16b(char *s, u16 value);
 // Handling streams
 //
 
-isize streamLength(std::istream &stream);
-
 struct dec {
     
     i64 value;
@@ -92,10 +94,10 @@ struct dec {
 
 struct hex {
     
-    int digits;
+    isize digits;
     u64 value;
     
-    hex(int d, u64 v) : digits(d), value(v) { };
+    hex(isize d, u64 v) : digits(d), value(v) { };
     hex(u64 v) : hex(16, v) { };
     hex(u32 v) : hex(8, v) { };
     hex(u16 v) : hex(4, v) { };
@@ -127,10 +129,10 @@ struct flt {
 
 struct tab {
     
-    int pads;
+    isize pads;
     const string &str;
     
-    tab(int p, const string &s) : pads(p), str(s) { };
+    tab(isize p, const string &s) : pads(p), str(s) { };
     tab(const string &s) : tab(24, s) { };
     std::ostream &operator()(std::ostream &os) const;
 };

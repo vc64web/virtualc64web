@@ -14,7 +14,6 @@
 
 #include "CPUTypes.h"
 #include "Peddle.h"
-// #include "SubComponent.h"
 #include "CmdQueue.h"
 
 using namespace vc64::peddle;
@@ -27,12 +26,18 @@ class CPU final : public Peddle, public Inspectable<CPUInfo> {
 
     Descriptions descriptions = {{
 
+        .type           = CPUClass,
         .name           = "CPU",
-        .description    = "Central Processing Unit"
+        .description    = "Central Processing Unit",
+        .shell          = "cpu"
     }};
 
+    Options options = {
+
+    };
+
     // Result of the latest inspection
-    mutable CPUInfo info = { };
+    // mutable CPUInfo info = { };
 
 public:
 
@@ -172,7 +177,7 @@ public:
 private:
 
     void _dump(Category category, std::ostream& os) const override;
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
     void _trackOn() override;
     void _trackOff() override;
 
@@ -185,6 +190,15 @@ public:
 
     void cacheInfo(CPUInfo &result) const override;
 
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
+    
 
     //
     // Methods from Peddle

@@ -106,7 +106,7 @@ struct SpriteSR : Serializable
 
 class VICII final : public SubComponent, public Inspectable<VICIIInfo, VICIIStats> {
 
-    friend class C64Memory;
+    friend class Memory;
     friend class DmaDebugger;
     friend class VideoPort;
     
@@ -115,8 +115,10 @@ class VICII final : public SubComponent, public Inspectable<VICIIInfo, VICIIStat
     
     Descriptions descriptions = {{
 
+        .type           = VICIIClass,
         .name           = "VIC",
-        .description    = "Video Interface Controller"
+        .description    = "Video Interface Controller",
+        .shell          = "vic"
     }};
 
     static constexpr VICIITraits traits[6] = {
@@ -194,7 +196,7 @@ class VICII final : public SubComponent, public Inspectable<VICIIInfo, VICIIStat
         }
     };
 
-    ConfigOptions options = {
+    Options options = {
 
         OPT_VICII_REVISION,
         OPT_VICII_POWER_SAVE,
@@ -251,6 +253,7 @@ public:
     // I/O space (CPU accessible)
     //
     
+public:
     
     /* Piped I/O register state. When an I/O register is written to, the
      * corresponding value in variable current is changed and a flag is set in
@@ -261,8 +264,6 @@ public:
         VICIIRegisters current;
         VICIIRegisters delayed;
     } reg;
-
-private:
     
     // Raster interrupt line ($D011:8 + $D012)
     u16 rasterIrqLine;
@@ -602,6 +603,21 @@ private:
     // CPU control and memory access
     //
     
+public:
+
+    /* Current value of the BA line. Remember: Each CPU cycle is split into two
+     * phases:
+     *
+     *     - phi1 (First phase, LOW): VICII gets access to the bus
+     *     - phi2 (Second phase, HIGH): CPU gets access to the bus
+     *
+     * In rare cases, VICII needs access in the HIGH phase, too. To block the
+     * CPU, the BA line is pulled down. Note that BA can be pulled down by
+     * multiple sources (wired AND) and this variable indicates which sources
+     * are holding the line low.
+     */
+    TimeDelayed <u16,3> baLine = TimeDelayed <u16,3> ();
+
 private:
     
     /* Memory source lookup table. If VICII is not running in Ultimax mode, it
@@ -632,20 +648,7 @@ private:
      * address is stored in this variable.
      */
     u16 addrBus;
-    
-    /* Current value of the BA line. Remember: Each CPU cycle is split into two
-     * phases:
-     *
-     *     - phi1 (First phase, LOW): VICII gets access to the bus
-     *     - phi2 (Second phase, HIGH): CPU gets access to the bus
-     *
-     * In rare cases, VICII needs access in the HIGH phase, too. To block the
-     * CPU, the BA line is pulled down. Note that BA can be pulled down by
-     * multiple sources (wired AND) and this variable indicates which sources
-     * are holding the line low.
-     */
-    TimeDelayed <u16,3> baLine = TimeDelayed <u16,3> ();
-    
+
     /* Start address of the currently selected memory bank. There are four
      * banks in total since the VICII chip can only 'see' 16 KB of memory at
      * the same time. Two bank select bits in the CIA I/O space determine which
@@ -851,8 +854,6 @@ public:
     {
         worker
 
-        << dmaDebugger
-
         << reg.current
         << reg.delayed
         << rasterIrqLine
@@ -950,7 +951,7 @@ private:
 
     void _dump(Category category, std::ostream& os) const override;
     void _initialize() override;
-    void _reset(bool hard) override;
+    void _didReset(bool hard) override;
     void _trackOn() override;
     void _trackOff() override;
 
@@ -977,7 +978,7 @@ public:
 public:
 
     const VICIIConfig &getConfig() const { return config; }
-    const ConfigOptions &getOptions() const override { return options; }
+    const Options &getOptions() const override { return options; }
     i64 getOption(Option opt) const override;
     void checkOption(Option opt, i64 value) override;
     void setOption(Option opt, i64 value) override;

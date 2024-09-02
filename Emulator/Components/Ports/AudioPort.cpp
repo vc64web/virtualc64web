@@ -46,11 +46,10 @@ AudioPort::handleBufferUnderflow()
         /*
         // Increase the sample rate based on what we've measured
         sampleRateCorrection += count() / elapsedTime.asSeconds();
-
+         */
         stats.bufferUnderflows++;
         warn("Last underflow: %f seconds ago\n", elapsedTime.asSeconds());
-        warn("New sample rate correction: %f\n", sampleRateCorrection);
-        */
+        // warn("New sample rate correction: %f\n", sampleRateCorrection);
     }
 }
 
@@ -77,11 +76,10 @@ AudioPort::handleBufferOverflow()
         /*
         // Decrease the sample rate based on what we've measured
         sampleRateCorrection -= count() / elapsedTime.asSeconds();
-
+         */
         stats.bufferOverflows++;
         warn("Last overflow: %f seconds ago\n", elapsedTime.asSeconds());
-        warn("New sample rate correction: %f\n", sampleRateCorrection);
-        */
+        // warn("New sample rate correction: %f\n", sampleRateCorrection);
     }
 }
 
@@ -196,8 +194,8 @@ AudioPort::mixSingleSID(isize numSamples)
         r *= curR;
 
         // Prevent hearing loss
-        assert(abs(l) < 1.0);
-        assert(abs(r) < 1.0);
+        assert(std::abs(l) < 1.0);
+        assert(std::abs(r) < 1.0);
 
         write(SamplePair { l, r } );
     }
@@ -387,7 +385,7 @@ AudioPort::copyInterleaved(float *buffer, isize n)
             assert(isEmpty());
 
             // Fill the rest with zeroes
-            for (isize i = cnt; i < n; i++) *buffer++ = *buffer++ = 0;
+            for (isize i = cnt; i < n; i++) { *buffer++ = 0; *buffer++ = 0; }
 
             // Realign the ring buffer
             handleBufferUnderflow();

@@ -11,13 +11,13 @@
 // -----------------------------------------------------------------------------
 
 #include "config.h"
-#include "C64Memory.h"
+#include "Memory.h"
 #include "C64.h"
 
 namespace vc64 {
 
 void
-C64Memory::_dump(Category category, std::ostream& os) const
+Memory::_dump(Category category, std::ostream& os) const
 {
     using namespace util;
 
@@ -55,7 +55,7 @@ C64Memory::_dump(Category category, std::ostream& os) const
 }
 
 void
-C64Memory::cacheInfo(MemInfo &result) const
+Memory::cacheInfo(MemInfo &result) const
 {
     {   SYNCHRONIZED
 
@@ -75,7 +75,7 @@ C64Memory::cacheInfo(MemInfo &result) const
 }
 
 i64
-C64Memory::getOption(Option option) const
+Memory::getOption(Option option) const
 {
     switch (option) {
 
@@ -89,14 +89,14 @@ C64Memory::getOption(Option option) const
 }
 
 void
-C64Memory::checkOption(Option opt, i64 value)
+Memory::checkOption(Option opt, i64 value)
 {
     switch (opt) {
 
         case OPT_MEM_INIT_PATTERN:
 
             if (!RamPatternEnum::isValid(value)) {
-                throw Error(ERROR_OPT_INV_ARG, RamPatternEnum::keyList());
+                throw Error(VC64ERROR_OPT_INV_ARG, RamPatternEnum::keyList());
             }
             return;
 
@@ -106,12 +106,12 @@ C64Memory::checkOption(Option opt, i64 value)
             return;
 
         default:
-            throw Error(ERROR_OPT_UNSUPPORTED);
+            throw Error(VC64ERROR_OPT_UNSUPPORTED);
     }
 }
 
 void
-C64Memory::setOption(Option opt, i64 value)
+Memory::setOption(Option opt, i64 value)
 {
     checkOption(opt, value);
     

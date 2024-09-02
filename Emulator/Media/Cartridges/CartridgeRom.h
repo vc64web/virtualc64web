@@ -18,13 +18,18 @@ namespace vc64 {
 
 class CartridgeRom final : public SubComponent {
 
+    friend class Cartridge;
+
     Descriptions descriptions = {{
 
         .name           = "CartridgeRom",
-        .description    = "Cartridge ROM"
+        .description    = "Cartridge ROM",
+        .shell          = ""
     }};
 
-    friend class Cartridge;
+    Options options = {
+
+    };
 
 protected:
 
@@ -87,6 +92,15 @@ public:
 
     const Descriptions &getDescriptions() const override { return descriptions; }
 
+
+    //
+    // Methods from Configurable
+    //
+
+public:
+
+    const Options &getOptions() const override { return options; }
+    
 
     //
     // Accessing

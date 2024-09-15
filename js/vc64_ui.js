@@ -12,8 +12,6 @@ let call_param_dialog_on_missing_roms=null;
 let call_param_dialog_on_disk=null;
 let call_param_SID=null;
 
-let virtual_keyboard_clipping = true; //keyboard scrolls when it clips
-
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioContext = new AudioContext();
 let audio_connected=false;
@@ -2138,22 +2136,6 @@ function InitWrappers() {
 
     installKeyboard();
     $("#button_keyboard").click(function(){
-        if(virtual_keyboard_clipping==false)
-        {
-            let body_width =$("body").innerWidth();
-            let vk_abs_width=750+25; //+25 border
-            let vk=$("#virtual_keyboard");
-
-            //calculate scaled width
-            let scaled= vk_abs_width/body_width;
-            if(scaled < 1)
-            {
-                scaled = 1;
-            }
-            vk.css("width", `${scaled*100}vw`);
-            vk.css("transform", `scale(${1/scaled})`);
-            vk.css("transform-origin", `left bottom`);    
-        }
         setTimeout( scaleVMCanvas, 500);
     });
 

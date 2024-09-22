@@ -174,6 +174,9 @@ Defaults::Defaults()
     setFallback(OPT_SRV_AUTORUN,                false,                  { SERVER_RSH });
     setFallback(OPT_SRV_VERBOSE,                true,                   { SERVER_RSH });
 
+    setFallback(OPT_DBG_DEBUGCART,              0);
+    setFallback(OPT_DBG_WATCHDOG,               0);
+
     setFallback("BASIC_PATH", "");
     setFallback("CHAR_PATH", "");
     setFallback("KERNAL_PATH", "");

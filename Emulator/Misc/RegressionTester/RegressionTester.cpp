@@ -31,6 +31,13 @@ RegressionTester::prepare(C64 &c64, C64Model model)
     // Initialize the emulator according to the specified model
     emulator.set(model);
 
+    // Make sure we run with high emulation accuracy
+    emulator.set(OPT_DRV_POWER_SAVE, false);
+    emulator.set(OPT_SID_POWER_SAVE, false);
+    emulator.set(OPT_VICII_POWER_SAVE, false);
+    emulator.set(OPT_VICII_SS_COLLISIONS, true);
+    emulator.set(OPT_VICII_SB_COLLISIONS, true);
+
     // Choose a warp source that prevents the GUI from disabling warp mode
     constexpr isize warpSource = 1;
 
@@ -49,30 +56,31 @@ RegressionTester::run(string path)
 }
 
 void
-RegressionTester::dumpTexture(C64 &c64)
-{
-    dumpTexture(c64, dumpTexturePath);
-}
-
-void
-RegressionTester::dumpTexture(C64 &c64, const string &filename)
+RegressionTester::dumpTexture(C64 &c64, const std::filesystem::path &path)
 {
     /* This function is used for automatic regression testing. It dumps the
      * visible portion of the texture into the /tmp directory and exits the
      * application. The regression test script picks up the texture and
      * compares it against a previously recorded reference image.
      */
+    std::filesystem::path filename = path;
     std::ofstream file;
 
-    // Open an output stream
-    file.open(("/tmp/" + filename + ".raw").c_str());
+    // Add the target directory if the path is relative
+    if (!filename.is_absolute()) filename = screenshotPath / filename;
+
+    // Add a filename extension if none is specified
+    if (!filename.has_extension()) filename.replace_extension("raw");
+
+    // Open output stream
+    file.open(filename.c_str());
 
     // Dump texture
     dumpTexture(c64, file);
     file.close();
 
     // Ask the GUI to quit
-    msgQueue.put(MSG_ABORT, retValue);
+    // msgQueue.put(MSG_ABORT, retValue);
 }
 
 void
@@ -105,10 +113,36 @@ RegressionTester::dumpTexture(C64 &c64, std::ostream& os)
     }
 }
 
-void
-RegressionTester::debugcart(u8 value)
+void 
+RegressionTester::processEvent(EventID id)
 {
-    retValue = value;
+    msg("Watchdog triggerd: Shutting down the emulator\n");
+    msgQueue.put(MSG_ABORT, 1);
+}
+
+void
+RegressionTester::pokeDebugCart(u16 addr, u8 value)
+{
+    if (!config.debugcart) return;
+
+    if (addr == 0xD7FF) {
+
+        // Exit the emulator with the provided value as return code
+        msgQueue.put(MSG_ABORT, value);
+    }
+}
+
+void 
+RegressionTester::setWatchdog(Cycle cycle)
+{
+    if (cycle == 0) {
+
+        // Disable the watchdog
+        c64.cancel<SLOT_DBG>();
+        return;
+    }
+
+    c64.scheduleRel<SLOT_DBG>(cycle, DBG_WATCHDOG);
 }
 
 }

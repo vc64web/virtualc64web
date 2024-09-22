@@ -16,21 +16,35 @@
 
 namespace vc64 {
 
+// Status register bits
+namespace SR {
+constexpr u8 IRQ_PENDING  = 0b10000000;
+constexpr u8 END_OF_BLOCK = 0b01000000;
+constexpr u8 VERIFY_ERROR = 0b00100000;
+constexpr u8 CHIPS_256K   = 0b00010000;
+constexpr u8 VERSION      = 0b00001111;
+}
+
+// Control register bits
+namespace CR {
+constexpr u8 EXECUTE      = 0b10000000;
+constexpr u8 RESERVED     = 0b01001100;
+constexpr u8 AUTOLOAD     = 0b00100000;
+constexpr u8 FF00_DISABLE = 0b00010000;
+constexpr u8 TRANSFER     = 0b00000011;
+}
+
 class Reu final : public Cartridge {
 
-    virtual const CartridgeTraits &getCartridgeTraits() const override {
+    CartridgeTraits traits = {
 
-        static CartridgeTraits traits = {
+        .type           = CRT_REU,
+        .title          = "REU",
+        .battery        = true,
+        .needsExecution = true
+    };
 
-            .type       = CRT_REU,
-            .title      = "REU",
-            .memory     = 0,
-            .battery    = true
-        };
-
-        traits.memory = KB(kb);
-        return traits;
-    }
+    virtual const CartridgeTraits &getCartridgeTraits() const override { return traits; }
 
 private:
 
@@ -41,42 +55,72 @@ private:
     // REU registers
     //
 
-    // Status register
+    // Status register (0x00)
     u8 sr = 0;
 
-    // Command register
+    // Command register (0x01)
     u8 cr = 0;
 
-    // Base address registers
+    // C64 base address register (0x02 - 0x03)
     u16 c64Base = 0;
-    u32 reuBase = 0;
+    u16 c64BaseLatched = 0;
 
-    // Address registers used during DMA
-    u16 c64Addr = 0;
-    u32 reuAddr = 0;
+    // REU base address register (0x04 - 0x05)
+    u16 reuBase = 0;
+    u16 reuBaseLatched = 0;
 
-    // Upper bank bits (used by modded REUs with higher capacities)
-    u32 upperBankBits = 0;
+    // Bank register (0x06)
+    u8 reuBank = 0;
+    u8 reuBankLatched = 0;
 
-    // Transfer length register
-    u16 tlen = 0;
+    // Transfer length register (0x07 - 0x08)
+    u16 tlength = 0;
+    u16 tlengthLatched = 0;
 
-    // Interrupt mask
+    // Interrupt mask register (0x09)
     u8 imr = 0;
 
-    // Address control register
+    // Address control register (0x0A)
     u8 acr = 0;
 
-    // Latest value on the data bus
-    u8 bus = 0;
+    // Data registers used during DMA operations
+    // TODO: Merge with 'bus' eventually
+    u8 c64Val = 0;
+    u8 reuVal = 0;
+    
+    // Flipflop used to control the swap operation
+    bool swapff = false;
+
+    // Last to values of the BA line as seen by the REU
+    bool ba[2];
+
+    // Indicates a condition where BA rises too late to be seen by the REU
+    bool lateBA;
 
 
     //
     // Emulation specific variables
     //
 
+    // Upper bank bits (used by modded REUs with higher capacities)
+    u32 upperBankBits = 0;
+
+    // Latest value on the data bus
+    u8 bus = 0;
+
     // Remembers the memory type of the uppermost memory bank
     MemoryType memTypeF = M_NONE;
+
+
+    //
+    // State machine
+    //
+
+    // The action to be performed next
+    EventID action = EVENT_NONE;
+
+    // Remainig wait states until the action is being performed
+    isize waitStates = 0;
 
 
     //
@@ -109,16 +153,27 @@ public:
         Cartridge::operator=(other);
 
         CLONE(kb)
+
         CLONE(sr)
         CLONE(cr)
         CLONE(c64Base)
+        CLONE(c64BaseLatched)
         CLONE(reuBase)
-        CLONE(c64Addr)
-        CLONE(reuAddr)
-        CLONE(upperBankBits)
-        CLONE(tlen)
+        CLONE(reuBaseLatched)
+        CLONE(reuBank)
+        CLONE(reuBankLatched)
+        CLONE(tlength)
+        CLONE(tlengthLatched)
         CLONE(imr)
         CLONE(acr)
+
+        CLONE(c64Val)
+        CLONE(reuVal)
+        CLONE(swapff)
+        CLONE_ARRAY(ba)
+        CLONE(lateBA);
+
+        CLONE(upperBankBits)
         CLONE(bus)
         CLONE(memTypeF)
 
@@ -134,16 +189,27 @@ public:
         worker
 
         << kb
+
         << sr
         << cr
         << c64Base
+        << c64BaseLatched
         << reuBase
-        << c64Addr
-        << reuAddr
-        << upperBankBits
-        << tlen
+        << reuBaseLatched
+        << reuBank
+        << reuBankLatched
+        << tlength
+        << tlengthLatched
         << imr
         << acr
+
+        << c64Val
+        << reuVal
+        << swapff
+        << ba
+        << lateBA
+
+        << upperBankBits
         << bus
         << memTypeF;
 
@@ -156,12 +222,17 @@ public:
     // Querying properties
     //
 
+public:
+
     bool isREU1700() const { return getRamCapacity() == KB(128); }
     bool isREU1764() const { return getRamCapacity() == KB(256); }
     bool isREU1750() const { return getRamCapacity() >= KB(512); }
 
     // Returns the bitmask of the REU address register
     u32 wrapMask() const { return isREU1700() ? 0x1FFFF : 0x7FFFF; }
+
+    // Returns true if a DMA transfer has been initiated
+    bool isActive() const;
 
     /* Emulation speed
      *
@@ -178,6 +249,8 @@ public:
     // Accessing REU registers
     //
 
+private:
+
     bool autoloadEnabled() const { return GET_BIT(cr, 5); }
     bool ff00Enabled() const { return !GET_BIT(cr, 4); }
     bool ff00Disabled() const { return GET_BIT(cr, 4); }
@@ -191,6 +264,9 @@ public:
     isize memStep() const { return GET_BIT(acr,7) ? 0 : 1; }
     isize reuStep() const { return GET_BIT(acr,6) ? 0 : 1; }
 
+    void incMemAddr();
+    void incReuAddr();
+
 
     //
     // Accessing memory
@@ -198,11 +274,12 @@ public:
 
 public:
 
+    void eraseRAM() override;
+
     u8 peekIO2(u16 addr) override;
     u8 spypeekIO2(u16 addr) const override;
     void pokeIO2(u16 addr, u8 value) override;
     void poke(u16 addr, u8 value) override;
-    void eraseRAM() override { Cartridge::eraseRAM(0x00); }
 
 private:
 
@@ -211,32 +288,59 @@ private:
 
     u8 readFromReuRam(u32 addr);
     void writeToReuRam(u32 addr, u8 value);
+    void prefetch(u32 addr) { (void)readFromReuRam(addr); }
+
+    // Checks whether a given address maps to a floating bus
+    bool floating(u32 addr) const;
+
+    // Maps an address to the (mirrored) physical REU address
+    u32 mapAddr(u32 addr) const;
+
+
+    //
+    //Emulating the device
+    //
+
+public:
+
+    // Executes pending actions
+    void execute() override;
+
+private:
+
+    // Called by execute()
+    void execute(EventID id);
+
+    // Schedules a new action
+    void schedule(EventID id, isize ws = 0) { action = id; waitStates = ws; }
 
 
     //
     // Performing DMA
     //
 
-private:
+public:
 
-    void incMemAddr(u16 &addr) { addr = U16_ADD(addr, 1); }
-    void incReuAddr(u32 &addr) { addr = U32_ADD(addr, 1) & wrapMask(); }
+    // Records the current value of the BA line
+    void sniffBA();
 
-    void prepareDma();
-    bool doDma(EventID id);
+    // Checks whether the REU can use the bus
+    bool busIsBlocked(EventID id) const;
+
+    // Initiates a DMA transfer
+    void initiateDma();
+
+    // Performs a single DMA cycle
+    isize doDma(EventID id);
+
     void finalizeDma(EventID id);
-
-    
-    //
-    // Processing events
-    //
-
-    void processEvent(EventID id) override;
 
 
     //
     // Managing interrupts
     //
+
+private:
 
     void triggerEndOfBlockIrq();
     void triggerVerifyErrorIrq();

@@ -143,7 +143,7 @@ public:
 
 public:
 
-    double refreshRate() const override;
+    //  double refreshRate() const override;
 
 
     //
@@ -188,11 +188,6 @@ public:
     // Feeds a command into the command queue
     void put(const Cmd &cmd);
     void put(CmdType type, i64 payload) { put (Cmd(type, payload)); }
-
-private:
-
-    // Processes a command from the command queue
-    // void process(const Cmd &cmd);
 
 
     //

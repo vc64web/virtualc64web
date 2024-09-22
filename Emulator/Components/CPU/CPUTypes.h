@@ -62,6 +62,7 @@ typedef struct
     i64 cycle;
 
     u16 pc0;
+    u16 pc;
     u8 sp;
     u8 a;
     u8 x;
@@ -71,6 +72,8 @@ typedef struct
     u8 irq;
     u8 nmi;
     bool rdy;
+
+    long next;
 
     u8 processorPort;
     u8 processorPortDir;

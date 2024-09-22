@@ -138,7 +138,9 @@ public:
     CartridgeRomInfo getRomInfo(isize nr) const;
     CartridgeType getCartridgeType() const;
 
+    bool hasReu() const { return getCartridgeType() == CRT_REU; }
 
+    
     //
     // Accessing cartrige memory
     //
@@ -156,7 +158,7 @@ public:
     void pokeIO1(u16 addr, u8 value);
     void pokeIO2(u16 addr, u8 value);
     
-    
+
     //
     // Controlling the Game and Exrom lines
     //
@@ -211,7 +213,7 @@ public:
     
 
     //
-    // Processing commands
+    // Processing commands and events
     //
 
 public:
@@ -219,24 +221,34 @@ public:
     // Processes a cartridge command
     void processCommand(const Cmd &cmd);
 
+    // Services an event in the EXP slot
+    void processEvent(EventID id);
+
 
     //
-    // Processing events
+    // Cycle-accurate execution
     //
 
 public:
 
-    void processEvent(EventID id);
+    /* Indicates whether a cartridge is attached that needs cycle-accurate
+     * emulation. If such a cartridge is attached, the main execution routine
+     * calls execute() function in every cycle.
+     */
+    bool needsAccurateEmulation();
+
+    // Passes control to the cartridge in every cycle.
+    void execute();
 
 
     //
     // Handling delegation calls
     //
     
-    /* Emulator thread callback. This function is invoked by the expansion port.
+    /* This function is invoked by the expansion port at the end of each frame.
      * Only a few cartridges such as EpyxFastLoader will do some action here.
      */
-    void execute();
+    void endOfFrame();
     
     /* Modifies the memory source lookup tables if required. This function is
      * called in C64::updatePeekPokeLookupTables() to allow cartridges to

@@ -75,7 +75,7 @@ CommandConsole::pressReturn(bool shift)
 {
     if (!shift && input.empty()) {
 
-        printHelp();
+        retroShell.asyncExec("printhelp");
 
     } else {
 
@@ -94,7 +94,10 @@ CommandConsole::initCommands(Command &root)
 
     Command::currentGroup = "Regression testing";
 
-    root.add({"regression"}, debugBuild ? "Runs the regression tester" : "");
+    auto cmd = registerComponent(regressionTester);
+    root.seek("regression")->hidden = releaseBuild;
+
+    // root.add({"regression"}, debugBuild ? "Runs the regression tester" : "");
 
     root.add({"regression", "setup"}, { C64ModelEnum::argList() },
              "Initialize the test environment",
@@ -120,11 +123,11 @@ CommandConsole::initCommands(Command &root)
     root.add({"screenshot", "set"},
              "Configure the screenshot");
 
-    root.add({"screenshot", "set", "filename"}, { Arg::path },
-             "Assign the screen shot filename",
+    root.add({"screenshot", "set", "path"}, { Arg::path },
+             "Assign the save directory",
              [this](Arguments& argv, long value) {
 
-        regressionTester.dumpTexturePath = argv.front();
+        regressionTester.screenshotPath = argv.front();
     });
 
     root.add({"screenshot", "set", "cutout"}, { Arg::value, Arg::value, Arg::value, Arg::value },
@@ -160,7 +163,7 @@ CommandConsole::initCommands(Command &root)
     // Components (C64)
     //
 
-    auto cmd = registerComponent(c64);
+    cmd = registerComponent(c64);
 
     root.add({cmd, "defaults"},
              "Display the user defaults storage",
@@ -196,9 +199,8 @@ CommandConsole::initCommands(Command &root)
 
         std::stringstream ss;
         c64.exportDiff(ss);
+        printf("ss = %s\n", ss.str().c_str());
         retroShell << ss << '\n';
-
-        c64.exportConfig("/tmp/test.ini");
     });
 
 
@@ -306,7 +308,7 @@ CommandConsole::initCommands(Command &root)
     // Components (SIDBridge)
     //
 
-    cmd = registerComponent(sidBridge);
+    // cmd = registerComponent(sidBridge);
 
 
     //
@@ -685,23 +687,23 @@ CommandConsole::initCommands(Command &root)
         dump(remoteManager, Category::State);
     });
 
-    cmd = registerComponent(remoteManager.rshServer);
+    cmd = registerComponent(remoteManager.rshServer, root / "server");
 
-    root.add({cmd, "start"},
+    root.add({"server", cmd, "start"},
              "Starts the retro shell server",
              [this](Arguments& argv, long value) {
 
         remoteManager.rshServer.start();
     });
 
-    root.add({cmd, "stop"},
+    root.add({"server", cmd, "stop"},
              "Stops the retro shell server",
              [this](Arguments& argv, long value) {
 
         remoteManager.rshServer.stop();
     });
 
-    root.add({cmd, "disconnect"},
+    root.add({"server", cmd, "disconnect"},
              "Disconnects a client",
              [this](Arguments& argv, long value) {
 

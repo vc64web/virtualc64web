@@ -110,6 +110,7 @@ enum_long(SLOT)
     SLOT_RSH,                       // Retro Shell
     SLOT_KEY,                       // Auto-typing
     SLOT_SRV,                       // Remote server manager
+    SLOT_DBG,                       // Debugging (Regression tester)
     SLOT_ALA,                       // Alarms (set by the GUI)
     SLOT_INS,                       // Handles periodic calls to inspect()
 
@@ -141,6 +142,7 @@ struct EventSlotEnum : util::Reflection<EventSlotEnum, EventSlot>
             case SLOT_RSH:      return "RSH";
             case SLOT_KEY:      return "KEY";
             case SLOT_SRV:      return "SRV";
+            case SLOT_DBG:      return "DBG";
             case SLOT_ALA:      return "ALA";
             case SLOT_INS:      return "INS";
 
@@ -188,12 +190,14 @@ enum_i8(EventID)
     //
 
     // Expansion port
-    EXP_REU_PREPARE     = 1,
-    EXP_REU_PREPARE2,
+    EXP_REU_INITIATE    = 1,
+    EXP_REU_PREPARE,
     EXP_REU_STASH,
     EXP_REU_FETCH,
     EXP_REU_SWAP,
     EXP_REU_VERIFY,
+    EXP_REU_AUTOLOAD,
+    EXP_REU_FINALIZE,
     EXP_EVENT_COUNT,
 
     // Serial data out (RS232)
@@ -229,6 +233,10 @@ enum_i8(EventID)
     // Remote server manager
     SRV_LAUNCH_DAEMON   = 1,
     SRV_EVENT_COUNT,
+
+    // Alarm event slot
+    DBG_WATCHDOG        = 1,
+    DBG_EVENT_COUNT,
 
     // Alarm event slot
     ALA_TRIGGER         = 1,

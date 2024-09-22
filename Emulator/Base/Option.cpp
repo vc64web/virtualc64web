@@ -172,6 +172,9 @@ OptionParser::create(Option opt, i64 arg)
         case OPT_SRV_AUTORUN:               return boolParser();
         case OPT_SRV_VERBOSE:               return boolParser();
 
+        case OPT_DBG_DEBUGCART:             return boolParser();
+        case OPT_DBG_WATCHDOG:              return numParser();
+
         default:
             fatalError;
     }

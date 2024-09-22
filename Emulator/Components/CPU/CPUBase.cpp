@@ -134,6 +134,7 @@ CPU::cacheInfo(CPUInfo &result) const
         result.cycle = clock;
 
         result.pc0 = reg.pc0;
+        result.pc = reg.pc;
         result.sp = reg.sp;
         result.a = reg.a;
         result.x = reg.x;
@@ -144,6 +145,8 @@ CPU::cacheInfo(CPUInfo &result) const
         result.nmi = nmiLine;
         result.rdy = rdyLine;
 
+        result.next = next;
+        
         result.processorPort = readPort();
         result.processorPortDir = readPortDir();
     }

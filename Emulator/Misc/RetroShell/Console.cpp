@@ -770,6 +770,15 @@ Console::initCommands(Command &root)
         welcome();
     });
 
+    root.add({"printhelp"},
+             "", // Prints the help message
+             [this](Arguments& argv, long value) {
+
+        *this << '\n';
+        printHelp();
+        *this << '\n';
+    });
+
     root.add({"."},
              "Enter or exit the debugger",
              [this](Arguments& argv, long value) {
@@ -843,6 +852,12 @@ Console::initCommands(Command &root)
 
 const char *
 Console::registerComponent(CoreComponent &c)
+{
+    return registerComponent(c, root);
+}
+
+const char *
+Console::registerComponent(CoreComponent &c, Command &root)
 {
     // Get the shell name for this component
     auto cmd = c.shellName();

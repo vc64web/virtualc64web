@@ -119,7 +119,7 @@ ExpansionPort::getOption(Option option) const
 {
     switch (option) {
 
-        case OPT_EXP_REU_SPEED:     return (i64)config.reuSpeed;
+        case OPT_EXP_REU_SPEED: return (i64)config.reuSpeed;
 
         default:
             fatalError;

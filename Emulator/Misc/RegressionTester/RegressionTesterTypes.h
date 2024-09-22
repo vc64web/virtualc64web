@@ -9,10 +9,24 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later OR MPL-2.0
 // -----------------------------------------------------------------------------
+/// @file
 
-#include "config.h"
-#include "Serializable.h"
+#pragma once
+
+#include "Reflection.h"
 
 namespace vc64 {
+
+
+//
+// Structures
+//
+
+typedef struct
+{
+    bool debugcart;
+    i64 watchdog;
+}
+RegressionTesterConfig;
 
 }

@@ -475,33 +475,41 @@ public: // private
 
 
     //
-    //
-    //
-
-public:
-
-    // Updates the clock frequency and all variables derived from it
-    void updateClockFrequency();
-
-    // Enables or disables headless mode
-    bool getHeadless() const { return headless; }
-    void setHeadless(bool value) { headless = value; }
-
-
-
-    //
     // Analyzing
     //
 
 public:
 
+
+    // Ultimax mode
     bool getUltimax() const { return ultimax; }
     void setUltimax(bool b) { ultimax = b; }
 
+    // Headless mode
+    bool getHeadless() const { return headless; }
+    void setHeadless(bool value) { headless = value; }
+
+    // Returns the native refresh rate (differs between PAL and NTSC)
+    double nativeRefreshRate() const;
+
+    // Returns the native clock frequency (differs between PAL and NTSC)
+    i64 nativeClockFrequency() const;
+
+    // Returns the emulated refresh rate
+    double refreshRate() const;
+
+    // Returns the clock frequency based on the emulated refresh rate
+    i64 clockFrequency() const;
+    
 
     //
     // Emulating
     //
+
+public:
+    
+    // Updates the clock frequency and all variables derived from it
+    void updateClockFrequency();
 
 private:
 
@@ -512,9 +520,8 @@ private:
     void computeFrame();
     void computeFrame(bool headless);
     void computeFrameHeadless() { computeFrame(true); }
-    template <bool enable8, bool enable9> void execute();
-    template <bool enable8, bool enable9> alwaysinline void executeCycle();
-    template <bool enable8, bool enable9> void finishInstruction();
+    template <bool, bool, bool> void execute();
+    template <bool, bool, bool> alwaysinline void executeCycle();
     void processFlags();
 
     // Fast-forward the run-ahead instance

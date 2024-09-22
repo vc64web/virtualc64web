@@ -304,17 +304,25 @@ ExpansionPort::processCommand(const Cmd &cmd)
 void 
 ExpansionPort::processEvent(EventID id)
 {
-    if (cartridge) {
-        cartridge->processEvent(id);
-    } else {
-        c64.cancel<SLOT_EXP>();
-    }
+    // No events so far
+}
+
+bool 
+ExpansionPort::needsAccurateEmulation()
+{
+    return cartridge ? cartridge->getCartridgeTraits().needsExecution : false;
 }
 
 void
 ExpansionPort::execute()
 {
     if (cartridge) cartridge->execute();
+}
+
+void
+ExpansionPort::endOfFrame()
+{
+    if (cartridge) cartridge->endOfFrame();
 }
 
 void

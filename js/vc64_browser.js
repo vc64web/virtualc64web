@@ -1,4 +1,4 @@
-var vc64web_version ="5.1.1"; //minimum requirement for snapshot version to be compatible
+var vc64web_version ="5.1.2"; //minimum requirement for snapshot version to be compatible
 var current_browser_datasource='snapshots';
 var current_browser_command=null;
 
@@ -473,7 +473,7 @@ var collectors = {
                         var version = snapshot.data[4] +'.'+snapshot.data[5]+'.'+snapshot.data[6];
                         if(!version.startsWith(vc64web_version))
                         {
-                            alert(`This snapshot has been taken with the older virtual C64 version ${version} and can not be loaded with the current version ${vc64web_version}, sorry.`);
+                            alert(`This snapshot has been taken with the older virtual C64 version ${version} and can not be loaded with the current version ${vc64web_version}, sorry. You can try to switch to an older version in the settings to run it.`);
                             return;
                         }
                         wasm_loadfile(

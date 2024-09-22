@@ -71,7 +71,7 @@ enum_long(OPT)
 
     // Expansion port
     OPT_EXP_REU_SPEED,          ///< Transfer speed of the RAM Extension Unit
-    ///<
+
     // User port
     OPT_USR_DEVICE,             ///< Device connected to the user port
 
@@ -193,6 +193,10 @@ enum_long(OPT)
     OPT_SRV_AUTORUN,
     OPT_SRV_VERBOSE,
 
+    // Regression tester
+    OPT_DBG_DEBUGCART,          ///< Emulate the VICE debug cartridge
+    OPT_DBG_WATCHDOG,           ///< Watchdog delay in frames
+
     OPT_COUNT
 };
 typedef OPT Option;
@@ -200,7 +204,7 @@ typedef OPT Option;
 struct OptionEnum : util::Reflection<OptionEnum, Option> {
 
     static constexpr long minVal = 0;
-    static constexpr long maxVal = OPT_AUTOFIRE_DELAY;
+    static constexpr long maxVal = OPT_DBG_WATCHDOG;
 
     static const char *prefix() { return "OPT"; }
     static const char *_key(long value)
@@ -351,6 +355,9 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
             case OPT_SRV_PROTOCOL:          return "SRV.PROTOCOL";
             case OPT_SRV_AUTORUN:           return "SRV.AUTORUN";
             case OPT_SRV_VERBOSE:           return "SRV.VERBOSE";
+
+            case OPT_DBG_DEBUGCART:         return "DBG.DEBUGCART";
+            case OPT_DBG_WATCHDOG:          return "DBG.WATCHDOG";
 
             case OPT_COUNT:                 return "???";
         }
@@ -504,6 +511,9 @@ struct OptionEnum : util::Reflection<OptionEnum, Option> {
             case OPT_SRV_PROTOCOL:          return "Server protocol";
             case OPT_SRV_AUTORUN:           return "Auto run";
             case OPT_SRV_VERBOSE:           return "Verbose mode";
+
+            case OPT_DBG_DEBUGCART:         return "VICE debug cartridge";
+            case OPT_DBG_WATCHDOG:          return "Watchdog delay in cycles";
 
             case OPT_COUNT:                 return "???";
         }

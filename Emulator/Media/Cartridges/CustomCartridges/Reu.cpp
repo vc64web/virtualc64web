@@ -22,6 +22,7 @@ Reu::Reu(C64 &ref, isize kb) : Cartridge(ref), kb(kb)
         throw Error(VC64ERROR_OPT_INV_ARG, "128, 256, 512, ..., 16384");
     }
 
+    traits.memory = KB(kb);
     setRamCapacity(KB(kb));
 }
 
@@ -35,7 +36,10 @@ Reu::_didReset(bool hard)
     cr = 0x10;
 
     // Initialize the length register
-    tlen = 0xFFFF;
+    tlength = tlengthLatched = 0xFFFF;
+
+    // Experimental
+    bus = 0x00; // 0xFF;
 }
 
 void
@@ -43,14 +47,15 @@ Reu::_dump(Category category, std::ostream& os) const
 {
     using namespace util;
 
+    string mode[4] = { "STASH", "FETCH", "SWAP", "VERIFY" };
+
     Cartridge::_dump(category, os);
-    os << std::endl;
 
     if (category == Category::State) {
 
-        string mode[4] = { "STASH", "FETCH", "SWAP", "VERIFY" };
         auto model = isREU1700() ? "1700" : isREU1764() ? "1764" : "1750";
 
+        os << std::endl;
         os << tab("Model");
         os << "REU " << model << std::endl;
         os << tab("Capacity");
@@ -60,19 +65,20 @@ Reu::_dump(Category category, std::ostream& os) const
         os << tab("Command Register");
         os << hex(cr) << std::endl;
         os << tab("C64 Base Address");
-        os << hex(c64Base) << std::endl;
+        os << hex(c64Base) << " (latched: " << hex(c64BaseLatched) << ")" << std::endl;
         os << tab("REU Base Address");
-        os << hex(reuBase) << std::endl;
-        os << tab("Upper bank bits" );
-        os << hex(upperBankBits) << std::endl;
-        os << tab("Transfer Length");
-        os << hex(tlen) << std::endl;
+        os << hex(reuBase) << " (latched: " << hex(reuBaseLatched) << ")" << std::endl;
+        os << tab("Bank register");
+        os << hex(reuBank) << " (latched: " << hex(reuBankLatched) << ")" << std::endl;
+        os << tab("Transfer Length Register");
+        os << hex(tlength) << " (latched: " <<  hex(tlengthLatched) << ")" << std::endl;
         os << tab("Interrupt Mask Register");
         os << hex(imr) << std::endl;
         os << tab("Address Control Register");
         os << hex(acr) << std::endl;
-
         os << std::endl;
+        os << tab("Upper bank bits" );
+        os << hex(upperBankBits) << std::endl;
         os << tab("Wrap mask");
         os << hex(wrapMask()) << std::endl;
         os << tab("Mode");
@@ -91,6 +97,36 @@ Reu::_dump(Category category, std::ostream& os) const
         os << dec(memStep()) << std::endl;
         os << tab("REU address increment");
         os << dec(reuStep()) << std::endl;
+    }
+
+    if (category == Category::Dma) {
+
+        string symb[4] = { "->", "<-", "<->", "==" };
+
+        os << mode[cr & 3] << ": ";
+        os << "C64: " << hex(c64Base) << (memStep() ? "+ " : " ");
+        os << symb[cr & 3] << " ";
+        os << "REU: " << dec(reuBank) << ":" << hex(reuBase) << (reuStep() ? "+ " : " ");
+        os << "Len: " << dec(tlength);
+        os << std::endl;
+    }
+}
+
+bool 
+Reu::isActive() const
+{
+    return c64.hasEvent<SLOT_EXP>();
+}
+
+void
+Reu::eraseRAM()
+{
+    auto capacity = (u32)getRamCapacity();
+
+    for (u32 i = 0; i < capacity; i++) {
+
+        u8 invert = (i & 0x20000) ? 0xFF : 0x00;
+        pokeRAM(i, (((i + 1) & 0b10) ? 0x00 : 0xFF) ^ invert);
     }
 }
 
@@ -113,10 +149,9 @@ Reu::peekIO2(u16 addr)
 
         default:
             break;
-
     }
 
-    debug(REU_DEBUG, "peekIO2(%x) = %02X\n", addr, result);
+    debug(REU_DEBUG >= 2, "peekIO2(%x) = %02X\n", addr, result);
     return result;
 }
 
@@ -157,19 +192,19 @@ Reu::spypeekIO2(u16 addr) const
             result = HI_BYTE(reuBase);
             break;
 
-        case 0x06:  // REU Bank
+        case 0x06:  // Bank
 
-            result = (u8)HI_WORD(reuBase) | 0xF8;
+            result = reuBank | 0xF8;
             break;
 
         case 0x07:  // Transfer Length (LSB)
 
-            result = LO_BYTE(tlen);
+            result = LO_BYTE(tlength);
             break;
 
         case 0x08:  // Transfer Length (MSB)
 
-            result = HI_BYTE(tlen);
+            result = HI_BYTE(tlength);
             break;
 
         case 0x09:  // Interrupt Mask
@@ -193,7 +228,7 @@ Reu::spypeekIO2(u16 addr) const
 void
 Reu::pokeIO2(u16 addr, u8 value)
 {
-    debug(REU_DEBUG, "pokeIO2(%x,%x)\n", addr, value);
+    debug(REU_DEBUG >= 2, "pokeIO2(%x,%x)\n", addr, value);
 
     switch (addr & 0x1F) {
 
@@ -207,38 +242,43 @@ Reu::pokeIO2(u16 addr, u8 value)
 
             if (GET_BIT(cr,7) && ff00Enabled()) {
 
-                debug(REU_DEBUG, "Preparing for DMA...\n");
+                // debug(REU_DEBUG, "Preparing for DMA [Mode %d]...\n", cr & 0x3);
             }
             if (GET_BIT(cr,7) && ff00Disabled()) {
 
-                debug(REU_DEBUG, "Initiating DMA...\n");
-                prepareDma();
+                // debug(REU_DEBUG, "Initiating DMA [Mode %d]...\n", cr & 0x3);
+                initiateDma();
             }
             break;
 
         case 0x02:  // C64 Base Address (LSB)
 
-            c64Base = (u16)REPLACE_LO(c64Base, value);
+            c64BaseLatched = (u16)REPLACE_LO(c64BaseLatched, value);
+            c64Base = c64BaseLatched;
             break;
 
         case 0x03:  // C64 Base Address (MSB)
 
-            c64Base = (u16)REPLACE_HI(c64Base, value);
+            c64BaseLatched = (u16)REPLACE_HI(c64BaseLatched, value);
+            c64Base = c64BaseLatched;
             break;
 
         case 0x04:  // REU Base Address (LSB)
 
-            reuBase = (u32)REPLACE_LO(reuBase, value);
+            reuBaseLatched = (u16)REPLACE_LO(reuBaseLatched, value);
+            reuBase = reuBaseLatched;
             break;
 
         case 0x05:  // REU Base Address (MSB)
 
-            reuBase = (u32)REPLACE_HI(reuBase, value);
+            reuBaseLatched = (u16)REPLACE_HI(reuBaseLatched, value);
+            reuBase = reuBaseLatched;
             break;
 
         case 0x06:  // REU Bank
 
-            reuBase = (u32)REPLACE_HI_WORD(reuBase, value & 0b111);
+            reuBankLatched = value & 0b111;
+            reuBank = reuBankLatched;
 
             switch (getRamCapacity()) {
 
@@ -259,12 +299,14 @@ Reu::pokeIO2(u16 addr, u8 value)
 
         case 0x07:  // Transfer Length (LSB)
 
-            tlen = (u16)REPLACE_LO(tlen, value);
+            tlengthLatched = (u16)REPLACE_LO(tlengthLatched, value);
+            tlength = tlengthLatched;
             break;
 
         case 0x08:  // Transfer Length (MSB)
 
-            tlen = (u16)REPLACE_HI(tlen, value);
+            tlengthLatched = (u16)REPLACE_HI(tlengthLatched, value);
+            tlength = tlengthLatched;
             break;
 
         case 0x09:  // Interrupt Mask
@@ -288,18 +330,33 @@ Reu::pokeIO2(u16 addr, u8 value)
 void
 Reu::poke(u16 addr, u8 value)
 {
-    debug(REU_DEBUG, "poke(%x,%x)\n", addr, value);
     assert((addr & 0xF000) == 0xF000);
 
-    if (addr == 0xFF00 && isArmed()) {
+    if (addr != 0xFF00) {
 
-        // Initiate DMA
-        prepareDma();
+        mem.poke(addr, value, memTypeF);
 
     } else {
 
-        // Route the write access back
-        mem.poke(addr, value, memTypeF);
+        trace(REU_DEBUG, "poke($FF00,%02X)\n", value);
+
+        if (isActive()) {
+
+            debug(REU_DEBUG, "Ignoring write to $FF00. REU already active\n");
+            return;
+        }
+
+        if (!isArmed()) {
+
+            debug(REU_DEBUG, "Ignoring write to $FF00. REU not armed\n");
+            mem.poke(addr, value, memTypeF);
+            return;
+        }
+
+        debug(REU_DEBUG, "Starting REU via FF00 trigger\n");
+        if (memTypeF != M_RAM) mem.poke(addr, value, memTypeF);
+
+        initiateDma();
     }
 }
 
@@ -323,6 +380,10 @@ Reu::readFromReuRam(u32 addr)
     if (addr < u32(getRamCapacity())) {
 
         bus = peekRAM(addr);
+
+    } else if (!floating(addr)) {
+
+        bus = peekRAM(mapAddr(addr));
     }
 
     return bus;
@@ -333,162 +394,314 @@ Reu::writeToReuRam(u32 addr, u8 value)
 {
     addr |= upperBankBits;
 
+    bus = value;
+
     if (addr < u32(getRamCapacity())) {
 
-        bus = value;
         pokeRAM(addr, value);
+
+    } else if (!floating(addr)) {
+
+        pokeRAM(mapAddr(addr), value);
+    }
+}
+
+bool 
+Reu::floating(u32 addr) const
+{
+    auto bank = [&](u32 addr) { return addr >> 16; };
+
+    switch (getRamCapacity()) {
+
+        case KB(256):   return (bank(addr) % 8) >= 4;
+        default:        return false;
+    }
+}
+
+u32
+Reu::mapAddr(u32 addr) const
+{
+    auto capacity = getRamCapacity();
+
+    switch (capacity) {
+
+        case KB(256):   return addr & 0x07FFFF;
+        default:        return addr & (capacity - 1);
+    }
+}
+
+void 
+Reu::incMemAddr()
+{
+    c64Base = U16_ADD(c64Base, 1);
+}
+
+void
+Reu::incReuAddr()
+{
+    u32 expanded = U32_ADD((u32)reuBank << 16 | reuBase, 1) & wrapMask();
+
+    reuBank = (u8)HI_WORD(expanded);
+    reuBase = LO_WORD(expanded);
+}
+
+void 
+Reu::execute()
+{
+    // Quick exit
+    if (action == EVENT_NONE) return;
+
+    // Sniff the BA line
+    sniffBA();
+
+    for (isize i = 0; i < expansionPort.getConfig().reuSpeed; i++) {
+
+        // Emulate wait state if necessary
+        if (waitStates) { waitStates--; return; }
+
+        // Only proceed if an action is scheduled
+        if (action == EVENT_NONE) return;
+
+        // Execute the pending action
+        execute(action);
+    }
+}
+
+void 
+Reu::execute(EventID id)
+{
+    switch (id) {
+
+        case EXP_REU_INITIATE:
+
+            if (REU_DEBUG) { trace(true, ""); dump(Category::Dma, std::cout); }
+
+            // Update control register bits
+            cr = (cr & ~CR::EXECUTE) | CR::FF00_DISABLE;
+
+            // Freeze the CPU
+            cpu.pullDownRdyLine(INTSRC_EXP);
+
+            // Schedule the first DMA event
+            schedule(EXP_REU_PREPARE);
+            break;
+
+        case EXP_REU_PREPARE:
+
+            // cpu.pullDownRdyLine(INTSRC_EXP);
+
+            switch (cr & 0x3) {
+
+                case 0: id = EXP_REU_STASH; break;
+                case 1: id = EXP_REU_FETCH; break;
+                case 2: id = EXP_REU_SWAP; break;
+                case 3: id = EXP_REU_VERIFY; break;
+            }
+            [[fallthrough]];
+
+        case EXP_REU_STASH:
+        case EXP_REU_FETCH:
+        case EXP_REU_SWAP:
+        case EXP_REU_VERIFY:
+        {
+            trace(REU_DEBUG > 3, "%d%d : ", ba[1], ba[0]);
+
+            // Only proceed if the bus is available
+            if (busIsBlocked(id)) {
+
+                if (REU_DEBUG > 3) printf("BLOCKED\n");
+                break;
+            }
+
+            // Perform a DMA cycle
+            auto remaining = doDma(id);
+
+            if (id == EXP_REU_STASH && REU_DEBUG > 3) printf("Stashing\n");
+            if (id == EXP_REU_FETCH && REU_DEBUG > 3) printf("Fetching %02x\n", reuVal);
+
+            // Set or clear the END_OF_BLOCK_BIT
+            tlength == 1 ? SET_BIT(sr, 6) : CLR_BIT(sr, 6);
+
+            // Process the event again in the next cycle if DMA continues
+            if (remaining > 0) break;
+
+            // Delay for one cycle (if needed)
+            if (waitStates) { schedule(EXP_REU_AUTOLOAD); break; }
+            [[fallthrough]];
+        }
+        case EXP_REU_AUTOLOAD:
+
+            cpu.releaseRdyLine(INTSRC_EXP);
+
+            if (autoloadEnabled()) {
+
+                debug(REU_DEBUG, "Autoloading...\n");
+
+                // Reload values from shadow registers
+                c64Base = c64BaseLatched;
+                reuBase = reuBaseLatched;
+                reuBank = reuBankLatched;
+                tlength = tlengthLatched;
+
+                // Emulate a proper delay
+                if (id != EXP_REU_SWAP) {
+
+                    schedule(EXP_REU_FINALIZE, 3);
+                    break;
+                }
+            }
+            [[fallthrough]];
+
+        case EXP_REU_FINALIZE:
+
+            finalizeDma(id);
+            c64.cancel<SLOT_EXP>();
+            schedule(EVENT_NONE);
+            break;
+
+        default:
+            fatalError;
     }
 }
 
 void
-Reu::prepareDma()
+Reu::sniffBA()
 {
-    if (REU_DEBUG) { dump(Category::Dma, std::cout); }
+    // Scan the BA line
+    ba[0] = vic.baLine.current();
+    ba[1] = vic.baLine.readWithDelay(1);
 
-    c64Addr = c64Base;
-    reuAddr = reuBase;
-    isize len = tlen ? tlen : 0x10000;
+    // Check if DMA for sprite 0 was off and has been switched on
+    if (c64.rasterCycle == 54) lateBA = !GET_BIT(vic.spriteDmaOnOff, 1);
 
-    // Freeze the CPU
-    // cpu.pullDownRdyLine(INTSRC_EXP);
-
-    // Schedule the first event
-    c64.scheduleRel<SLOT_EXP>(1, EXP_REU_PREPARE, len);
+    /* From Denise's vicii.h:
+     *
+     * "of course expansion port sees the same BA state like CPU RDY line.
+     *  but there is a known case, when BA calculation takes more time within cycle.
+     *  for CPU it doesn't matter, because it checks later in cycle.
+     *  REU seems to check this sooner and can't recognize BA in this special cycle."
+     */
+    if (c64.rasterCycle == 55 && lateBA) { ba[0] = false; }
 }
 
-bool
+bool 
+Reu::busIsBlocked(EventID id) const
+{
+    switch (id) {
+
+        case EXP_REU_FETCH:
+
+            if (tlength == 1) return ba[0];
+            return ba[0] && ba[1];
+
+        case EXP_REU_STASH:
+        case EXP_REU_SWAP:
+        case EXP_REU_VERIFY:
+
+            return ba[0];
+
+        default:
+            fatalError;
+    }
+}
+
+void
+Reu::initiateDma()
+{
+    schedule(EXP_REU_INITIATE);
+}
+
+isize
 Reu::doDma(EventID id)
 {
-    u8 c64Val, reuVal;
-
     switch (id) {
 
         case EXP_REU_STASH:
 
-            c64Val = readFromC64Ram(c64Addr);
-            writeToReuRam(reuAddr, c64Val);
+            c64Val = readFromC64Ram(c64Base);
+            writeToReuRam((u32)reuBank << 16 | reuBase, c64Val);
 
-            // debug(REU_DEBUG,"(%x, %02x) -> %x\n", memAddr, c64Val, reuAddr);
-
-            if (memStep()) incMemAddr(c64Addr);
-            if (reuStep()) incReuAddr(reuAddr);
+            if (memStep()) incMemAddr();
+            if (reuStep()) incReuAddr();
             break;
 
         case EXP_REU_FETCH:
 
-            reuVal = readFromReuRam(reuAddr);
-            writeToC64Ram(c64Addr, reuVal);
+            reuVal = readFromReuRam((u32)reuBank << 16 | reuBase);
+            writeToC64Ram(c64Base, reuVal);
 
-            // debug(REU_DEBUG,"%x <- (%x, %02x)\n", memAddr, reuAddr, reuVal);
+            if (memStep()) incMemAddr();
+            if (reuStep()) incReuAddr();
 
-            if (memStep()) incMemAddr(c64Addr);
-            if (reuStep()) incReuAddr(reuAddr);
+            prefetch((u32)reuBank << 16 | reuBase);
             break;
 
         case EXP_REU_SWAP:
 
-            c64Val = readFromC64Ram(c64Addr);
-            reuVal = readFromReuRam(reuAddr);
+            // Only proceed every second cycle
+            if ((swapff = !swapff) == true) {
 
-            writeToC64Ram(c64Addr, reuVal);
-            writeToReuRam(reuAddr, c64Val);
+                c64Val = readFromC64Ram(c64Base);
+                reuVal = readFromReuRam((u32)reuBank << 16 | reuBase);
 
-            if (memStep()) incMemAddr(c64Addr);
-            if (reuStep()) incReuAddr(reuAddr);
+                return tlength;
+            }
+
+            writeToC64Ram(c64Base, reuVal);
+            writeToReuRam((u32)reuBank << 16 | reuBase, c64Val);
+
+            if (memStep()) incMemAddr();
+            if (reuStep()) incReuAddr();
+
+            prefetch((u32)reuBank << 16 | reuBase);
             break;
 
         case EXP_REU_VERIFY:
 
-            c64Val = readFromC64Ram(c64Addr);
-            reuVal = readFromReuRam(reuAddr);
+            c64Val = readFromC64Ram(c64Base);
+            reuVal = readFromReuRam((u32)reuBank << 16 | reuBase);
+
+            if (memStep()) incMemAddr();
+            if (reuStep()) incReuAddr();
 
             if (c64Val != reuVal) {
 
                 debug(REU_DEBUG, "Verify error: (%x,%02x) <-> (%x,%02x)\n",
-                      c64Addr, c64Val, reuAddr, reuVal);
+                      c64Base, c64Val, (u32)reuBank << 16 | reuBase, reuVal);
 
-                // Set the "Fault" bit
+                // Set the Fault bit
                 SET_BIT(sr, 5);
 
                 // Trigger interrupt if enabled
                 triggerVerifyErrorIrq();
 
-                return false;
+                waitStates = tlength == 1 ? 0 : 1;
+                if (tlength != 1) U16_DEC(tlength, 1);
+                return -1;
             }
-
-            if (memStep()) incMemAddr(c64Addr);
-            if (reuStep()) incReuAddr(reuAddr);
             break;
 
         default:
             fatalError;
     }
 
-    return true;
+    if (tlength == 1) {
+
+        triggerEndOfBlockIrq();
+        return 0;
+    }
+
+    U16_DEC(tlength, 1);
+    return tlength;
 }
 
 void 
 Reu::finalizeDma(EventID id)
 {
-    // Set the "End of Block" bit
-    SET_BIT(sr, 6);
-
-    if (!autoloadEnabled()) {
-
-        c64Base = c64Addr;
-        reuBase = reuAddr;
-    }
-
-    triggerEndOfBlockIrq();
+    // if (!verifyError) triggerEndOfBlockIrq();
 
     // Release the CPU
     cpu.releaseRdyLine(INTSRC_EXP);
-}
-
-void 
-Reu::processEvent(EventID id)
-{
-    if (id == EXP_REU_PREPARE) {
-
-        cpu.pullDownRdyLine(INTSRC_EXP);
-
-        c64.scheduleRel<SLOT_EXP>(1, EXP_REU_PREPARE2, c64.data[SLOT_EXP]);
-        return;
-    }
-
-    if (id == EXP_REU_PREPARE2) {
-
-        // Freeze the CPU
-        cpu.pullDownRdyLine(INTSRC_EXP);
-
-        switch (cr & 0x3) {
-
-            case 0: id = EXP_REU_STASH; break;
-            case 1: id = EXP_REU_FETCH; break;
-            case 2: id = EXP_REU_SWAP; break;
-            case 3: id = EXP_REU_VERIFY; break;
-        }
-    }
-
-    auto remaining = c64.data[SLOT_EXP];
-
-    // Determine the number of bytes to transfer
-    auto todo = std::min(remaining, i64(bytesPerDmaCycle()));
-
-    // Perform DMA if VICII does not block the bus
-    if (!vic.baLine.delayed()) for (; todo; todo--, remaining--) doDma(id);
-
-    if (remaining) {
-
-        // Prepare the next event
-        c64.scheduleInc<SLOT_EXP>(1, id, remaining);
-
-    } else {
-
-        // Finalize DMA if this was the last cycle
-        finalizeDma(id);
-        c64.cancel<SLOT_EXP>();
-    }
 }
 
 void
@@ -498,6 +711,8 @@ Reu::triggerEndOfBlockIrq()
 
         sr |= 0x80;
         cpu.pullDownIrqLine(INTSRC_EXP);
+
+        debug(REU_DEBUG, "End-of-block IRQ triggered (sr = %02x)\n", sr);
     }
 }
 
@@ -508,6 +723,8 @@ Reu::triggerVerifyErrorIrq()
 
         sr |= 0x80;
         cpu.pullDownIrqLine(INTSRC_EXP);
+
+        debug(REU_DEBUG, "Verify-error IRQ triggered (sr = %02x)\n", sr);
     }
 }
 

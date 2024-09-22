@@ -104,12 +104,14 @@ C64::eventName(EventSlot slot, EventID id)
             switch (id) {
 
                 case EVENT_NONE:        return "none";
+                case EXP_REU_INITIATE:  return "EXP_REU_INITIATE";
                 case EXP_REU_PREPARE:   return "EXP_REU_PREPARE";
-                case EXP_REU_PREPARE2:  return "EXP_REU_PREPARE2";
                 case EXP_REU_STASH:     return "EXP_REU_STASH";
                 case EXP_REU_FETCH:     return "EXP_REU_FETCH";
                 case EXP_REU_SWAP:      return "EXP_REU_SWAP";
                 case EXP_REU_VERIFY:    return "EXP_REU_VERIFY";
+                case EXP_REU_AUTOLOAD:  return "EXP_REU_AUTOLOAD";
+                case EXP_REU_FINALIZE:  return "EXP_REU_FINALIZE";
                 default:                return "*** INVALID ***";
             }
             break;
@@ -194,6 +196,16 @@ C64::eventName(EventSlot slot, EventID id)
                 case EVENT_NONE:        return "none";
                 case SRV_LAUNCH_DAEMON: return "SRV_LAUNCH_DAEMON";
                 default:                return "*** INVALID ***";
+            }
+            break;
+
+        case SLOT_DBG:
+
+            switch (id) {
+
+                case EVENT_NONE:    return "none";
+                case DBG_WATCHDOG:  return "DBG_WATCHDOG";
+                default:            return "*** INVALID ***";
             }
             break;
 
@@ -323,20 +335,49 @@ C64::operator << (SerResetter &worker)
     rasterCycle = 1;
 }
 
+double
+C64::nativeRefreshRate() const
+{
+    return vic.getFps();
+}
+
+i64
+C64::nativeClockFrequency() const
+{
+    return vic.getFrequency();
+}
+
+double
+C64::refreshRate() const
+{
+    if (config.vsync) {
+
+        return double(host.getOption(OPT_HOST_REFRESH_RATE));
+
+    } else {
+
+        auto boost = config.speedBoost ? config.speedBoost : 100;
+        return nativeRefreshRate() * boost / 100.0;
+    }
+}
+
+i64
+C64::clockFrequency() const
+{
+    auto boost = config.speedBoost ? config.speedBoost : 100;
+    return nativeClockFrequency() * boost / 100;
+}
+
 void
 C64::updateClockFrequency()
 {
-    auto nativeFps = vic.getFps();
-    auto chosenFps = emulator.refreshRate();
+    auto frequency = clockFrequency();
 
-    auto nativeFrequency = vic.getFrequency();
-    auto chosenFrequency = nativeFrequency * chosenFps / nativeFps;
-
-    sidBridge.sid[0].setClockFrequency((u32)chosenFrequency);
-    sidBridge.sid[1].setClockFrequency((u32)chosenFrequency);
-    sidBridge.sid[2].setClockFrequency((u32)chosenFrequency);
-    sidBridge.sid[3].setClockFrequency((u32)chosenFrequency);
-    durationOfOneCycle = 10000000000 / vic.getFrequency();
+    sidBridge.sid[0].setClockFrequency((u32)frequency);
+    sidBridge.sid[1].setClockFrequency((u32)frequency);
+    sidBridge.sid[2].setClockFrequency((u32)frequency);
+    sidBridge.sid[3].setClockFrequency((u32)frequency);
+    durationOfOneCycle = 10000000000 / frequency;
 }
 
 void
@@ -717,19 +758,26 @@ C64::computeFrame(bool headless)
     cpu.debugger.watchpointPC = -1;
     cpu.debugger.breakpointPC = -1;
 
-    switch ((drive8.isPoweredOn() ? 2 : 0) + (drive9.isPoweredOn() ? 1 : 0)) {
-    
-        case 0b00: execute <false,false> (); break;
-        case 0b01: execute <false,true>  (); break;
-        case 0b10: execute <true,false>  (); break;
-        case 0b11: execute <true,true>   (); break;
+    // Dispatch
+    switch ((drive8.isPoweredOn()                   ? 4 : 0) |
+            (drive9.isPoweredOn()                   ? 2 : 0) |
+            (expansionport.needsAccurateEmulation() ? 1 : 0) ) {
+
+        case 0b000: execute <false, false, false> (); break;
+        case 0b001: execute <false, false, true>  (); break;
+        case 0b010: execute <false, true,  false> (); break;
+        case 0b011: execute <false, true,  true>  (); break;
+        case 0b100: execute <true,  false, false> (); break;
+        case 0b101: execute <true,  false, true>  (); break;
+        case 0b110: execute <true,  true,  false> (); break;
+        case 0b111: execute <true,  true,  true>  (); break;
 
         default:
             fatalError;
     }
 }
 
-template <bool enable8, bool enable9> void
+template <bool enable8, bool enable9, bool execExp> void
 C64::execute()
 {
     auto lastCycle = vic.getCyclesPerLine();
@@ -742,7 +790,7 @@ C64::execute()
             for (; rasterCycle <= lastCycle; rasterCycle++) {
 
                 // Execute one cycle
-                executeCycle<enable8, enable9>();
+                executeCycle<enable8, enable9, execExp>();
 
                 // Process all pending flags
                 if (flags) processFlags();
@@ -753,23 +801,17 @@ C64::execute()
 
         } while (scanline != 0);
 
-        // Finish the current instruction
-        finishInstruction<enable8, enable9>();
-
     } catch (StateChangeException &) {
 
         // Finish the scanline if needed
         if (++rasterCycle > lastCycle) endScanline();
-
-        // Finish the current instruction
-        finishInstruction<enable8, enable9>();
 
         // Rethrow the exception
         throw;
     }
 }
 
-template <bool enable8, bool enable9>
+template <bool enable8, bool enable9, bool execExp>
 alwaysinline void C64::executeCycle()
 {
     //
@@ -809,16 +851,7 @@ alwaysinline void C64::executeCycle()
     cpu.execute<MOS_6510>();
     if constexpr (enable8) { if (drive8.needsEmulation) drive8.execute(durationOfOneCycle); }
     if constexpr (enable9) { if (drive9.needsEmulation) drive9.execute(durationOfOneCycle); }
-}
-
-template <bool enable8, bool enable9> void 
-C64::finishInstruction()
-{
-    while (!cpu.inFetchPhase()) {
-
-        executeCycle<enable8,enable9>();
-        rasterCycle++;
-    }
+    if constexpr (execExp) { expansionport.execute(); }
 }
 
 void
@@ -855,7 +888,7 @@ C64::processFlags()
 
     if (flags & RL::SINGLE_STEP) {
 
-        if (!stepTo.has_value() || *stepTo == cpu.getPC0()) {
+        if ((!stepTo.has_value() && cpu.inFetchPhase()) || *stepTo == cpu.getPC0()) {
 
             clearFlag(RL::SINGLE_STEP);
             msgQueue.put(MSG_STEP);
@@ -1065,7 +1098,7 @@ C64::endFrame()
     sidBridge.endFrame();
     mem.endFrame();
     iec.execute();
-    expansionport.execute();
+    expansionport.endOfFrame();
     port1.execute();
     port2.execute();
     drive8.vsyncHandler();
@@ -1160,6 +1193,9 @@ C64::processEvents(Cycle cycle)
             }
             if (isDue<SLOT_SRV>(cycle)) {
                 remoteManager.serviceServerEvent();
+            }
+            if (isDue<SLOT_DBG>(cycle)) {
+                regressionTester.processEvent(eventid[SLOT_DBG]);
             }
             if (isDue<SLOT_ALA>(cycle)) {
                 processAlarmEvent();

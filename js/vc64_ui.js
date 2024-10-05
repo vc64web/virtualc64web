@@ -1791,7 +1791,7 @@ function InitWrappers() {
     window.addEventListener('message', event => {
         if(event.data == "poll_state")
         {
-            window.parent.postMessage({ msg: 'render_run_state', value: is_running()},"*");
+            window.parent.postMessage({ msg: 'render_run_state', value: is_running(), is_warping:  Module._wasm_is_warping() },"*");
             var audio_context=get_audio_context(); 
             window.parent.postMessage({ msg: 'render_current_audio_state', 
                 value: audio_context == null ? 'suspended' : audio_context.state},"*"); 
@@ -1801,7 +1801,7 @@ function InitWrappers() {
             if(required_roms_loaded)
             {
                 $('#button_run').click();
-                window.parent.postMessage({ msg: 'render_run_state', value: is_running()},"*");
+                window.parent.postMessage({ msg: 'render_run_state', value: is_running(), is_warping:  Module._wasm_is_warping() },"*");
             }
         }
         else if(event.data == "toggle_audio()")

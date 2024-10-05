@@ -835,6 +835,10 @@ extern "C" unsigned wasm_copy_into_sound_buffer_stereo()
   return copied_samples/2;
 }
 
+extern "C" bool wasm_is_warping()
+{
+  return wrapper->emu->isWarping();
+}
 
 extern "C" void wasm_set_warp(unsigned on)
 {
@@ -1534,6 +1538,10 @@ extern "C" unsigned wasm_get_config(char* option)
     printf("after emu->get(OPT_VICII_REVISION)=%u\n",val);
     return val;
   }
+  else if(strcmp(option,"OPT_C64_WARP_MODE") == 0)
+  {
+    return wrapper->emu->get(OPT_C64_WARP_MODE);
+  }
 }
 
 extern "C" void wasm_configure(char* option, unsigned on)
@@ -1617,6 +1625,10 @@ extern "C" void wasm_configure(char* option, unsigned on)
   {
     wrapper->emu->set(OPT_POWER_GRID,   GRID_STABLE_60HZ);
     wrapper->emu->set(OPT_VICII_REVISION, VICII_NTSC_8562);
+  }
+  else if( strcmp(option,"OPT_C64_WARP_MODE") == 0)
+  {
+    wrapper->emu->set(OPT_C64_WARP_MODE, on);
   }
   else
   {

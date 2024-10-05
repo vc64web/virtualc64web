@@ -225,6 +225,15 @@ async function execute_single_action(cmd, execute=true, execution_id=-1)
             $('#button_run').click();   
         }
     }
+    else if(cmd == 'toggle_warp')
+    {
+        if(execute)
+        {//0==auto, 1==never, 2==always
+            let mode = wasm_get_config("OPT_C64_WARP_MODE");
+            if(mode <= 1) auto_or_never_warp_mode = mode ==0 ?"WARP_AUTO":"WARP_NEVER";
+            wasm_configure('OPT_C64_WARP_MODE', mode<=1 ? 2/*'WARP_ALWAYS'*/: auto_or_never_warp_mode==="WARP_AUTO"?0:1);
+        }
+    }
     else if(cmd.match(/^[0-9]+ms$/) != null)
     {
         if(execute)

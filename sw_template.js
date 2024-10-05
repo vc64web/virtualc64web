@@ -1,6 +1,6 @@
 const url_root_path= self.location.pathname.replace("/sw.js","");
 const core_version  = '5.1.2'; //has to be the same as the version in Emulator/config.h
-const ui_version = '2024_10_06'+url_root_path.replace("/","_");
+const ui_version = '2024_10_07'+url_root_path.replace("/","_");
 const needs_shared_array_buffer=false; //true when it runs in separat worker thread
 const cache_name = `${core_version}@${ui_version}`;
 const settings_cache = 'settings';

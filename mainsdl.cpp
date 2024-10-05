@@ -1409,15 +1409,15 @@ extern "C" void wasm_set_2nd_sid(long address)
 {
   if(address == 0)
   {
-    wrapper->emu->set(OPT_AUD_VOL1, 1, 0);
+    wrapper->emu->set(OPT_AUD_VOL1, 0);
     wrapper->emu->set(OPT_SID_ENABLE, 1, false);
   }
   else
   {
-    wrapper->emu->set(OPT_AUD_VOL1, 1, 100);
-    wrapper->emu->set(OPT_AUD_PAN1, 1, 50);
-    wrapper->emu->set(OPT_SID_ENABLE, 1, true);
-    wrapper->emu->set(OPT_SID_ADDRESS, 1, address);
+      wrapper->emu->set(OPT_AUD_VOL1, 100);
+      wrapper->emu->set(OPT_AUD_PAN1, 50);
+      wrapper->emu->set(OPT_SID_ENABLE, 1, true);
+      wrapper->emu->set(OPT_SID_ADDRESS, address, 1);
   }
 }
 

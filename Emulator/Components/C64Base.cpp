@@ -215,10 +215,11 @@ C64::checkOption(Option opt, i64 value)
             return;
 
         case OPT_C64_SPEED_BOOST:
-
+/*
             if (value < 50 || value > 200) {
                 throw Error(VC64ERROR_OPT_INV_ARG, "50...200");
             }
+*/
             return;
 
         case OPT_C64_VSYNC:

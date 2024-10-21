@@ -224,13 +224,7 @@ C64::eventName(EventSlot slot, EventID id)
             switch (id) {
 
                 case EVENT_NONE:    return "none";
-                case INS_C64:       return "INS_C64";
-                case INS_CPU:       return "INS_CPU";
-                case INS_MEM:       return "INS_MEM";
-                case INS_CIA:       return "INS_CIA";
-                case INS_VICII:     return "INS_VICII";
-                case INS_SID:       return "INS_SID";
-                case INS_EVENTS:    return "INS_EVENTS";
+                case INS_INSPECT:   return "INSPECT";
                 default:            return "*** INVALID ***";
             }
             break;
@@ -311,13 +305,15 @@ C64::initialize()
 void
 C64::operator << (SerResetter &worker)
 {
-    auto insEvent = eventid[SLOT_INS];
+    if (isSoftResetter(worker)) return;
 
     // Reset all items
     serialize(worker);
 
     // Initialize all event slots
     for (isize i = 0; i < SLOT_COUNT; i++) {
+
+        if (i == SLOT_INS) continue;
 
         trigger[i] = NEVER;
         eventid[i] = (EventID)0;
@@ -328,7 +324,6 @@ C64::operator << (SerResetter &worker)
     scheduleAbs<SLOT_CIA1>(cpu.clock, CIA_EXECUTE);
     scheduleAbs<SLOT_CIA2>(cpu.clock, CIA_EXECUTE);
     scheduleRel<SLOT_SRV>(C64::sec(0.5), SRV_LAUNCH_DAEMON);
-    if (insEvent) scheduleRel <SLOT_INS> (0, insEvent);
     scheduleNextSNPEvent();
 
     flags = 0;
@@ -371,13 +366,13 @@ C64::clockFrequency() const
 void
 C64::updateClockFrequency()
 {
-    auto frequency = clockFrequency();
+    durationOfOneCycle = 10000000000 / nativeClockFrequency();
 
+    auto frequency = clockFrequency();
     sidBridge.sid[0].setClockFrequency((u32)frequency);
     sidBridge.sid[1].setClockFrequency((u32)frequency);
     sidBridge.sid[2].setClockFrequency((u32)frequency);
     sidBridge.sid[3].setClockFrequency((u32)frequency);
-    durationOfOneCycle = 10000000000 / frequency;
 }
 
 void
@@ -888,7 +883,7 @@ C64::processFlags()
 
     if (flags & RL::SINGLE_STEP) {
 
-        if ((!stepTo.has_value() && cpu.inFetchPhase()) || *stepTo == cpu.getPC0()) {
+        if ((!stepTo.has_value() && cpu.inFetchPhase()) || stepTo == cpu.getPC0()) {
 
             clearFlag(RL::SINGLE_STEP);
             msgQueue.put(MSG_STEP);
@@ -1245,7 +1240,7 @@ C64::processINSEvent()
     }
 
     // Reschedule the event
-    rescheduleRel<SLOT_INS>(Cycle(inspectionInterval * PAL::CYCLES_PER_SECOND));
+    scheduleRel<SLOT_INS>(Cycle(inspectionInterval * PAL::CYCLES_PER_SECOND), INS_INSPECT, mask);
 }
 
 void

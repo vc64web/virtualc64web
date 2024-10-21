@@ -19,13 +19,13 @@
 // Version number
 #define VER_MAJOR 5
 #define VER_MINOR 1
-#define VER_SUBMINOR 2
+#define VER_SUBMINOR 3
 #define VER_BETA 0
 
 // Snapshot version number
 #define SNP_MAJOR 5
 #define SNP_MINOR 1
-#define SNP_SUBMINOR 2
+#define SNP_SUBMINOR 3
 #define SNP_BETA 0
 
 // Uncomment these settings in a release build
@@ -84,9 +84,9 @@ static const bool betaRelease = 1;
 #endif
 
 #ifdef __EMSCRIPTEN__
-static const bool emscripten = 1;
+static const bool emscript = 1;
 #else
-static const bool emscripten = 0;
+static const bool emscript = 0;
 #endif
 
 

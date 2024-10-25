@@ -13,6 +13,7 @@ Eigentlich müsste die MediaFileAPI genug funktionalität haben (FileSystem lieb
 Use VirtualC64API::takeSnapshot() instead (i.e.: wrapper->emu->takeSnapshot())
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include "config.h"
 #include "VirtualC64.h"
 #include "VirtualC64Types.h"
@@ -207,7 +208,9 @@ int eventFilter(void* the_emu, SDL_Event* event) {
     return 1;
 }
 
- 
+
+#define PAL_FPS 50.125
+#define NTSC_FPS 59.826
 bool requested_targetFrameCount_reset=false; 
 int sum_samples=0;
 double last_time = 0.0 ;
@@ -216,7 +219,17 @@ int64_t total_executed_frame_count=0;
 double start_time=emscripten_get_now();
 unsigned int rendered_frame_count=0;
 unsigned int frames=0, seconds=0;
-double frame_rate=50; //PAL
+double frame_rate=PAL_FPS;
+double speed_boost=1.0;
+bool vsync = false;
+signed vsync_speed=2;
+u8 vframes=0;
+unsigned long current_frame=100;
+unsigned host_refresh_rate=60, last_host_refresh_rate=60;
+unsigned host_refresh_count=0;
+signed boost_param=100;
+void calibrate_boost(signed boost_param);
+
 // The emscripten "main loop" replacement function.
 void draw_one_frame_into_SDL(void *the_emu) 
 {
@@ -232,7 +245,7 @@ void draw_one_frame_into_SDL(void *the_emu)
   double now = emscripten_get_now();  
  
   double elapsedTimeInSeconds = (now - start_time)/1000.0;
-  int64_t targetFrameCount = (int64_t)(elapsedTimeInSeconds * frame_rate);
+  int64_t targetFrameCount = (int64_t)(elapsedTimeInSeconds * (frame_rate*speed_boost));
  
   int max_gap = 8;
 
@@ -274,7 +287,8 @@ void draw_one_frame_into_SDL(void *the_emu)
       total_executed_frame_count=0;
       targetFrameCount=1;  //we are hoplessly behind but do at least one in this round  
   }
-
+  
+  host_refresh_count++;
   if(now-last_time>= 1000.0)
   { 
     double passed_time= now - last_time;
@@ -284,6 +298,8 @@ void draw_one_frame_into_SDL(void *the_emu)
     frames += rendered_frame_count;
     printf("time[ms]=%.0lf, audio_samples=%d, frames [executed=%u, rendered=%u] avg_fps=%u\n", 
     passed_time, sum_samples, executed_frame_count, rendered_frame_count, frames/seconds);
+    host_refresh_rate=host_refresh_count;
+    host_refresh_count=0;
     sum_samples=0; 
     rendered_frame_count=0;
     executed_frame_count=0;
@@ -295,13 +311,55 @@ void draw_one_frame_into_SDL(void *the_emu)
       draw_one_frame(); // to gather joystick information for example 
   });
 
-  while(total_executed_frame_count < targetFrameCount) {
-    executed_frame_count++;
-    total_executed_frame_count++;
-
-    emu->emu->computeFrame();
+  if(vsync)
+  { //current_frame=0, vsync_speed=-2, vframes=0
+    //printf("current_frame=%ld, vsync_speed=%d, vframes=%d\n", current_frame, vsync_speed, vframes); 
+    current_frame++;
+     
+    if(vsync_speed<0)
+    {    
+      if(current_frame % (vsync_speed*-1) !=0)
+      {
+//        printf("skip frame %ld\n", current_frame % ((unsigned long)vsync_speed*-1) );
+        return;
+      }
+      else{
+        emu->emu->computeFrame();
+//        printf("compute_frame \n"); 
+        executed_frame_count++;
+        total_executed_frame_count++;
+      }
+    }
+    else
+    {
+      //0 + 0 < 0 -2
+      while(current_frame+vframes  < current_frame + vsync_speed)
+      {
+        emu->emu->computeFrame();
+        //printf("compute_frame \n"); 
+        executed_frame_count++;
+        total_executed_frame_count++;
+        vframes++;
+      }
+      //printf("\n"); 
+      vframes=0;
+    }
+    //check current frame rate +-1 in case user changed it on host system
+    if(abs((long) (host_refresh_rate-last_host_refresh_rate))>1)
+    {
+      calibrate_boost(boost_param);
+      last_host_refresh_rate=host_refresh_rate;
+    }
   }
+  else
+  {
+    while(total_executed_frame_count < targetFrameCount) {
+      executed_frame_count++;
+      total_executed_frame_count++;
 
+      emu->emu->computeFrame();
+    }
+  }
   rendered_frame_count++;  
  
   Uint8 *texture = (Uint8 *)emu->videoPort.getTexture(); //screenBuffer();
@@ -512,17 +570,19 @@ void theListener(const void * c64, Message msg){
 
   if(msg.type == MSG_PAL) {
     printf("switched to PAL\n");
-    frame_rate = 50.0;
+    frame_rate = PAL_FPS;
     requested_targetFrameCount_reset=true;
     EM_ASM({PAL_VIC=true});
     calculate_viewport();
+    calibrate_boost(boost_param);
   }
   else if(msg.type == MSG_NTSC) {
     printf("switched to NTSC\n");
-    frame_rate = 60.0;
+    frame_rate = NTSC_FPS;
     requested_targetFrameCount_reset=true;
     EM_ASM({PAL_VIC=false});
     calculate_viewport();
+    calibrate_boost(boost_param);
   }
 }
 
@@ -1544,6 +1604,30 @@ extern "C" unsigned wasm_get_config(char* option)
   }
 }
 
+
+void calibrate_boost(signed boost_param){
+      if(boost_param >4)
+        return;
+      vsync_speed=boost_param;
+
+      unsigned boost = boost_param<0 ?
+        host_refresh_rate / (boost_param*-1)
+        :
+        host_refresh_rate * (boost_param);
+vframes=0; //wegen -1
+      speed_boost= ((double)boost / frame_rate /*which is PAL_FPS or NTSC_FPS */);
+      unsigned vc64_speed_boost_param=(unsigned)(speed_boost*100);
+      printf("host_refresh_rate=%d, boost=%d, speed_boost=%lf, vc64_speed_param=%d\n",host_refresh_rate, boost, speed_boost, vc64_speed_boost_param);
+      
+      //wenn vsync==true diese option im draw_one_frame setzen, da wo permantent die 
+      //fps überwacht werden. Anstelle an dieser position.
+      wrapper->emu->set(OPT_C64_SPEED_BOOST,vc64_speed_boost_param );
+      
+      EM_ASM({$("#host_fps").html(`${$0} Hz`)},
+        vsync_speed <0 ? host_refresh_rate/(vsync_speed*-1) : host_refresh_rate*vsync_speed );
+}
+
+
 extern "C" void wasm_configure(char* option, unsigned on)
 {
   bool on_value = (on == 1);
@@ -1629,6 +1713,26 @@ extern "C" void wasm_configure(char* option, unsigned on)
   else if( strcmp(option,"OPT_C64_WARP_MODE") == 0)
   {
     wrapper->emu->set(OPT_C64_WARP_MODE, on);
+  }
+  else if( strcmp(option,"OPT_C64_SPEED_BOOST") == 0)
+  {
+    boost_param=(signed) on;
+    /* setting
+       sync mode: { vsync x1/4=-4, ..., vsync=1, vsync x2=2, 50%=50, 75%=75, 100%, 150%, 200% }
+    */
+    if(boost_param <= 4)
+    {
+      vsync=true;
+      calibrate_boost(boost_param);
+    }
+    else
+    {
+      vsync=false;
+      wrapper->emu->set(OPT_C64_SPEED_BOOST, on);
+      speed_boost= ((double) on) / 100.0;
+    }
+    requested_targetFrameCount_reset=true;
+  
   }
   else
   {

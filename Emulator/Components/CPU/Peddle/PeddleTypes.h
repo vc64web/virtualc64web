@@ -27,13 +27,6 @@ static constexpr isize V_FLAG = 0x40;
 static constexpr isize N_FLAG = 0x80;
 
 
-//
-// Bit fields
-//
-
-// Interrupt source
-typedef u8 IntSource;
-
 /* State flags
  *
  * CPU_LOG_INSTRUCTION:
@@ -380,6 +373,12 @@ enum_long(MICRO_INSTRUCTION) {
 };
 typedef MICRO_INSTRUCTION MicroInstruction;
 
+namespace Async {
+
+enum ReadTarget { IDLE, IR, ADL, ADH, IDL, D, PCL, PCH, P, A };
+
+}
+
 
 //
 // Structures
@@ -409,6 +408,7 @@ typedef struct
     u16 pc;   // Program counter
     u16 pc0;  // Frozen program counter (beginning of current instruction)
 
+    u8 ir;    // Instruction register
     u8 sp;    // Stack pointer
 
     u8 a;     // Accumulator

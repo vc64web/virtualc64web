@@ -25,6 +25,8 @@ CIA::CIA(C64 &ref, isize id) : SubComponent(ref, id)
 void
 CIA::_didReset(bool hard)
 {
+    assert(!sleeping);
+
     CNT = true;
     INT = 1;
     
@@ -36,6 +38,9 @@ CIA::_didReset(bool hard)
     
     updatePA();
     updatePB();
+
+    c64.scheduleAbs<SLOT_CIA1>(cpu.clock, CIA_EXECUTE);
+    c64.scheduleAbs<SLOT_CIA2>(cpu.clock, CIA_EXECUTE);
 }
 
 void

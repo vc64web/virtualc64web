@@ -234,6 +234,13 @@ async function execute_single_action(cmd, execute=true, execution_id=-1)
             wasm_configure('OPT_C64_WARP_MODE', mode<=1 ? 2/*'WARP_ALWAYS'*/: auto_or_never_warp_mode==="WARP_AUTO"?0:1);
         }
     }
+    else if(cmd == 'toggle_speed')
+    {
+        if(execute)
+        {
+            $('#button_speed_toggle').click();
+        }
+    }    
     else if(cmd.match(/^[0-9]+ms$/) != null)
     {
         if(execute)

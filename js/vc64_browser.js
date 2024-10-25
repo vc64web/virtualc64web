@@ -1,4 +1,4 @@
-var vc64web_version ="5.1.2"; //minimum requirement for snapshot version to be compatible
+var vc64web_version ="5.1.3"; //minimum requirement for snapshot version to be compatible
 var current_browser_datasource='snapshots';
 var current_browser_command=null;
 
@@ -441,7 +441,7 @@ var collectors = {
                         ctx.rotate((Math.PI / 180) * 27); // rotate
                         ctx.font = '48px serif';
                         ctx.fillStyle = '#DD0000';
-                        ctx.fillText('V'+version+' please delete', 10, 50);
+                        ctx.fillText('needs V'+version, 20, 60);
                     }
                 }
             }

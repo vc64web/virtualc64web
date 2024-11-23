@@ -700,3 +700,18 @@ margin-right: 0.15em;
 	position : relative;
 	overflow : hidden;
 }
+
+@keyframes blink {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.4;
+    }
+}
+[warpstate="1"] #no_warping {
+    display: none
+}
+[warpstate="0"] #warping {
+    display: none
+}

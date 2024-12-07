@@ -11,7 +11,8 @@
   <link rel="manifest" href="manifest.json">
   <!-- ios support -->
   <link rel="apple-touch-icon" href="img/icon-96x96.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes"><!--deprecated-->
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar" content="black-translucent">
   <meta name="theme-color" content="black">
 
@@ -589,15 +590,19 @@
               </div>
               <div class="dropdown mr-1 mt-1">
                 <button id="button_audio_device" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  render audio in main thread (mono)
+                  mono or stereo audio
                 </button>
                 <div id="choose_audio_device" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
-                  <a class="dropdown-item" href="#">main thread (mono)</a>
-                  <a class="dropdown-item" href="#">separate thread (mono)</a>
-                  <a class="dropdown-item" href="#">separate thread (stereo)</a>
+                  <a class="dropdown-item" style="display:none" href="#">main thread (mono)</a>
+                  <a class="dropdown-item" href="#">mono audio</a>
+                  <a class="dropdown-item" href="#">stereo audio</a>
                 </div>
               </div>
   
+            </div>
+            <div id="mastervolume">
+              <label for="volume-slider" id="volumetext">Volume</label>
+              <input id="volume-slider" type="range" min="0" max="1" step="0.01" value="0.5">
             </div>
 
 

@@ -650,12 +650,6 @@ class C64Wrapper {
     // master Volumne
     emu->set(OPT_AUD_VOL_L, 100); 
     emu->set(OPT_AUD_VOL_R, 100);
-
-    //SID0 Volumne
-    #ifdef TODO
-    emu->set(OPT_AUD_VOL0, 0, 100); 
-   emu->set(OPT_AUD_PAN0, 0, 0);
-    #endif
     
     emu->set(OPT_DRV_AUTO_CONFIG,DRIVE8,1);
     //SID1 Volumne
@@ -1469,13 +1463,16 @@ extern "C" void wasm_set_2nd_sid(long address)
 {
   if(address == 0)
   {
+    wrapper->emu->set(OPT_AUD_PAN0, 0);//first sid middle
     wrapper->emu->set(OPT_AUD_VOL1, 0);
     wrapper->emu->set(OPT_SID_ENABLE, 1, false);
+
   }
   else
   {
+      wrapper->emu->set(OPT_AUD_PAN0, 300);//first sid left
+      wrapper->emu->set(OPT_AUD_PAN1, 100);//second sid right
       wrapper->emu->set(OPT_AUD_VOL1, 100);
-      wrapper->emu->set(OPT_AUD_PAN1, 50);
       wrapper->emu->set(OPT_SID_ENABLE, 1, true);
       wrapper->emu->set(OPT_SID_ADDRESS, address, 1);
   }

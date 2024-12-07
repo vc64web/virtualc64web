@@ -15,7 +15,7 @@ let call_param_SID=null;
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioContext = new AudioContext();
 let audio_connected=false;
-let current_audio_device='separate thread (mono)';
+let current_audio_device='mono audio';
 
 let v_joystick=null;
 let v_fire=null;
@@ -1465,6 +1465,24 @@ function InitWrappers() {
     wasm_set_sample_rate = Module.cwrap('wasm_set_sample_rate', 'undefined', ['number']);
     wasm_auto_type = Module.cwrap('wasm_auto_type', 'undefined', ['string']);
 
+    const volumeSlider = document.getElementById('volume-slider');
+    set_volume = (new_volume)=>{
+        const volume = parseFloat(new_volume);
+        current_sound_volume = volume*5;
+        if(typeof gainNode !== "undefined") 
+            gainNode.gain.value = current_sound_volume;
+        console.log(`Volume set to: ${volume * 100}%`);
+        $("#volumetext").text(`sound volume = ${Math.round(volume * 100)}%`)
+        save_setting('master_sound_volume', new_volume);
+    }
+    volumeSlider.addEventListener('input', (event) => {
+        set_volume(event.target.value);
+    });
+ 
+    let loaded_vol=load_setting('master_sound_volume', 0.5);
+    set_volume(loaded_vol);
+    $("#volume-slider").val(loaded_vol);
+
     resume_audio=async ()=>{
         try {
             await audioContext.resume();  
@@ -1545,7 +1563,12 @@ function InitWrappers() {
         worklet_node.port.onmessageerror = (msg) => {
             console.log("audio processor error:"+msg);
         };
-        worklet_node.connect(audioContext.destination);        
+
+        gainNode = audioContext.createGain();
+        gainNode.gain.value = current_sound_volume;
+        worklet_node.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+//        worklet_node.connect(audioContext.destination);        
     }
 
     connect_audio_processor_stereo = async () => {
@@ -1611,7 +1634,11 @@ function InitWrappers() {
         worklet_node_stereo.port.onmessageerror = (msg) => {
             console.log("audio processor error:"+msg);
         };
-        worklet_node_stereo.connect(audioContext.destination);        
+        gainNode = audioContext.createGain();
+        gainNode.gain.value = current_sound_volume;
+        worklet_node_stereo.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+//        worklet_node_stereo.connect(audioContext.destination);        
     }
 
 
@@ -1728,11 +1755,11 @@ function InitWrappers() {
                     await audioContext.resume();  
                 }
             }
-            else if(current_audio_device == 'separate thread (mono)')
+            else if(current_audio_device == 'mono audio')
             {
                 await connect_audio_processor();
             }
-            else if(current_audio_device == 'separate thread (stereo)')
+            else if(current_audio_device == 'stereo audio')
             {
                 await connect_audio_processor_stereo();
             }
@@ -1745,7 +1772,11 @@ function InitWrappers() {
     }
 
     set_audio_device = function (audio_device) {
-        $("#button_audio_device").text("render audio in "+audio_device);
+        if(audio_device !== 'mono audio' && audio_device !== 'stereo audio')
+        {
+            audio_device='mono audio';
+        }
+        $("#button_audio_device").text(audio_device);
         config_audio_thread(audio_device);
     }
     $('#choose_audio_device a').click(function () 
@@ -1754,8 +1785,8 @@ function InitWrappers() {
         set_audio_device(audio_device);
         save_setting('audio_device',audio_device)
         $("#modal_settings").focus();
-    });
-    set_audio_device(load_setting('audio_device', 'separate thread (mono)'));
+    });    
+    set_audio_device(load_setting('audio_device', 'mono audio'));
 
 
 //----

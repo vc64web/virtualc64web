@@ -21,10 +21,10 @@ function translateKey(keycode, key)
 function isUpperCase(s){
     return s.toUpperCase() == s && s.toLowerCase() != s;
 }
-
+fkeys_accessible_with_shift=['F2','F4','F6','F8'];
 function translateKey2(keycode, key, use_positional_mapping=false)
 {
-    console.log('keycode='+keycode + ', key='+key);
+    //console.log('keycode='+keycode + ', key='+key);
     if(keycode == 'Space' && key == '^')
     {//fix for windows system
         key=' ';
@@ -33,7 +33,9 @@ function translateKey2(keycode, key, use_positional_mapping=false)
     let mapindex;
     let raw_key_with_modifier = { modifier: null,  raw_key: undefined }
 
-    if(use_positional_mapping)
+    if(use_positional_mapping && 
+        !fkeys_accessible_with_shift.includes(keycode) //use symbolic on these
+    )
     {
         mapindex=key_translation_map[ keycode ];
         raw_key_with_modifier.raw_key = c64keymap[mapindex];
@@ -308,7 +310,7 @@ function installKeyboard() {
     //lc = lowercase, slc= shift+lowercase, cbm_lc = commodore+lowercase
     //todo:lc, cbm_lc
     keymap= [ 
-    [{g:1}, {k:'hide', c:'hide_keyboard',cls:'smallkey', style:'padding-top:0px'},{g:1},{k:'ABC', c:'uppercase',cls:'case_switch upper_case'},{k:'abc', c:'lowercase',cls:'case_switch lower_case'},{g:2}/*,{k:'!',c:'exclama',sym:'!',cls:'smallkey'},{k:'"',c:'quot',sym:'"',cls:'smallkey'},{k:'#',c:'hash',sym:'#',cls:'smallkey'},{k:'$',c:'dollar',sym:'$',cls:'smallkey'}*/,{k:'F1',c:'F1',cls:'darkkey',g:6,s:2}, {k:'F2',c:'F2',cls:'darkkey',g:6,s:2},{k:'F3',c:'F3',cls:'darkkey',g:6,s:2},{k:'F4',c:'F4',cls:'darkkey',g:6,s:2},{g:1},{k:'F5',c:'F5',cls:'darkkey',g:6,s:2},{k:'F6',c:'F6',cls:'darkkey',g:6,s:2},{k:'F7',c:'F7',cls:'darkkey',g:6,s:2},{k:'F8',c:'F8',cls:'darkkey',g:6,s:2}],
+    [{g:1}, {k:'hide', c:'hide_keyboard',cls:'smallkey', style:'padding-top:0px'},{g:1},{k:'ABC', c:'uppercase',cls:'case_switch upper_case'},{k:'abc', c:'lowercase',cls:'case_switch lower_case'},{g:2}/*,{k:'!',c:'exclama',sym:'!',cls:'smallkey'},{k:'"',c:'quot',sym:'"',cls:'smallkey'},{k:'#',c:'hash',sym:'#',cls:'smallkey'},{k:'$',c:'dollar',sym:'$',cls:'smallkey'}*/,{k:'F1',c:'F1',cls:'darkkey',g:6,s:2}, {sym:'F2',k:'F2',c:'F2',cls:'darkkey',g:6,s:2},{k:'F3',c:'F3',cls:'darkkey',g:6,s:2},{sym:'F4',k:'F4',c:'F4',cls:'darkkey',g:6,s:2},{g:1},{k:'F5',c:'F5',cls:'darkkey',g:6,s:2},{sym:'F6',k:'F6',c:'F6',cls:'darkkey',g:6,s:2},{k:'F7',c:'F7',cls:'darkkey',g:6,s:2},{sym:'F8',k:'F8',c:'F8',cls:'darkkey',g:6,s:2}],
     [{g:1},{k:'\u{2190}',c:'Delete',style:'font-weight:bold'}, {k:'1',sk:'!', c:'Digit1',cbm:'ORG',ctrl:'BLK'},{k:'2', sk:'\"', c:'Digit2', cbm:'BRN', ctrl:'WHT'},{k:'3',sk:'#',c:'Digit3', cbm:'PNK', ctrl:'RED'},{k:'4',sk:'$',c:'Digit4', cbm:'DRK<br>GRY', ctrl:'CYN'},{k:'5',sk:'%',c:'Digit5',cbm:'GRY', ctrl:'PUR'},{k:'6',sk:'&',c:'Digit6', cbm:'LGHT<br>GRN', ctrl:'GRN'},{k:'7',sk:"'",c:'Digit7', cbm:'LGHT<br>BLU', ctrl:'BLU'},{k:'8',sk:'(',c:'Digit8', cbm:'LGHT<br>GRY', ctrl:'YEL'},{k:'9',sk:')',c:'Digit9', ctrl:'RVS<br>ON'},{k:'0',c:'Digit0', ctrl:'RVS<br>OFF', cls:'key0'},{k:'+', p:'\u{253c}', cbm:'\u{2592}' ,c:'Minus'},{k:'-', p:'\u{2502}', cbm:'\u{e0dc}', c:'Equal'},{k:'\u{00a3}', p:'\u{25e4}', cbm:'\u{e0a8}', c:'pound'},{k:'Home', sk:'CLR', c:'home', cls:'small',s:2},{k:'DEL', sk:'INST',c:'Backspace',cls:'small',s:3} ], 
     [{g:1},{k:'CTRL',c:'ControlLeft', cls:'ctrl',g:6,s:2}, {k:'Q', p:'\u{2022}',cbm:'\u{251c}' },{k:'W', p:'\u{25cb}',cbm:'\u{2524}'},{k:'E', p:'\u{e0c5}',cbm:'\u{2534}'},{k:'R', p:'\u{e072}',cbm:'\u{252c}'},{k:'T', p:'\u{e0d4}',cbm:'\u{2594}'},{k:'Y', p:'\u{e0d9}',cbm:'\u{e0b7}'},{k:'U', p:'\u{256d}',cbm:'\u{e0b8}'},{k:'I', p:'\u{256e}',cbm:'\u{2584}'},{k:'O', p:'\u{e0cf}',cbm:'\u{2583}'},{k:'P', p:'\u{e0d0}',cbm:'\u{2582}'},{k:'@',c:'BracketLeft',slc:'\u{e1fa}',p:'\u{e0ba}', cbm:'\u{2581}'},{k:'*', c:'BracketRight', p:'\u{2500}', cbm:'\u{25e5}', cbm_lc:'\u{e17f}'},{k:'\u{2191}',p:'\u{03C0}',cbm:'\u{03C0}',lc:'\u{e1de}',c:'upArrow'},{k:'RESTORE', c:'restore',style:'font-size:var(--font-smaller)',g:6,s:3}], 
     [{k:'Run<br>Stop',c:'runStop', cls:'smallfont',s:2},{k:'Shift<br>Lock', c:'shiftlock', cls:'ShiftLock smallfont',s:2},{k:'A',p:'\u{2660}', cbm:'\u{250c}'},{k:'S',p:'\u{2665}',cbm:'\u{2510}'},{k:'D',p:'\u{e064}',cbm:'\u{2597}'},{k:'F',p:'\u{e0c6}',cbm:'\u{2596}'},{k:'G',p:'\u{e0c7}',cbm:'\u{258e}'},{k:'H',p:'\u{e0c8}',cbm:'\u{258e}'},{k:'J',p:'\u{2570}',cbm:'\u{258d}'},{k:'K',p:'\u{256f}',cbm:'\u{258c}'},{k:'L',p:'\u{e0cc}',cbm:'\u{e0b6}'},{k:':',sk:'[',c:'Semicolon'},{k:';',sk:']', c:'Quote'},{k:'=', c:'Backslash'},{k:'RETURN',c:'Enter',style:'font-size: var(--font-smaller)',g:9,s:2}], 

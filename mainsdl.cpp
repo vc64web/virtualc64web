@@ -636,7 +636,7 @@ class C64Wrapper {
 
     //emu->setTakeAutoSnapshots(false);
     //emu->setWarpLoad(true);
-    emu->set(OPT_VICII_GRAY_DOT_BUG, false);
+//    emu->set(OPT_VICII_GRAY_DOT_BUG, false);
 //    emu->set(OPT_VICII_REVISION, VICII_PAL_6569_R1);
 
     emu->set(OPT_SID_ENGINE, SIDENGINE_RESID);

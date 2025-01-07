@@ -409,6 +409,11 @@ extern "C" void wasm_create_renderer(char* name)
         clipped_width, clipped_height,
         SDL_WINDOW_RESIZABLE);
 
+  SDL_CaptureMouse(SDL_FALSE);
+  SDL_EventState(SDL_MOUSEMOTION, SDL_DISABLE);  // Disable mouse motion events
+  SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_DISABLE);  // Disable mouse button down events
+  SDL_EventState(SDL_MOUSEBUTTONUP, SDL_DISABLE);  // Disable mouse button up events
+
   if(0==strcmp("webgl", name))
   {
     renderer = SDL_CreateRenderer(window,

@@ -542,32 +542,6 @@ void theListener(const void * c64, Message msg){
   printf("vC64 message=%s, data=%ld\n", message_as_string, msg.value);
   send_message_to_js(message_as_string, msg.value);
 
-
-/*  if(type == MSG_RUN)
-  {
-    if(paused_the_emscripten_main_loop)
-    {
-      printf("emscripten_resume_main_loop at MSG_RUN\n");
-      emscripten_resume_main_loop();
-    }
-    else
-    {
-      printf("emscripten_set_main_loop_arg() at MSG_RUN\n");
-      emscripten_set_main_loop_arg(draw_one_frame_into_SDL, (void *)c64, 0, 1);
-      printf("after emscripten_set_main_loop_arg() at MSG_RUN\n");
-
-    }
-  }
-  else if(type == MSG_PAUSE)
-  {
-    printf("emscripten_pause_main_loop() at MSG_PAUSE\n");
-    paused_the_emscripten_main_loop=true;
-    emscripten_pause_main_loop();
-      printf("after emscripten_set_main_loop_arg() at MSG_RUN\n");
-
-  }
-*/
-
   if(msg.type == MSG_DISK_INSERT)
   {
     emu->drive8.drive->dump(Category::Debug);
@@ -1100,7 +1074,9 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       wrapper->emu->set(OPT_MOUSE_MODEL, MOUSE_C1351);
       wrapper->emu->set(OPT_MOUSE_VELOCITY, 255);
       wrapper->emu->set(OPT_MOUSE_SHAKE_DETECT, false);
-    }
+      //gray dot bug: there are some older snapshots with false so we set this now to true
+      //can be removed in future versions 
+      wrapper->emu->set(OPT_VICII_GRAY_DOT_BUG, true);     }
     catch(Error &exception) {
       printf("error loading snapshot: %s\n", exception.what());
     }

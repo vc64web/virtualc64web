@@ -404,7 +404,7 @@ void MyAudioCallback(void*  the_emu,
 extern "C" void wasm_create_renderer(char* name)
 { 
   printf("try to create %s renderer\n", name);
-  window = SDL_CreateWindow("",
+  window = SDL_CreateWindow(NULL,
    SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
         clipped_width, clipped_height,
         SDL_WINDOW_RESIZABLE);

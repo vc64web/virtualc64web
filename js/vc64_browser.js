@@ -865,6 +865,17 @@ var collectors = {
                             );
                     }
 */
+
+  
+                    item.released_by = property(property_path(xmlDoc, "ReleasedBy/Group"),"Name");
+                    if(item.released_by == null)
+                        item.released_by = property(property_path(xmlDoc, "ReleasedBy/User"),"Login");
+                    if(item.released_by == null)
+                        item.released_by = property(property_path(xmlDoc, "ReleasedBy/Handle"),"Handle");
+
+                    item.rating = property(xmlDoc,"Rating");
+                    item.country = property(xmlDoc,"ReleasedBy/Country");
+
                     //getting user comments
                     item.comments = [];
                     var user_comments= property_path(xmlDoc,"Release/Comments/UserComment");
@@ -925,7 +936,7 @@ var collectors = {
             content += '<div class="row justify-content-md-center mt-4">';
             content += '<div class="col col-xs-auto">';
     
-                content += `<h2>${item.name}</h2>`;
+                content += `<h2>${item.name} <span id="rating"></span> <span id="released_by"></span> <span id="country"></span></h2>`;
                 content += `<h4>${item.type} | ${item.date}</h4>`;
         
             content += '</div>'; //col
@@ -1043,6 +1054,13 @@ var collectors = {
             {
                 content += `<h4 class="mx-1">comments</h4>`;
             }
+
+
+
+
+            if(item.released_by) $("#released_by").text(" | " +item.released_by);
+            if(item.country) $("#country").text( item.country);
+            if(item.rating) $("#rating").text(item.rating);
 
             for(var comment of item.comments)
             {

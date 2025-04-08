@@ -776,3 +776,18 @@ input[type="range"]::-moz-range-thumb {
     --_c: var(--c);
   }
 }
+
+
+#rating {
+    font-size: medium;
+    color: chocolate;
+    vertical-align: text-top;
+}
+#released_by {
+    color: darkgray;
+}
+#country {
+    font-size: medium;
+    color: darkgray;
+    vertical-align: text-top;
+}

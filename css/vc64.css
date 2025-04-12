@@ -722,7 +722,7 @@ margin-right: 0.15em;
     align-items: center; /* Vertikale Zentrierung */
     margin: 10px 0; /* Abstand um das Grid */
 }
-#volumetext 
+#volumetext , #drive_loudness_text
 {
     display: flex;
     justify-content: center;

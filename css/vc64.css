@@ -791,3 +791,15 @@ input[type="range"]::-moz-range-thumb {
     color: darkgray;
     vertical-align: text-top;
 }
+
+#achievement_cat {
+    font-size: larger;
+}
+#achievement_place {
+    font-size: larger;
+    color: chocolate;
+}
+#released_at {
+    font-size: larger;
+    color: darkgray;
+}

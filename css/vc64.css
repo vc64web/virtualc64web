@@ -716,19 +716,19 @@ margin-right: 0.15em;
     display: none
 }
 
-#mastervolume {
+#mastervolume,#drive_loudness {
     display: grid;
     grid-template-columns: 1fr;
     align-items: center; /* Vertikale Zentrierung */
     margin: 10px 0; /* Abstand um das Grid */
 }
-#volumetext 
+#volumetext , #drive_loudness_text
 {
     display: flex;
     justify-content: center;
     margin-bottom: -5px;
 }
-#volume-slider {
+#volume-slider, #drive_loudness_slider {
     --c: #007bff; /* active color */
     --l: 6px; /* line thickness*/
     --s: 20px; /* thumb size */

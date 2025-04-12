@@ -876,6 +876,10 @@ var collectors = {
                     item.rating = property(xmlDoc,"Rating");
                     item.country = property(xmlDoc,"ReleasedBy/Country");
 
+                    item.released_at = property(xmlDoc,"ReleasedAt/Event/Name");
+                    item.achievement_cat = property(xmlDoc,"Achievement/Compo");
+                    item.achievement_place = property(xmlDoc,"Achievement/Place");
+                    
                     //getting user comments
                     item.comments = [];
                     var user_comments= property_path(xmlDoc,"Release/Comments/UserComment");
@@ -938,7 +942,9 @@ var collectors = {
     
                 content += `<h2>${item.name} <span id="rating"></span> <span id="released_by"></span> <span id="country"></span></h2>`;
                 content += `<h4>${item.type} | ${item.date}</h4>`;
-        
+
+                content += `<div><span id="achievement_place"></span> <span id="achievement_cat"></span> <span id="released_at"></span></div>`;
+
             content += '</div>'; //col
 
 
@@ -1058,10 +1064,14 @@ var collectors = {
 
 
 
-            if(item.released_by) $("#released_by").text(" | " +item.released_by);
+            if(item.released_by) $("#released_by").text(" by " +item.released_by);
             if(item.country) $("#country").text( item.country);
             if(item.rating) $("#rating").text(item.rating);
 
+            if(item.achievement_place) $("#achievement_place").text(`${item.achievement_place}${item.achievement_place==1?"st":(item.achievement_place==2)?"nd":"th"} place`);
+            if(item.achievement_cat) $("#achievement_cat").text(`${item.achievement_place?"in ":""} ${item.achievement_cat} category`);
+            if(item.released_at) $("#released_at").text("at "+ item.released_at);
+            
             for(var comment of item.comments)
             {
                 if(comment.date != the_date)

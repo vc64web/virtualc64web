@@ -453,7 +453,7 @@ function message_handler_queue_worker(msg, data1, data2)
     }
     else if(msg == "MSG_DISK_INSERT")
     {
-        play_sound(audio_df_insert);
+        play_sound(audio_df_insert, drive_loudness);
         floppy_has_disk=true; 
     } 
     else if(msg == "MSG_SER_IDLE" || 
@@ -466,7 +466,7 @@ function message_handler_queue_worker(msg, data1, data2)
             floppy_step_count++;
             if(floppy_has_disk||floppy_step_count>1)
             { 
-                play_sound(audio_df_step);
+                play_sound(audio_df_step, drive_loudness);
                $("#drop_zone").html(`drv${8+data1} ${data2.toString().padStart(2, '0')}`);
             }
         }    
@@ -1464,6 +1464,27 @@ function InitWrappers() {
     wasm_copy_into_sound_buffer = Module.cwrap('wasm_copy_into_sound_buffer', 'number');
     wasm_set_sample_rate = Module.cwrap('wasm_set_sample_rate', 'undefined', ['number']);
     wasm_auto_type = Module.cwrap('wasm_auto_type', 'undefined', ['string']);
+
+    const drive_loudness_slider = document.getElementById('drive_loudness_slider');
+    set_drive_loudness = (new_volume)=>{
+        const volume = parseFloat(new_volume);
+        current_sound_volume = volume*2.5;
+        drive_loudness = current_sound_volume;
+        console.log(`drive loudness set to: ${volume * 100}%`);
+        $("#drive_loudness_text").text(`drive loudness = ${Math.round(volume * 100)}%`)
+        save_setting('drive_loudness', new_volume);
+    }
+    drive_loudness_slider.addEventListener('input', (event) => {
+        set_drive_loudness(event.target.value);
+    });
+ 
+    let loaded_drive_loudness=load_setting('drive_loudness', 0.25);
+    set_drive_loudness(loaded_drive_loudness);
+    $("#drive_loudness_slider").val(loaded_drive_loudness);
+
+
+
+
 
     const volumeSlider = document.getElementById('volume-slider');
     set_volume = (new_volume)=>{

@@ -463,6 +463,12 @@ button[id^="detail_run"] {
     opacity: 0.83;
 }
 
+#alert_reset {
+    top: 0px;
+    position: absolute;
+    width: 100vw;
+}
+
 
 [data-theme="dark"] textarea {
     background-color: var(--darkbg);

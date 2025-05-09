@@ -713,11 +713,49 @@ function handleFileInput(event)
 
 
 file_slot_file_name = null;
-file_slot_file =null;
+file_slot_file = null;
+current_side = 0; // 0 = no side loaded, 1 = side1/sideA, 2 = side2/sideB, etc.
+last_zip_archive_name = null;
+last_zip_archive = null;
+used_side_numbers = []; // Track which side numbers have been used with their filenames
 
-last_zip_archive_name = null
-last_zip_archive = null
+// Function to scan all files and build used_side_numbers
+function scan_files_for_sides(files) {
+    used_side_numbers = []; // Reset the array
+    
+    // First pass: collect all d64 files
+    const d64_files = [];
+    Object.values(files).forEach(file => {
+        if (!file.dir && 
+            (
+                file.name.toLowerCase().endsWith('.d64') ||
+                file.name.toLowerCase().endsWith('.g64')
+            )
+        ) {
+            d64_files.push(file.name);
+        }
+    });
+    
+    // Sort files alphabetically for consistent ordering
+    d64_files.sort();
+    
+    // Assign sequential numbers starting from 1
+    d64_files.forEach((filename, index) => {
+        used_side_numbers.push({ 
+            side: index + 1,  // Start from 1
+            filename: filename 
+        });
+    });
+    
+    // Sort by side number for easier debugging
+    used_side_numbers.sort((a, b) => a.side - b.side);
+}
 
+// Function to get the side number for a filename
+function get_side_number(filename) {
+    const entry = used_side_numbers.find(e => e.filename === filename);
+    return entry ? entry.side : 0;
+}
 
 function pushFile(file) {
     var fileReader  = new FileReader();
@@ -751,7 +789,7 @@ function configure_file_dialog(reset=false)
             var auto_load = false;
             var auto_press_play = false;
             var auto_run = false;
-            
+
             $("#button_insert_file").removeAttr("disabled");
             $("#div_zip_content").hide();
             $("#button_eject_zip").hide();
@@ -774,9 +812,23 @@ function configure_file_dialog(reset=false)
             }
             else if(file_slot_file_name.match(/[.](d64|g64)$/i)) 
             {
-                $("#div_auto_load").show();  auto_load = true;
+                // If loading from ZIP and there's a previous side, insert directly without dialog
+                if (last_zip_archive_name !== null && current_side > 0) {
+                    auto_load = false;
+                    auto_run = false;
+                    reset_before_load = false;
+                    insert_file();
+                    return;
+                }
+                
+                // Normal case: show dialog with options
+                $("#div_auto_load").show();  
+                auto_load = true;
+                $("#div_auto_run").show(); 
+                auto_run = true;
+                $("#div_auto_reset").show();
+                
                 $("#div_auto_press_play").hide();
-                $("#div_auto_run").show(); auto_run = true;
                 $("#button_insert_file").html("insert disk"+return_icon);
                 
                 if (local_storage_get('vc1541_rom.bin')==null)
@@ -801,42 +853,76 @@ function configure_file_dialog(reset=false)
                 $("#div_auto_load").hide();
                 $("#div_auto_press_play").hide();
                 $("#div_auto_run").hide();
+                $("#div_auto_reset").hide();
 
                 $("#div_zip_content").show();
-
                 $("#button_eject_zip").show();
                 $("#button_eject_zip").click(function(){
-
                     $("#modal_file_slot").modal('hide');
-
                     last_zip_archive_name = null;
                     last_zip_archive = null;
-                    
+                    current_side = 0; // Reset side counter when ejecting ZIP
+                    used_side_numbers = []; // Reset used side numbers
                     $("#drop_zone").html("file slot");
                     $("#drop_zone").css("border", "");
-
                 });
 
                 var zip = new JSZip();
                 zip.loadAsync(file_slot_file).then(function (zip) {
                     var list='<ul id="ui_file_list" class="list-group">';
                     var mountable_count=0;
+                    var mountable_files = [];
+                    var next_side_to_select = current_side + 1;
+                    
+                    // First scan all files to build used_side_numbers
+                    scan_files_for_sides(zip.files);
+                    
+                    // Helper function to check if a file is the next side
+                    function is_next_side(filename, next_side) {
+                        const entry = used_side_numbers.find(e => e.filename === filename);
+                        return entry && entry.side === next_side;
+                    }
+                    
                     zip.forEach(function (relativePath, zipfile){
                         if(!relativePath.startsWith("__MACOSX"))
                         {
                             var mountable = relativePath.toLowerCase().match(/[.](zip|prg|t64|d64|g64|tap|crt|vc64)$/i);
+                            var next_side = false;
+                            
+                            if (mountable) {
+                                next_side = is_next_side(relativePath, next_side_to_select);
+                            }
+                            
                             list+='<li '+
                             (mountable ? 'id="li_fileselect'+mountable_count+'"':'')
                             +' class="list-group-item list-group-item-action'+ 
                                 (mountable ? '':' disabled')+'">'+relativePath+'</li>';
-                            if(mountable)
-                            {
+                            
+                            if(mountable) {
+                                mountable_files.push({
+                                    path: relativePath,
+                                    index: mountable_count,
+                                    is_next_side: next_side
+                                });
                                 mountable_count++;
                             }
                         }
                     });
                     list += '</ul>';
                     $("#div_zip_content").html("select a file<br><br>"+ list);
+                    
+                    queueMicrotask(()=> {                   
+                        // Find and select the appropriate file
+                        let file_to_select = mountable_files.find(f => f.is_next_side);
+                        
+                        if (file_to_select) {
+                            $('#li_fileselect' + file_to_select.index).click();
+                        } /*else if (mountable_count > 0) {
+                            // If no matching side found, select the first mountable file
+                            $('#li_fileselect0').click();
+                        }*/
+                    });
+
                     $('#ui_file_list li').click( function (e) {
                         e.preventDefault();
                         if(typeof uncompress_progress !== 'undefined' && uncompress_progress!=null)
@@ -883,7 +969,7 @@ function configure_file_dialog(reset=false)
                     }
                     else
                     {
-                         $("#drop_zone").html("file slot");
+                        $("#drop_zone").html("file slot");
                         $("#drop_zone").css("border", "");
 
                         last_zip_archive_name = null;
@@ -891,10 +977,6 @@ function configure_file_dialog(reset=false)
                     }
 
                     if(mountable_count>=1)
-                    {
-                        $("#li_fileselect0").click();
-                    }
-                    if(mountable_count>1)
                     {
                         $("#modal_file_slot").modal();
                     }
@@ -904,6 +986,7 @@ function configure_file_dialog(reset=false)
                 $("#button_insert_file").attr("disabled", true);
             }
 
+            $("#auto_reset").prop('checked', reset_before_load);
             $("#auto_load").prop('checked', auto_load);
             $("#auto_press_play").prop('checked', auto_press_play);
             $("#auto_run").prop('checked', auto_run);    
@@ -982,7 +1065,7 @@ function keydown(e) {
     if(e.repeat)
     {
       //if a key is being pressed for a long enough time, it starts to auto-repeat: 
-      //the keydown triggers again and again, and then when it’s released we finally get keyup
+      //the keydown triggers again and again, and then when it's released we finally get keyup
       //we just have to ignore the autorepeats here
       return;
     }
@@ -2915,11 +2998,15 @@ $('.layer').change( function(event) {
         do_auto_load = $("#auto_load").prop('checked')
         do_auto_run =  $("#auto_run").prop('checked');
         do_auto_press_play= $("#auto_press_play").prop('checked');
+        reset_before_load = $("#auto_reset").prop('checked');
 
         $('#modal_file_slot').modal('hide');
 
         var execute_load = async function(){
             var filetype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
+
+            // Update current_side based on the mounted file
+            current_side = get_side_number(file_slot_file_name);
 
             if(auto_selecting_app_title)
             {
@@ -2962,7 +3049,8 @@ $('.layer').change( function(event) {
                         //press play on tape shortly after emitting load command
                         setTimeout(function() {wasm_press_play(); },650);
                     }
-/*                    if(do_auto_run)
+/*                  https://github.com/vc64web/virtualc64web/issues/79  
+                    if(do_auto_run)
                     {
                         fire_when_no_more_message("MSG_VC1530_PROGRESS",function() {
                             emit_string(['Enter','r','u','n','Enter']);
@@ -3153,7 +3241,7 @@ $('.layer').change( function(event) {
 
 The PAL C64 refreshes at 50.125 Hz, which doesn't match the refresh rates of most modern monitors. Similarly, the NTSC C64 runs at 59.826 Hz, which is also slightly off from today's standard.
 <br>
-This discrepancy can lead to stuttering or jumpy movement, depending on the content being displayed. <br><br> For a smoother video output, consider enabling the <span>vsync</span> option. Vsync synchronizes the emulation with your display’s refresh rate, resulting in smoother visuals by adjusting the C64's emulation speed to match the monitor’s refresh rate.
+This discrepancy can lead to stuttering or jumpy movement, depending on the content being displayed. <br><br> For a smoother video output, consider enabling the <span>vsync</span> option. Vsync synchronizes the emulation with your display's refresh rate, resulting in smoother visuals by adjusting the C64's emulation speed to match the monitor's refresh rate.
     `;
     const vsync_text=" Video output is smoother when using <span>vsync</span>. However, depending on your monitor's refresh rate, the resulting speed may not be exactly 100% of the original C64's speed.";
     speed_text={

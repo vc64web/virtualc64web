@@ -726,7 +726,7 @@ function scan_files_for_sides(files) {
     // First pass: collect all d64 files
     const d64_files = [];
     Object.values(files).forEach(file => {
-        if (!file.dir && 
+        if (!file.dir && !file.name.startsWith("__MACOSX") &&
             (
                 file.name.toLowerCase().endsWith('.d64') ||
                 file.name.toLowerCase().endsWith('.g64')
@@ -3118,7 +3118,7 @@ $('.layer').change( function(event) {
         }
         else
         {
-            $('#alert_reset').show();
+            //$('#alert_reset').show();
             wasm_reset();
             reset_keyboard();
 
@@ -3129,7 +3129,7 @@ $('.layer').change( function(event) {
                 {
                     clearInterval(intervall_id);
                     execute_load();
-                    $('#alert_reset').hide();
+            //        $('#alert_reset').hide();
                     reset_before_load=false;
                 }
             }, 50);

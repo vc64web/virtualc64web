@@ -1147,14 +1147,14 @@ The operators or creators of external web resources are soley responsible for th
     <!-- file slot modal--->
     <div class="modal fade" id="modal_file_slot" tabindex="-1" role="dialog" aria-labelledby="file_slot_ModalLabel" aria-hidden="true">
       <div class="modal-dialog" role="document">
-        <div class="modal-content">
+        <div class="modal-content" style="display: grid;grid-template-rows: auto 1fr auto;max-height: 91vh;">
           <div class="modal-header">
             <h5 class="modal-title" id="file_slot_ModalLabel"><span id="file_slot_dialog_label"></span></h5>
             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
           </div>
-          <div class="modal-body">
+          <div class="modal-body" style="overflow: auto">
             <div id="div_auto_reset" class="custom-control custom-switch mt-1">
               <input type="checkbox" class="custom-control-input" id="auto_reset"/>
               <label class="custom-control-label" for="auto_reset">auto reset</label>

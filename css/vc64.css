@@ -105,6 +105,7 @@ body
     user-select: none;
     -webkit-user-select: none;
     overflow:hidden;
+    overscroll-behavior: none; /* blocks swipe navigation */
     background-color: var(--lighterbg) !important;
 }
 
@@ -808,4 +809,11 @@ input[type="range"]::-moz-range-thumb {
 #released_at {
     font-size: larger;
     color: darkgray;
+}
+
+
+#ui_file_list {
+    overflow: auto;
+    min-width: fit-content;
+    padding-right: 10px;
 }

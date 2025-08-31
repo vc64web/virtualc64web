@@ -575,7 +575,7 @@ draggable="false">
                    let c64code = translateKey('ShiftLeft', 'ShiftLeft');
                    if(document.body.getAttribute('ShiftLock-key')!='pressed')
                    {
-                     wasm_schedule_key(c64code[0], c64code[1], 1,0);                   
+//                     wasm_schedule_key(c64code[0], c64code[1], 1,0);                   
                      document.body.setAttribute('shift-keys', 'pressed');
                      document.body.setAttribute('ShiftLock-key', 'pressed');
                      shift_pressed_count++;
@@ -611,6 +611,12 @@ draggable="false">
                {
                 var c64code = translateKey(keydef.c, keydef.k);
                 if(c64code !== undefined){
+                    if(shift_pressed_count>0)
+                    {
+                        let shiftcode = translateKey('ShiftLeft', 'ShiftLeft');                   
+                         wasm_schedule_key(shiftcode[0], shiftcode[1], 1,0);                   
+                    }
+
                     wasm_schedule_key(c64code[0], c64code[1], 1,0);
 
                     if(keydef.c == 'ShiftLeft' ||keydef.c == 'rightShift')

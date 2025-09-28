@@ -277,6 +277,7 @@ key_translation_map =
     Digit1:1,
     Delete :0,   //left arrow
     ControlLeft   :17,
+    Tab: 17,
     Digit2:2,
     Space :65,
     commodore :49,  //commodore

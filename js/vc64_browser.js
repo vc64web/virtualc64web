@@ -169,7 +169,7 @@ async function load_browser(datasource_name, command="feeds")
         var the_html=
         '<div class="col-xs-4 mr-2">'
         +`<div id="card_snap_${item.id}" class="card" style="width: ${scaled_width}rem;">`
-            +`<canvas id="canvas_snap_${item.id}" width="${canvas_width}" height="${canvas_height}" class="card-img-top rounded"></canvas>`;
+            +`<img id="img_snap_${item.id}" width="${canvas_width}" height="${canvas_height}" class="card-img-top rounded"/>`;
         if(collector.can_delete(app_title, item.id))
         {
             the_html += '<button id="delete_snap_'+item.id+'" type="button" style="position:absolute;top:0;right:0;padding:0;" class="btn btn-sm icon">'+x_icon+'</button>';
@@ -225,7 +225,7 @@ async function load_browser(datasource_name, command="feeds")
         $('#container_snapshots').append(the_grid);
         for(var z=0; z<app_snaps.length; z++)
         {
-            var canvas_id= "canvas_snap_"+app_snaps[z].id;
+            var canvas_id= "img_snap_"+app_snaps[z].id;
             var delete_id= "delete_snap_"+app_snaps[z].id;
             var export_id= "export_snap_"+app_snaps[z].id;
             var like_id= "like_snap_"+app_snaps[z].id;
@@ -282,10 +282,10 @@ async function load_browser(datasource_name, command="feeds")
             }
 
             canvas.onclick = function() {
-                let id = this.id.match(/canvas_snap_(.*)/)[1];
+                let id = this.id.match(/img_snap_(.*)/)[1];
                 collector.show_detail(app_title, id);
             };
-            collector.draw_item_into_canvas(app_title, canvas, app_snaps[z]);  
+            collector.draw_item_into_img(app_title, canvas, app_snaps[z]);
         }
     }
 
@@ -395,13 +395,13 @@ var collectors = {
                 get_data_collector('snapshots').set_busy(false);
             }
         },
-        draw_item_into_canvas: function (app_title, teaser_canvas, item){
+        draw_item_into_img: function (app_title, teaser_img, item){
             if(app_title == 'auto_save')
             {
                 var id = item.internal_id; 
                 var width=384;
                 var height=284;
-                this.copy_autosnapshot_to_canvas(auto_snaps[id], teaser_canvas, width, height);
+                this.copy_autosnapshot_to_img(auto_snaps[id], teaser_img, width, height);
             }
             else
             {
@@ -413,6 +413,7 @@ var collectors = {
                         (version >= 5.1 ? 16 : 8), snapshot_data.length); 
                 }
                 let thumbnail_data=get_thumbnail_data(src_data);
+                var width, height;
                 if(version.startsWith("3.3"))
                 { 
                     width=392;
@@ -423,25 +424,38 @@ var collectors = {
                     width=thumbnail_data[0] + thumbnail_data[1] * 256; //384;
                     height=thumbnail_data[4] + thumbnail_data[5] * 256; //284;
                 }
-                var ctx = teaser_canvas.getContext("2d");
-                teaser_canvas.width = width;
-                teaser_canvas.height = height;
+
+                // create temporary off-DOM canvas to convert raw pixel data to an image data URL
+                var tmp = document.createElement('canvas');
+                tmp.width = width;
+                tmp.height = height;
+                var ctx = tmp.getContext("2d");
                 if(ctx!=null)
                 {
-                    imgData=ctx.createImageData(width,height);
-                
+                    var imgData = ctx.createImageData(width,height);
                     var data = imgData.data;
-                    snapshot_data = new Uint8Array(thumbnail_data, 8/* offset .. skipping width, height */, data.length);
+                    var snapshot_data = new Uint8Array(thumbnail_data, 8/* offset .. skipping width, height */, data.length);
                     data.set(snapshot_data.subarray(0,data.length),0);
-                    ctx.putImageData(imgData,0,0); 
-                
+                    ctx.putImageData(imgData,0,0);
+                      
                     if(!version.startsWith(vc64web_version))
                     {
-                        ctx.translate(50, 0); // translate to rectangle center 
-                        ctx.rotate((Math.PI / 180) * 27); // rotate
+                        ctx.save();
+                        ctx.translate(50, 0);
+                        ctx.rotate((Math.PI / 180) * 27);
                         ctx.font = '48px serif';
                         ctx.fillStyle = '#DD0000';
                         ctx.fillText('needs V'+version, 20, 60);
+                        ctx.restore();
+                    }
+
+                    try {
+                        teaser_img.src = tmp.toDataURL('image/png');
+                        teaser_img.style.width='auto';
+                        teaser_img.style.height='auto'; 
+                    } catch(e) {
+                        // fallback: leave src empty
+                        console.error('toDataURL failed', e);
                     }
                 }
             }
@@ -507,15 +521,20 @@ var collectors = {
             return false;
         },
         //helper method...
-        copy_autosnapshot_to_canvas: function(snapshot_data, canvas, width, height){ 
-            var ctx = canvas.getContext("2d");
-            canvas.width = width;
-            canvas.height = height;
-            imgData=ctx.createImageData(width,height);
-
+        copy_autosnapshot_to_img: function(snapshot_data, img, width, height){ 
+            var tmp = document.createElement('canvas');
+            tmp.width = width;
+            tmp.height = height;
+            var ctx = tmp.getContext('2d');
+            var imgData = ctx.createImageData(width,height);
             var data = imgData.data;
             data.set(snapshot_data.subarray(16+8,data.length),0);
-            ctx.putImageData(imgData,0,0); 
+            ctx.putImageData(imgData,0,0);
+            try {
+                img.src = tmp.toDataURL('image/png');
+            } catch(e) {
+                console.error('toDataURL failed', e);
+            }
         }
 
     },
@@ -816,18 +835,10 @@ var collectors = {
                 this.set_busy(false);
             }
         },
-        draw_item_into_canvas: function (app_title, teaser_canvas, item){
-            var ctx = teaser_canvas.getContext('2d');
-            var img = new Image;
-            img.onload = function(){
-                if(ctx!=null && img != null)
-                {
-                    ctx.drawImage(img,0,0); // Or at whatever offset you like
-                }
-            };
+        draw_item_into_img: function (app_title, teaser_img, item){
             if(item.screen_shot != null)
             {
-                img.src=item.screen_shot;
+                teaser_img.src = item.screen_shot;
             }
             return; 
         },

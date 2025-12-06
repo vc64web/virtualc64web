@@ -817,3 +817,9 @@ input[type="range"]::-moz-range-thumb {
     min-width: fit-content;
     padding-right: 10px;
 }
+
+
+[id^="img_snap_"] {
+    width: auto;
+    height: auto;
+}

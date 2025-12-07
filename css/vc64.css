@@ -258,6 +258,12 @@ color: #aaa !important;
 
     width: 100vw;
 }
+#button_show_menu {
+    position: fixed; 
+    top:6px; 
+    left:calc(env(safe-area-inset-left) / 2);
+    z-index:200;    
+}
 #navgrid {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -270,6 +276,7 @@ color: #aaa !important;
     grid-template-columns: repeat(auto-fit, minmax(36px, auto)); /* Responsive grid for left side */
     gap: 0px;
     justify-content: start;
+    margin-left: calc(env(safe-area-inset-left) / 2);
 }
 
 .left > *, .right > * {
@@ -288,6 +295,7 @@ color: #aaa !important;
     gap: 1px;
     justify-content: end;
     padding-right: 2px;
+    margin-right: calc(env(safe-area-inset-right) / 2);
 }
 
 

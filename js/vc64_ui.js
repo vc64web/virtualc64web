@@ -491,7 +491,7 @@ rs232_message = "";
 //rs232_message=[];
 
 async function fetchOpenROMS(){
-    var installer = async response => {
+    installer = async response => {
         try{
             var arrayBuffer = await response.arrayBuffer();
             var byteArray = new Uint8Array(arrayBuffer);

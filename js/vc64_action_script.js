@@ -203,7 +203,7 @@ async function execute_single_action(cmd, execute=true, execution_id=-1)
         {
             if(is_running())
             {
-                $('#button_run').click();   
+                app.button_run_click(); 
             } 
         }
     
@@ -214,7 +214,7 @@ async function execute_single_action(cmd, execute=true, execution_id=-1)
         {
             if(!is_running())
             {
-                $('#button_run').click();   
+                app.button_run_click();   
             } 
         }
     }
@@ -222,7 +222,7 @@ async function execute_single_action(cmd, execute=true, execution_id=-1)
     {
         if(execute)
         {
-            $('#button_run').click();   
+            app.button_run_click();  
         }
     }
     else if(cmd == 'toggle_warp')
@@ -259,21 +259,14 @@ async function execute_single_action(cmd, execute=true, execution_id=-1)
     {
         if(execute)
         {
-            $('#button_keyboard').click();
+            app.button_keyboard_click();
         }
     }
     else if(cmd == 'menubar')
     {
         if(execute)
         {
-            $("#button_show_menu").click();
-        }
-    }
-    else if(cmd == 'keyboard')
-    {
-        if(execute)
-        {
-            $('#button_keyboard').click();
+            app.button_show_menu_click();
         }
     }
     else if(cmd == 'datasette_play')
@@ -309,7 +302,7 @@ async function execute_single_action(cmd, execute=true, execution_id=-1)
     {
         if(execute)
         {
-            $('#button_fullscreen').click();
+            app.button_fullscreen_click();
         }
     }
     else if(cmd == 'restore_last_snapshot')
@@ -488,7 +481,7 @@ function execute_joystick_script(cmd_tokens)
             snapshot.data.length);
         if(!is_running())
         {
-            $("#button_run").click();
+            app.button_run_click();
         }  
         {
             wasm_run();

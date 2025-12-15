@@ -82,7 +82,31 @@ async function load_all_sounds()
 }
 load_all_sounds();
 
+add_click=function(element, handler) {
+    window.app = window.app || {};
+    Object.defineProperty(window.app, element+"_click", {
+        configurable: true,
+        enumerable: true,
+        writable: true,
+        value: handler
+    });
 
+    let btn =document.getElementById(element)
+    let animating = false;
+    btn.addEventListener('animationend', () => {
+        btn.classList.remove('pop');
+        animating = false;
+    });
+    btn.addEventListener("pointerup",
+     function () {
+        if (!animating) {
+          animating = true;
+          // void btn.offsetWidth; 
+            btn.classList.add("pop");
+        };
+        handler();
+    }); 
+}
 
 
 
@@ -396,7 +420,7 @@ function message_handler_queue_worker(msg, data1, data2)
                 if(call_param_navbar=='hidden')
                 {
                     setTimeout(function(){
-                    $("#button_show_menu").click();
+                    app.button_show_menu_click();
                     },500);
                 }
                 if(call_param_wide != null)
@@ -1924,7 +1948,7 @@ function InitWrappers() {
         {
             if(required_roms_loaded)
             {
-                $('#button_run').click();
+                app.button_run_click();
                 window.parent.postMessage({ msg: 'render_run_state', value: is_running(), is_warping:  Module._wasm_is_warping() },"*");
             }
         }
@@ -2278,7 +2302,8 @@ function InitWrappers() {
     //--
 
     installKeyboard();
-    $("#button_keyboard").click(function(){
+    add_click("button_keyboard", function(){
+        $('#virtual_keyboard').collapse('toggle');
         setTimeout( scaleVMCanvas, 500);
         setTimeout( hide_all_tooltips, 1000);
     });
@@ -2301,6 +2326,9 @@ function InitWrappers() {
     $('#navbar').on('shown.bs.collapse', function () { 
     });
 
+    add_click("button_show_menu", function() {
+        $('#navbar').collapse('toggle');
+    });
     burger_time_out_handle=null
     burger_button=null;
     menu_button_fade_in = function () {
@@ -2334,6 +2362,10 @@ function InitWrappers() {
         menu_button_fade_in();
     }});
 
+
+    add_click("button_settings", function() {
+        $('#modal_settings').modal('show');
+    });
 
 //----
     symbolic_mapping_switch = $('#symbolic_mapping_switch');
@@ -2806,7 +2838,7 @@ if(document.fullscreenEnabled)
         );
     });
 
-    fullscreen_switch.click( ()=>{	
+    add_click("button_fullscreen",()=>{	
         if(!document.fullscreenElement)
             document.documentElement.requestFullscreen({navigationUI: "hide"});
         else
@@ -2900,18 +2932,18 @@ $('.layer').change( function(event) {
         return true;
     }
     );
-    document.getElementById('button_reset').onclick = function() {
+    add_click('button_reset',function() {
         if(Module._wasm_expansion_port_info()) $("#button_detach_cartridge").show();
         else $("#button_detach_cartridge").hide();
         $("#modal_reset").modal('show');
-    }
+    });
     document.getElementById('button_soft_reset_confirmed').onclick = function() {
         Module._wasm_soft_reset();
         reset_keyboard();
 
         if(!is_running())
         {
-            $("#button_run").click();
+            app.button_run_click();
         }
         $("#modal_reset").modal('hide').blur();
     }
@@ -2921,7 +2953,7 @@ $('.layer').change( function(event) {
 
         if(!is_running())
         {
-            $("#button_run").click();
+            app.button_run_click();
         }
         $("#modal_reset").modal('hide').blur();
     }
@@ -2931,14 +2963,14 @@ $('.layer').change( function(event) {
 
         if(!is_running())
         {
-            $("#button_run").click();
+            app.button_run_click();
         }
         $("#modal_reset").modal('hide').blur();
     }
 //---
     running=true;
     emulator_currently_runs=false;
-    $("#button_run").click(function() {
+    add_click("button_run", function() {
         hide_all_tooltips();
         if(running)
         {        
@@ -2967,7 +2999,7 @@ $('.layer').change( function(event) {
         //document.getElementById('canvas').focus();
     });
 
-    $("#button_ff").click(()=> {
+    add_click("button_ff",()=> {
         action('toggle_warp'); 
         hide_all_tooltips();
     });
@@ -3074,17 +3106,17 @@ $('.layer').change( function(event) {
             }
             if(file_slot_file_name.endsWith('.vc64'))
             {
-                $("#button_run").click();
+                app.button_run_click();
                 if(!is_running())
                 {
-                    $("#button_run").click();
+                    app.button_run_click();
                 }    
             }
         };
 
         if(!is_running())
         {
-            $("#button_run").click();
+            app.button_run_click();
         }
         let kernal_rom=JSON.parse(wasm_rom_info()).kernal;
         var faster_open_roms_installed = kernal_rom.startsWith("M.E.G.A") || kernal_rom.startsWith("Patched");
@@ -3155,7 +3187,7 @@ $('.layer').change( function(event) {
         }
     );
    
-    document.getElementById('button_take_snapshot').onclick = function() 
+    add_click('button_take_snapshot',function() 
     {       
         wasm_halt();
         $("#modal_take_snapshot").modal('show');
@@ -3174,7 +3206,7 @@ $('.layer').change( function(event) {
         {
             $("#button_export_disk").hide();
         }
-    }
+    });
     $('#button_export_disk').click(function() 
     {
         let d64_json = wasm_export_disk();
@@ -3274,7 +3306,7 @@ This discrepancy can lead to stuttering or jumpy movement, depending on the cont
             $('#button_speed_toggle').show();
  
         current_speed=100;
-        $('#button_speed_toggle').click();
+        app.button_speed_toggle_click();
 
         save_setting('frame_sync', new_speed);
     }
@@ -3285,7 +3317,7 @@ This discrepancy can lead to stuttering or jumpy movement, depending on the cont
         $("#modal_settings").focus();
     });
     
-    $('#button_speed_toggle').click(function () 
+    add_click('button_speed_toggle', function () 
     {
         hide_all_tooltips();
         if(current_speed==100)
@@ -3315,7 +3347,7 @@ This discrepancy can lead to stuttering or jumpy movement, depending on the cont
         $("#modal_settings").focus();
     });
     set_speed(load_setting("frame_sync","100%"));
-    $('#button_speed_toggle').click();
+    app.button_speed_toggle_click();
 //--
 set_run_ahead = function (run_ahead) {
     $("#button_run_ahead").text("run ahead = "+run_ahead);
@@ -3433,6 +3465,12 @@ $('#choose_vic_rev a').click(function ()
 
     setup_browser_interface();
 
+    add_click('port1', function() {
+     document.getElementById('port1').focus();
+    });
+    add_click('port2', function() {
+     document.getElementById('port2').focus();
+    });
 
     document.getElementById('port1').onchange = function() {
         port1 = document.getElementById('port1').value; 
@@ -3532,7 +3570,7 @@ $('#choose_vic_rev a').click(function ()
         handleFileInput();
     }, false);
 
-    document.getElementById('drop_zone').addEventListener("click", function(e) {
+    add_click('drop_zone', function(e) {
         if(last_zip_archive_name != null)
         {
             file_slot_file_name = last_zip_archive_name;
@@ -3541,9 +3579,9 @@ $('#choose_vic_rev a').click(function ()
         }
         else
         {
-            document.getElementById('theFileInput').elements['theFileDialog'].click();
+            document.getElementById('filedialog').click();
         }
-    }, false);
+    });
 
     document.getElementById('drop_zone').addEventListener("dragover", function(e) {
         dragover_handler(e);
@@ -3663,7 +3701,7 @@ $('#choose_vic_rev a').click(function ()
     if(bEnableCustomKeys)
     {
         create_new_custom_key = false;
-        $("#button_custom_key").click(
+        add_click("button_custom_key",
             function(e) 
             {  
                 create_new_custom_key = true;
@@ -4336,7 +4374,7 @@ release_key('ControlLeft');`;
         //install_custom_keys();
     }
 
-    $("#button_show_menu").click();
+    app.button_show_menu_click();
     return;
 }
 

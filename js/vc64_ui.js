@@ -2348,20 +2348,16 @@ function InitWrappers() {
             {
                 burger_button.fadeTo( "slow", 0.0 );
             }
-        },5000);    
+        },4500);    
     };
 
     //make the menubutton not visible until a click or a touch
     menu_button_fade_in();
     burger_button.hover(function(){ menu_button_fade_in();});
 
-    window.addEventListener("click", function() {
+    window.addEventListener("pointerdown", function() {
         menu_button_fade_in();
     });
-    $("#canvas").on({ 'touchstart' : function() {
-        menu_button_fade_in();
-    }});
-
 
     add_click("button_settings", function() {
         $('#modal_settings').modal('show');

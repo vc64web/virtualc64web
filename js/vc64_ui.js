@@ -510,6 +510,12 @@ function message_handler_queue_worker(msg, data1, data2)
         let vic_rev=["PAL 50Hz 6569","PAL 50Hz 6569 R3","PAL 50Hz 8565","NTSC 60Hz 6567 R56A","NTSC 60Hz 6567","NTSC 60Hz 8562"];
         if(0 <= vic && vic<vic_rev.length) $("#button_vic_rev").text("vicII rev "+ vic_rev[vic]);
     }
+    else if(msg == "MSG_CPU_JAMMED")
+    {
+        alert("The 6502 CPU has got jammed. The emulator will now do a hard reset.");   
+        _wasm_hard_reset();
+        _wasm_run();
+    }
 }
 rs232_message = "";
 //rs232_message=[];
@@ -1527,7 +1533,6 @@ function restore_manual_state(port)
 
 
 function InitWrappers() {
-    try{add_pencil_support_for_elements_which_need_it();} catch(e) {console.error(e)}
     wasm_loadfile = Module.cwrap('wasm_loadFile', 'string', ['string', 'array', 'number']);
     wasm_key = Module.cwrap('wasm_key', 'undefined', ['number', 'number', 'number']);
     wasm_toggleFullscreen = Module.cwrap('wasm_toggleFullscreen', 'undefined');
@@ -4894,23 +4899,7 @@ add_pencil_support = (element) => {
         }
     });
 }
-function add_pencil_support_to_childs(element) {
-    element.childNodes.forEach(child => {
-        if (child.nodeType === Node.ELEMENT_NODE)
-          add_pencil_support(child);
-    });  
-}
-function add_pencil_support_for_elements_which_need_it()
-{
-    let elements_which_need_pencil_support=
-        ["button_show_menu","button_run", "button_reset", "button_take_snapshot",
-        "button_snapshots", "button_keyboard", "button_custom_key", "drop_zone",
-        "button_fullscreen", "button_settings", "port1", "port2" ]
-    for(let element_id of elements_which_need_pencil_support)
-    {
-        add_pencil_support(document.getElementById(element_id));
-    }
-}
+
 
 function copy_to_clipboard(element) {
     var textToCopy = element.innerText;

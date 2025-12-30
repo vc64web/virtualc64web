@@ -80,6 +80,7 @@
     border: 3px dashed var(--blue);
     height: 30px;
     border-radius: 5px;
+    white-space: nowrap;
 }
 
 [data-theme="dark"] #drop_zone {
@@ -285,6 +286,11 @@ color: #aaa !important;
     align-items: center;
     justify-content: center;
     height: 45px;
+}
+.left > * {
+    min-width: 45px;
+    margin-left: 4px;
+    margin-right: 4px;
 }
 #theFileInput {
     grid-column: span 2;

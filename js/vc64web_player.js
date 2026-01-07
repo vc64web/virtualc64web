@@ -114,7 +114,7 @@
         }
         else
         {
-            this.loadScript(`${this.vc64web_url}js/jquery-3.5.0.min.js` , 
+            this.loadScript(`${this.vc64web_url}js/jquery-3.7.1.min.js` , 
             function(){vc64web_player.load_into(element,params, address);});
         }
     },

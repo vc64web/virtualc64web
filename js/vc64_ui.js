@@ -1121,6 +1121,10 @@ function keydown(e) {
             {
                 running_script.action_button_released = false;
             }
+            
+            let on_screen_button = document.getElementById("ck"+action_button.id);
+            on_screen_button?.setAttribute('key-state', 'pressed');
+
             execute_script(action_button.id, action_button.lang, action_button.script);
             return;
         }
@@ -1187,7 +1191,8 @@ function keyup(e) {
            || action_button.key == serialized_code)
         {
             get_running_script(action_button.id).action_button_released = true;
-            return;
+            let on_screen_button = document.getElementById("ck"+action_button.id);
+            on_screen_button?.setAttribute('key-state', '');
         }
     }
 
@@ -4399,10 +4404,6 @@ release_key('ControlLeft');`;
             }
 
             var btn_html='<button id="ck'+element.id+'" class="btn btn-secondary btn-sm custom_key" style="position:absolute;'+element.position+';';
-            if(element.currentX)
-            {
-                btn_html += 'transform:translate3d(' + element.currentX + 'px,' + element.currentY + 'px,0);';
-            } 
             if(element.transient)
             {
                 btn_html += 'border-width:3px;border-color: rgb(100, 133, 188);'; //cornflowerblue=#6495ED
@@ -4413,7 +4414,7 @@ release_key('ControlLeft');`;
             }
             if(element.padding != undefined && element.padding != 'default')
             {
-                btn_html += 'padding:'+element.padding+'em;';
+                btn_html += '--padding:'+element.padding+'em;';
             }
             if(element.opacity != undefined && element.opacity != 'default')
             {
@@ -4430,6 +4431,12 @@ release_key('ControlLeft');`;
             action_scripts["ck"+element.id] = element.script;
 
             let custom_key_el = document.getElementById(`ck${element.id}`);
+            
+            // Set position via CSS custom properties
+            if(element.currentX) {
+                custom_key_el.style.setProperty('--tx', element.currentX + 'px');
+                custom_key_el.style.setProperty('--ty', element.currentY + 'px');
+            }
             if(!movable_action_buttons)
             {//when action buttons locked
              //process the mouse/touch events immediatly, there is no need to guess the gesture
@@ -4444,6 +4451,9 @@ release_key('ControlLeft');`;
                     {
                       running_script.action_button_released = false;
                     }
+                    
+                    custom_key_el.setAttribute('key-state', 'pressed');
+                    
                     execute_script(element.id, element.lang, action_script);
 
                 };
@@ -4452,6 +4462,7 @@ release_key('ControlLeft');`;
                     e.stopImmediatePropagation();
                     e.preventDefault();
                     get_running_script(element.id).action_button_released = true;
+                    custom_key_el.setAttribute('key-state', '');
                 };
 
                 custom_key_el.addEventListener("pointerdown", (e)=>{
@@ -4475,6 +4486,10 @@ release_key('ControlLeft');`;
                         return;
     
                     var action_script = action_scripts['ck'+element.id];
+
+                    custom_key_el.setAttribute('key-state', 'pressed');
+                    setTimeout(() => custom_key_el.setAttribute('key-state', ''), 200);
+                    
                     get_running_script(element.id).action_button_released = true;
                     execute_script(element.id, element.lang, action_script);
                 });
@@ -4652,7 +4667,8 @@ release_key('ControlLeft');`;
 
     function setTranslate(xPos, yPos, el) {
      //   console.log('translate: x'+xPos+' y'+yPos+ 'el=' +el.id);  
-      el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
+      el.style.setProperty('--tx', xPos + 'px');
+      el.style.setProperty('--ty', yPos + 'px');
     }
 
 //---- end custom key ----

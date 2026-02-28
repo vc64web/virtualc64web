@@ -944,13 +944,14 @@ function configure_file_dialog(reset=false)
                     queueMicrotask(()=> {                   
                         // Find and select the appropriate file
                         let file_to_select = mountable_files.find(f => f.is_next_side);
+                        if(!file_to_select && mountable_count == 1)
+                        {//if there is only one file is mountable, also select it, so that the user can hit mount
+                            file_to_select = mountable_files[0];
+                        }
                         
                         if (file_to_select) {
                             $('#li_fileselect' + file_to_select.index).click();
-                        } /*else if (mountable_count > 0) {
-                            // If no matching side found, select the first mountable file
-                            $('#li_fileselect0').click();
-                        }*/
+                        } 
                     });
 
                     $('#ui_file_list li').click( function (e) {
@@ -976,11 +977,11 @@ function configure_file_dialog(reset=false)
                                 file_slot_file_name=path;
                                 file_slot_file=u8;
                     
-                                if(mountable_count==1)
+                           /*     if(mountable_count==1)
                                 {//in case that there was only one mountable file in the zip, auto mount it
                                     configure_file_dialog(reset_before_load);
                                 }        
-                                else
+                                else*/
                                 {//file is ready to insert
                                     $("#button_insert_file").html("mount file"+return_icon);
                                     $("#button_insert_file").removeAttr("disabled");

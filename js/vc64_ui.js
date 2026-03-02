@@ -68,8 +68,8 @@ async function load_all_sounds()
 {
     if(audio_df_insert==null)
         audio_df_insert=await load_sound('sounds/insert.mp3');
-/*    if(audio_df_eject==null)
-        audio_df_eject=await load_sound('sounds/eject.mp3');*/
+    if(audio_df_eject==null)
+        audio_df_eject=await load_sound('sounds/eject.mp3');
     if(audio_df_step == null)
         audio_df_step=await load_sound('sounds/step.mp3');
     if(audio_key_standard == null)   
@@ -479,7 +479,16 @@ function message_handler_queue_worker(msg, data1, data2)
     {
         play_sound(audio_df_insert, drive_loudness);
         floppy_has_disk=true; 
-    } 
+    }
+    else if(msg == "MSG_DISK_EJECT")
+    {
+        $("#drop_zone").html(`file slot`);
+        play_sound(audio_df_eject); 
+    }
+    else if(msg == "MSG_SNAPSHOT_RESTORED")
+    {
+        $("#drop_zone").html(`snapshot`);
+    }
     else if(msg == "MSG_SER_IDLE" || 
             msg == "MSG_SER_BUSY" || 
             msg.startsWith("MSG_DRIVE_")
@@ -847,7 +856,7 @@ function configure_file_dialog(reset=false)
                     auto_load = false;
                     auto_run = false;
                     reset_before_load = false;
-                    insert_file();
+                    insert_file(selected_drive);
                     return;
                 }
                 
@@ -868,7 +877,7 @@ function configure_file_dialog(reset=false)
                 }
                 if(call_param_dialog_on_disk == false)
                 {
-                    insert_file();
+                    insert_file(selected_drive);
                 }
                 else
                 {
@@ -1033,9 +1042,73 @@ function configure_file_dialog(reset=false)
     }
 }
 
+selected_drive=0;
+last_selected_drive=0;
+async function prompt_for_drive()
+{
+    if(selected_drive>=8)
+    {
+        insert_file(selected_drive);
+        return;
+    }
+    
+ 
+    let cancel=`<div id="prompt_drive_cancel" class="close" style="position:absolute;top:0.2em;right:0.4em;cursor:pointer" onclick="show_drive_select(false)">×</div>`;
+    let_drive_select_stay_open=false;
+    show_drive_select=(show)=>{
+        if(let_drive_select_stay_open)
+        {
+            let_drive_select_stay_open=false;
+            if(!show) return;
+        }
 
+        document.getElementById("div_drive_select").setAttribute('class', `slide-${show?"in":"out"}`);
+        if(show)
+        {
+            $("#div_drive_select").show();
+     //       add_pencil_support_to_childs(document.getElementById("drive_select_choice"));
+     //       add_pencil_support(document.getElementById("prompt_drive_cancel"));
+        }
+        else
+        {
+            setTimeout(()=>$("#div_drive_select").hide(),1000); 
+        }
+    }
 
+    if(file_slot_file_name.match(/[.](d64|g64)$/i))
+    {
+        let df_count=0;
+        for(let i = 8; i<=9;i++)
+            df_count+=Number(wasm_get_config("DRIVE_CONNECT",i));
 
+        if(df_count==1)
+        {
+            show_drive_select(false);
+            insert_file(8);
+        }
+        else
+        {
+            let drv_html=
+                `${cancel}
+                <div id="drive_select_file" class="gc_choice_text">insert <span class="mx-2 px-2">${file_slot_file_name}</span> into</div>`;
+                       
+            drv_html+=`<div id="drive_select_choice">`;
+
+            for(var dn=0;dn<df_count;dn++)
+            {
+                drv_html+=`<button type="button" class="btn btn-primary m-1 mb-2" style="width:20vw" onclick="insert_file(${8+dn});show_drive_select(false);">drive ${8+dn}</button>`;
+            }
+            drv_html+=`</div>`;
+            $("#div_drive_select").html(drv_html);
+            show_drive_select(true);
+        }
+    }
+    else
+    {
+        show_drive_select(false);
+        insert_file(0);
+    }
+}
 
 
 
@@ -1539,7 +1612,7 @@ function restore_manual_state(port)
 
 
 function InitWrappers() {
-    wasm_loadfile = Module.cwrap('wasm_loadFile', 'string', ['string', 'array', 'number']);
+    wasm_loadfile = Module.cwrap('wasm_loadFile', 'string', ['string', 'array', 'number','number']);
     wasm_key = Module.cwrap('wasm_key', 'undefined', ['number', 'number', 'number']);
     wasm_toggleFullscreen = Module.cwrap('wasm_toggleFullscreen', 'undefined');
     wasm_joystick = Module.cwrap('wasm_joystick', 'undefined', ['string']);
@@ -1572,9 +1645,9 @@ function InitWrappers() {
 
     wasm_peek = Module.cwrap('wasm_peek', 'number', ['number']);
     wasm_poke = Module.cwrap('wasm_poke', 'undefined', ['number', 'number']);
-    wasm_export_disk = Module.cwrap('wasm_export_disk', 'string');
+    wasm_export_disk = Module.cwrap('wasm_export_disk', 'string',['number']);
     wasm_configure = Module.cwrap('wasm_configure', 'undefined', ['string', 'number']);
-    wasm_get_config = Module.cwrap('wasm_get_config', 'number', ['string']);
+    wasm_get_config = Module.cwrap('wasm_get_config', 'number', ['string', 'number']);
     wasm_write_string_to_ser = Module.cwrap('wasm_write_string_to_ser', 'undefined', ['string']);
     wasm_print_error = Module.cwrap('wasm_print_error', 'undefined', ['number']);
 
@@ -1582,6 +1655,8 @@ function InitWrappers() {
     wasm_copy_into_sound_buffer = Module.cwrap('wasm_copy_into_sound_buffer', 'number');
     wasm_set_sample_rate = Module.cwrap('wasm_set_sample_rate', 'undefined', ['number']);
     wasm_auto_type = Module.cwrap('wasm_auto_type', 'undefined', ['string']);
+    wasm_has_disk = Module.cwrap('wasm_has_disk', 'number', ['string']);
+    wasm_eject_disk = Module.cwrap('wasm_eject_disk', 'undefined', ['string']);
 
     const drive_loudness_slider = document.getElementById('drive_loudness_slider');
     set_drive_loudness = (new_volume)=>{
@@ -1599,9 +1674,6 @@ function InitWrappers() {
     let loaded_drive_loudness=load_setting('drive_loudness', 0.25);
     set_drive_loudness(loaded_drive_loudness);
     $("#drive_loudness_slider").val(loaded_drive_loudness);
-
-
-
 
 
     const volumeSlider = document.getElementById('volume-slider');
@@ -2370,9 +2442,70 @@ function InitWrappers() {
         menu_button_fade_in();
     });
 
+
+
+    show_drive_config = (c)=>{
+
+        let drv8_connected = wasm_get_config("DRIVE_CONNECT",8)==1;
+        let drv9_connected = wasm_get_config("DRIVE_CONNECT",9)==1;
+
+        $("#button_floppy_drive_count").text(`connected drives = ${drv8_connected && drv9_connected ? "two" : "one"}`);
+        $('#div_drives').html(`
+            ${drv8_connected?"<span style='display:inline-block'>drive 8 <svg style='width:1.5em;height:1.5em'><use xlink:href='img/sprites.svg#floppy_cable'/></svg></span>":""} 
+            ${drv9_connected?"<span style='display:inline-block'>drive 9 <svg style='width:1.5em;height:1.5em'><use xlink:href='img/sprites.svg#floppy_cable'/></svg></span><br>"
+                +"<b style='color:#d2691e'>WARNING</b> - Most modern disk-based demos require a single device on the IEC serial bus. Adding a second device can alter the bus timing, and because many demos use cycle-exact fastloaders and custom drive code, this often results in crashes or lockups.":""} 
+            ${local_storage_get('vc1541_rom.bin')==null?"<span>1541 ROM</span>is missing, Please provide a rom under 'C64 system roms' to connect floppy drives":""}
+        `);
+        document.getElementById("button_floppy_drive_count").disabled = local_storage_get('vc1541_rom.bin')==null;
+    }
+
+set_floppy_drive_count(load_setting('floppy_drive_count', '1'));
+
+
+function set_floppy_drive_count(drive_count) {
+    $("#button_floppy_drive_count").text(`connected drives = ${drive_count==1?"one":"two"}`);
+    wasm_configure("DRIVE9_CONNECT",  drive_count==2);
+    show_drive_config();
+}
+$('#choose_floppy_drive_count a').click(function () 
+{
+    let drive_count_text=$(this).text();
+    let drive_count=drive_count_text==="one" ? 1 : 2;
+    set_floppy_drive_count(drive_count);
+    save_setting('floppy_drive_count',drive_count);
+    $("#modal_settings").focus();
+});
+
+
+
+
     add_click("button_settings", function() {
-        $('#modal_settings').modal('show');
+        $('#modal_settings').modal('show');        
     });
+
+    $('#modal_settings').on('show.bs.modal', function() 
+    {    
+        show_drive_config();
+
+        for(var dn=8; dn<=9; dn++)
+        {
+            if(wasm_has_disk("drive"+dn))
+            {
+                $("#button_eject_drive"+dn).show();
+            }
+            else
+            {
+                $("#button_eject_drive"+dn).hide();
+            }
+            $('#button_eject_drive'+dn).click(function() 
+            {
+                wasm_eject_disk("drive"+this.id.at(-1));
+                $("#button_eject_drive"+this.id.at(-1)).hide();
+            });
+        }
+    });
+
+
 
 //----
     symbolic_mapping_switch = $('#symbolic_mapping_switch');
@@ -3018,16 +3151,19 @@ $('.layer').change( function(event) {
     $( "#modal_file_slot" ).keydown(event => {
             if(event.key === "Enter" && $("#button_insert_file").attr("disabled")!=true)
             {
-                insert_file();
-               // $( "#button_insert_file" ).click();                        
+                //insert_file();
+                prompt_for_drive();
+                // $( "#button_insert_file" ).click();                        
             }
             return false;
         }
     );
 
     reset_before_load=false;
-    insert_file = function() 
+    insert_file = function(drive=0) 
     {   
+        selected_drive=drive;
+        last_selected_drive=drive;
         if($('#div_zip_content').is(':visible'))
         {
             configure_file_dialog(reset_before_load);
@@ -3041,8 +3177,8 @@ $('.layer').change( function(event) {
 
         $('#modal_file_slot').modal('hide');
 
-        var execute_load = async function(){
-            var filetype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength);
+        var execute_load = async function(drive){
+            var filetype = wasm_loadfile(file_slot_file_name, file_slot_file, file_slot_file.byteLength, drive);
 
             // Update current_side based on the mounted file
             current_side = get_side_number(file_slot_file_name);
@@ -3099,7 +3235,7 @@ $('.layer').change( function(event) {
                 }
                 else
                 {                    
-                    wasm_auto_type('\nload"*",8,1:\n');
+                    wasm_auto_type(`load"*",${last_selected_drive==0?8:last_selected_drive},1:\n`);
                     if(do_auto_run)
                     {
                         await disk_loading_finished();
@@ -3137,7 +3273,7 @@ $('.layer').change( function(event) {
             if(time_since_start>time_coldstart_to_ready_prompt)
             {
 //                console.log("direct cycles now ="+time_since_start+ " time_coldstart_to_ready_prompt"+time_coldstart_to_ready_prompt);
-                execute_load();
+                execute_load(drive);
             }
             else
             {
@@ -3150,7 +3286,7 @@ $('.layer').change( function(event) {
                     if(cycles_now > time_coldstart_to_ready_prompt)
                     {
                         clearInterval(intervall_id);
-                        execute_load();
+                        execute_load(drive);
                     }
                 }, 50);
             }
@@ -3167,16 +3303,17 @@ $('.layer').change( function(event) {
                 if(cycles_now > time_coldstart_to_ready_prompt)
                 {
                     clearInterval(intervall_id);
-                    execute_load();
+                    execute_load(drive);
             //        $('#alert_reset').hide();
                     reset_before_load=false;
                 }
             }, 50);
         }
+        selected_drive=0;//reset selected drive after load
     }
     
     document.querySelector("#button_insert_file").addEventListener("click",
-        (event)=>{event.stopPropagation(); insert_file();}
+        (event)=>{event.stopPropagation(); prompt_for_drive();}
     )
     //$("#button_insert_file").click(insert_file);
     
@@ -3201,22 +3338,28 @@ $('.layer').change( function(event) {
         $("#input_app_title").val(global_apptitle);
         $("#input_app_title").focus();
 
-        let d64_json = wasm_export_disk();
-        let d64_obj = JSON.parse(d64_json);
-        Module._wasm_delete_disk();
-        
-        if(d64_obj.size>0)
+
+        if(wasm_has_disk("drive8"))
         {
-            $("#button_export_disk").show();
+            $("#button_export_disk8").show();
         }
         else
         {
-            $("#button_export_disk").hide();
+            $("#button_export_disk8").hide();
         }
+        if(wasm_has_disk("drive9"))
+        {
+            $("#button_export_disk9").show();
+        }
+        else
+        {
+            $("#button_export_disk9").hide();
+        }        
     });
-    $('#button_export_disk').click(function() 
+
+    let export_disk_in_drive = function(drive) 
     {
-        let d64_json = wasm_export_disk();
+        let d64_json = wasm_export_disk(drive);
         let d64_obj = JSON.parse(d64_json);
         let d64_buffer = new Uint8Array(Module.HEAPU8.buffer, d64_obj.address, d64_obj.size);
         let filebuffer = d64_buffer.slice(0,d64_obj.size);
@@ -3238,7 +3381,9 @@ $('.layer').change( function(event) {
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
-    });
+    }
+    $('#button_export_disk8').click(()=>export_disk_in_drive(8));
+    $('#button_export_disk9').click(()=>export_disk_in_drive(9));
 
     $('#button_save_snapshot').click(function() 
     {       

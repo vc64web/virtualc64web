@@ -81,6 +81,7 @@
     <div id="div_canvas" class="emscripten_border" style="width:100vw;height:100vh">
       <canvas class="emscripten" width="326" height="205" id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
     </div>
+    <div id="div_drive_select" ontouchstart="event.stopPropagation()"></div>
     <!-- virtual keyboard-->
     <div class="collapse" style="user-select: none;" id="virtual_keyboard">
       <div class="justify-content-center" id="vbk_scroll_area"
@@ -423,8 +424,23 @@
 
             <button id="button_rom_dialog" type="button" class="btn btn-primary mt-2 mb-3">C64 system roms ...</button>
 
+            <div class="dropdown mr-1 mt-2">
+              <button id="button_floppy_drive_count" class="btn btn-primary dropdown-toggle text-right" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                floppy drives=1
+              </button>
+              <button id="button_eject_drive8" type="button" style="text-align:start;font-size:small" class="btn btn-success mr-1  px-1" data-toggle="tooltip" data-placement="top" title="eject disk in drive 8">
+                <svg style="width:1.2em;height:1.2em;margin-top:-2px"><use xlink:href="img/sprites.svg#eject"/></svg>disk in drive 8</button>
+              <button id="button_eject_drive9" type="button" style="text-align:start;font-size:small" class="btn btn-success mr-1  px-1" data-toggle="tooltip" data-placement="top" title="eject disk in drive 9">
+                <svg style="width:1.2em;height:1.2em;margin-top:-2px"><use xlink:href="img/sprites.svg#eject"/></svg>disk in drive 9</button>
 
-            <div class="custom-control custom-switch mt-1">
+              <div id="choose_floppy_drive_count" class="dropdown-menu dropdown-menu-right" aria-labelledby="dropdownMenuButton">
+                <a class="dropdown-item" href="#">one</a>
+                <a class="dropdown-item" href="#">two</a>
+              </div>
+            </div>
+            <div id="div_drives"style="font-size: smaller" class="ml-3 mt-1 help_text"></div>
+
+            <div class="custom-control custom-switch mt-3">
               <input type="checkbox" class="custom-control-input" id="dark_switch" />
               <label class="custom-control-label" for="dark_switch">dark mode</label>
             </div>
@@ -933,16 +949,25 @@ The operators or creators of external web resources are soley responsible for th
             </div>
             
           </div>
-          <div class="modal-footer">
+          <div class="modal-footer" style="align-items:baseline">
             <div class="justify-start">
-            <button id="button_export_disk" type="button" class="btn btn-success ml-2" data-toggle="tooltip" data-placement="top" title="export the current state of disk in drive8">
+              <div style="display:flex;flex-direction:column">
+            <button id="button_export_disk8" type="button" class="btn btn-success ml-2" data-toggle="tooltip" data-placement="top" title="export the current state of disk in drive8">
             <svg class="mr-2" style="margin-top:-7px" width="1.2em" height="1.2em" viewBox="0 0 16 16" class="bi bi-box-arrow-up" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
   <path fill-rule="evenodd" d="M3.5 6a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 1 0-1h2A1.5 1.5 0 0 1 14 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-8A1.5 1.5 0 0 1 3.5 5h2a.5.5 0 0 1 0 1h-2z"/>
   <path fill-rule="evenodd" d="M7.646.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 1.707V10.5a.5.5 0 0 1-1 0V1.707L5.354 3.854a.5.5 0 1 1-.708-.708l3-3z"/>
 </svg>disk in drive 8</button>
+
+            <button id="button_export_disk9" type="button" class="btn btn-success ml-2 mt-1" data-toggle="tooltip" data-placement="top" title="export the current state of disk in drive9">
+            <svg class="mr-2" style="margin-top:-7px" width="1.2em" height="1.2em" viewBox="0 0 16 16" class="bi bi-box-arrow-up" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" d="M3.5 6a.5.5 0 0 0-.5.5v8a.5.5 0 0 0 .5.5h9a.5.5 0 0 0 .5-.5v-8a.5.5 0 0 0-.5-.5h-2a.5.5 0 0 1 0-1h2A1.5 1.5 0 0 1 14 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 14.5v-8A1.5 1.5 0 0 1 3.5 5h2a.5.5 0 0 1 0 1h-2z"/>
+  <path fill-rule="evenodd" d="M7.646.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 1.707V10.5a.5.5 0 0 1-1 0V1.707L5.354 3.854a.5.5 0 1 1-.708-.708l3-3z"/>
+</svg>disk in drive 9</button>
+</div>
+
             </div>
 
-            <button type="button" id="button_save_snapshot" class="btn btn-primary">save&nbsp;<svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-arrow-return-left" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M14.5 1.5a.5.5 0 0 1 .5.5v4.8a2.5 2.5 0 0 1-2.5 2.5H2.707l3.347 3.346a.5.5 0 0 1-.708.708l-4.2-4.2a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 8.3H12.5A1.5 1.5 0 0 0 14 6.8V2a.5.5 0 0 1 .5-.5z"/></svg></button>
+            <button type="button" id="button_save_snapshot" class="btn btn-primary">save snapshot&nbsp;<svg width="1em" height="1em" viewBox="0 0 16 16" class="bi bi-arrow-return-left" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M14.5 1.5a.5.5 0 0 1 .5.5v4.8a2.5 2.5 0 0 1-2.5 2.5H2.707l3.347 3.346a.5.5 0 0 1-.708.708l-4.2-4.2a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 8.3H12.5A1.5 1.5 0 0 0 14 6.8V2a.5.5 0 0 1 .5-.5z"/></svg></button>
             <button type="button" class="btn btn-secondary" data-dismiss="modal">cancel</button>
           </div>
         </div>

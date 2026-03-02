@@ -25,6 +25,8 @@ Use VirtualC64API::takeSnapshot() instead (i.e.: wrapper->emu->takeSnapshot())
 
 using namespace vc64;
 
+u8 drive_count=1;
+
 /* SDL2 start*/
 SDL_Window * window = NULL;
 SDL_Surface * window_surface = NULL;
@@ -631,6 +633,8 @@ class C64Wrapper {
     emu->set(OPT_AUD_VOL_R, 100);
     
     emu->set(OPT_DRV_AUTO_CONFIG,DRIVE8,1);
+    emu->set(OPT_DRV_AUTO_CONFIG,DRIVE9,1);
+
     //SID1 Volumne
 /*    c64->configure(OPT_AUDVOL, 1, 100);
     c64->configure(OPT_AUDPAN, 1, 50);
@@ -755,6 +759,36 @@ extern "C" void wasm_schedule_key(int code1, int code2, int pressed, int frame_d
 }
 
 
+extern "C" bool wasm_has_disk(const char *drive_name)
+{
+  if(strcmp(drive_name,"drive8") == 0)
+  {
+    return wrapper->emu->drive8.getInfo().hasDisk;
+  }
+  else if(strcmp(drive_name,"drive9") == 0)
+  {
+    return wrapper->emu->drive9.getInfo().hasDisk;
+  }
+ 
+  return false;
+}
+
+extern "C" void wasm_eject_disk(const char *drive_name)
+{
+  if(strcmp(drive_name,"drive8") == 0)
+  {
+    if(wrapper->emu->drive8.getInfo().hasDisk)
+      wrapper->emu->drive8.ejectDisk();
+  }
+  else if(strcmp(drive_name,"drive9") == 0)
+  {
+    if(wrapper->emu->drive9.getInfo().hasDisk)
+      wrapper->emu->drive9.ejectDisk();
+  }
+
+}
+
+
 char wasm_pull_user_snapshot_file_json_result[255];
 
 D64File *export_disk=NULL;
@@ -767,13 +801,15 @@ extern "C" void wasm_delete_disk()
     printf("disk memory deleted\n");
   }
 }
-extern "C" char* wasm_export_disk()
+extern "C" char* wasm_export_disk(u8 drive_number)
 {
   wasm_delete_disk();
 //  if(!wrapper->emu->drive8.drive->hasDisk())
-  if(!wrapper->emu->drive8.getInfo().hasDisk)  
+  auto drive = drive_number == 8 ? &wrapper->emu->drive8 : drive_number == 9 ? &wrapper->emu->drive9 : nullptr;
+
+  if(!drive->getInfo().hasDisk)  
   {
-    printf("no disk in drive8\n");
+    printf("no disk in drive%d\n", drive_number);
     sprintf(wasm_pull_user_snapshot_file_json_result, "{\"size\": 0 }");
     return wasm_pull_user_snapshot_file_json_result;
   }
@@ -781,7 +817,7 @@ extern "C" char* wasm_export_disk()
 //  FSDevice *fs = FSDevice::makeWithDisk(wrapper->emu->drive8.disk);    
 //  D64File *d64 = D64File::makeWithFileSystem(*fs);
 
-  FileSystem *fs = new FileSystem(*wrapper->emu->drive8.drive->disk);
+  FileSystem *fs = new FileSystem(*drive->drive->disk);
   export_disk = new D64File(*fs);
   delete fs;
   
@@ -957,9 +993,9 @@ extractSuffix(const string &s)
     return s.substr(pos, len);
 }
 
-extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
+extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len, u8 drive_number)
 {
-  printf("load file=%s len=%ld, header bytes= %x, %x, %x\n", name, len, blob[0],blob[1],blob[2]);
+  printf("load drive=%u file=%s len=%ld, header bytes= %x, %x, %x\n", drive_number, name, len, blob[0],blob[1],blob[2]);
   filename=name;
 //  auto file_suffix= util::extractSuffix(name); 
   if(wrapper == NULL)
@@ -975,7 +1011,12 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       printf("isD64\n");  
       wrapper->emu->drive8.insertDisk(std::move(disk));*/
       auto file = MediaFile::make(blob, len, FILETYPE_D64);
-      wrapper->emu->drive8.insertMedia(*file, false /* wp*/);
+
+      if(drive_number == 8)
+        wrapper->emu->drive8.insertMedia(*file, false /* wp*/);
+      else if(drive_number == 9)
+        wrapper->emu->drive9.insertMedia(*file, false /* wp*/);
+      
       file_still_unprocessed=false;
     } catch(Error &exception) {
       //ErrorCode ec=exception.data;
@@ -988,7 +1029,11 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       printf("try to build G64File\n");
       auto file = MediaFile::make(blob, len, FILETYPE_G64);
       printf("isG64 ...\n");  
-      wrapper->emu->drive8.insertMedia(*file, false /* wp*/);
+      if(drive_number == 8)
+        wrapper->emu->drive8.insertMedia(*file, false /* wp*/);
+      else if(drive_number == 9)
+        wrapper->emu->drive9.insertMedia(*file, false /* wp*/);
+      
       file_still_unprocessed=false;
     } catch(Error &exception) {
       printf("%s\n", exception.what());
@@ -1132,10 +1177,18 @@ extern "C" const char* wasm_loadFile(char* name, Uint8 *blob, long len)
       printf(" is ROM_TYPE_VC1541 \n");
       rom_type = "vc1541_rom";
       wrapper->emu->set(OPT_DRV_CONNECT,true, DRIVE8);
+      if(drive_count==2)
+      {
+        wrapper->emu->set(OPT_DRV_CONNECT,true, DRIVE9);
+      }
       wrapper->emu->set(OPT_DRV_POWER_SWITCH,true);
       wrapper->emu->emu->update();
       printf("------------------------------\n");
       wrapper->emu->drive8.drive->dump(Category::Config);
+      if(drive_count==2)
+      {
+        wrapper->emu->drive9.drive->dump(Category::Config);
+      }
       printf("------------------------------\n");
     }
     else if(rom->isRomBuffer(ROM_TYPE_CHAR, blob,len))
@@ -1567,7 +1620,7 @@ extern "C" char* wasm_translate(char c)
 }
 */
 
-extern "C" unsigned wasm_get_config(char* option)
+extern "C" unsigned wasm_get_config(char* option, u8 item)
 {
   if(strcmp(option,"OPT_VIC_REVISION") == 0)
   {
@@ -1579,6 +1632,13 @@ extern "C" unsigned wasm_get_config(char* option)
   else if(strcmp(option,"OPT_C64_WARP_MODE") == 0)
   {
     return wrapper->emu->get(OPT_C64_WARP_MODE);
+  }
+  else if(strcmp(option,"DRIVE_CONNECT") == 0)
+  {
+    if(item==8)
+      return wrapper->emu->get(OPT_DRV_CONNECT, DRIVE8);
+    else if(item==9)
+      return wrapper->emu->get(OPT_DRV_CONNECT, DRIVE9);
   }
 }
 
@@ -1711,6 +1771,19 @@ extern "C" void wasm_configure(char* option, unsigned on)
     }
     requested_targetFrameCount_reset=true;
   
+  }
+  else if( strcmp(option,"DRIVE9_CONNECT") == 0)
+  {
+    try
+    { 
+      drive_count= on?2:1;
+      if(wrapper->emu->get(OPT_DRV_CONNECT, DRIVE9)!= on)
+        wrapper->emu->set(OPT_DRV_CONNECT,on, DRIVE9);
+      wrapper->emu->emu->update();
+    } catch(std::exception &exception) {
+      printf("%s\n", exception.what());
+    }
+     
   }
   else
   {

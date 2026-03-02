@@ -170,8 +170,6 @@ background-color: var(--green) !important;
 {
     font-size: 1.2rem !important;
     opacity: 0.7 !important;
-    padding-top: 0.05rem;
-    padding-bottom: 0.05rem;
     z-index: 1;
     user-select: none;
     --tx: 0;
@@ -326,6 +324,71 @@ color: #aaa !important;
     background-color:var(--dark);
     color:white;
 }
+
+
+
+#div_drive_select {
+    position:absolute;
+    z-index:3000;
+    bottom:0;
+    left:5%;
+    width:90%;
+    padding-bottom: env(safe-area-inset-bottom);
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    transform: translateY(100%);
+    border-top-left-radius: 8px; 
+    border-top-right-radius: 8px; 
+    background-color: var(--lightbg);
+}
+[data-theme="dark"] #div_drive_select {
+    background-color:var(--dark);
+}
+
+#drive_select_file {
+    padding:0.5em;
+    margin-top: 1.4em;
+    background-color: var(--lightbg);
+    display:flex;
+    justify-content:center;
+}
+
+[data-theme="dark"] #drive_select_file {
+    background-color:var(--dark);
+}
+
+#drive_select_choice {
+    padding-top: 0.5em;
+    display:flex;width:100%;
+    flex-direction:row;
+    justify-content:center;
+    background-color: var(--lightbg);
+}
+
+[data-theme="dark"] #drive_select_choice {
+    background-color:var(--dark);
+}
+
+.slide-in {
+    animation: slide-in 0.5s forwards;
+}
+
+.slide-out {
+    animation: slide-out 0.7s forwards;
+}
+    
+@keyframes slide-in {
+    100% { transform: translateY(0%); }
+}
+    
+@keyframes slide-out {
+    0% { transform: translateY(0%); }
+    100% { transform: translateY(100%); }
+}
+
+
+
 
 #version_selector {
     border-radius:6px;
@@ -906,17 +969,6 @@ input[type="range"]::-moz-range-thumb {
 .pop {
     animation: popBounce 0.6s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
 }
-
-@keyframes action_buttons_press_anim {
-  0%   { transform: translate3d(var(--tx), var(--ty), 0) scale(0.95) }
-  25%  { transform: translate3d(var(--tx), var(--ty), 0) scale(1.1) }
-  40%  { transform: translate3d(var(--tx), var(--ty), 0) scale(0.98) }
-  50%  { transform: translate3d(var(--tx), var(--ty), 0) scale(1.02) }
-  65%  { transform: translate3d(var(--tx), var(--ty), 0) scale(0.99) }
-  100% { transform: translate3d(var(--tx), var(--ty), 0) scale(1) }
-}
-
-
 
 @keyframes action_buttons_press_anim {
   0%   { transform: translate3d(var(--tx), var(--ty), 0) scale(1); }

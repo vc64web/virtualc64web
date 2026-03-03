@@ -730,9 +730,7 @@ draggable="false">
                 the_key_element.setPointerCapture(event.pointerId);
                 key_down_handler(event);
             });
-/*            the_key_element.addEventListener("pointerup", (event)=>{
-            });*/
-            the_key_element.addEventListener("lostpointercapture", (event)=>{
+            the_key_element.addEventListener("pointerup", (event)=>{
                 if(current_vbk_touch.startsWith("smart"))
                 {
                     //the following could also be done instead in pointerup, 
@@ -740,7 +738,9 @@ draggable="false">
                     key_down_handler(event);
                     setTimeout(key_up_handler,100);
                 }
-                else
+            });
+            the_key_element.addEventListener("lostpointercapture", (event)=>{
+                if(!current_vbk_touch.startsWith("smart"))
                 {
                     key_up_handler(event);
                 }

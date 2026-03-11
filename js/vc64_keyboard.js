@@ -722,12 +722,14 @@ draggable="false">
             }
 
             the_key_element.addEventListener("focus", (event)=>{ event.preventDefault(); event.currentTarget.blur();})
-            the_key_element.addEventListener("pointerdown", (event)=>{
-                the_key_element.setPointerCapture(event.pointerId);
-
+            the_key_element.addEventListener("pointerdown", (event)=>{                
                 if(current_vbk_touch.startsWith("smart"))
                     return;
-                the_key_element.setPointerCapture(event.pointerId);
+                try
+                {
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                }
+                catch{}
                 key_down_handler(event);
             });
             the_key_element.addEventListener("pointerup", (event)=>{

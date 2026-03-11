@@ -233,7 +233,7 @@ signed boost_param=100;
 void calibrate_boost(signed boost_param);
 
 // The emscripten "main loop" replacement function.
-void draw_one_frame_into_SDL(void *the_emu) 
+void execute_frame(void *the_emu) 
 {
   //this method is triggered by
   //emscripten_set_main_loop_arg(em_arg_callback_func func, void *arg, int fps, int simulate_infinite_loop) 
@@ -243,7 +243,7 @@ void draw_one_frame_into_SDL(void *the_emu)
   //The number of callbacks is usually 60 times per second, but will 
   //generally match the display refresh rate in most web browsers as 
   //per W3C recommendation. requestAnimationFrame() 
-  
+
   double now = emscripten_get_now();  
  
   double elapsedTimeInSeconds = (now - start_time)/1000.0;
@@ -381,8 +381,6 @@ void draw_one_frame_into_SDL(void *the_emu)
 
   SDL_RenderPresent(renderer);
 }
-
-
 
 void MyAudioCallback(void*  the_emu,
                        Uint8* stream,
@@ -1255,6 +1253,20 @@ extern "C" void wasm_halt()
     emscripten_pause_main_loop();
       printf("after emscripten_set_main_loop_arg() at MSG_RUN\n");
 
+}
+
+
+void draw_one_frame_into_SDL(void *the_emu) 
+{
+  try {
+    execute_frame(the_emu);
+  } catch(StateChangeException &e) {
+    printf("StateChangeException: %u\n", (ExecState)e.data);
+    if(e.data == STATE_PAUSED)
+    {
+      wasm_halt();
+    } 
+  }
 }
 
 extern "C" void wasm_run()

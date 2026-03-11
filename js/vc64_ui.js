@@ -521,7 +521,7 @@ function message_handler_queue_worker(msg, data1, data2)
     }
     else if(msg == "MSG_CPU_JAMMED")
     {
-        alert("The 6502 CPU has got jammed. The emulator will now do a hard reset.");   
+        alert("The 6502 CPU has got jammed, e.g. because it executed an illegal opcode. The emulator will now do a hard reset.");   
         _wasm_hard_reset();
         _wasm_run();
     }

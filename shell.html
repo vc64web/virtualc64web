@@ -5,7 +5,20 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <meta name="description" content="C64 emulator iPad iPhone demo browser csdb. Compatible to the progressive-web-app (PWA) standard.">
     <title>vc64web C64 emulator iPad iPhone</title>
-  
+<script>
+  try {
+    function supportsExnref() {
+      const wasmBytes = new Uint8Array([
+         0x00,0x61,0x73,0x6d,0x01,0x00,0x00,0x00,0x01,0x05,0x01,0x60,0x01,0x69,0x00
+      ]);
+      return WebAssembly.validate(wasmBytes);
+    }
+    if(!supportsExnref()) {
+      console.error("browser does not support exnref WebAssembly feature");
+      window.location.href = "https://vc64web.github.io/legacy/"+window.location.hash;
+    }
+  } catch (e) {}
+</script>  
   <link rel="icon" href="img/favicon.ico">
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
   <link rel="manifest" href="manifest.json">

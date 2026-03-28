@@ -201,19 +201,21 @@
       <div>
       <select id="port1" class="custom-select" data-toggle="tooltip" data-placement="left" title="game port 1">
         <option value="none">none</option>
-        <option value="keys">cursor keys, space to fire</option>
-        <option value="touch">touch joystick (move|fire)</option>
+        <option value="keys">cursor key (move) space (fire)</option>
+        <option id="touch_joystick1" value="touch">touch joystick (move|fire)</option>
+        <option id="touch_mouse1" value="mouse touchpad">mouse touchpad (move|btn/btn)</option>
         <option value="mouse">mouse </option>
-        <option value="mouse touchpad2">mouse touchpad (move|btn/btn)</option>
-      </select></div>
+      </select>
+      </div>
       <div>
       <select id="port2" class="custom-select" data-toggle="tooltip" data-placement="left" title="game port 2">
         <option value="none">none</option>
-        <option value="keys">cursor keys, space to fire</option>
-        <option value="touch">touch joystick (move|fire)</option>
-        <option value="mouse">mouse </option>
-        <option value="mouse touchpad2">mouse touchpad (move|btn/btn)</option>
-      </select></div>
+        <option value="keys">cursor key (move) space (fire)</option>
+        <option id="touch_joystick2" value="touch">touch joystick (move|fire)</option>
+        <option id="touch_mouse2" value="mouse touchpad">mouse touchpad (move|btn/btn)</option>
+        <option value="mouse">mouse</option>
+      </select>
+      </div>
     </div>
   </div>
   </div>      
@@ -806,6 +808,21 @@ touch screen settings for virtual keyboard
 
 
 <br><br>
+touch joystick and mouse touchpad layout
+<div class="mt-2">
+  <div class="custom-control custom-switch mt-1">
+    <input type="checkbox" class="custom-control-input" id="touch_swap_move_button" />
+    <label class="custom-control-label" for="touch_swap_move_button" data-toggle="tooltip" data-placement="top" title="">swap move and buttons side</label>
+  </div>
+  <div id="touch_swap_move_button_false" class="ml-3 help_text" style="font-size: smaller">
+    <span>move | buttons</span> the left half of the screen detects movement input and the right half detects button presses 
+  </div>
+  <div id="touch_swap_move_button_true" class="ml-3 help_text" style="font-size: smaller">
+    <span>buttons | move</span> the left half of the screen detects button presses and the right half detects movement input<br>This layout can be more comfortable for left handed players 
+  </div>
+</div>
+<br>
+<br>
 virtual touch joystick settings
 <div class="mt-2" style="font-size: smaller">
   <button id="button_vjoy_touch" class="btn btn-primary dropdown-toggle text-right mb-1" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

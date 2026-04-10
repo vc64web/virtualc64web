@@ -2301,8 +2301,8 @@ function InitWrappers() {
             {
                 Module._wasm_mouse(
                     mouse_touchpad_port,
-                    (touch.clientX-mouse_touchpad_move_touch.clientX),
-                    (touch.clientY-mouse_touchpad_move_touch.clientY)
+                    (touch.clientX-mouse_touchpad_move_touch.clientX)*8,
+                    (touch.clientY-mouse_touchpad_move_touch.clientY)*8
                 );
                 mouse_touchpad_move_touch=touch;
             }

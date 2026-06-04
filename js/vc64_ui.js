@@ -1082,7 +1082,7 @@ async function prompt_for_drive()
         for(let i = 8; i<=9;i++)
             df_count+=Number(wasm_get_config("DRIVE_CONNECT",i));
 
-        if(df_count==1)
+        if(df_count<=1)
         {
             show_drive_select(false);
             insert_file(8);

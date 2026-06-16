@@ -718,6 +718,11 @@ draggable="false">
                         release_modifiers();    
                     } 
                     the_key_element.setAttribute('key-state', '');
+                    the_key_element.addEventListener("animationend", (anim_event) => {
+                        if(anim_event.animationName.startsWith('released')) {
+                            the_key_element.removeAttribute('key-state');
+                        }
+                    });
                 }
             }
 

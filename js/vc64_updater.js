@@ -203,6 +203,7 @@ function register_updater()
                     document.getElementById('activate_version').disabled=
                     (select.options[select.selectedIndex].value == current_version);
                 }
+                show_browser_storage_info();
             }
             document.getElementById('activate_version').onclick = function() {
                 let cache_name = document.getElementById('version_selector').value; 

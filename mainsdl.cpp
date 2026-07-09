@@ -757,6 +757,36 @@ extern "C" void wasm_schedule_key(int code1, int code2, int pressed, int frame_d
 }
 
 
+// Interactive RetroShell console bindings (modeled after vAmigaWeb / vAmigaNet)
+extern "C" const char* wasm_retro_shell_get_text()
+{
+  if(wrapper == NULL) return "";
+  return wrapper->emu->retroShell.text();
+}
+
+extern "C" int wasm_retro_shell_get_cursor()
+{
+  if(wrapper == NULL) return 0;
+  return (int)wrapper->emu->retroShell.cursorRel();
+}
+
+extern "C" void wasm_retro_shell_press_key(int c)
+{
+  if(wrapper == NULL) return;
+  wrapper->emu->retroShell.press((char)c);
+  // Process the command queue right away so RetroShell also reacts while the
+  // emulator is paused (CMD_RSH_EXECUTE would otherwise only run in the run loop).
+  wrapper->emu->emu->update();
+}
+
+extern "C" void wasm_retro_shell_press_special(int key, int shift)
+{
+  if(wrapper == NULL) return;
+  wrapper->emu->retroShell.press((RetroShellKey)key, shift != 0);
+  wrapper->emu->emu->update();
+}
+
+
 extern "C" bool wasm_has_disk(const char *drive_name)
 {
   if(strcmp(drive_name,"drive8") == 0)

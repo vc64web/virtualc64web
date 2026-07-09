@@ -476,6 +476,20 @@ function message_handler_queue_worker(msg, data1, data2)
         document.body.setAttribute('warpstate', is_warping);
         window.parent.postMessage({ msg: 'render_run_state', value: is_running(), is_warping:  is_warping },"*");
     }
+    else if(msg == "MSG_RSH_UPDATE")
+    {
+        if(typeof update_retro_shell === 'function') update_retro_shell();
+    }
+    else if(msg == "MSG_RSH_DEBUGGER")
+    {
+        // data1: 0 = commander console, 1 = debugger console
+        retro_shell_console_mode = data1 ? 'debugger' : 'commander';
+        if(typeof update_retro_shell === 'function') update_retro_shell();
+    }
+    else if(msg == "MSG_RSH_CLOSE")
+    {
+        $('#modal_retro_shell').modal('hide');
+    }
     else if(msg == "MSG_DISK_INSERT")
     {
         play_sound(audio_df_insert, drive_loudness);
@@ -1134,7 +1148,7 @@ joystick_keyup_map = {
 
 function is_any_text_input_active()
 {
-    if(typeof editor !== 'undefined' && editor.hasFocus())
+    if(typeof editor !== 'undefined' && editor.hasFocus)
         return true;
 
     var active = false;
@@ -1646,6 +1660,10 @@ function InitWrappers() {
 
     wasm_peek = Module.cwrap('wasm_peek', 'number', ['number']);
     wasm_poke = Module.cwrap('wasm_poke', 'undefined', ['number', 'number']);
+    wasm_retro_shell_get_text = Module.cwrap('wasm_retro_shell_get_text', 'string');
+    wasm_retro_shell_get_cursor = Module.cwrap('wasm_retro_shell_get_cursor', 'number');
+    wasm_retro_shell_press_key = Module.cwrap('wasm_retro_shell_press_key', 'undefined', ['number']);
+    wasm_retro_shell_press_special = Module.cwrap('wasm_retro_shell_press_special', 'undefined', ['number','number']);
     wasm_export_disk = Module.cwrap('wasm_export_disk', 'string',['number']);
     wasm_configure = Module.cwrap('wasm_configure', 'undefined', ['string', 'number']);
     wasm_get_config = Module.cwrap('wasm_get_config', 'number', ['string', 'number']);
@@ -2462,6 +2480,233 @@ $('#choose_floppy_drive_count a').click(function ()
         $('#modal_settings').modal('show');        
     });
 
+//------ RetroShell console (modeled after vAmigaWeb / vAmigaNet, touch-enabled)
+// NOTE: the key codes below must match the RSKEY enum order of the VirtualC64
+// core (RetroShellTypes.h). VirtualC64 has no PAGE_UP / PAGE_DOWN keys.
+const RSKEY = {UP:0,DOWN:1,LEFT:2,RIGHT:3,DEL:4,CUT:5,BACKSPACE:6,HOME:7,END:8,TAB:9,RETURN:10,CR:11};
+const RSH_SENTINEL = ' ';
+let retro_shell_bound = false;
+// active console, tracked via MSG_RSH_DEBUGGER: 'commander' or 'debugger'
+retro_shell_console_mode = 'commander';
+
+let retro_shell_base_text = '';
+let retro_shell_cursor_pos = 0;
+
+function retro_shell_render()
+{
+    let pre = document.getElementById('retro_shell_textarea');
+    if(pre == null) return;
+    let text = retro_shell_base_text;
+    let i = retro_shell_cursor_pos;
+    // rebuild via DOM so text is safely escaped and the cursor is its own span
+    // (a real underscore cursor that blinks via CSS without hiding the glyph)
+    pre.textContent = '';
+    if(i >= 0 && i < text.length && text[i] !== '\n')
+    {
+        pre.appendChild(document.createTextNode(text.slice(0, i)));
+        let cur = document.createElement('span');
+        cur.className = 'rsh-cursor';
+        cur.textContent = text[i];
+        pre.appendChild(cur);
+        pre.appendChild(document.createTextNode(text.slice(i + 1)));
+    }
+    else
+    {
+        pre.textContent = text;
+    }
+    pre.scrollTop = pre.scrollHeight;
+}
+
+update_retro_shell = function()
+{
+    if(typeof wasm_retro_shell_get_text === 'undefined')
+        return;
+    let rel = wasm_retro_shell_get_cursor();
+    retro_shell_base_text = wasm_retro_shell_get_text();
+    // text() appends a trailing space after the input line, so the cursor cell
+    // is at length + rel - 1 (matches the core's cursor, not one cell further)
+    let pos = retro_shell_base_text.length + rel - 1;
+    if(pos < 0) pos = 0;
+    retro_shell_cursor_pos = pos;
+    // colorize by active console (tracked via MSG_RSH_DEBUGGER)
+    let pre = document.getElementById('retro_shell_textarea');
+    if(pre != null)
+    {
+        pre.setAttribute('data-rsh-mode', retro_shell_console_mode || 'commander');
+    }
+    retro_shell_render();
+}
+
+function retro_shell_focus_input()
+{
+    let cap = document.getElementById('retro_shell_capture');
+    if(cap == null) return;
+    cap.value = RSH_SENTINEL;
+    cap.focus();
+    try { cap.setSelectionRange(RSH_SENTINEL.length, RSH_SENTINEL.length); } catch(e){}
+}
+
+function retro_shell_beforeinput(e)
+{
+    e.preventDefault();
+    switch(e.inputType)
+    {
+        case 'insertText':
+        case 'insertFromPaste':
+            if(e.data) for(const ch of e.data) wasm_retro_shell_press_key(ch.charCodeAt(0));
+            break;
+        case 'insertLineBreak':
+        case 'insertParagraph':
+            wasm_retro_shell_press_special(RSKEY.RETURN, 0);
+            break;
+        case 'deleteContentBackward':
+        case 'deleteWordBackward':
+        case 'deleteSoftLineBackward':
+            wasm_retro_shell_press_special(RSKEY.BACKSPACE, 0);
+            break;
+        case 'deleteContentForward':
+            wasm_retro_shell_press_special(RSKEY.DEL, 0);
+            break;
+    }
+    update_retro_shell();
+}
+
+function retro_shell_keydown(e)
+{
+    // characters, Enter and Backspace are handled via the beforeinput event
+    // so that soft keyboards on iOS/Android work; here we only handle keys
+    // that do not emit input events.
+    if(e.ctrlKey)
+    {
+        if(e.key == 'k') wasm_retro_shell_press_special(RSKEY.CUT, 0);
+        else if(e.key == 'a') wasm_retro_shell_press_special(RSKEY.HOME, 0);
+        else if(e.key == 'e') wasm_retro_shell_press_special(RSKEY.END, 0);
+        else return;
+        e.preventDefault();
+        update_retro_shell();
+        return;
+    }
+    switch(e.key)
+    {
+        case 'ArrowUp':    wasm_retro_shell_press_special(RSKEY.UP, 0); break;
+        case 'ArrowDown':  wasm_retro_shell_press_special(RSKEY.DOWN, 0); break;
+        case 'ArrowLeft':  wasm_retro_shell_press_special(RSKEY.LEFT, 0); break;
+        case 'ArrowRight': wasm_retro_shell_press_special(RSKEY.RIGHT, 0); break;
+        case 'Home':       wasm_retro_shell_press_special(RSKEY.HOME, 0); break;
+        case 'End':        wasm_retro_shell_press_special(RSKEY.END, 0); break;
+        case 'Delete':     wasm_retro_shell_press_special(RSKEY.DEL, 0); break;
+        case 'Tab':        wasm_retro_shell_press_special(RSKEY.TAB, e.shiftKey ? 1 : 0); break;
+        // physical keyboards report these reliably; preventDefault below stops
+        // the follow-up beforeinput event, so there is no double input. Soft
+        // keyboards report key === 'Unidentified' here and fall through to the
+        // beforeinput handler instead.
+        case 'Enter':      wasm_retro_shell_press_special(RSKEY.RETURN, e.shiftKey ? 1 : 0); break;
+        case 'Backspace':  wasm_retro_shell_press_special(RSKEY.BACKSPACE, 0); break;
+        default:
+            // physical keyboards deliver printable characters reliably here as a
+            // single-character e.key; handle them directly and preventDefault
+            // below so the follow-up beforeinput does not double-insert. Soft
+            // keyboards report key === 'Unidentified' (length > 1) and fall
+            // through to the beforeinput handler instead.
+            if(e.key && e.key.length === 1 && !e.metaKey && !e.altKey) {
+                wasm_retro_shell_press_key(e.key.charCodeAt(0));
+                break;
+            }
+            return; // let beforeinput handle it (soft keyboards, IME, ...)
+    }
+    e.preventDefault();
+    update_retro_shell();
+}
+
+function retro_shell_button_action(a)
+{
+    switch(a)
+    {
+        case 'up':        wasm_retro_shell_press_special(RSKEY.UP, 0); break;
+        case 'down':      wasm_retro_shell_press_special(RSKEY.DOWN, 0); break;
+        case 'left':      wasm_retro_shell_press_special(RSKEY.LEFT, 0); break;
+        case 'right':     wasm_retro_shell_press_special(RSKEY.RIGHT, 0); break;
+        case 'home':      wasm_retro_shell_press_special(RSKEY.HOME, 0); break;
+        case 'end':       wasm_retro_shell_press_special(RSKEY.END, 0); break;
+        case 'tab':       wasm_retro_shell_press_special(RSKEY.TAB, 0); break;
+        case 'backspace': wasm_retro_shell_press_special(RSKEY.BACKSPACE, 0); break;
+        case 'clear':
+            // discard the current input line, then run the 'clear' command
+            wasm_retro_shell_press_special(RSKEY.CR, 0);
+            for(const ch of 'clear') wasm_retro_shell_press_key(ch.charCodeAt(0));
+            wasm_retro_shell_press_special(RSKEY.RETURN, 0);
+            break;
+        case 'return':    wasm_retro_shell_press_special(RSKEY.RETURN, 0); break;
+    }
+    update_retro_shell();
+    retro_shell_focus_input();
+}
+
+function retro_shell_bind()
+{
+    if(retro_shell_bound) return;
+    let cap = document.getElementById('retro_shell_capture');
+    let disp = document.getElementById('retro_shell_textarea');
+    if(cap == null || disp == null) return;
+    cap.addEventListener('beforeinput', retro_shell_beforeinput);
+    cap.addEventListener('keydown', retro_shell_keydown);
+    // restore the sentinel char so backspace keeps firing on empty input
+    cap.addEventListener('input', function() {
+        if(cap.value !== RSH_SENTINEL) {
+            cap.value = RSH_SENTINEL;
+            try { cap.setSelectionRange(RSH_SENTINEL.length, RSH_SENTINEL.length); } catch(e){}
+        }
+    });
+    // tapping the output summons the soft keyboard by focusing the capture field
+    disp.addEventListener('click', retro_shell_focus_input);
+    document.querySelectorAll('#retro_shell_buttons [data-rsh]').forEach(function(btn) {
+        // press/release animation (same as the on-screen action buttons)
+        btn.addEventListener('pointerdown', function(e) {
+            e.preventDefault(); // keep focus on the capture field
+            btn.setAttribute('key-state', 'pressed');
+        });
+        let release = function() { btn.setAttribute('key-state', ''); };
+        btn.addEventListener('pointerup', release);
+        btn.addEventListener('pointerleave', release);
+        btn.addEventListener('pointercancel', release);
+        btn.addEventListener('click', function() { retro_shell_button_action(btn.getAttribute('data-rsh')); });
+    });
+    retro_shell_bound = true;
+}
+
+// prevent the iOS/iPadOS page rubber-band from dragging the whole overlay up
+// and down; allow native scrolling only inside the console output and only
+// when it actually overflows
+function retro_shell_touchmove(e)
+{
+    let pre = document.getElementById('retro_shell_textarea');
+    if(pre && pre.contains(e.target) && pre.scrollHeight > pre.clientHeight) return;
+    e.preventDefault();
+}
+
+add_click("button_retro_shell", function() {
+    $('#modal_retro_shell').modal('toggle');
+});
+
+$('#modal_retro_shell').on('shown.bs.modal', function() {
+    document.body.classList.add('retro-shell-open');
+    // this overlay is chrome-less and meant to coexist with the top navbar, so
+    // disable Bootstrap's focus trap; otherwise it steals focus back from the
+    // navbar's native <select> port pickers and their dropdown never opens
+    $(document).off('focusin.bs.modal');
+    let m = document.getElementById('modal_retro_shell');
+    if(m) m.addEventListener('touchmove', retro_shell_touchmove, {passive:false});
+    retro_shell_bind();
+    retro_shell_focus_input();
+    update_retro_shell();
+});
+
+$('#modal_retro_shell').on('hidden.bs.modal', function() {
+    document.body.classList.remove('retro-shell-open');
+    let m = document.getElementById('modal_retro_shell');
+    if(m) m.removeEventListener('touchmove', retro_shell_touchmove, {passive:false});
+});
+
     $('#modal_settings').on('show.bs.modal', function() 
     {    
         show_drive_config();
@@ -2537,6 +2782,27 @@ $('#choose_floppy_drive_count a').click(function ()
     symbolic_mapping_switch.change( function() {
         use_symbolic_map=this.checked;
         save_setting('use_symbolic_map', use_symbolic_map);
+    });
+
+//------ RetroShell enabled (shows/hides the top-bar icon)
+    retro_shell_enabled_switch = $('#retro_shell_enabled_switch');
+    set_retro_shell_enabled = function(value){
+        if(value)
+        {
+            $('#button_retro_shell').show();
+            $('#retro_shell_enabled_help').text('The RetroShell icon is now shown in the menu bar. Open RetroShell to debug, explore the c64 chipset, tweak settings, and more.');
+        }
+        else
+        {
+            $('#button_retro_shell').hide();
+            $('#retro_shell_enabled_help').text('The RetroShell icon is hidden from the menu bar.');
+        }
+        retro_shell_enabled_switch.prop('checked', value);
+    }
+    set_retro_shell_enabled(load_setting('retro_shell_enabled', false));
+    retro_shell_enabled_switch.change( function() {
+        save_setting('retro_shell_enabled', this.checked);
+        set_retro_shell_enabled(this.checked);
     });
 
 //----
@@ -3930,25 +4196,28 @@ $('#choose_vic_rev a').click(function ()
             }
         );
 
+        _cm6_current_lang = 'action_sequence';
         reconfig_editor = function(new_lang){
             if(typeof editor !== 'undefined' )
             {
-                editor.setOption("lineNumbers", new_lang == 'javascript');
-                if(new_lang=='javascript')
-                {
-                    editor.setOption("gutters", ["CodeMirror-lint-markers"]);
-                    editor.setOption("lint", { esversion: 10});
-                    $('#check_autocomplete').show();
-                    $('#check_livecomplete').prop('checked', true);                 
-                    editor.setOption('placeholder', "add example code with the menu button 'add'->'javascript'");
-                }
-                else
-                {
-                    editor.setOption("gutters", false);
-                    editor.setOption("lint", false);
-                    $('#check_autocomplete').hide();
-                    editor.setOption('placeholder', "type a single key like 'B' for bomb ... or compose a sequence of actions separated by '=>'");
-                }
+                const isJs = new_lang === 'javascript';
+                editor.dispatch({
+                    effects: [
+                        _cm6_c_lineNumbers.reconfigure(isJs ? CM6.lineNumbers() : []),
+                        _cm6_c_lint.reconfigure(isJs ? [_cm6_jshintLinter, CM6.lintGutter()] : []),
+                        _cm6_c_placeholder.reconfigure(isJs
+                            ? CM6.placeholder("add example code with the menu button 'add'->'javascript'")
+                            : CM6.placeholder("type a single key like 'B' for bomb ... or compose a sequence of actions separated by '=>'")),
+                        _cm6_c_autocomplete.reconfigure(
+                            isJs
+                                ? CM6.autocompletion({ activateOnTyping: false })
+                                : CM6.autocompletion({ override: [_cm6_actionSeqSepCompletion, _cm6_actionSeqCompletion], activateOnTyping: false })
+                        )
+                    ]
+                });
+                _cm6_current_lang = new_lang;
+                $('#check_autocomplete').show();
+                $('#check_livecomplete').prop('checked', true);
             }
         }
         set_complete_label = function(){
@@ -3996,7 +4265,14 @@ $('#choose_vic_rev a').click(function ()
         });
 
         $('#modal_custom_key').on('show.bs.modal', function () {
-          bind_custom_key();    
+          bind_custom_key();
+        });
+        // Prevent modal from closing when Escape is pressed while the CM6 editor has focus.
+        // hide.bs.modal is cancelable via preventDefault() and fires before the modal actually hides.
+        $('#modal_custom_key').on('hide.bs.modal', function(e) {
+            if (typeof editor !== 'undefined' && editor.hasFocus) {
+                e.preventDefault();
+            }
         });
 
         bind_custom_key = async function () {
@@ -4339,6 +4615,7 @@ press_key('1');
 release_key('1');
 release_key('ControlLeft');`;
                         set_script_language('javascript');
+                        reconfig_editor('javascript');
                     }
                     else
                     {
@@ -4354,113 +4631,328 @@ release_key('ControlLeft');`;
         };
 
         turn_on_full_editor = ()=>{
-            require.config(
-                {
-                    packages: [{
-                        name: "codemirror",
-                        location: "js/cm",
-                        main: "lib/codemirror"
-                    }]
-                });
-                require(["codemirror", "codemirror/mode/javascript/javascript",
-                            "codemirror/addon/hint/show-hint", "codemirror/addon/hint/javascript-hint",
-                            "codemirror/addon/edit/closebrackets","codemirror/addon/edit/matchbrackets", 
-                            "codemirror/addon/selection/active-line", "codemirror/addon/display/placeholder",
-                            "codemirror/addon/lint/lint", "codemirror/addon/lint/javascript-lint",
-      //                      "codemirror/lib/jshint", not working with require.js
-                            ], function(CodeMirror) 
-                {
-                    editor = CodeMirror.fromTextArea(document.getElementById("input_action_script"), {
-                        lineNumbers: true,
-                        styleActiveLine: true,
-                        mode:  {name: "javascript", globalVars: true},
-                        lineWrapping: true,
-                        autoCloseBrackets: true,
-                        matchBrackets: true,
-                        tabSize: 2,
-                        gutters: ["CodeMirror-lint-markers"],
-                        lint: { esversion: 10},
-                        extraKeys: {"Ctrl-Space": "autocomplete"}
-                    });
+            const textarea = document.getElementById("input_action_script");
 
-                    let check_livecomplete=$('#check_livecomplete'); 
-                    editor.on("keydown",function( cm, event ) {
-                        if(event.key === "Escape")
-                        {//prevent that ESC closes the complete modal when in editor
-                            event.stopPropagation();
-                            return false;
+            // CM6 Compartments for dynamic reconfiguration
+            _cm6_c_lineNumbers  = new CM6.Compartment();
+            _cm6_c_lint         = new CM6.Compartment();
+            _cm6_c_placeholder  = new CM6.Compartment();
+            _cm6_c_theme        = new CM6.Compartment();
+            _cm6_c_autocomplete = new CM6.Compartment();
+
+            // jshint-based linter for CM6
+            _cm6_jshintLinter = CM6.linter((view) => {
+                const code = view.state.doc.toString();
+                if (typeof JSHINT === 'undefined') return [];
+                const wrapped = `(async function(){\n${code}\n})();`;
+                JSHINT(wrapped, { esversion: 10, undef: false, asi: true, expr: true, strict: false });
+                const errors = JSHINT.errors || [];
+                const diagnostics = [];
+                const docLines = view.state.doc.lines;
+                for (const err of errors) {
+                    if (!err) continue;
+                    if (err.line <= 1 || err.line > docLines + 1) continue;
+                    const lineNo = Math.min(Math.max((err.line || 1) - 1, 1), docLines);
+                    const line   = view.state.doc.line(lineNo);
+                    const from   = Math.min(line.from + Math.max(0, (err.character || 1) - 1), view.state.doc.length);
+                    const to     = Math.min(Math.max(from + 1, line.from), line.to);
+                    diagnostics.push({
+                        from, to,
+                        severity: (err.code && err.code[0] === 'W') ? 'warning' : 'error',
+                        message:  err.reason
+                    });
+                }
+                return diagnostics;
+            });
+
+            // Custom completion source: all window globals (wasm_* boosted) + property access
+            const globalCompletionSource = (context) => {
+                // Property access: console.l  /  window.document.body.s
+                const dotMatch = context.matchBefore(/[\w$]+(\.[\w$]+)*\.\w*/);
+                if (dotMatch) {
+                    const lastDot  = dotMatch.text.lastIndexOf('.');
+                    const objPath  = dotMatch.text.slice(0, lastDot);
+                    try {
+                        let obj = window;
+                        for (const part of objPath.split('.')) {
+                            obj = obj[part];
+                            if (obj == null) return null;
                         }
-                        if (!cm.state.completionActive && 
-                            event.key !== undefined &&
-                            event.key.length == 1  &&
-                            event.metaKey == false && event.ctrlKey == false &&
-                            event.key != ';' && event.key != ' ' && event.key != '(' 
-                            && event.key != ')' && 
-                            event.key != '{' && event.key != '}'
-                            ) 
-                        {
-                            if(check_livecomplete.is(":visible") && 
-                               check_livecomplete.prop('checked'))
-                            {
-                                cm.showHint({completeSingle: false});
+                        const options = [];
+                        const seen    = new Set();
+                        let   proto   = obj;
+                        while (proto !== null && proto !== Object.prototype) {
+                            for (const key of Object.getOwnPropertyNames(proto)) {
+                                if (seen.has(key)) continue;
+                                seen.add(key);
+                                const type = typeof obj[key] === 'function' ? 'function' : 'variable';
+                                options.push({ label: key, type });
                             }
+                            proto = Object.getPrototypeOf(proto);
                         }
-                    });
-                    editor.on("change", (cm) => {
-                        cm.save();
-                        validate_action_script();
-                    });
+                        return { from: dotMatch.from + lastDot + 1, options, validFor: /^[\w$]*$/ };
+                    } catch(e) {}
+                    return null;
+                }
+                // Top-level identifier: wasm_  /  cons  /  action
+                const word = context.matchBefore(/[\w$]*/);
+                if (!word || (word.from === word.to && !context.explicit)) return null;
+                const options = [];
+                const seen = new Set();
+                for (const key of Object.getOwnPropertyNames(window)) {
+                    try {
+                        if (key.length < 2 || seen.has(key)) continue;
+                        seen.add(key);
+                        const val = window[key];
+                        const type = typeof val === 'function' ? 'function' :
+                                     (val && typeof val === 'object') ? 'namespace' : 'variable';
+                        options.push({
+                            label: key,
+                            type,
+                            boost: key.startsWith('wasm_') ? 5 : 0
+                        });
+                    } catch(e) {}
+                }
+                return { from: word.from, options, validFor: /^[\w$]*$/ };
+            };
 
-                    if( (call_param_dark == null || call_param_dark)
-                       && load_setting('dark_switch', true))
-                    {
-                        editor.setOption("theme", "vc64dark");
+            // Action Sequence Script vocabulary (matches vc64_action_script.js)
+            const actionSeqKeywords = [
+                'pause', 'run', 'toggle_run', 'toggle_warp', 'toggle_speed',
+                'take_snapshot', 'keyboard', 'menubar', 'clipboard_paste',
+                'fullscreen', 'restore_last_snapshot', 'swap_joystick',
+                'datasette_play', 'datasette_stop', 'datasette_rewind',
+                'await_action_button_released', 'toggle_action_buttons', '}'
+            ];
+
+            // Suggests => separator right after a complete action-sequence command
+            _cm6_actionSeqSepCompletion = (context) => {
+                const word = context.matchBefore(/[^\s=>]+/);
+                if (!word) return null;
+                const w = word.text;
+                const keyNames = typeof key_translation_map !== 'undefined'
+                    ? Object.keys(key_translation_map) : [];
+                const isComplete =
+                    actionSeqKeywords.includes(w)     ||
+                    /^loop\d+\{$/.test(w)             ||
+                    /^\d+ms$/.test(w)                 ||
+                    (w.startsWith('press')   && keyNames.includes(w.slice(5)))  ||
+                    (w.startsWith('release') && keyNames.includes(w.slice(7))) ||
+                    /^j[12](fire|up|down|left|right)[01]$/.test(w);
+                if (!isComplete) return null;
+                return {
+                    from: word.to,
+                    options: [{ label: '=>', type: 'keyword', detail: 'next action', apply: '=>' }],
+                    validFor: /^$/
+                };
+            };
+
+            // Action Sequence Script autocomplete source
+            _cm6_actionSeqCompletion = (context) => {
+                // Separator suggestion: triggered when user types '='
+                const eqMatch = context.matchBefore(/=+/);
+                if (eqMatch && eqMatch.from < eqMatch.to) {
+                    return {
+                        from: eqMatch.from,
+                        options: [{ label: '=>', type: 'keyword', detail: 'next action', apply: '=>' }],
+                        validFor: /^=+>?$/
+                    };
+                }
+
+                const word = context.matchBefore(/[^\s=>]*/);
+                if (!word || (word.from === word.to && !context.explicit)) return null;
+
+                const keyNames = typeof key_translation_map !== 'undefined'
+                    ? Object.keys(key_translation_map) : [];
+
+                // Word is already a complete command → only _cm6_actionSeqSepCompletion shows =>
+                const w = word.text;
+                const isComplete =
+                    actionSeqKeywords.includes(w) || /^loop\d+\{$/.test(w) || /^\d+ms$/.test(w) ||
+                    (w.startsWith('press')   && keyNames.includes(w.slice(5)))  ||
+                    (w.startsWith('release') && keyNames.includes(w.slice(7))) ||
+                    /^j[12](fire|up|down|left|right)[01]$/.test(w);
+                if (isComplete) return null;
+
+                const options = [];
+                for (const kw of actionSeqKeywords) options.push({ label: kw, type: 'keyword' });
+
+                options.push({ label: 'loop5{', type: 'function', detail: 'repeat N times' });
+                options.push({ label: '500ms',  type: 'variable', detail: 'wait N ms'     });
+                options.push({ label: "''",     type: 'string',   detail: 'type text',
+                    apply: (view, _c, from, to) => {
+                        view.dispatch({
+                            changes: { from, to, insert: "''" },
+                            selection: { anchor: from + 1 }
+                        });
                     }
-                    reconfig_editor($("#button_script_language").text());
-                    $(".CodeMirror").css("width","100%").css("min-height","60px");
-                    editor.setSize("100%", 'auto');
-
-                    $("#button_script_add, #button_script_language").each(function(){
-                        $(this).prop('disabled', false).
-                        removeClass( "btn-secondary" ).
-                        addClass("btn-primary");
-                    });
                 });
+
+                for (const key of keyNames) {
+                    options.push({ label: 'press'   + key, type: 'variable', detail: 'press key'   });
+                    options.push({ label: 'release' + key, type: 'variable', detail: 'release key' });
+                }
+
+                for (const port of [1, 2])
+                    for (const dir of ['fire', 'up', 'down', 'left', 'right'])
+                        for (const state of [0, 1]) {
+                            const lbl = `j${port}${dir}${state}`;
+                            options.push({ label: lbl, type: 'variable',
+                                           detail: `port${port} ${dir} ${state ? 'press' : 'release'}` });
+                        }
+
+                return { from: word.from, options, validFor: /^[^\s=>]*$/ };
+            };
+
+            // vc64dark syntax token highlight style
+            const vc64darkHighlight = CM6.HighlightStyle.define([
+                { tag: CM6.tags.keyword,                   color: "#659dd4" },
+                { tag: CM6.tags.operator,                  color: "#d4d4d4" },
+                { tag: [CM6.tags.variableName,
+                         CM6.tags.local(CM6.tags.variableName)], color: "#72c3b0" },
+                { tag: CM6.tags.definition(CM6.tags.variableName), color: "#ddd9ac" },
+                { tag: CM6.tags.typeName,                  color: "#f07178" },
+                { tag: CM6.tags.className,                 color: "#FFCB6B" },
+                { tag: CM6.tags.atom,                      color: "#F78C6C" },
+                { tag: CM6.tags.number,                    color: "#c19177" },
+                { tag: CM6.tags.string,                    color: "#c5947a" },
+                { tag: CM6.tags.comment,                   color: "#759458", fontStyle: "italic" },
+                { tag: CM6.tags.propertyName,              color: "#a9dbfc" },
+                { tag: CM6.tags.tagName,                   color: "#FF5370" },
+                { tag: CM6.tags.meta,                      color: "#FFCB6B" },
+                { tag: CM6.tags.attributeName,             color: "#C792EA" },
+                { tag: CM6.tags.invalid,                   color: "#fff", backgroundColor: "#FF5370" }
+            ]);
+
+            // vc64dark structural theme
+            const vc64darkTheme = CM6.EditorView.theme({
+                "&": {
+                    backgroundColor: "var(--darkbg)",
+                    color:           "var(--lightgray)"
+                },
+                ".cm-content": { caretColor: "#FFCC00" },
+                "&.cm-focused .cm-cursor": { borderLeftColor: "#FFCC00" },
+                ".cm-gutters": {
+                    backgroundColor: "var(--darkbg)",
+                    color:           "#546E7A",
+                    border:          "none"
+                },
+                ".cm-gutterElement": { color: "#546E7A" },
+                "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
+                    backgroundColor: "rgba(128, 203, 196, 0.2)"
+                },
+                ".cm-activeLine":       { backgroundColor: "var(--dark)" },
+                ".cm-activeLineGutter": { backgroundColor: "var(--dark)" },
+                ".cm-matchingBracket":  { textDecoration: "underline", color: "var(--warning) !important" }
+            }, { dark: true });
+
+            const startState = CM6.EditorState.create({
+                doc: textarea.value,
+                extensions: [
+                    _cm6_c_lineNumbers.of(CM6.lineNumbers()),
+                    CM6.highlightActiveLine(),
+                    CM6.indentOnInput(),
+                    CM6.syntaxHighlighting(CM6.defaultHighlightStyle, { fallback: true }),
+                    CM6.bracketMatching(),
+                    CM6.closeBrackets(),
+                    _cm6_c_autocomplete.of(CM6.autocompletion({ activateOnTyping: false })),
+                    ...(()=>{ const jsSupport = CM6.javascript(); return [jsSupport, jsSupport.language.data.of({ autocomplete: globalCompletionSource })]; })(),
+                    _cm6_c_lint.of([_cm6_jshintLinter, CM6.lintGutter()]),
+                    CM6.keymap.of([
+                        ...CM6.closeBracketsKeymap,
+                        ...CM6.defaultKeymap,
+                        ...CM6.historyKeymap,
+                        ...CM6.completionKeymap,
+                        CM6.indentWithTab,
+                        { key: "Ctrl-Space", run: CM6.startCompletion }
+                    ]),
+                    CM6.history(),
+                    _cm6_c_placeholder.of(CM6.placeholder("add example code with the menu button 'add'->'javascript'")),
+                    _cm6_c_theme.of([]),
+                    CM6.EditorView.lineWrapping,
+                    CM6.EditorView.updateListener.of((update) => {
+                        if (update.docChanged) {
+                            textarea.value = update.view.state.doc.toString();
+                            if (update.transactions.some(tr => tr.isUserEvent("input.type") || (tr.isUserEvent("input.complete") && _cm6_current_lang !== 'javascript'))) {
+                                const check_livecomplete = $('#check_livecomplete');
+                                if (check_livecomplete.is(":visible") && check_livecomplete.prop('checked')) {
+                                    const pos      = update.state.selection.main.head;
+                                    const lastChar = update.state.doc.sliceString(pos - 1, pos);
+                                    if (/[\w$.]/.test(lastChar)) {
+                                        requestAnimationFrame(() => CM6.startCompletion(update.view));
+                                    }
+                                }
+                            }
+                            validate_action_script();
+                        }
+                        if (update.selectionSet && !update.docChanged
+                                && _cm6_current_lang !== 'javascript') {
+                            const view = update.view;
+                            setTimeout(() => CM6.startCompletion(view), 10);
+                        }
+                    })
+                ]
+            });
+
+            // Insert editor right after the textarea
+            const editorWrapper = document.createElement('div');
+            textarea.insertAdjacentElement('afterend', editorWrapper);
+
+            editor = new CM6.EditorView({
+                state: startState,
+                parent: editorWrapper
+            });
+            textarea.style.display = 'none';
+
+            // Keep focus/cursor in the editor when Escape is pressed.
+            // Bubble-phase listener on editor.dom: CM6 handles Escape first (e.g. closes
+            // the autocomplete popup), then we stop the event before it reaches the
+            // Bootstrap modal, whose keydown handler would otherwise steal focus.
+            editor.dom.addEventListener('keydown', (event) => {
+                if (event.key === "Escape") {
+                    event.stopPropagation();
+                }
+            });
+
+            // Compatibility shims to keep existing CM5-style API calls working
+            editor.save = () => { textarea.value = editor.state.doc.toString(); };
+            editor.toTextArea = () => {
+                editor.destroy();
+                editorWrapper.remove();
+                textarea.style.display = '';
+                editor = undefined;
+            };
+            editor.getDoc = () => ({
+                setValue: (val) => editor.dispatch({
+                    changes: { from: 0, to: editor.state.doc.length, insert: val }
+                }),
+                getCursor:    () => editor.state.selection.main.head,
+                replaceRange: (text, pos) => editor.dispatch({
+                    changes: { from: pos, insert: text }
+                })
+            });
+
+            if ((call_param_dark == null || call_param_dark) && load_setting('dark_switch', true)) {
+                editor.dispatch({ effects: _cm6_c_theme.reconfigure([vc64darkTheme,
+                    CM6.syntaxHighlighting(vc64darkHighlight)]) });
+            }
+            reconfig_editor($("#button_script_language").text());
+            editor.dom.style.width    = "100%";
+            editor.dom.style.minHeight = "60px";
+
+            $("#button_script_add, #button_script_language").each(function(){
+                $(this).prop('disabled', false)
+                       .removeClass("btn-secondary")
+                       .addClass("btn-primary");
+            });
         }
 
 
 
-        $('#modal_custom_key').on('shown.bs.modal', async function () 
+        //CM6 (jshint + codemirror6 bundle) is loaded statically in shell.html header
+        $('#modal_custom_key').on('shown.bs.modal', function () 
         {
-            if(typeof jshint_loaded != 'undefined')
-            {
-                turn_on_full_editor();
-            }
-            else
-            {   
-                $("#button_script_add, #button_script_language").each(function(){
-                    $(this).prop('disabled', true).
-                    removeClass( "btn-primary" ).
-                    addClass("btn-secondary");
-                });
-                function load_css(url) {
-                    var link = document.createElement("link");
-                    link.type = "text/css";
-                    link.rel = "stylesheet";
-                    link.href = url;
-                    document.getElementsByTagName("head")[0].appendChild(link);
-                }
-                load_css("css/cm/codemirror.css");
-                load_css("css/cm/lint.css");
-                load_css("css/cm/show-hint.css");
-                load_css("css/cm/theme/vc64dark.css");
-
-                //lazy load full editor now
-                await load_script("js/cm/lib/jshint.js");
-                jshint_loaded=true;  
-                await load_script("js/cm/lib/require.js");
-                turn_on_full_editor();
-            }
+            turn_on_full_editor();
         });
 
 

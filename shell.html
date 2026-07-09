@@ -39,6 +39,8 @@
   <script src="js/vc64_storage.js"></script>
   <script src="js/vc64_keyboard.js"></script>
   <script src="js/vc64_action_script.js"></script>
+  <script defer src="js/cm6/jshint.js"></script>
+  <script defer src="js/cm6/codemirror6.bundle.js"></script>
   <script src="js/vc64_updater.js"></script>
   <script src="js/virtualjoystick.js"></script>
   <script src="js/jszip.min.js"></script>
@@ -188,6 +190,12 @@
       </form>
       <button id="button_fullscreen" class="btn btn-sm icon hidden" type="button">
         <svg id="svg_fullscreen" class="bi bi-fs" width="1.6em" height="1.6em" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg" data-toggle="tooltip" data-placement="top" title="fullscreen">
+        </svg>
+      </button>
+      <button id="button_retro_shell" class="btn btn-sm icon" type="button" style="display:none">
+        <svg width="1.6em" height="auto" viewBox="0 0 16 16" fill="currentColor" xmlns="http://www.w3.org/2000/svg" data-toggle="tooltip" data-placement="top" title="RetroShell console">
+          <path d="M6 9a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3A.5.5 0 0 1 6 9zM3.854 4.146a.5.5 0 1 0-.708.708L4.793 6.5 3.146 8.146a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2z"/>
+          <path d="M2 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H2zm12 1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12z"/>
         </svg>
       </button>
       <button id="button_settings" class="btn btn-sm icon" type="button">
@@ -454,6 +462,14 @@
             </div>
             <div id="div_drives"style="font-size: smaller" class="ml-3 mt-1 help_text"></div>
 
+
+            <div class="custom-control custom-switch mt-3">
+              <input type="checkbox" class="custom-control-input" id="retro_shell_enabled_switch" />
+              <label class="custom-control-label" for="retro_shell_enabled_switch">show RetroShell icon in menu bar</label>
+            </div>
+            <div id="retro_shell_enabled_help" class="help_text" style="font-size: small"></div>
+
+
             <div class="custom-control custom-switch mt-3">
               <input type="checkbox" class="custom-control-input" id="dark_switch" />
               <label class="custom-control-label" for="dark_switch">dark mode</label>
@@ -490,8 +506,7 @@
             <div class="custom-control custom-switch mt-1">
               <input type="checkbox" class="custom-control-input" id="symbolic_mapping_switch" />
               <label class="custom-control-label" for="symbolic_mapping_switch">use symbolic keyboard mapping (instead of positional)</label>
-            </div>
-           
+            </div>           
 
             <div class="custom-control custom-switch mt-1">
               <input type="checkbox" class="custom-control-input" id="movable_action_buttons_in_settings_switch" />
@@ -1005,8 +1020,49 @@ The operators or creators of external web resources are soley responsible for th
     <!--take snapshot modal-->
 
 
+    <div class="modal fade" id="modal_retro_shell" tabindex="-1" role="dialog" aria-labelledby="retro_shell_ModalLabel" aria-hidden="true" data-keyboard="false" data-backdrop="false">
+      <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+          <div class="modal-header pb-2">
+            <h5 class="modal-title" id="retro_shell_ModalLabel">RetroShell</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body pt-0" style="position:relative">
+            <pre id="retro_shell_textarea"
+              style="margin:0;flex:1 1 auto;font-family:monospace;font-size:0.9rem;line-height:1.2;width:100%;height:100%;border:none;outline:none;padding:8px;white-space:pre;overflow:auto;font-variant-ligatures:none;"></pre>
+            <textarea id="retro_shell_capture" tabindex="-1" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="none" inputmode="text"
+              style="position:absolute;bottom:8px;left:8px;width:1px;height:1px;opacity:0;padding:0;border:0;margin:0;resize:none;"></textarea>
+          </div>
+          <div class="modal-footer flex-wrap justify-content-start" id="retro_shell_buttons" style="gap:6px">
+            <div id="retro_shell_dpad">
+              <button type="button" class="btn btn-sm btn-secondary" data-rsh="up" title="history back" style="grid-area:up">&#9650;</button>
+              <button type="button" class="btn btn-sm btn-secondary" data-rsh="left" title="cursor left" style="grid-area:left">&#9664;</button>
+              <button type="button" class="btn btn-sm btn-secondary" data-rsh="down" title="history forward" style="grid-area:down">&#9660;</button>
+              <button type="button" class="btn btn-sm btn-secondary" data-rsh="right" title="cursor right" style="grid-area:right">&#9654;</button>
+            </div>
+            <div class="rsh-btn-row">
+              <button type="button" class="btn btn-sm btn-secondary" style="font-size:large"
+               data-rsh="home" title="line start (Home)">&#8676;</button>
+              <button type="button" class="btn btn-sm btn-secondary" style="font-size:large" data-rsh="end" title="line end (End)">&#8677;</button>
+            </div>
+            <div class="rsh-btn-row">
+              <button type="button" class="btn btn-sm btn-secondary" data-rsh="clear" title="clear console">clear</button>
+              <button type="button" class="btn btn-sm btn-secondary" data-rsh="backspace" title="delete">&#9003;</button>
+            </div>
+            <div class="rsh-btn-row">
+              <button type="button" class="btn btn-sm btn-secondary" data-rsh="tab" title="tab / autocomplete">tab</button>
+              <button type="button" class="btn btn-sm btn-primary" data-rsh="return" title="return">&#9166;</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- end of retro shell modal-->
+
     <!-- custom key modal--->    
-    <div class="modal fade" id="modal_custom_key" tabindex="-1" role="dialog" aria-labelledby="custom_key_ModalLabel" aria-hidden="true">
+    <div class="modal fade" id="modal_custom_key" tabindex="-1" role="dialog" aria-labelledby="custom_key_ModalLabel" aria-hidden="true" data-keyboard="false">
       <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
           <div class="modal-header pb-0">

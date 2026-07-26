@@ -892,6 +892,7 @@ function configure_file_dialog(reset=false)
                 }
                 if(call_param_dialog_on_disk == false)
                 {
+                    selected_drive = 8; // default to drive 8 if not specified
                     insert_file(selected_drive);
                 }
                 else

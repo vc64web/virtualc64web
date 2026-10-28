@@ -430,8 +430,8 @@ public:
     // Checks whether the drive is connected and switched on
     bool connectedAndOn() { return config.connected && config.switchedOn; }
 
-    // Checks whether the drive has been idle for a while
-    bool isIdle() const { return watchdog < 0; }
+    // Checks whether the drive is in power-save mode
+    bool isInPowerSaveMode() const { return !needsEmulation && config.connected && config.switchedOn; }
 
     // Returns true iff the red drive LED is on
     bool getRedLED() const { return redLED; };

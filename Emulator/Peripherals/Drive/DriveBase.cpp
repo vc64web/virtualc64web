@@ -28,8 +28,8 @@ Drive::_dump(Category category, std::ostream& os) const
 
     if (category == Category::State) {
 
-        os << tab("Idle");
-        os << bol(isIdle()) << std::endl;
+        os << tab("In Power-Save Mode");
+        os << bol(isInPowerSaveMode()) << std::endl;
         os << tab("Motor");
         os << bol(isRotating(), "on", "off") << std::endl;
         os << tab("Has disk");

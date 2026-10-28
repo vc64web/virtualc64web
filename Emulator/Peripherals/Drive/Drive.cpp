@@ -263,7 +263,7 @@ Drive::setRotating(bool b)
 void
 Drive::wakeUp(isize awakeness)
 {
-    if (isIdle()) {
+    if (isInPowerSaveMode()) {
         
         trace(DRV_DEBUG, "Exiting power-safe mode\n");
         msgQueue.put(MSG_DRIVE_POWER_SAVE, DriveMsg { .nr = i16(objid), .value = 0 } );
@@ -469,7 +469,7 @@ Drive::vsyncHandler()
 
     // Check if we should enter power-safe mode
     if (!spinning && config.powerSave) {
-
+        
         if (--watchdog == 0) {
 
             trace(DRV_DEBUG, "Entering power-save mode\n");

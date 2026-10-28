@@ -530,17 +530,28 @@ void theListener(const void * c64, Message msg){
   }
   else if(msg.type == MSG_DRIVE_STEP)
   {
-      //data1=msg.drive.nr;
-      //data2=msg.drive.value;
     send_message_to_js("DRIVE_STEP", msg.drive.nr, msg.drive.value);
     return;
   }
 
-
-
   const char *message_as_string =  (const char *)MsgTypeEnum::key((MsgType)msg.type);
-  printf("vC64 message=%s, data=%ld\n", message_as_string, msg.value);
-  send_message_to_js(message_as_string, msg.value);
+  if(msg.type == MSG_DRIVE_CONNECT ||
+     msg.type == MSG_DRIVE_POWER ||
+     msg.type == MSG_DRIVE_POWER_SAVE ||
+     msg.type == MSG_DRIVE_LED ||
+     msg.type == MSG_DRIVE_MOTOR ||
+     msg.type == MSG_DISK_INSERT ||
+     msg.type == MSG_DISK_EJECT)
+  {
+    printf("vC64 message=%s, drive=%d, data=%d\n",
+           message_as_string, msg.drive.nr, msg.drive.value);
+    send_message_to_js(message_as_string, msg.drive.nr, msg.drive.value);
+  }
+  else
+  {
+    printf("vC64 message=%s, data=%ld\n", message_as_string, msg.value);
+    send_message_to_js(message_as_string, msg.value);
+  }
 
   if(msg.type == MSG_DISK_INSERT)
   {

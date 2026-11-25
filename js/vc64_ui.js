@@ -2407,6 +2407,8 @@ function InitWrappers() {
     $('#navbar').on('shown.bs.collapse', function () { 
     });
 
+    setTimeout(iPadOS27TopBlurBugfix, 200);
+
     add_click("button_show_menu", function() {
         $('#navbar').collapse('toggle');
     });
@@ -5582,6 +5584,23 @@ function emit_key(the_key, type_first_key_time=200, release_delay_in_ms=50)
     }
 }
 
+//iPadOS27 bug: after closing a modal whose text input had the soft keyboard open,
+//safari blurs the top area. a full screen fixed layer containing a tiny (invisible)
+//child prevents this. it must be inserted at runtime, when it is already present in
+//the static html, the status bar gets rendered dark gray instead of black.
+//has to be applied after the page is fully loaded 100ms. Otherwise the background-color of the top bar stays gray.
+function iPadOS27TopBlurBugfix()
+{
+    const iPadOS27BugfixID='ipados27_top_blur_bugfix';
+    if(document.getElementById(iPadOS27BugfixID)) return;
+    let anchor = document.createElement('div');
+    anchor.id = iPadOS27BugfixID;
+    anchor.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999999';
+    let child = document.createElement('div');
+    child.style.cssText = 'position:absolute;right:0;bottom:0;width:1px;height:1px;background:transparent;opacity:0.0';
+    anchor.appendChild(child);
+    document.body.appendChild(anchor);
+}
 
 function hide_all_tooltips()
 {

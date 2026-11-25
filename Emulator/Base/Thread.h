@@ -17,6 +17,10 @@
 #include "CoreComponent.h"
 #include "Chrono.h"
 #include "Wakeable.h"
+#include <thread>
+#include <atomic>
+#include <latch>
+
 
 namespace vc64 {
 
